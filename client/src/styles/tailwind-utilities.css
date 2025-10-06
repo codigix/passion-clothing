@@ -1,0 +1,23 @@
+/* Tailwind utility classes for buttons and cards */
+
+.btn {
+  @apply px-4 py-2 rounded font-semibold transition-colors duration-150 focus:outline-none;
+}
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+.btn-secondary {
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+}
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+.card {
+  @apply bg-white shadow rounded p-6;
+}
+.card-header {
+  @apply font-bold text-lg mb-2;
+}
+.card-body {
+  @apply text-gray-700;
+}

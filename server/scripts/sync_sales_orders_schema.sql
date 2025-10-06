@@ -1,0 +1,22 @@
+-- SQL script to sync sales_orders table with Sequelize model
+ALTER TABLE sales_orders
+  ADD COLUMN IF NOT EXISTS approval_status ENUM('not_requested', 'pending', 'in_review', 'approved', 'rejected') NOT NULL DEFAULT 'not_requested',
+  ADD COLUMN IF NOT EXISTS approval_requested_by INT NULL,
+  ADD COLUMN IF NOT EXISTS approval_requested_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS approval_decision_note TEXT NULL,
+  ADD COLUMN IF NOT EXISTS approval_decided_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS ready_for_procurement BOOLEAN NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS ready_for_procurement_by INT NULL,
+  ADD COLUMN IF NOT EXISTS ready_for_procurement_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS procurement_notes TEXT NULL,
+  ADD COLUMN IF NOT EXISTS production_started_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS production_completed_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS shipped_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS delivered_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS lifecycle_history JSON NULL DEFAULT (JSON_ARRAY()),
+  ADD COLUMN IF NOT EXISTS has_lifecycle_qr BOOLEAN NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS lifecycle_qr_token VARCHAR(120) NULL UNIQUE,
+  ADD COLUMN IF NOT EXISTS lifecycle_qr_status ENUM('pending', 'active', 'revoked', 'expired') NULL,
+  ADD COLUMN IF NOT EXISTS lifecycle_qr_generated_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS lifecycle_qr_last_scanned_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS lifecycle_qr_scan_count INT NOT NULL DEFAULT 0;

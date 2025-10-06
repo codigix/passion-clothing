@@ -1,0 +1,290 @@
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Menu,
+  LogOut,
+  LayoutDashboard,
+  ShoppingCart,
+  FileText,
+  Building,
+  Receipt,
+  Package,
+  Bell,
+  Factory,
+  Clock,
+  Microscope,
+  Truck,
+  Store,
+  DollarSign,
+  User,
+  Shield,
+  Settings,
+  Scan,
+  CheckCircle,
+} from 'lucide-react';
+
+import { useAuth } from '../../contexts/AuthContext';
+import { useStore } from '../../contexts/StoreContext';
+import api from '../../utils/api';
+
+const drawerWidth = 240;
+const collapsedDrawerWidth = 64;
+
+const Sidebar = ({ open, onToggle }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuth();
+  const { openStockModal } = useStore();
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+
+  // Fetch pending approvals count for procurement department
+  useEffect(() => {
+    if (user?.department === 'procurement' || user?.department === 'admin') {
+      fetchPendingApprovalsCount();
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchPendingApprovalsCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.department]);
+
+  const fetchPendingApprovalsCount = async () => {
+    try {
+      const response = await api.get('/procurement/pos', {
+        params: { status: 'pending_approval' }
+      });
+      const pos = response.data.purchaseOrders || response.data.pos || [];
+      setPendingApprovalsCount(pos.length);
+    } catch (error) {
+      console.error('Error fetching pending approvals count:', error);
+    }
+  };
+
+  const getDepartmentMenuItems = (department) => {
+    const menuItems = {
+      sales: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/sales' },
+        { text: 'Sales Orders', icon: <ShoppingCart size={18} />, path: '/sales/orders' },
+        { text: 'Create Order', icon: <FileText size={18} />, path: '/sales/orders/create' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/sales/reports' },
+      ],
+      procurement: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/procurement' },
+        { text: 'Pending Approvals', icon: <CheckCircle size={18} />, path: '/procurement/pending-approvals', badge: pendingApprovalsCount },
+        { text: 'Purchase Orders', icon: <ShoppingCart size={18} />, path: '/procurement/purchase-orders' },
+        { text: 'Create Purchase Order', icon: <FileText size={18} />, path: '/procurement/purchase-orders/create' },
+        { text: 'Vendors', icon: <Building size={18} />, path: '/procurement/vendors' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/procurement/reports' },
+      ],
+      challans: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/challans' },
+        { text: 'Challan Register', icon: <Receipt size={18} />, path: '/challans/register' },
+        { text: 'Create Challan', icon: <Receipt size={18} />, path: '/challans/create' },
+      ],
+      inventory: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/inventory' },
+        { text: 'Products', icon: <Package size={18} />, path: '/inventory/products' },
+        { text: 'Barcode Lookup', icon: <Scan size={18} />, path: '/inventory/barcode-lookup' },
+        { text: 'Lifecycle Tracking', icon: <Clock size={18} />, path: '/inventory/lifecycle' },
+        { text: 'Stock Management', icon: <Package size={18} />, path: '/inventory/stock' },
+        { text: 'Goods Receipt (GRN)', icon: <Receipt size={18} />, path: '/inventory/grn' },
+        { text: 'Stock Alerts', icon: <Bell size={18} />, path: '/inventory/alerts' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/inventory/reports' },
+      ],
+      manufacturing: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/manufacturing' },
+        { text: 'Production Orders', icon: <Factory size={18} />, path: '/manufacturing/orders' },
+        { text: 'Production Tracking', icon: <Clock size={18} />, path: '/manufacturing/tracking' },
+        { text: 'Quality Control', icon: <Microscope size={18} />, path: '/manufacturing/quality' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/manufacturing/reports' },
+      ],
+      outsourcing: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/outsourcing' },
+        { text: 'Outward Challans', icon: <Receipt size={18} />, path: '/outsourcing/outward' },
+        { text: 'Inward Challans', icon: <Receipt size={18} />, path: '/outsourcing/inward' },
+        { text: 'Vendor Tracking', icon: <Building size={18} />, path: '/outsourcing/tracking' },
+      ],
+      samples: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/samples' },
+        { text: 'Sample Orders', icon: <Microscope size={18} />, path: '/samples/orders' },
+        { text: 'Sample Tracking', icon: <Clock size={18} />, path: '/samples/tracking' },
+        { text: 'Conversion Reports', icon: <FileText size={18} />, path: '/samples/reports' },
+      ],
+      shipment: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/shipment' },
+        { text: 'Dispatch Orders', icon: <Truck size={18} />, path: '/shipment/dispatch' },
+        { text: 'Tracking', icon: <Clock size={18} />, path: '/shipment/tracking' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/shipment/reports' },
+      ],
+      store: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/store' },
+        { text: 'Stock Management', icon: <Store size={18} />, path: '/store/stock' },
+        { text: 'Sales Tracking', icon: <ShoppingCart size={18} />, path: '/store/sales' },
+        { text: 'Returns', icon: <Receipt size={18} />, path: '/store/returns' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/store/reports' },
+      ],
+      finance: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/finance' },
+        { text: 'Invoices', icon: <Receipt size={18} />, path: '/finance/invoices' },
+        { text: 'Payments', icon: <DollarSign size={18} />, path: '/finance/payments' },
+        { text: 'Reports', icon: <FileText size={18} />, path: '/finance/reports' },
+      ],
+      admin: [
+        { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/admin' },
+        { text: 'User Management', icon: <User size={18} />, path: '/admin/users' },
+        { text: 'Role Management', icon: <Shield size={18} />, path: '/admin/roles' },
+        { text: 'System Config', icon: <Settings size={18} />, path: '/admin/config' },
+      ],
+    };
+
+    return menuItems[department] || [];
+  };
+
+  const commonMenuItems = [
+    { text: 'Profile', icon: <User size={18} />, path: '/profile' },
+    { text: 'Attendance', icon: <Clock size={18} />, path: '/attendance' },
+    { text: 'Notifications', icon: <Bell size={18} />, path: '/notifications' },
+  ];
+
+  const departmentMenuItems = getDepartmentMenuItems(user?.department);
+
+  const handleNavigation = (path) => {
+    if (path === '/store/stock' && user?.department === 'store' && openStockModal) {
+      openStockModal();
+      return;
+    }
+
+    navigate(path);
+  };
+
+  const isActive = (path) => location.pathname === path;
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`fixed left-0 top-0 h-full bg-primary-600 text-white transition-all duration-300 ease-in-out z-40 ${
+        open ? 'w-60' : 'w-16'
+      }`}
+    >
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div
+          className={`flex items-center ${
+            open ? 'justify-between px-4' : 'justify-center px-2'
+          } py-4 bg-primary-700`}
+        >
+          {open && (
+            <h1 className="text-lg font-semibold truncate">
+              Passion ERP
+            </h1>
+          )}
+          <button
+            onClick={onToggle}
+            className="text-white hover:bg-primary-800 rounded-md p-1 transition-colors"
+          >
+            <Menu size={20} />
+          </button>
+        </div>
+
+        {/* User Profile */}
+        <div
+          className={`px-4 py-6 flex flex-col items-center gap-2 ${
+            open ? 'items-start' : 'items-center'
+          }`}
+        >
+          <div className="w-10 h-10 bg-secondary-500 rounded-full flex items-center justify-center font-semibold">
+            {user.name?.[0] || user.email?.[0] || '?'}
+          </div>
+          {open && (
+            <>
+              <h2 className="text-sm font-medium truncate">
+                {user.name}
+              </h2>
+              <p className="text-xs text-white/70 truncate">
+                {user.role?.name}
+              </p>
+            </>
+          )}
+        </div>
+
+        <hr className="border-white/20" />
+
+        {/* Department Menu */}
+        <nav className={`flex-1 ${open ? 'px-2' : 'px-0'} py-2`}>
+          {departmentMenuItems.map((item) => (
+            <button
+              key={item.text}
+              onClick={() => handleNavigation(item.path)}
+              className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
+                isActive(item.path) ? 'bg-white/20' : ''
+              } relative`}
+            >
+              <span className="text-white flex-shrink-0">
+                {item.icon}
+              </span>
+              {open && (
+                <span className="text-sm truncate flex-1">
+                  {item.text}
+                </span>
+              )}
+              {item.badge > 0 && (
+                <span className={`${open ? 'relative' : 'absolute top-1 right-1'} bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5`}>
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <hr className="border-white/20" />
+
+        {/* Common Menu */}
+        <nav className={`${open ? 'px-2' : 'px-0'} py-2`}>
+          {commonMenuItems.map((item) => (
+            <button
+              key={item.text}
+              onClick={() => handleNavigation(item.path)}
+              className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
+                isActive(item.path) ? 'bg-white/20' : ''
+              }`}
+            >
+              <span className="text-white flex-shrink-0">
+                {item.icon}
+              </span>
+              {open && (
+                <span className="text-sm truncate">
+                  {item.text}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <hr className="border-white/20" />
+
+        {/* Logout */}
+        <div className={`${open ? 'px-2' : 'px-0'} py-4`}>
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-white/10"
+          >
+            <LogOut size={18} className="text-white flex-shrink-0" />
+            {open && (
+              <span className="text-sm">Logout</span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Sidebar.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+};
+
+export default Sidebar;
