@@ -87,6 +87,8 @@ const MaterialDispatch = require('../models/MaterialDispatch')(sequelize);
 const MaterialReceipt = require('../models/MaterialReceipt')(sequelize);
 const MaterialVerification = require('../models/MaterialVerification')(sequelize);
 const ProductionApproval = require('../models/ProductionApproval')(sequelize);
+const MaterialRequirement = require('../models/MaterialRequirement')(sequelize);
+const QualityCheckpoint = require('../models/QualityCheckpoint')(sequelize);
 
 // Define associations
 const defineAssociations = () => {
@@ -143,9 +145,14 @@ const defineAssociations = () => {
   // Production Order associations
   ProductionOrder.belongsTo(SalesOrder, { foreignKey: 'sales_order_id', as: 'salesOrder' });
   ProductionOrder.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+  ProductionOrder.belongsTo(User, { foreignKey: 'supervisor_id', as: 'supervisor' });
+  ProductionOrder.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedUser' });
+  ProductionOrder.belongsTo(User, { foreignKey: 'qa_lead_id', as: 'qaLead' });
   ProductionOrder.hasMany(ProductionStage, { foreignKey: 'production_order_id', as: 'stages' });
   ProductionOrder.hasMany(Rejection, { foreignKey: 'production_order_id', as: 'rejections' });
   ProductionOrder.hasMany(Challan, { foreignKey: 'order_id', as: 'challans' });
+  ProductionOrder.hasMany(MaterialRequirement, { foreignKey: 'production_order_id', as: 'materialRequirements' });
+  ProductionOrder.hasMany(QualityCheckpoint, { foreignKey: 'production_order_id', as: 'qualityCheckpoints' });
 
   // Production Stage associations
   ProductionStage.belongsTo(ProductionOrder, { foreignKey: 'production_order_id', as: 'productionOrder' });
@@ -319,6 +326,16 @@ const defineAssociations = () => {
   MaterialVerification.hasOne(ProductionApproval, { foreignKey: 'verification_id', as: 'approval' });
   ProjectMaterialRequest.hasMany(ProductionApproval, { foreignKey: 'mrn_request_id', as: 'approvals' });
   ProductionOrder.hasMany(ProductionApproval, { foreignKey: 'production_order_id', as: 'approvals' });
+
+  // Material Requirement associations
+  MaterialRequirement.belongsTo(ProductionOrder, { foreignKey: 'production_order_id', as: 'productionOrder' });
+
+  // Quality Checkpoint associations
+  QualityCheckpoint.belongsTo(ProductionOrder, { foreignKey: 'production_order_id', as: 'productionOrder' });
+  QualityCheckpoint.belongsTo(ProductionStage, { foreignKey: 'production_stage_id', as: 'productionStage' });
+  QualityCheckpoint.belongsTo(User, { foreignKey: 'checked_by', as: 'checker' });
+  
+  ProductionStage.hasMany(QualityCheckpoint, { foreignKey: 'production_stage_id', as: 'qualityCheckpoints' });
 };
 
 defineAssociations();
@@ -362,7 +379,9 @@ const db = {
   MaterialDispatch,
   MaterialReceipt,
   MaterialVerification,
-  ProductionApproval
+  ProductionApproval,
+  MaterialRequirement,
+  QualityCheckpoint
 };
 
 module.exports = db;

@@ -6,7 +6,10 @@ import {
   CheckCircle, 
   QrCode, 
   Camera,
-  Loader2
+  Loader2,
+  Search,
+  Link as LinkIcon,
+  AlertTriangle
 } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -21,6 +24,8 @@ const StockDispatchPage = () => {
   const [dispatchedMaterials, setDispatchedMaterials] = useState([]);
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [dispatchPhotos, setDispatchPhotos] = useState([]);
+  const [searchingInventory, setSearchingInventory] = useState({});
+  const [inventoryResults, setInventoryResults] = useState({});
 
   useEffect(() => {
     fetchMRNDetails();
@@ -72,6 +77,48 @@ const StockDispatchPage = () => {
     setDispatchedMaterials(updated);
   };
 
+  const searchInventoryForMaterial = async (index, materialName) => {
+    try {
+      setSearchingInventory({ ...searchingInventory, [index]: true });
+      const response = await api.get('/inventory-enhanced', {
+        params: { search: materialName, limit: 10 }
+      });
+      
+      const items = response.data.inventory || [];
+      setInventoryResults({ ...inventoryResults, [index]: items });
+      
+      if (items.length === 0) {
+        toast.error(`No inventory items found for "${materialName}"`);
+      }
+    } catch (error) {
+      console.error('Error searching inventory:', error);
+      toast.error('Failed to search inventory');
+    } finally {
+      setSearchingInventory({ ...searchingInventory, [index]: false });
+    }
+  };
+
+  const linkInventoryItem = (materialIndex, inventoryItem) => {
+    const updated = [...dispatchedMaterials];
+    updated[materialIndex] = {
+      ...updated[materialIndex],
+      inventory_id: inventoryItem.id,
+      barcode: inventoryItem.barcode || updated[materialIndex].barcode,
+      location: inventoryItem.location || updated[materialIndex].location,
+      batch_number: inventoryItem.batch_number || updated[materialIndex].batch_number,
+      available_stock: inventoryItem.current_stock || inventoryItem.quantity,
+      linked_item_name: inventoryItem.product_name
+    };
+    setDispatchedMaterials(updated);
+    
+    // Clear search results for this material
+    const newResults = { ...inventoryResults };
+    delete newResults[materialIndex];
+    setInventoryResults(newResults);
+    
+    toast.success(`Linked to inventory: ${inventoryItem.product_name}`);
+  };
+
   const handlePhotoUpload = (event) => {
     const files = Array.from(event.target.files);
     // In real app, upload to server and get URLs
@@ -92,15 +139,37 @@ const StockDispatchPage = () => {
         return;
       }
 
+      // Check for stock availability issues
+      const insufficientStock = dispatchedMaterials.filter(m => 
+        m.inventory_id && 
+        m.available_stock !== undefined && 
+        m.quantity_dispatched > m.available_stock
+      );
+      
+      if (insufficientStock.length > 0) {
+        toast.error(`Insufficient stock for: ${insufficientStock.map(m => m.material_name).join(', ')}`);
+        setSubmitting(false);
+        return;
+      }
+
       // Check for missing inventory_id (warning, not blocking)
       const missingInventoryId = dispatchedMaterials.filter(m => !m.inventory_id);
       if (missingInventoryId.length > 0) {
         console.warn(`⚠️ ${missingInventoryId.length} material(s) don't have inventory_id:`, 
           missingInventoryId.map(m => m.material_name));
-        toast('⚠️ Some materials not linked to inventory - stock won\'t be deducted', { 
-          duration: 4000,
-          icon: '⚠️'
-        });
+        
+        // Show confirmation dialog
+        const confirmed = window.confirm(
+          `⚠️ ${missingInventoryId.length} material(s) are not linked to inventory.\n\n` +
+          `Materials: ${missingInventoryId.map(m => m.material_name).join(', ')}\n\n` +
+          `Stock will NOT be deducted for these materials.\n\n` +
+          `Do you want to proceed with dispatch?`
+        );
+        
+        if (!confirmed) {
+          setSubmitting(false);
+          return;
+        }
       }
 
       const dispatchData = {
@@ -110,7 +179,7 @@ const StockDispatchPage = () => {
         dispatch_photos: dispatchPhotos
       };
 
-      await api.post('/material-dispatch/create', dispatchData);
+      const response = await api.post('/material-dispatch/create', dispatchData);
       
       toast.success('Materials dispatched successfully!');
       navigate('/inventory/material-requests');
@@ -202,8 +271,9 @@ const StockDispatchPage = () => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Material Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Material Code</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inventory Link</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Requested</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Available</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Dispatch Qty</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Barcode</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Batch #</th>
@@ -212,59 +282,135 @@ const StockDispatchPage = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {dispatchedMaterials.map((material, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{material.material_name}</td>
-                    <td className="px-4 py-3 text-sm">{material.material_code}</td>
-                    <td className="px-4 py-3 text-sm text-right">
-                      {material.quantity_requested} {material.uom}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-24 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        value={material.quantity_dispatched}
-                        onChange={(e) => handleMaterialChange(index, 'quantity_dispatched', e.target.value)}
-                        min="0"
-                        max={material.quantity_requested}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
+                  <React.Fragment key={index}>
+                    <tr className={`hover:bg-gray-50 ${!material.inventory_id ? 'bg-warning-50' : ''}`}>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium">{material.material_name}</p>
+                          <p className="text-xs text-gray-500">{material.material_code}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {material.inventory_id ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-success-100 text-success-700 rounded-full text-xs">
+                              <CheckCircle className="w-3 h-3" />
+                              Linked
+                            </div>
+                            {material.linked_item_name && (
+                              <span className="text-xs text-gray-600">{material.linked_item_name}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => searchInventoryForMaterial(index, material.material_name)}
+                            disabled={searchingInventory[index]}
+                            className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          >
+                            {searchingInventory[index] ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Search className="w-4 h-4" />
+                            )}
+                            Link to Stock
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {material.quantity_requested} {material.uom}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {material.available_stock !== undefined ? (
+                          <span className={`text-sm font-medium ${material.available_stock < material.quantity_dispatched ? 'text-error-600' : 'text-success-600'}`}>
+                            {material.available_stock}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <input
+                          type="number"
+                          className="w-24 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          value={material.quantity_dispatched}
+                          onChange={(e) => handleMaterialChange(index, 'quantity_dispatched', parseFloat(e.target.value) || 0)}
+                          min="0"
+                          max={material.available_stock || material.quantity_requested}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
                         <input
                           type="text"
-                          className="flex-1 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                           value={material.barcode}
                           onChange={(e) => handleMaterialChange(index, 'barcode', e.target.value)}
-                          placeholder="Scan/Enter"
+                          placeholder="Barcode"
                         />
-                        <button className="p-1 hover:bg-gray-100 rounded">
-                          <QrCode className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        value={material.batch_number}
-                        onChange={(e) => handleMaterialChange(index, 'batch_number', e.target.value)}
-                        placeholder="Batch"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        value={material.location}
-                        onChange={(e) => handleMaterialChange(index, 'location', e.target.value)}
-                        placeholder="Location"
-                      />
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="text"
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                          value={material.batch_number}
+                          onChange={(e) => handleMaterialChange(index, 'batch_number', e.target.value)}
+                          placeholder="Batch"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="text"
+                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                          value={material.location}
+                          onChange={(e) => handleMaterialChange(index, 'location', e.target.value)}
+                          placeholder="Location"
+                        />
+                      </td>
+                    </tr>
+                    {/* Inventory Search Results */}
+                    {inventoryResults[index] && inventoryResults[index].length > 0 && (
+                      <tr>
+                        <td colSpan="8" className="px-4 py-3 bg-gray-50">
+                          <div className="text-xs font-semibold text-gray-700 mb-2">Select Inventory Item:</div>
+                          <div className="space-y-1">
+                            {inventoryResults[index].map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => linkInventoryItem(index, item)}
+                                className="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-primary-50 border border-gray-200 rounded-lg text-left transition-colors"
+                              >
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-900">{item.product_name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {item.product_code} | Stock: {item.current_stock || item.quantity} {item.uom} | Location: {item.location || 'N/A'}
+                                  </p>
+                                </div>
+                                <LinkIcon className="w-4 h-4 text-primary-600" />
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
           </div>
+          
+          {/* Warning if materials not linked */}
+          {dispatchedMaterials.some(m => !m.inventory_id) && (
+            <div className="mt-4 p-3 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-warning-800">
+                  Some materials are not linked to inventory
+                </p>
+                <p className="text-xs text-warning-700 mt-1">
+                  Stock quantities will not be deducted for unlinked materials. Click "Link to Stock" to search and link inventory items.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dispatch Notes & Photos */}

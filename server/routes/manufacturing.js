@@ -1,6 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { ProductionOrder, ProductionStage, Rejection, SalesOrder, Product, User, Challan, MaterialAllocation, Inventory, InventoryMovement } = require('../config/database');
+const { ProductionOrder, ProductionStage, Rejection, SalesOrder, Product, User, Challan, MaterialAllocation, Inventory, InventoryMovement, MaterialRequirement, QualityCheckpoint } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
 const { updateOrderQRCode } = require('../utils/qrCodeUtils');
 const NotificationService = require('../utils/notificationService');
@@ -24,6 +24,60 @@ router.get(
             model: SalesOrder,
             as: 'salesOrder',
             attributes: ['id', 'order_number', 'delivery_date', 'customer_id', 'status']
+          },
+          {
+            model: User,
+            as: 'supervisor',
+            attributes: ['id', 'name', 'employee_id', 'department']
+          },
+          {
+            model: User,
+            as: 'assignedUser',
+            attributes: ['id', 'name', 'employee_id', 'department']
+          },
+          {
+            model: User,
+            as: 'qaLead',
+            attributes: ['id', 'name', 'employee_id', 'department']
+          },
+          {
+            model: MaterialRequirement,
+            as: 'materialRequirements',
+            attributes: [
+              'id',
+              'material_id',
+              'description',
+              'required_quantity',
+              'allocated_quantity',
+              'consumed_quantity',
+              'unit',
+              'status',
+              'notes'
+            ]
+          },
+          {
+            model: QualityCheckpoint,
+            as: 'qualityCheckpoints',
+            attributes: [
+              'id',
+              'production_stage_id',
+              'name',
+              'frequency',
+              'acceptance_criteria',
+              'checkpoint_order',
+              'status',
+              'result',
+              'checked_at',
+              'checked_by',
+              'notes'
+            ],
+            include: [
+              {
+                model: User,
+                as: 'checker',
+                attributes: ['id', 'name', 'employee_id']
+              }
+            ]
           },
           {
             model: ProductionStage,
@@ -79,7 +133,10 @@ router.get(
             attributes: ['id', 'challan_number', 'type', 'status', 'created_at']
           }
         ],
-        order: [[{ model: ProductionStage, as: 'stages' }, 'stage_order', 'ASC']]
+        order: [
+          [{ model: ProductionStage, as: 'stages' }, 'stage_order', 'ASC'],
+          [{ model: QualityCheckpoint, as: 'qualityCheckpoints' }, 'checkpoint_order', 'ASC']
+        ]
       });
 
       if (!productionOrder) {
@@ -111,13 +168,19 @@ router.get(
           estimated_hours: productionOrder.estimated_hours,
           actual_hours: productionOrder.actual_hours,
           special_instructions: productionOrder.special_instructions,
-          materials_required: productionOrder.materials_required,
-          quality_parameters: productionOrder.quality_parameters,
+          shift: productionOrder.shift,
+          team_notes: productionOrder.team_notes,
           progress_percentage: progressPercentage,
           product: productionOrder.product,
           salesOrder: productionOrder.salesOrder,
+          supervisor: productionOrder.supervisor,
+          assignedUser: productionOrder.assignedUser,
+          qaLead: productionOrder.qaLead,
+          materialRequirements: productionOrder.materialRequirements,
+          qualityCheckpoints: productionOrder.qualityCheckpoints,
           stages: productionOrder.stages,
-          rejections: productionOrder.rejections
+          rejections: productionOrder.rejections,
+          challans: productionOrder.challans
         }
       });
     } catch (error) {
@@ -364,15 +427,43 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
       product_id,
       quantity,
       priority = 'medium',
-      production_type = 'standard',
+      production_type = 'in_house',
       planned_start_date,
       planned_end_date,
       special_instructions,
-      assigned_user_id
+      assigned_user_id,
+      supervisor_id,
+      qa_lead_id,
+      shift,
+      team_notes,
+      estimated_hours,
+      materials_required = [],
+      quality_parameters = [],
+      stages = [],
+      use_custom_stages = false
     } = req.body;
+
+    console.log('=== Production Order Creation Request ===');
+    console.log('product_id received:', product_id, 'Type:', typeof product_id);
+    console.log('quantity received:', quantity, 'Type:', typeof quantity);
+    console.log('materials_required:', materials_required.length, 'items');
+    console.log('quality_parameters:', quality_parameters.length, 'checkpoints');
+    console.log('use_custom_stages:', use_custom_stages, 'custom stages:', stages.length);
 
     if (!product_id || !quantity || !planned_start_date || !planned_end_date) {
       return res.status(400).json({ message: 'Product, quantity, and dates are required' });
+    }
+
+    // Validate product_id is numeric
+    const numericProductId = Number(product_id);
+    console.log('numericProductId after conversion:', numericProductId, 'isNaN:', isNaN(numericProductId), 'isInteger:', Number.isInteger(numericProductId));
+    if (isNaN(numericProductId) || numericProductId <= 0 || !Number.isInteger(numericProductId)) {
+      console.error('Invalid product_id received:', product_id, 'Type:', typeof product_id);
+      return res.status(400).json({ 
+        message: 'Invalid product ID. Product ID must be a valid positive integer.',
+        received: product_id,
+        type: typeof product_id
+      });
     }
 
     // Generate production number
@@ -382,47 +473,124 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
     const nextNumber = lastOrder ? parseInt(lastOrder.production_number.split('-')[2]) + 1 : 1;
     const productionNumber = `PROD-${new Date().getFullYear()}-${nextNumber.toString().padStart(3, '0')}`;
 
+    // Create production order with all wizard data
     const order = await ProductionOrder.create({
       production_number: productionNumber,
       sales_order_id: sales_order_id || null,
-      product_id,
+      product_id: numericProductId,
       quantity,
       priority,
       production_type,
       planned_start_date,
       planned_end_date,
       special_instructions,
-      assigned_user_id,
+      assigned_user_id: assigned_user_id || null,
+      supervisor_id: supervisor_id || null,
+      qa_lead_id: qa_lead_id || null,
+      shift: shift || null,
+      team_notes: team_notes || null,
+      estimated_hours: estimated_hours || null,
       created_by: req.user.id
     });
 
-    // Create default stages
-    const defaultStages = [
-      { stage_name: 'cutting', stage_order: 1, planned_duration_hours: 8 },
-      { stage_name: 'embroidery', stage_order: 2, planned_duration_hours: 6 },
-      { stage_name: 'stitching', stage_order: 3, planned_duration_hours: 12 },
-      { stage_name: 'finishing', stage_order: 4, planned_duration_hours: 4 },
-      { stage_name: 'quality_check', stage_order: 5, planned_duration_hours: 2 },
-      { stage_name: 'packaging', stage_order: 6, planned_duration_hours: 2 }
-    ];
+    console.log('Production order created with ID:', order.id);
 
-    for (const stageData of defaultStages) {
-      await ProductionStage.create({
+    // Create material requirements
+    if (materials_required && materials_required.length > 0) {
+      const materialRecords = materials_required.map(material => ({
         production_order_id: order.id,
-        ...stageData
+        material_id: material.materialId || material.material_id,
+        description: material.description,
+        required_quantity: material.requiredQuantity || material.required_quantity,
+        unit: material.unit,
+        status: material.status || 'available',
+        notes: material.notes || null
+      }));
+      
+      await MaterialRequirement.bulkCreate(materialRecords);
+      console.log('Created', materialRecords.length, 'material requirements');
+    }
+
+    // Create quality checkpoints
+    if (quality_parameters && quality_parameters.length > 0) {
+      const checkpointRecords = quality_parameters.map((checkpoint, index) => ({
+        production_order_id: order.id,
+        name: checkpoint.name,
+        frequency: checkpoint.frequency || 'per_batch',
+        acceptance_criteria: checkpoint.acceptanceCriteria || checkpoint.acceptance_criteria,
+        checkpoint_order: index + 1,
+        status: 'pending'
+      }));
+      
+      await QualityCheckpoint.bulkCreate(checkpointRecords);
+      console.log('Created', checkpointRecords.length, 'quality checkpoints');
+    }
+
+    // Create production stages (custom or default)
+    let stagesToCreate = [];
+    
+    if (use_custom_stages && stages && stages.length > 0) {
+      // Use custom stages from wizard
+      stagesToCreate = stages.map((stage, index) => ({
+        production_order_id: order.id,
+        stage_name: stage.stageName || stage.stage_name,
+        stage_order: index + 1,
+        planned_duration_hours: stage.plannedDurationHours || stage.planned_duration_hours || null,
+        status: 'pending'
+      }));
+      console.log('Using', stages.length, 'custom stages from wizard');
+    } else {
+      // Use default stages
+      stagesToCreate = [
+        { stage_name: 'Calculate Material Review', stage_order: 1, planned_duration_hours: null },
+        { stage_name: 'Cutting', stage_order: 2, planned_duration_hours: null },
+        { stage_name: 'Embroidery or Printing', stage_order: 3, planned_duration_hours: null },
+        { stage_name: 'Stitching', stage_order: 4, planned_duration_hours: null },
+        { stage_name: 'Finishing', stage_order: 5, planned_duration_hours: null },
+        { stage_name: 'Quality Check', stage_order: 6, planned_duration_hours: null }
+      ].map(stage => ({
+        production_order_id: order.id,
+        ...stage,
+        status: 'pending'
+      }));
+      console.log('Using 6 default stages');
+    }
+
+    await ProductionStage.bulkCreate(stagesToCreate);
+    console.log('Created', stagesToCreate.length, 'production stages');
+
+    // Send notification to manufacturing team
+    try {
+      await NotificationService.notifyDepartment('manufacturing', {
+        title: 'New Production Order Created',
+        message: `Production order ${productionNumber} has been created and is ready for processing.`,
+        type: 'production_order_created',
+        related_id: order.id
       });
+    } catch (notificationError) {
+      console.error('Failed to send notification:', notificationError);
+      // Don't fail the request if notification fails
     }
 
     res.status(201).json({
       message: 'Production order created successfully',
       order: {
         id: order.id,
-        production_number: order.production_number
+        production_number: order.production_number,
+        materials_count: materials_required.length,
+        quality_checkpoints_count: quality_parameters.length,
+        stages_count: stagesToCreate.length
       }
     });
   } catch (error) {
     console.error('Production order creation error:', error);
-    res.status(500).json({ message: 'Failed to create production order' });
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
+    res.status(500).json({ 
+      message: 'Failed to create production order',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

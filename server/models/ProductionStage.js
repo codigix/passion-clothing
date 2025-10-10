@@ -16,11 +16,9 @@ module.exports = (sequelize) => {
       }
     },
     stage_name: {
-      type: DataTypes.ENUM(
-        'material_allocation', 'cutting', 'embroidery', 'printing', 
-        'stitching', 'finishing', 'ironing', 'packing', 'quality_check'
-      ),
-      allowNull: false
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      comment: 'Name of the production stage - supports custom values from wizard'
     },
     stage_order: {
       type: DataTypes.INTEGER,

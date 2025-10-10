@@ -147,6 +147,25 @@ module.exports = (sequelize) => {
         model: 'users',
         key: 'id'
       }
+    },
+    qa_lead_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      comment: 'QA Lead responsible for quality checks'
+    },
+    shift: {
+      type: DataTypes.ENUM('morning', 'afternoon', 'evening', 'night', 'day', 'flexible'),
+      allowNull: true,
+      comment: 'Production shift schedule'
+    },
+    team_notes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Notes about team assignments and responsibilities'
     }
   }, {
     tableName: 'production_orders',

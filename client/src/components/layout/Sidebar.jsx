@@ -23,6 +23,7 @@ import {
   Scan,
   CheckCircle,
   Send,
+  Wand2,
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -129,6 +130,7 @@ const Sidebar = ({ open, onToggle }) => {
       ],
       manufacturing: [
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/manufacturing' },
+        { text: 'Production Wizard', icon: <Wand2 size={18} />, path: '/manufacturing/wizard', highlight: true },
         { text: 'Production Orders', icon: <Factory size={18} />, path: '/manufacturing/orders' },
         { text: 'Production Tracking', icon: <Clock size={18} />, path: '/manufacturing/tracking' },
         { text: 'Material Requests (MRN)', icon: <Send size={18} />, path: '/manufacturing/material-requests' },

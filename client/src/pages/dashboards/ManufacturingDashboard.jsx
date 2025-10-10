@@ -75,6 +75,10 @@ const ManufacturingDashboard = () => {
   const [outsourcingDialogOpen, setOutsourcingDialogOpen] = useState(false);
   const [qualityCheckDialogOpen, setQualityCheckDialogOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [productSelectionDialogOpen, setProductSelectionDialogOpen] = useState(false);
+  const [pendingProductionOrder, setPendingProductionOrder] = useState(null);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [selectedProductForProduction, setSelectedProductForProduction] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -207,7 +211,9 @@ const ManufacturingDashboard = () => {
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products');
-      setProducts(response.data.products || []);
+      const productsList = response.data.products || [];
+      setProducts(productsList);
+      setAvailableProducts(productsList);
     } catch (error) {
       console.error('Failed to fetch products:', error);
     }
@@ -380,16 +386,46 @@ const ManufacturingDashboard = () => {
   // Production Workflow Functions
   const handleStartProduction = async (order) => {
     try {
+      console.log('=== Start Production Clicked ===');
+      console.log('Order data:', JSON.stringify(order, null, 2));
+      console.log('product_id:', order.product_id, 'Type:', typeof order.product_id);
+
+      // Validate product_id before sending
+      if (!order.product_id || isNaN(Number(order.product_id))) {
+        console.warn('Invalid product_id detected:', order.product_id);
+        console.log('Opening product selection dialog...');
+        
+        // Store the order and open product selection dialog
+        setPendingProductionOrder(order);
+        setProductSelectionDialogOpen(true);
+        
+        // Try to pre-select a matching product by name
+        const matchingProduct = availableProducts.find(p => 
+          p.name?.toLowerCase().includes(order.product_name?.toLowerCase()) ||
+          order.product_name?.toLowerCase().includes(p.name?.toLowerCase())
+        );
+        if (matchingProduct) {
+          setSelectedProductForProduction(matchingProduct.id);
+        }
+        
+        return;
+      }
+
       // Create production order from incoming order
-      await api.post('/manufacturing/orders', {
-        order_id: order.id,
-        product_id: order.product_id,
+      const payload = {
+        sales_order_id: order.sales_order_id || null, // Use sales_order_id instead of order_id
+        product_id: Number(order.product_id), // Convert to number
         quantity: order.quantity,
-        priority: 'medium',
+        priority: order.priority || 'medium',
+        production_type: 'standard',
         planned_start_date: new Date().toISOString().split('T')[0],
         planned_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-        special_instructions: order.special_instructions
-      });
+        special_instructions: order.special_instructions || order.product_description || ''
+      };
+
+      console.log('Sending payload:', JSON.stringify(payload, null, 2));
+
+      await api.post('/manufacturing/orders', payload);
 
       // Update order status to manufacturing_started
       await api.put(`/orders/${order.id}/status`, {
@@ -413,7 +449,81 @@ const ManufacturingDashboard = () => {
       fetchIncomingOrders();
       fetchActiveOrders();
     } catch (error) {
-      toast.error('Failed to start production');
+      console.error('Start production error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to start production';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleConfirmProductSelection = async () => {
+    if (!selectedProductForProduction) {
+      toast.error('Please select a product');
+      return;
+    }
+
+    if (!pendingProductionOrder) {
+      toast.error('No pending order found');
+      return;
+    }
+
+    try {
+      // Create the order with the selected product
+      const orderWithProduct = {
+        ...pendingProductionOrder,
+        product_id: selectedProductForProduction
+      };
+
+      console.log('Creating production with selected product:', selectedProductForProduction);
+
+      // Create production order from incoming order
+      const payload = {
+        sales_order_id: orderWithProduct.sales_order_id || null,
+        product_id: Number(selectedProductForProduction), // Use selected product
+        quantity: orderWithProduct.quantity,
+        priority: orderWithProduct.priority || 'medium',
+        production_type: 'standard',
+        planned_start_date: new Date().toISOString().split('T')[0],
+        planned_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        special_instructions: orderWithProduct.special_instructions || orderWithProduct.product_description || ''
+      };
+
+      console.log('Sending payload:', JSON.stringify(payload, null, 2));
+
+      await api.post('/manufacturing/orders', payload);
+
+      // Update order status to manufacturing_started
+      await api.put(`/orders/${orderWithProduct.id}/status`, {
+        status: 'manufacturing_started',
+        department: 'manufacturing',
+        action: 'production_started',
+        notes: 'Production order created and started'
+      });
+
+      // Update QR code
+      await api.put(`/orders/${orderWithProduct.id}/qr-code`, {
+        department: 'manufacturing',
+        status: 'production_started',
+        timestamp: new Date().toISOString(),
+        materials: orderWithProduct.material_requirements,
+        customer: orderWithProduct.customer,
+        stage: 'material_review'
+      });
+
+      toast.success('Production started successfully with selected product');
+      
+      // Close dialog and reset state
+      setProductSelectionDialogOpen(false);
+      setPendingProductionOrder(null);
+      setSelectedProductForProduction(null);
+      
+      fetchIncomingOrders();
+      fetchActiveOrders();
+    } catch (error) {
+      console.error('Start production error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to start production';
+      toast.error(errorMessage);
     }
   };
 
@@ -1061,15 +1171,16 @@ const ManufacturingDashboard = () => {
             Create Order
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
-            onClick={() => navigate('/manufacturing/orders/new')}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition shadow-sm"
+            onClick={() => navigate('/manufacturing/wizard')}
+            title="Create production order with full workflow"
           >
             <Factory className="w-5 h-5" />
             Production Wizard
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-            onClick={() => setActiveTab(4)}
+            onClick={() => setActiveTab(5)}
           >
             <Users className="w-5 h-5" />
             Outsourcing
@@ -1908,6 +2019,123 @@ const ManufacturingDashboard = () => {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Selection Dialog */}
+      <div className={`fixed inset-0 z-50 ${productSelectionDialogOpen ? 'block' : 'hidden'}`}>
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => {
+          setProductSelectionDialogOpen(false);
+          setPendingProductionOrder(null);
+          setSelectedProductForProduction(null);
+        }}></div>
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Select Product for Production
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                The order "{pendingProductionOrder?.product_name}" doesn't have a valid product ID. 
+                Please select the correct product to start production.
+              </p>
+            </div>
+            <div className="px-6 py-6 overflow-y-auto flex-1">
+              {pendingProductionOrder && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-2">Order Details:</h4>
+                  <div className="text-sm text-blue-800 space-y-1">
+                    <p><strong>Product Name:</strong> {pendingProductionOrder.product_name}</p>
+                    <p><strong>Description:</strong> {pendingProductionOrder.product_description}</p>
+                    <p><strong>Quantity:</strong> {pendingProductionOrder.quantity} {pendingProductionOrder.unit}</p>
+                    <p><strong>Customer:</strong> {pendingProductionOrder.customer?.name}</p>
+                    {pendingProductionOrder.project_name && (
+                      <p><strong>Project:</strong> {pendingProductionOrder.project_name}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Product:
+                </label>
+                {availableProducts.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                    <p>No products available. Please create a product first.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {availableProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        onClick={() => setSelectedProductForProduction(product.id)}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                          selectedProductForProduction === product.id
+                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{product.name}</h4>
+                            {product.description && (
+                              <p className="text-sm text-gray-600 mt-1">{product.description}</p>
+                            )}
+                            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                              {product.product_code && (
+                                <span><strong>Code:</strong> {product.product_code}</span>
+                              )}
+                              {product.category && (
+                                <span><strong>Category:</strong> {product.category}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            {selectedProductForProduction === product.id && (
+                              <CheckCircle className="w-6 h-6 text-blue-600" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center gap-3">
+              <button
+                onClick={() => navigate('/products')}
+                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                + Create New Product
+              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setProductSelectionDialogOpen(false);
+                    setPendingProductionOrder(null);
+                    setSelectedProductForProduction(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmProductSelection}
+                  disabled={!selectedProductForProduction}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                    selectedProductForProduction
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Start Production
+                </button>
+              </div>
             </div>
           </div>
         </div>

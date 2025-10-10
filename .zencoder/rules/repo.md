@@ -29,7 +29,13 @@
 - **DB**: MySQL via Sequelize; Migrations-based schema management
 
 ## Recent Enhancements
-- **Inventory-Product Merge**: Complete unification of Products into Inventory (Jan 2025) ⭐ NEW
+- **Production Wizard Permission Fix**: Removed page-level permission gate blocking access (Jan 2025) ⭐ NEW
+  - Wizard now accessible to all manufacturing users
+  - Permission check only on submit button, not entire page
+  - Clear visual warnings and disabled state if user lacks permission
+  - Matches pattern used by other manufacturing pages
+  - See: `PRODUCTION_WIZARD_PERMISSION_FIX.md`, `PRODUCTION_WIZARD_QUICK_FIX.md`, `GRANT_WIZARD_PERMISSION.sql`
+- **Inventory-Product Merge**: Complete unification of Products into Inventory (Jan 2025)
   - Removed separate Products section from frontend navigation and routes
   - All product management now in unified EnhancedInventoryDashboard
   - Project-based stock tracking with Sales Order linkage

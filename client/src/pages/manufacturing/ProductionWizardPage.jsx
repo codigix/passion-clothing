@@ -31,8 +31,6 @@ import {
   Loader2,
 } from 'lucide-react';
 
-import PermissionGate from '../../components/auth/PermissionGate';
-import WizardFallback from '../../components/manufacturing/WizardFallback';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../utils/api';
 
@@ -413,6 +411,7 @@ const ProductionWizardPage = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const canCustomizeStages = hasPermission('manufacturing', 'update', 'production_stage');
+  const canCreateOrder = hasPermission('manufacturing', 'create', 'production_order');
 
   const fetchProducts = useCallback(
     async (search = '') => {
@@ -445,7 +444,7 @@ const ProductionWizardPage = () => {
     async ({ search = '', productId }) => {
       setLoadingSalesOrders(true);
       try {
-        const response = await api.get('/sales/orders/summary', {
+        const response = await api.get('/sales/orders', {
           params: {
             limit: 100,
             status: 'confirmed',
@@ -456,13 +455,14 @@ const ProductionWizardPage = () => {
 
         const options = (response.data?.orders || []).map((order) => ({
           value: String(order.id),
-          label: `${order.order_number}${order.customer_name ? ` • ${order.customer_name}` : ''}`,
+          label: `${order.order_number}${order.customer?.name ? ` • ${order.customer.name}` : ''}`,
         }));
 
         setSalesOrderOptions(options);
       } catch (error) {
-        console.error('fetch sales orders summary error', error);
-        toast.error('Unable to load sales orders. Please try again.');
+        console.error('fetch sales orders error', error);
+        // Silently fail - sales order selection is optional
+        setSalesOrderOptions([]);
       } finally {
         setLoadingSalesOrders(false);
       }
@@ -535,7 +535,6 @@ const ProductionWizardPage = () => {
     return () => subscription.unsubscribe();
   }, [fetchProducts, methods]);
 
-  const permissionTuple = ['manufacturing', 'create', 'production_order'];
   const formErrors = methods.formState.errors;
   const currentStepKey = stepConfig[currentStep].key;
   const currentStepErrors = useMemo(
@@ -550,6 +549,16 @@ const ProductionWizardPage = () => {
   const statusDescription = hasStepError && currentStepErrorCount > 0
     ? `${stepConfig[currentStep].description} • ${currentStepErrorCount} field${currentStepErrorCount === 1 ? '' : 's'} need attention.`
     : stepConfig[currentStep].description;
+
+  // Show permission warning if user cannot create orders
+  useEffect(() => {
+    if (!canCreateOrder) {
+      toast.error('You do not have permission to create production orders. Please contact your administrator.', {
+        duration: 5000,
+        id: 'permission-warning'
+      });
+    }
+  }, [canCreateOrder]);
 
   const attemptStepChange = (nextStep) => {
     if (nextStep === currentStep) return;
@@ -613,6 +622,23 @@ const ProductionWizardPage = () => {
 
   const onSubmit = async (values) => {
     setSubmitting(true);
+    
+    // Log form values for debugging
+    console.log('Form submission values:', JSON.stringify({
+      productId: values.orderDetails.productId,
+      productOptions: productOptions.length,
+      availableProductIds: productOptions.map(p => p.value)
+    }, null, 2));
+    
+    // Validate product_id is numeric
+    if (values.orderDetails.productId && isNaN(Number(values.orderDetails.productId))) {
+      console.error('Invalid product_id detected:', values.orderDetails.productId);
+      toast.error('Invalid product selected. Please select a valid product from the dropdown.');
+      setSubmitting(false);
+      setCurrentStep(0); // Go back to first step
+      return;
+    }
+    
     const payload = buildPayload(values);
 
     try {
@@ -630,7 +656,7 @@ const ProductionWizardPage = () => {
   const renderStepContent = useMemo(() => {
     switch (currentStep) {
       case 0:
-        return <OrderDetailsStep />;
+        return <OrderDetailsStep productOptions={productOptions} loadingProducts={loadingProducts} />;
       case 1:
         return <SchedulingStep />;
       case 2:
@@ -648,15 +674,20 @@ const ProductionWizardPage = () => {
       default:
         return null;
     }
-  }, [canCustomizeStages, currentStep, methods]);
+  }, [canCustomizeStages, currentStep, methods, productOptions, loadingProducts]);
 
   return (
-    <PermissionGate required={permissionTuple} fallback={<WizardFallback />}>
+    <>
       <div className="p-4 md:p-8 space-y-6">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">New Production Order</h1>
             <p className="text-gray-600">Complete each step to initiate a manufacturing order.</p>
+            {!canCreateOrder && (
+              <p className="text-sm text-red-600 mt-1 font-medium">
+                ⚠️ You do not have permission to submit production orders
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>Need help?</span>
@@ -709,8 +740,9 @@ const ProductionWizardPage = () => {
                 {currentStep === stepConfig.length - 1 && (
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-60"
-                    disabled={submitting || hasStepError}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={submitting || hasStepError || !canCreateOrder}
+                    title={!canCreateOrder ? 'You do not have permission to create production orders' : ''}
                   >
                     {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                     {submitting ? 'Submitting...' : 'Submit Order'}
@@ -725,7 +757,7 @@ const ProductionWizardPage = () => {
           </form>
         </FormProvider>
       </div>
-    </PermissionGate>
+    </>
   );
 };
 
@@ -810,7 +842,7 @@ const TextArea = ({ name, label, rows = 3, required, placeholder }) => {
   );
 };
 
-const SelectInput = ({ name, label, options, required }) => {
+const SelectInput = ({ name, label, options, required, disabled }) => {
   const {
     register,
     formState: { errors },
@@ -823,9 +855,10 @@ const SelectInput = ({ name, label, options, required }) => {
       <FieldLabel label={label} required={required} />
       <select
         {...register(name)}
+        disabled={disabled}
         className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
           error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
-        }`}
+        } ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={errorId}
       >
@@ -891,14 +924,15 @@ const SwitchInput = ({ name, label, hint, disabled }) => {
   );
 };
 
-const OrderDetailsStep = () => (
+const OrderDetailsStep = ({ productOptions, loadingProducts }) => (
   <SectionCard icon={ClipboardList} title="Production order basics" description="Capture the essential order metadata.">
     <Row>
       <SelectInput
         name="orderDetails.productId"
         label="Product"
         required
-        options={[]}
+        options={productOptions}
+        disabled={loadingProducts}
       />
       <SelectInput
         name="orderDetails.productionType"
@@ -1264,7 +1298,7 @@ function buildPayload(values) {
   } = values;
 
   const payload = {
-    product_id: orderDetails.productId,
+    product_id: orderDetails.productId ? Number(orderDetails.productId) : null,
     production_type: orderDetails.productionType,
     quantity: Number(orderDetails.quantity),
     priority: orderDetails.priority,
