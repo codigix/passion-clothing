@@ -1,10 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { FaSearch, FaEdit, FaTrash, FaEye, FaPlus, FaPlay, FaPause, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaSearch, FaEdit, FaTrash, FaEye, FaPlus, FaPlay, FaPause, FaExclamationCircle, FaCheckCircle, FaEllipsisV, FaColumns } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import PermissionGate from '../../components/auth/PermissionGate';
+import { useColumnVisibility } from '../../hooks/useColumnVisibility';
+import { useSmartDropdown } from '../../hooks/useSmartDropdown';
+
+// Define all available columns with their properties
+const AVAILABLE_COLUMNS = [
+  { id: 'order_number', label: 'Order Number', defaultVisible: true, alwaysVisible: true },
+  { id: 'product', label: 'Product', defaultVisible: true },
+  { id: 'quantity', label: 'Quantity', defaultVisible: true },
+  { id: 'progress', label: 'Progress', defaultVisible: true },
+  { id: 'start_date', label: 'Start Date', defaultVisible: true },
+  { id: 'end_date', label: 'End Date', defaultVisible: true },
+  { id: 'priority', label: 'Priority', defaultVisible: true },
+  { id: 'status', label: 'Status', defaultVisible: true },
+  { id: 'actions', label: 'Actions', defaultVisible: true, alwaysVisible: true }
+];
+
+// Action Dropdown Component
+function ActionDropdown({ order, onView, onEdit, onStart, onStop, onDelete, permissionKeys, hasPermission }) {
+  const { dropdownRef, isOpen, toggleDropdown } = useSmartDropdown();
+
+  return (
+    <div className="action-menu-container relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={toggleDropdown}
+        className="inline-flex items-center justify-center rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+        aria-label="Actions"
+      >
+        <FaEllipsisV className="h-4 w-4" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => { onView(order); toggleDropdown(); }}
+              className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              <FaEye className="h-4 w-4 text-blue-500" />
+              View Details
+            </button>
+            
+            {hasPermission(...permissionKeys.updateOrder) && (
+              <button
+                type="button"
+                onClick={() => { onEdit(order); toggleDropdown(); }}
+                className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <FaEdit className="h-4 w-4 text-amber-500" />
+                Edit Order
+              </button>
+            )}
+
+            {hasPermission(...permissionKeys.updateOrder) && (
+              <>
+                {order.status === 'in_progress' ? (
+                  <button
+                    type="button"
+                    onClick={() => { onStop(order); toggleDropdown(); }}
+                    className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FaPause className="h-4 w-4 text-amber-500" />
+                    Stop Production
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { onStart(order); toggleDropdown(); }}
+                    className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FaPlay className="h-4 w-4 text-green-500" />
+                    Start Production
+                  </button>
+                )}
+              </>
+            )}
+
+            {hasPermission(...permissionKeys.deleteOrder) && (
+              <>
+                <div className="border-t border-gray-100" />
+                <button
+                  type="button"
+                  onClick={() => { onDelete(order); toggleDropdown(); }}
+                  className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                >
+                  <FaTrash className="h-4 w-4" />
+                  Delete Order
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ProductionOrdersPage = () => {
   const permissionKeys = {
@@ -31,6 +128,23 @@ const ProductionOrdersPage = () => {
   const [alert, setAlert] = useState({ open: false, severity: 'success', message: '' });
 
   const { data: products = [], isLoading: productsLoading } = useProducts({ status: 'active', limit: 200 });
+
+  // Column visibility hooks
+  const { visibleColumns, isColumnVisible, toggleColumn, showAllColumns, resetColumns } = useColumnVisibility('productionOrdersVisibleColumns', AVAILABLE_COLUMNS);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const columnMenuRef = useRef(null);
+
+  // Click outside handler for column menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColumnMenu && columnMenuRef.current && !columnMenuRef.current.contains(event.target)) {
+        setShowColumnMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColumnMenu]);
 
   useEffect(() => {
     fetchOrders();
@@ -243,27 +357,91 @@ const ProductionOrdersPage = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Production Orders</h1>
-        <PermissionGate
-          required={permissionKeys.createOrder}
-          fallback={(
+        <div className="flex items-center gap-3">
+          {/* Column Manager */}
+          <div className="column-menu-container relative" ref={columnMenuRef}>
             <button
-              className="bg-gray-300 text-gray-600 px-4 py-2 rounded flex items-center gap-2 cursor-not-allowed"
               type="button"
-              onClick={() => toast.error('You do not have permission to create production orders.')}
+              onClick={() => setShowColumnMenu(!showColumnMenu)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <FaColumns className="h-4 w-4" />
+              Columns
+            </button>
+
+            {showColumnMenu && (
+              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="p-3">
+                  <div className="mb-2 flex items-center justify-between border-b border-gray-200 pb-2">
+                    <span className="text-sm font-semibold text-gray-700">Show/Hide Columns</span>
+                  </div>
+                  <div className="max-h-96 space-y-2 overflow-y-auto">
+                    {AVAILABLE_COLUMNS.map((column) => (
+                      <label
+                        key={column.id}
+                        className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm transition ${
+                          column.alwaysVisible
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'cursor-pointer hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isColumnVisible(column.id)}
+                          onChange={() => toggleColumn(column.id)}
+                          disabled={column.alwaysVisible}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                        <span className="text-gray-700">{column.label}</span>
+                        {column.alwaysVisible && (
+                          <span className="ml-auto text-xs text-gray-400">(Required)</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex gap-2 border-t border-gray-200 pt-3">
+                    <button
+                      type="button"
+                      onClick={showAllColumns}
+                      className="flex-1 rounded bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                    >
+                      Show All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetColumns}
+                      className="flex-1 rounded bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <PermissionGate
+            required={permissionKeys.createOrder}
+            fallback={(
+              <button
+                className="bg-gray-300 text-gray-600 px-4 py-2 rounded flex items-center gap-2 cursor-not-allowed"
+                type="button"
+                onClick={() => toast.error('You do not have permission to create production orders.')}
+              >
+                <FaPlus />
+                Create Order
+              </button>
+            )}
+          >
+            <button
+              className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2 shadow hover:bg-primary-dark"
+              onClick={handleCreate}
             >
               <FaPlus />
               Create Order
             </button>
-          )}
-        >
-          <button
-            className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2 shadow hover:bg-primary-dark"
-            onClick={handleCreate}
-          >
-            <FaPlus />
-            Create Order
-          </button>
-        </PermissionGate>
+          </PermissionGate>
+        </div>
       </div>
 
       {/* Search */}
@@ -287,122 +465,64 @@ const ProductionOrdersPage = () => {
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-gray-100">
-              <th className="px-4 py-2 text-left">Order Number</th>
-              <th className="px-4 py-2 text-left">Product</th>
-              <th className="px-4 py-2 text-left">Quantity</th>
-              <th className="px-4 py-2 text-left">Progress</th>
-              <th className="px-4 py-2 text-left">Start Date</th>
-              <th className="px-4 py-2 text-left">End Date</th>
-              <th className="px-4 py-2 text-left">Priority</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Actions</th>
+              {isColumnVisible('order_number') && <th className="px-4 py-2 text-left">Order Number</th>}
+              {isColumnVisible('product') && <th className="px-4 py-2 text-left">Product</th>}
+              {isColumnVisible('quantity') && <th className="px-4 py-2 text-left">Quantity</th>}
+              {isColumnVisible('progress') && <th className="px-4 py-2 text-left">Progress</th>}
+              {isColumnVisible('start_date') && <th className="px-4 py-2 text-left">Start Date</th>}
+              {isColumnVisible('end_date') && <th className="px-4 py-2 text-left">End Date</th>}
+              {isColumnVisible('priority') && <th className="px-4 py-2 text-left">Priority</th>}
+              {isColumnVisible('status') && <th className="px-4 py-2 text-left">Status</th>}
+              {isColumnVisible('actions') && <th className="px-4 py-2 text-left sticky right-0 bg-gray-100 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filteredOrders.map(order => (
-              <tr key={order.id} className="border-b">
-                <td className="px-4 py-2">{order.orderNumber}</td>
-                <td className="px-4 py-2">{order.productName}</td>
-                <td className="px-4 py-2">{order.quantity}</td>
-                <td className="px-4 py-2">
-                  <div className="w-full mb-1">
-                    <div className="h-2 rounded bg-gray-200">
-                      <div
-                        className={`h-2 rounded ${getProgress(order.produced, order.quantity) > 80 ? 'bg-green-500' : getProgress(order.produced, order.quantity) > 50 ? 'bg-yellow-400' : 'bg-primary'}`}
-                        style={{ width: `${getProgress(order.produced, order.quantity)}%` }}
-                      ></div>
+              <tr key={order.id} className="border-b hover:bg-gray-50">
+                {isColumnVisible('order_number') && <td className="px-4 py-2">{order.orderNumber}</td>}
+                {isColumnVisible('product') && <td className="px-4 py-2">{order.productName}</td>}
+                {isColumnVisible('quantity') && <td className="px-4 py-2">{order.quantity}</td>}
+                {isColumnVisible('progress') && (
+                  <td className="px-4 py-2">
+                    <div className="w-full mb-1">
+                      <div className="h-2 rounded bg-gray-200">
+                        <div
+                          className={`h-2 rounded ${getProgress(order.produced, order.quantity) > 80 ? 'bg-green-500' : getProgress(order.produced, order.quantity) > 50 ? 'bg-yellow-400' : 'bg-primary'}`}
+                          style={{ width: `${getProgress(order.produced, order.quantity)}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-gray-500 mt-1 block">
+                        {order.produced}/{order.quantity} ({Math.round(getProgress(order.produced, order.quantity))}%)
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-500 mt-1 block">
-                      {order.produced}/{order.quantity} ({Math.round(getProgress(order.produced, order.quantity))}%)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-2">{order.startDate}</td>
-                <td className="px-4 py-2">{order.endDate}</td>
-                <td className="px-4 py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs border border-${getPriorityColor(order.priority)}-500 text-${getPriorityColor(order.priority)}-500`}>{order.priority}</span>
-                </td>
-                <td className="px-4 py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs border border-${getStatusColor(order.status)}-500 text-${getStatusColor(order.status)}-500`}>{order.status.replace('_', ' ')}</span>
-                </td>
-                <td className="px-4 py-2">
-                  <div className="flex gap-2">
-                    <button className="text-blue-500 hover:text-blue-700" onClick={() => handleView(order)} title="View">
-                      <FaEye />
-                    </button>
-                    <PermissionGate
-                      required={permissionKeys.updateOrder}
-                      fallback={(
-                        <button
-                          className="text-yellow-300 cursor-not-allowed"
-                          type="button"
-                          title="Insufficient permission"
-                          onClick={() => toast.error('You do not have permission to edit orders.')}
-                        >
-                          <FaEdit />
-                        </button>
-                      )}
-                    >
-                      <button className="text-yellow-500 hover:text-yellow-700" onClick={() => handleEdit(order)} title="Edit">
-                        <FaEdit />
-                      </button>
-                    </PermissionGate>
-                    {order.status === 'in_progress' ? (
-                      <PermissionGate
-                        required={permissionKeys.updateOrder}
-                        fallback={(
-                          <button
-                            className="text-yellow-300 cursor-not-allowed"
-                            type="button"
-                            title="Insufficient permission"
-                            onClick={() => toast.error('You do not have permission to stop orders.')}
-                          >
-                            <FaPause />
-                          </button>
-                        )}
-                      >
-                        <button className="text-yellow-500 hover:text-yellow-700" onClick={() => handleStop(order)} title="Stop">
-                          <FaPause />
-                        </button>
-                      </PermissionGate>
-                    ) : (
-                      <PermissionGate
-                        required={permissionKeys.updateOrder}
-                        fallback={(
-                          <button
-                            className="text-green-300 cursor-not-allowed"
-                            type="button"
-                            title="Insufficient permission"
-                            onClick={() => toast.error('You do not have permission to start orders.')}
-                          >
-                            <FaPlay />
-                          </button>
-                        )}
-                      >
-                        <button className="text-green-500 hover:text-green-700" onClick={() => handleStart(order)} title="Start">
-                          <FaPlay />
-                        </button>
-                      </PermissionGate>
-                    )}
-                    <PermissionGate
-                      required={permissionKeys.deleteOrder}
-                      fallback={(
-                        <button
-                          className="text-red-300 cursor-not-allowed"
-                          type="button"
-                          title="Insufficient permission"
-                          onClick={() => toast.error('You do not have permission to delete orders.')}
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
-                    >
-                      <button className="text-red-500 hover:text-red-700" onClick={() => handleDelete(order)} title="Delete">
-                        <FaTrash />
-                      </button>
-                    </PermissionGate>
-                  </div>
-                </td>
+                  </td>
+                )}
+                {isColumnVisible('start_date') && <td className="px-4 py-2">{order.startDate}</td>}
+                {isColumnVisible('end_date') && <td className="px-4 py-2">{order.endDate}</td>}
+                {isColumnVisible('priority') && (
+                  <td className="px-4 py-2">
+                    <span className={`px-2 py-0.5 rounded text-xs border border-${getPriorityColor(order.priority)}-500 text-${getPriorityColor(order.priority)}-500`}>{order.priority}</span>
+                  </td>
+                )}
+                {isColumnVisible('status') && (
+                  <td className="px-4 py-2">
+                    <span className={`px-2 py-0.5 rounded text-xs border border-${getStatusColor(order.status)}-500 text-${getStatusColor(order.status)}-500`}>{order.status.replace('_', ' ')}</span>
+                  </td>
+                )}
+                {isColumnVisible('actions') && (
+                  <td className="px-4 py-2 sticky right-0 bg-white group-hover:bg-gray-50">
+                    <ActionDropdown 
+                      order={order} 
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onStart={handleStart}
+                      onStop={handleStop}
+                      onDelete={handleDelete}
+                      permissionKeys={permissionKeys}
+                      hasPermission={hasPermission}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

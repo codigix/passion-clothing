@@ -109,7 +109,7 @@ module.exports = (sequelize) => {
       defaultValue: 0.00
     },
     status: {
-      type: DataTypes.ENUM('draft', 'pending_approval', 'approved', 'sent', 'acknowledged', 'partial_received', 'received', 'completed', 'cancelled'),
+      type: DataTypes.ENUM('draft', 'pending_approval', 'approved', 'sent', 'acknowledged', 'dispatched', 'in_transit', 'grn_requested', 'partial_received', 'received', 'completed', 'cancelled'),
       defaultValue: 'draft'
     },
     priority: {
@@ -197,6 +197,16 @@ module.exports = (sequelize) => {
     received_at: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    barcode: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: 'Unique barcode for the purchase order'
+    },
+    qr_code: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'QR code data containing PO details'
     }
   }, {
     tableName: 'purchase_orders',

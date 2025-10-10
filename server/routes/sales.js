@@ -1,11 +1,153 @@
 // Send sales order to procurement (dedicated endpoint)
 const express = require('express');
 const { Op, fn, col, literal } = require('sequelize');
-const { SalesOrder, Customer, User, ProductionOrder, Challan, Product, Vendor, PurchaseOrder } = require('../config/database');
+const { SalesOrder, Customer, User, ProductionOrder, Challan, Product, Vendor, PurchaseOrder, ProductionRequest, Invoice } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
 const NotificationService = require('../utils/notificationService');
 
 const router = express.Router();
+
+const generateProductionRequestNumber = async (transaction) => {
+  const today = new Date();
+  const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+  const lastRequest = await ProductionRequest.findOne({
+    where: {
+      request_number: {
+        [Op.like]: `PRQ-${dateStr}-%`
+      }
+    },
+    order: [['created_at', 'DESC']],
+    transaction
+  });
+
+  let sequence = 1;
+  if (lastRequest) {
+    const lastSequence = parseInt(lastRequest.request_number.split('-')[2], 10);
+    sequence = Number.isNaN(lastSequence) ? 1 : lastSequence + 1;
+  }
+
+  return `PRQ-${dateStr}-${sequence.toString().padStart(5, '0')}`;
+};
+
+const buildProductionRequestPayloadFromOrder = (order, requestNumber, userId) => {
+  const orderItems = order.items || [];
+  const productSummary = orderItems
+    .map((item) => `${item.description || item.product_name || 'Product'} (${item.quantity} ${item.unit || 'pcs'})`)
+    .join(', ');
+
+  const totalQuantity = orderItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+
+  return {
+    request_number: requestNumber,
+    sales_order_id: order.id,
+    sales_order_number: order.order_number,
+    project_name: order.project_name || order.project_title || `SO-${order.order_number}`,
+    product_name: orderItems[0]?.description || orderItems[0]?.product_name || 'Multiple Products',
+    product_description: productSummary,
+    product_specifications: {
+      items: orderItems,
+      customer_name: order.customer?.name,
+      garment_specifications: order.garment_specifications
+    },
+    quantity: totalQuantity,
+    unit: orderItems[0]?.unit || 'pcs',
+    priority: order.priority || 'medium',
+    required_date: order.delivery_date,
+    sales_notes: `Production request for Sales Order ${order.order_number}. Customer: ${order.customer?.name || 'N/A'}`,
+    status: 'pending',
+    requested_by: userId
+  };
+};
+
+const sendProductionRequestNotification = async (productionRequest, order, transaction) => {
+  await NotificationService.sendToDepartment(
+    'manufacturing',
+    {
+      type: 'manufacturing',
+      title: `New Production Request: ${productionRequest.request_number}`,
+      message: `Production Request ${productionRequest.request_number} created for Sales Order ${order.order_number}. Please review and create Material Request for Manufacturing (MRN).`,
+      priority: order.priority || 'high',
+      related_order_id: order.id,
+      related_entity_id: productionRequest.id,
+      related_entity_type: 'production_request',
+      action_url: `/manufacturing/production-requests/${productionRequest.id}`,
+      metadata: {
+        request_number: productionRequest.request_number,
+        sales_order_number: order.order_number,
+        customer_name: order.customer?.name || 'N/A',
+        project_name: productionRequest.project_name,
+        total_quantity: productionRequest.quantity,
+        product_name: productionRequest.product_name,
+        required_date: order.delivery_date
+      },
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    },
+    transaction
+  );
+};
+
+// Create production request from sales order (standalone endpoint)
+router.post('/orders/:id/request-production', authenticateToken, checkDepartment(['sales', 'admin']), async (req, res) => {
+  const transaction = await require('../config/database').sequelize.transaction();
+  
+  try {
+    const { id } = req.params;
+    
+    // Get sales order with customer details
+    const order = await SalesOrder.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          as: 'customer',
+          attributes: ['id', 'name', 'customer_code', 'email', 'phone']
+        }
+      ],
+      transaction
+    });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ 
+        message: 'Sales order not found' 
+      });
+    }
+
+    // Check if order is in a valid state
+    if (order.status === 'cancelled' || order.status === 'draft') {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        message: `Cannot create production request for ${order.status} order` 
+      });
+    }
+
+    // Generate and create production request
+    const requestNumber = await generateProductionRequestNumber(transaction);
+    const payload = buildProductionRequestPayloadFromOrder(order, requestNumber, req.user.id);
+    const productionRequest = await ProductionRequest.create(payload, { transaction });
+    
+    // Send notification to manufacturing
+    await sendProductionRequestNotification(productionRequest, order, transaction);
+
+    await transaction.commit();
+
+    res.json({ 
+      message: 'Production request created successfully',
+      productionRequest: {
+        id: productionRequest.id,
+        request_number: productionRequest.request_number,
+        project_name: productionRequest.project_name,
+        status: productionRequest.status
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Create production request error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create production request',
+      error: error.message 
+    });
+  }
+});
 
 // Get all customers
 router.get('/customers', authenticateToken, async (req, res) => {
@@ -82,6 +224,8 @@ const generateOrderNumber = async () => {
 
 // Send sales order to procurement (dedicated endpoint)
 router.put('/orders/:id/send-to-procurement', authenticateToken, checkDepartment(['sales', 'admin']), async (req, res) => {
+  const transaction = await require('../config/database').sequelize.transaction();
+
   try {
     const order = await SalesOrder.findByPk(req.params.id, {
       include: [
@@ -92,28 +236,30 @@ router.put('/orders/:id/send-to-procurement', authenticateToken, checkDepartment
         }
       ]
     });
-    
+
     if (!order) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Sales order not found' });
     }
-    
+
     if (order.status !== 'draft') {
-      return res.status(400).json({ 
+      await transaction.rollback();
+      return res.status(400).json({
         message: 'Only draft orders can be sent to procurement',
-        currentStatus: order.status 
+        currentStatus: order.status
       });
     }
-    
+
     // Update procurement flags only - status remains 'draft' until procurement accepts
     await order.update({
       ready_for_procurement: true,
       ready_for_procurement_by: req.user.id,
       ready_for_procurement_at: new Date()
-    });
+    }, { transaction });
     
     // Send notification to procurement department
     await NotificationService.sendToDepartment('procurement', {
-      type: 'order',
+      type: 'procurement',
       title: `New Sales Order Request: ${order.order_number}`,
       message: `Sales Order ${order.order_number} has been sent to procurement and awaiting acceptance`,
       priority: 'high',
@@ -127,10 +273,19 @@ router.put('/orders/:id/send-to-procurement', authenticateToken, checkDepartment
         status: 'draft'
       },
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    });
-    
+    }, transaction);
+
+    // ALSO create Production Request to Manufacturing department
+    // Generate and send production request for manufacturing
+    const requestNumber = await generateProductionRequestNumber(transaction);
+    const payload = buildProductionRequestPayloadFromOrder(order, requestNumber, req.user.id);
+    const productionRequest = await ProductionRequest.create(payload, { transaction });
+    await sendProductionRequestNotification(productionRequest, order, transaction);
+
+    await transaction.commit();
+
     res.json({ 
-      message: 'Sales order sent to procurement successfully',
+      message: 'Sales order sent to procurement and production request created for manufacturing successfully',
       order: {
         id: order.id,
         order_number: order.order_number,
@@ -138,9 +293,14 @@ router.put('/orders/:id/send-to-procurement', authenticateToken, checkDepartment
         ready_for_procurement: order.ready_for_procurement,
         approved_by: order.approved_by,
         approved_at: order.approved_at
+      },
+      productionRequest: {
+        id: productionRequest.id,
+        request_number: productionRequest.request_number
       }
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Send to procurement error:', error);
     res.status(500).json({ 
       message: 'Failed to send sales order to procurement',
@@ -200,7 +360,13 @@ router.get(
             attributes: ['id', 'name', 'customer_code', 'email', 'phone']
           },
           { model: User, as: 'creator', attributes: ['id', 'name', 'employee_id'] },
-          { model: ProductionOrder, as: 'productionOrders', attributes: ['id', 'production_number', 'status'] }
+          { model: ProductionOrder, as: 'productionOrders', attributes: ['id', 'production_number', 'status'] },
+          { 
+            model: PurchaseOrder, 
+            as: 'linkedPurchaseOrder', 
+            attributes: ['id', 'po_number', 'status', 'po_date'],
+            required: false // LEFT JOIN to include sales orders even without POs
+          }
         ],
         order: [['created_at', 'DESC']],
         limit: parseInt(limit, 10),
@@ -1047,37 +1213,55 @@ router.post('/orders/:id/generate-invoice', authenticateToken, checkDepartment([
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
     const invoiceNumber = `INV-${dateStr}-${order.id.toString().padStart(4, '0')}`;
 
+    // Calculate invoice totals
+    const subtotal = parseFloat(order.final_amount || 0);
+    const paidAmount = parseFloat(order.advance_paid || 0);
+    const outstandingAmount = subtotal - paidAmount;
+
+    // Create invoice record
+    const invoice = await Invoice.create({
+      invoice_number: invoiceNumber,
+      invoice_type: 'sales',
+      customer_id: order.customer_id,
+      sales_order_id: order.id,
+      invoice_date: new Date(),
+      due_date: order.delivery_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now if no delivery date
+      items: order.items || [],
+      subtotal: subtotal,
+      total_amount: subtotal,
+      paid_amount: paidAmount,
+      outstanding_amount: outstandingAmount,
+      status: 'sent',
+      payment_status: outstandingAmount > 0 ? 'partial' : 'paid',
+      payment_terms: 'Net 30',
+      currency: 'INR',
+      billing_address: order.customer?.billing_address,
+      shipping_address: order.customer?.shipping_address,
+      notes: `Invoice for Sales Order ${order.order_number}`,
+      created_by: req.user.id
+    });
+
     await order.update({
       invoice_status: 'generated',
       invoice_number: invoiceNumber,
       invoice_date: new Date()
     });
 
-    // Here you would typically generate a PDF invoice
-    // For now, we'll return invoice data
-    const invoiceData = {
-      invoice_number: invoiceNumber,
-      invoice_date: new Date(),
-      order_number: order.order_number,
-      customer: {
-        name: order.customer.name,
-        address: order.customer.billing_address,
-        gst_number: order.customer.gst_number,
-        phone: order.customer.phone,
-        email: order.customer.email
-      },
-      items: order.items,
-      total_amount: order.total_amount,
-      discount_amount: order.discount_amount,
-      tax_amount: order.tax_amount,
-      final_amount: order.final_amount,
-      advance_paid: order.advance_paid,
-      balance_amount: order.balance_amount
-    };
+    // Send notification
+    await NotificationService.notifyInvoiceAction('created', invoice, req.user.id);
 
     res.json({
       message: 'Invoice generated successfully',
-      invoice: invoiceData
+      invoice: {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        invoice_date: invoice.invoice_date,
+        total_amount: invoice.total_amount,
+        paid_amount: invoice.paid_amount,
+        outstanding_amount: invoice.outstanding_amount,
+        status: invoice.status,
+        payment_status: invoice.payment_status
+      }
     });
   } catch (error) {
     console.error('Invoice generation error:', error);
@@ -1088,7 +1272,7 @@ router.post('/orders/:id/generate-invoice', authenticateToken, checkDepartment([
 // Create challan for sales order
 router.post('/orders/:id/create-challan', authenticateToken, checkDepartment(['sales', 'admin', 'shipment']), async (req, res) => {
   try {
-    const { vehicle_number, driver_name, driver_phone, dispatch_date } = req.body;
+    const { vehicle_number, driver_name, driver_phone, dispatch_date, notes } = req.body;
     const order = await SalesOrder.findByPk(req.params.id, {
       include: [{ model: Customer, as: 'customer' }]
     });
@@ -1097,28 +1281,60 @@ router.post('/orders/:id/create-challan', authenticateToken, checkDepartment(['s
       return res.status(404).json({ message: 'Sales order not found' });
     }
 
+    // Check if challan already exists
+    const existingChallan = await Challan.findOne({
+      where: {
+        order_id: order.id,
+        order_type: 'sales_order',
+        type: 'outward',
+        sub_type: 'sales'
+      }
+    });
+
+    if (existingChallan) {
+      return res.status(400).json({ message: 'Challan already exists for this order' });
+    }
+
+    // Calculate totals
+    const total_quantity = order.items ? order.items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
+    const total_amount = order.items ? order.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unit_price || 0)), 0) : 0;
+
     // Generate challan number
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const challanNumber = `CH-${dateStr}-${order.id.toString().padStart(4, '0')}`;
+    const challanNumber = `CHN-${dateStr}-${order.id.toString().padStart(4, '0')}`;
+
+    // Prepare transport details
+    const transport_details = {};
+    if (vehicle_number) transport_details.vehicle_number = vehicle_number;
+    if (driver_name) transport_details.driver_name = driver_name;
+    if (driver_phone) transport_details.driver_phone = driver_phone;
 
     // Create challan
     const challan = await Challan.create({
       challan_number: challanNumber,
-      sales_order_id: order.id,
+      type: 'outward',
+      sub_type: 'sales',
+      order_id: order.id,
+      order_type: 'sales_order',
       customer_id: order.customer_id,
-      type: 'delivery',
-      status: 'pending',
-      challan_date: dispatch_date || new Date(),
-      vehicle_number: vehicle_number || null,
-      driver_name: driver_name || null,
-      driver_phone: driver_phone || null,
-      items: order.items,
-      created_by: req.user.id
+      items: order.items || [],
+      total_quantity,
+      total_amount,
+      status: 'draft',
+      priority: order.priority || 'medium',
+      notes: notes || null,
+      expected_date: dispatch_date || new Date(),
+      transport_details: Object.keys(transport_details).length > 0 ? transport_details : null,
+      department: 'sales',
+      created_by: req.user.id,
+      barcode: challanNumber // Using challan number as barcode
     });
 
+    // Update order status
     await order.update({
-      challan_status: 'created'
+      status: 'ready_to_ship',
+      challan_created: true
     });
 
     res.status(201).json({
@@ -1126,7 +1342,9 @@ router.post('/orders/:id/create-challan', authenticateToken, checkDepartment(['s
       challan: {
         id: challan.id,
         challan_number: challan.challan_number,
-        status: challan.status
+        status: challan.status,
+        total_quantity: challan.total_quantity,
+        total_amount: challan.total_amount
       }
     });
   } catch (error) {

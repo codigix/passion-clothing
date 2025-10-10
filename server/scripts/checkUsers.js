@@ -10,12 +10,12 @@ const checkUsers = async () => {
 
     // Try to find all users
     const users = await User.findAll({
-      attributes: ['id', 'username', 'name', 'department', 'status']
+      attributes: ['id', 'email', 'name', 'department', 'status']
     });
 
     console.log('Users found:', users.length);
     users.forEach(user => {
-      console.log(`- ${user.username}: ${user.name} (${user.department}) - ${user.status}`);
+      console.log(`- ${user.email}: ${user.name} (${user.department}) - ${user.status}`);
     });
 
   } catch (error) {

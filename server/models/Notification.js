@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
       autoIncrement: true
     },
     type: {
-      type: DataTypes.ENUM('order', 'inventory', 'manufacturing', 'shipment', 'procurement', 'finance', 'system'),
+      type: DataTypes.ENUM('order', 'inventory', 'manufacturing', 'shipment', 'procurement', 'finance', 'system', 'vendor_shortage', 'grn_verification', 'grn_verified', 'grn_discrepancy', 'grn_discrepancy_resolved'),
       allowNull: false
     },
     title: {

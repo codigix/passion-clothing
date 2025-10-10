@@ -2,8 +2,62 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    // Helper function to check if table exists
+    async function tableExists(tableName) {
+      try {
+        await queryInterface.describeTable(tableName);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    // Helper function to safely get table description
+    async function describeTableIfExists(tableName) {
+      const exists = await tableExists(tableName);
+      if (!exists) return null;
+      return await queryInterface.describeTable(tableName);
+    }
+
+    // Helper function to check if column exists
+    async function columnExists(tableName, columnName) {
+      const table = await describeTableIfExists(tableName);
+      return table && table[columnName] !== undefined;
+    }
+
+    // Helper function to add column only if it doesn't exist
+    async function addColumnIfMissing(tableName, columnName, columnDefinition) {
+      const exists = await columnExists(tableName, columnName);
+      if (!exists) {
+        await queryInterface.addColumn(tableName, columnName, columnDefinition);
+        console.log(`✓ Added column ${columnName} to ${tableName}`);
+      } else {
+        console.log(`⊘ Column ${columnName} already exists in ${tableName}, skipping`);
+      }
+    }
+
+    // Helper function to add index only if it doesn't exist
+    async function addIndexIfMissing(tableName, columns, options = {}) {
+      try {
+        const indexes = await queryInterface.showIndex(tableName);
+        const indexName = options.name || `${tableName}_${columns.join('_')}`;
+        const indexExists = indexes.some(index => 
+          index.name === indexName || 
+          (JSON.stringify(index.fields) === JSON.stringify(columns))
+        );
+        if (!indexExists) {
+          await queryInterface.addIndex(tableName, columns, options);
+          console.log(`✓ Added index on ${columns.join(', ')} to ${tableName}`);
+        } else {
+          console.log(`⊘ Index on ${columns.join(', ')} already exists in ${tableName}, skipping`);
+        }
+      } catch (error) {
+        console.log(`⊘ Could not check/add index on ${columns.join(', ')}: ${error.message}`);
+      }
+    }
+
     // Add purchase_order_id to inventory table
-    await queryInterface.addColumn('inventory', 'purchase_order_id', {
+    await addColumnIfMissing('inventory', 'purchase_order_id', {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -15,14 +69,14 @@ module.exports = {
     });
 
     // Add po_item_index to track which PO item this inventory belongs to
-    await queryInterface.addColumn('inventory', 'po_item_index', {
+    await addColumnIfMissing('inventory', 'po_item_index', {
       type: Sequelize.INTEGER,
       allowNull: true,
       comment: 'Index of item in PO items array'
     });
 
     // Add initial_quantity to track original PO quantity
-    await queryInterface.addColumn('inventory', 'initial_quantity', {
+    await addColumnIfMissing('inventory', 'initial_quantity', {
       type: Sequelize.DECIMAL(10, 2),
       allowNull: true,
       defaultValue: 0,
@@ -30,15 +84,17 @@ module.exports = {
     });
 
     // Add consumed_quantity to track usage
-    await queryInterface.addColumn('inventory', 'consumed_quantity', {
+    await addColumnIfMissing('inventory', 'consumed_quantity', {
       type: Sequelize.DECIMAL(10, 2),
       allowNull: true,
       defaultValue: 0,
       comment: 'Quantity consumed/used'
     });
 
-    // Create inventory_movements table
-    await queryInterface.createTable('inventory_movements', {
+    // Create inventory_movements table only if it doesn't exist
+    const inventoryMovementsExists = await tableExists('inventory_movements');
+    if (!inventoryMovementsExists) {
+      await queryInterface.createTable('inventory_movements', {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -152,24 +208,68 @@ module.exports = {
         defaultValue: Sequelize.NOW
       }
     });
+      console.log('✓ Created inventory_movements table');
+    } else {
+      console.log('⊘ inventory_movements table already exists, skipping');
+    }
 
     // Add indexes
-    await queryInterface.addIndex('inventory', ['purchase_order_id']);
-    await queryInterface.addIndex('inventory_movements', ['inventory_id']);
-    await queryInterface.addIndex('inventory_movements', ['purchase_order_id']);
-    await queryInterface.addIndex('inventory_movements', ['sales_order_id']);
-    await queryInterface.addIndex('inventory_movements', ['movement_type']);
-    await queryInterface.addIndex('inventory_movements', ['movement_date']);
+    await addIndexIfMissing('inventory', ['purchase_order_id']);
+    await addIndexIfMissing('inventory_movements', ['inventory_id']);
+    await addIndexIfMissing('inventory_movements', ['purchase_order_id']);
+    await addIndexIfMissing('inventory_movements', ['sales_order_id']);
+    await addIndexIfMissing('inventory_movements', ['movement_type']);
+    await addIndexIfMissing('inventory_movements', ['movement_date']);
   },
 
   down: async (queryInterface, Sequelize) => {
-    // Drop table
-    await queryInterface.dropTable('inventory_movements');
+    // Helper function to check if table exists
+    async function tableExists(tableName) {
+      try {
+        await queryInterface.describeTable(tableName);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    // Helper function to safely get table description
+    async function describeTableIfExists(tableName) {
+      const exists = await tableExists(tableName);
+      if (!exists) return null;
+      return await queryInterface.describeTable(tableName);
+    }
+
+    // Helper function to check if column exists
+    async function columnExists(tableName, columnName) {
+      const table = await describeTableIfExists(tableName);
+      return table && table[columnName] !== undefined;
+    }
+
+    // Helper function to remove column only if it exists
+    async function removeColumnIfExists(tableName, columnName) {
+      const exists = await columnExists(tableName, columnName);
+      if (exists) {
+        await queryInterface.removeColumn(tableName, columnName);
+        console.log(`✓ Removed column ${columnName} from ${tableName}`);
+      } else {
+        console.log(`⊘ Column ${columnName} doesn't exist in ${tableName}, skipping`);
+      }
+    }
+
+    // Drop table only if it exists
+    const inventoryMovementsExists = await tableExists('inventory_movements');
+    if (inventoryMovementsExists) {
+      await queryInterface.dropTable('inventory_movements');
+      console.log('✓ Dropped inventory_movements table');
+    } else {
+      console.log('⊘ inventory_movements table does not exist, skipping');
+    }
 
     // Remove columns from inventory
-    await queryInterface.removeColumn('inventory', 'consumed_quantity');
-    await queryInterface.removeColumn('inventory', 'initial_quantity');
-    await queryInterface.removeColumn('inventory', 'po_item_index');
-    await queryInterface.removeColumn('inventory', 'purchase_order_id');
+    await removeColumnIfExists('inventory', 'consumed_quantity');
+    await removeColumnIfExists('inventory', 'initial_quantity');
+    await removeColumnIfExists('inventory', 'po_item_index');
+    await removeColumnIfExists('inventory', 'purchase_order_id');
   }
 };

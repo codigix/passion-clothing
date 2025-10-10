@@ -223,9 +223,7 @@ const PurchaseOrdersPage = () => {
     localStorage.setItem('purchaseOrdersVisibleColumns', JSON.stringify(defaultIds));
   };
 
-  const handleCreate = () => {
-    navigate('/procurement/purchase-orders/create');
-  };
+
 
   const handleView = (order) => {
     navigate(`/procurement/purchase-orders/${order.id}`);
@@ -271,6 +269,21 @@ const PurchaseOrdersPage = () => {
       fetchSummary();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to send to vendor');
+    }
+  };
+
+  const handleMaterialReceived = async (order) => {
+    if (!window.confirm(`Confirm that materials for PO ${order.po_number} have been received? This will automatically create a GRN request for the Inventory Department.`)) {
+      return;
+    }
+
+    try {
+      await api.post(`/procurement/purchase-orders/${order.id}/material-received`);
+      toast.success(`✅ Materials received for PO ${order.po_number}! GRN request sent to Inventory Department.`);
+      fetchOrders();
+      fetchSummary();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to mark materials as received');
     }
   };
 
@@ -424,9 +437,11 @@ const PurchaseOrdersPage = () => {
       pending_approval: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending Approval' },
       approved: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Approved' },
       sent: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'Sent to Vendor' },
+      acknowledged: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Acknowledged' },
+      dispatched: { bg: 'bg-lime-100', text: 'text-lime-700', label: '🚚 Dispatched' },
+      in_transit: { bg: 'bg-cyan-100', text: 'text-cyan-700', label: '🚛 In Transit' },
       grn_requested: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'GRN Requested' },
       grn_created: { bg: 'bg-cyan-100', text: 'text-cyan-700', label: 'GRN Created' },
-      acknowledged: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Acknowledged' },
       partial_received: { bg: 'bg-teal-100', text: 'text-teal-700', label: 'Partially Received' },
       received: { bg: 'bg-green-100', text: 'text-green-700', label: 'Received' },
       completed: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Completed' },
@@ -672,13 +687,7 @@ const PurchaseOrdersPage = () => {
               <FaChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </button>
 
-            <button
-              onClick={handleCreate}
-              className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              <FaPlus size={16} />
-              <span>Create PO</span>
-            </button>
+
           </div>
         </div>
 
@@ -696,9 +705,11 @@ const PurchaseOrdersPage = () => {
                 <option value="pending_approval">Pending Approval</option>
                 <option value="approved">Approved</option>
                 <option value="sent">Sent to Vendor</option>
+                <option value="acknowledged">Acknowledged</option>
+                <option value="dispatched">🚚 Dispatched</option>
+                <option value="in_transit">🚛 In Transit</option>
                 <option value="grn_requested">GRN Requested</option>
                 <option value="grn_created">GRN Created</option>
-                <option value="acknowledged">Acknowledged</option>
                 <option value="partial_received">Partially Received</option>
                 <option value="received">Received</option>
                 <option value="completed">Completed</option>
@@ -947,22 +958,36 @@ const PurchaseOrdersPage = () => {
                                 </button>
                               )}
 
-                              {/* Request GRN Creation - For sent status */}
+                              {/* Material Received - For sent or acknowledged status */}
+                              {(order.status === 'sent' || order.status === 'acknowledged') && (
+                                <button
+                                  onClick={() => {
+                                    handleMaterialReceived(order);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-green-700 hover:bg-green-50 flex items-center gap-3 transition-colors font-semibold"
+                                >
+                                  <FaCheckCircle size={16} className="text-green-600" />
+                                  <span>✅ Material Received</span>
+                                </button>
+                              )}
+
+                              {/* Request GRN Creation - For sent status (LEGACY - Manual Option) */}
                               {order.status === 'sent' && (
                                 <button
                                   onClick={() => {
                                     handleRequestGRN(order);
                                     setShowActionMenu(null);
                                   }}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-indigo-700 hover:bg-indigo-50 flex items-center gap-3 transition-colors font-medium"
+                                  className="w-full px-4 py-2.5 text-left text-sm text-indigo-700 hover:bg-indigo-50 flex items-center gap-3 transition-colors"
                                 >
                                   <FaBoxOpen size={16} className="text-indigo-600" />
-                                  <span>📋 Request GRN Creation</span>
+                                  <span>📋 Request GRN (Manual)</span>
                                 </button>
                               )}
 
-                              {/* View GRN Request Status - For grn_requested status */}
-                              {order.status === 'grn_requested' && (
+                              {/* View GRN Request Status - For grn_requested or dispatched status */}
+                              {(order.status === 'grn_requested' || order.status === 'dispatched' || order.status === 'in_transit') && (
                                 <button
                                   onClick={() => {
                                     handleViewGRNStatus(order);
@@ -971,7 +996,7 @@ const PurchaseOrdersPage = () => {
                                   className="w-full px-4 py-2.5 text-left text-sm text-orange-700 hover:bg-orange-50 flex items-center gap-3 transition-colors"
                                 >
                                   <FaClock size={16} className="text-orange-600" />
-                                  <span>⏳ GRN Request Pending</span>
+                                  <span>⏳ {order.status === 'dispatched' || order.status === 'in_transit' ? 'Materials In Transit - GRN Pending' : 'GRN Request Pending'}</span>
                                 </button>
                               )}
 

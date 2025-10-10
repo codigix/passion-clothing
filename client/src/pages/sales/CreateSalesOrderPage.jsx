@@ -29,11 +29,10 @@ const CreateSalesOrderPage = () => {
     quantity: '',
     qualitySpecification: '',
     pricePerPiece: '',
-    orderPrice: '', // NEW FIELD: Order Price (total before advance)
     designFile: null,
     designFileName: '',
     sizeOption: 'fixed', // 'fixed' or 'custom'
-    sizeDetails: '',
+    sizeDetails: [], // Array of {size: string, quantity: number}
     expectedDeliveryDate: '',
     advancePaid: '',
     gstPercentage: '18',
@@ -76,24 +75,24 @@ const CreateSalesOrderPage = () => {
 
   // Auto-calculate values
   const calculations = useMemo(() => {
-    // Use orderPrice if provided, else fallback to qty * pricePerPiece
-    const qty = parseFloat(orderData.quantity) || 0;
+    const totalQty = orderData.sizeDetails.reduce((sum, size) => sum + (parseFloat(size.quantity) || 0), 0);
     const price = parseFloat(orderData.pricePerPiece) || 0;
-    const orderPrice = orderData.orderPrice !== '' ? parseFloat(orderData.orderPrice) : (qty * price);
+    const orderPrice = totalQty * price;
     const advance = parseFloat(orderData.advancePaid) || 0;
     const gst = parseFloat(orderData.gstPercentage) || 0;
-    
+
     const gstAmount = (orderPrice * gst) / 100;
     const totalWithGST = orderPrice + gstAmount;
     const remainingAmount = totalWithGST - advance;
     
     return {
+      totalQty: totalQty,
       orderPrice: orderPrice.toFixed(2),
       gstAmount: gstAmount.toFixed(2),
       totalWithGST: totalWithGST.toFixed(2),
       remainingAmount: remainingAmount.toFixed(2)
     };
-  }, [orderData.quantity, orderData.pricePerPiece, orderData.orderPrice, orderData.advancePaid, orderData.gstPercentage]);
+  }, [orderData.sizeDetails, orderData.pricePerPiece, orderData.advancePaid, orderData.gstPercentage]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -102,16 +101,45 @@ const CreateSalesOrderPage = () => {
         ...prev,
         [field]: value
       };
-      
+
       // Auto-generate product code when product name or type changes
       if (field === 'productName' || field === 'productType') {
         const productType = field === 'productType' ? value : prev.productType;
         const productName = field === 'productName' ? value : prev.productName;
         updated.productCode = generateProductCode(productName, productType);
       }
-      
+
       return updated;
     });
+  };
+
+  // Handle size details changes
+  const handleSizeDetailChange = (index, field, value) => {
+    setOrderData((prev) => {
+      const newSizeDetails = [...prev.sizeDetails];
+      newSizeDetails[index] = {
+        ...newSizeDetails[index],
+        [field]: value
+      };
+      return {
+        ...prev,
+        sizeDetails: newSizeDetails
+      };
+    });
+  };
+
+  const addSizeDetail = () => {
+    setOrderData((prev) => ({
+      ...prev,
+      sizeDetails: [...prev.sizeDetails, { size: '', quantity: '' }]
+    }));
+  };
+
+  const removeSizeDetail = (index) => {
+    setOrderData((prev) => ({
+      ...prev,
+      sizeDetails: prev.sizeDetails.filter((_, i) => i !== index)
+    }));
   };
 
   // Handle file upload
@@ -592,26 +620,10 @@ const CreateSalesOrderPage = () => {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700" htmlFor="orderPrice">
-                  Order Price (₹) <span className="text-xs text-gray-500">(Total before advance)</span>
-                </label>
-                <input
-                  id="orderPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={orderData.orderPrice}
-                  onChange={(e) => handleInputChange('orderPrice', e.target.value)}
-                  className="w-full rounded-lg border border-blue-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  placeholder="Total order price (optional)"
-                />
-                <span className="text-xs text-gray-400">If left blank, will use Quantity × Price per Piece</span>
-              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">
-                  Order Price <span className="text-xs text-gray-500">(Auto-calculated or entered)</span>
+                  Order Price <span className="text-xs text-gray-500">(Auto-calculated)</span>
                 </label>
                 <div className="flex items-center rounded-lg border border-gray-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-900">
                   ₹ {calculations.orderPrice}
@@ -663,17 +675,62 @@ const CreateSalesOrderPage = () => {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-gray-700" htmlFor="sizeDetails">
-                  Size Details
-                </label>
-                <input
-                  id="sizeDetails"
-                  type="text"
-                  value={orderData.sizeDetails}
-                  onChange={(e) => handleInputChange('sizeDetails', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  placeholder={orderData.sizeOption === 'fixed' ? 'e.g., S: 100, M: 200, L: 150, XL: 50' : 'e.g., Chest: 38", Waist: 32", Length: 28"'}
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Size Details <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addSizeDetail}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    + Add Size
+                  </button>
+                </div>
+
+                {orderData.sizeDetails.length === 0 ? (
+                  <div className="text-sm text-gray-500 italic p-4 border border-dashed border-gray-300 rounded-lg text-center">
+                    No sizes added. Click "Add Size" to start adding size details.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {orderData.sizeDetails.map((sizeDetail, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            placeholder={orderData.sizeOption === 'fixed' ? 'e.g., S, M, L, XL' : 'e.g., Chest: 38"'}
+                            value={sizeDetail.size}
+                            onChange={(e) => handleSizeDetailChange(index, 'size', e.target.value)}
+                            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                            required
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="number"
+                            placeholder="Quantity"
+                            min="1"
+                            value={sizeDetail.quantity}
+                            onChange={(e) => handleSizeDetailChange(index, 'quantity', e.target.value)}
+                            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                            required
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSizeDetail(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove size"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

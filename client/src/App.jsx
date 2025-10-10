@@ -10,7 +10,8 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import SalesDashboard from './pages/dashboards/SalesDashboard';
 import ProcurementDashboard from './pages/dashboards/ProcurementDashboard';
 import ChallanDashboard from './pages/dashboards/ChallanDashboard';
-import InventoryDashboard from './pages/dashboards/InventoryDashboard';
+// import InventoryDashboard from './pages/dashboards/InventoryDashboard'; // Old dashboard
+import EnhancedInventoryDashboard from './pages/inventory/EnhancedInventoryDashboard'; // New unified dashboard
 import ManufacturingDashboard from './pages/dashboards/ManufacturingDashboard';
 import OutsourcingDashboard from './pages/dashboards/OutsourcingDashboard';
 import SamplesDashboard from './pages/dashboards/SamplesDashboard';
@@ -57,6 +58,8 @@ import ProcurementReportsPage from './pages/procurement/ProcurementReportsPage';
 import GoodsReceiptPage from './pages/procurement/GoodsReceiptPage';
 import VendorPerformancePage from './pages/procurement/VendorPerformancePage';
 import PendingApprovalsPage from './pages/procurement/PendingApprovalsPage';
+import MaterialRequestsPage from './pages/procurement/MaterialRequestsPage';
+import ProductionRequestsPage from './pages/procurement/ProductionRequestsPage';
 
 // Challan Pages
 import ChallanRegisterPage from './pages/challans/ChallanRegisterPage';
@@ -66,15 +69,21 @@ import CreateChallanPage from './pages/challans/CreateChallanPage';
 import StockManagementPage from './pages/inventory/StockManagementPage';
 import StockAlertsPage from './pages/inventory/StockAlertsPage';
 import InventoryReportsPage from './pages/inventory/InventoryReportsPage';
-import ProductsPage from './pages/inventory/ProductsPage';
-import ProductBarcodeLookup from './components/ProductBarcodeLookup';
-import ProductLifecyclePage from './pages/inventory/ProductLifecyclePage';
+import InventoryBarcodeLookup from './pages/inventory/InventoryBarcodeLookup';
+// Products merged into Inventory - old pages removed from navigation
+// import ProductsPage from './pages/inventory/ProductsPage';
+// import ProductBarcodeLookup from './components/ProductBarcodeLookup';
+// import ProductLifecyclePage from './pages/inventory/ProductLifecyclePage';
+import ProjectMaterialDashboard from './pages/inventory/ProjectMaterialDashboard';
 import GoodsReceiptNotePage from './pages/inventory/GoodsReceiptNotePage';
 import CreateGRNPage from './pages/inventory/CreateGRNPage';
 import UpdateGRNPage from './pages/inventory/UpdateGRNPage';
 import GRNVerificationPage from './pages/inventory/GRNVerificationPage';
 import AddGRNToInventoryPage from './pages/inventory/AddGRNToInventoryPage';
 import POInventoryTrackingPage from './pages/inventory/POInventoryTrackingPage';
+import MaterialRequestReviewPage from './pages/inventory/MaterialRequestReviewPage';
+import StockDispatchPage from './pages/inventory/StockDispatchPage';
+import MRNRequestsPage from './pages/inventory/MRNRequestsPage';
 
 // Manufacturing Pages
 import ProductionOrdersPage from './pages/manufacturing/ProductionOrdersPage';
@@ -83,6 +92,13 @@ import QualityControlPage from './pages/manufacturing/QualityControlPage';
 import ManufacturingReportsPage from './pages/manufacturing/ManufacturingReportsPage';
 import ProductionWizardPage from './pages/manufacturing/ProductionWizardPage';
 import ProductionDashboardPage from './pages/manufacturing/ProductionDashboardPage';
+import ManufacturingProductionRequestsPage from './pages/manufacturing/ManufacturingProductionRequestsPage';
+import MaterialRequirementsPage from './pages/manufacturing/MaterialRequirementsPage';
+import CreateMRMPage from './pages/manufacturing/CreateMRMPage';
+import MRNListPage from './pages/manufacturing/MRMListPage';
+import MaterialReceiptPage from './pages/manufacturing/MaterialReceiptPage';
+import StockVerificationPage from './pages/manufacturing/StockVerificationPage';
+import ProductionApprovalPage from './pages/manufacturing/ProductionApprovalPage';
 
 // Admin Pages
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -133,7 +149,7 @@ function App() {
         <Route path="/sales" element={<ProtectedDashboard department="sales"><SalesDashboard /></ProtectedDashboard>} />
         <Route path="/procurement" element={<ProtectedDashboard department="procurement"><ProcurementDashboard /></ProtectedDashboard>} />
         <Route path="/challans" element={<ProtectedDashboard department="challans"><ChallanDashboard /></ProtectedDashboard>} />
-        <Route path="/inventory" element={<ProtectedDashboard department="inventory"><InventoryDashboard /></ProtectedDashboard>} />
+        <Route path="/inventory" element={<ProtectedDashboard department="inventory"><EnhancedInventoryDashboard /></ProtectedDashboard>} />
         <Route path="/manufacturing" element={<ProtectedDashboard department="manufacturing"><ManufacturingDashboard /></ProtectedDashboard>} />
         <Route path="/outsourcing" element={<ProtectedDashboard department="outsourcing"><OutsourcingDashboard /></ProtectedDashboard>} />
         <Route path="/samples" element={<ProtectedDashboard department="samples"><SamplesDashboard /></ProtectedDashboard>} />
@@ -146,7 +162,7 @@ function App() {
         <Route path="/sales/dashboard" element={<ProtectedDashboard department="sales"><SalesDashboard /></ProtectedDashboard>} />
         <Route path="/procurement/dashboard" element={<ProtectedDashboard department="procurement"><ProcurementDashboard /></ProtectedDashboard>} />
         <Route path="/challans/dashboard" element={<ProtectedDashboard department="challans"><ChallanDashboard /></ProtectedDashboard>} />
-        <Route path="/inventory/dashboard" element={<ProtectedDashboard department="inventory"><InventoryDashboard /></ProtectedDashboard>} />
+        <Route path="/inventory/dashboard" element={<ProtectedDashboard department="inventory"><EnhancedInventoryDashboard /></ProtectedDashboard>} />
         <Route path="/manufacturing/dashboard" element={<ProtectedDashboard department="manufacturing"><ManufacturingDashboard /></ProtectedDashboard>} />
         <Route path="/outsourcing/dashboard" element={<ProtectedDashboard department="outsourcing"><OutsourcingDashboard /></ProtectedDashboard>} />
         <Route path="/samples/dashboard" element={<ProtectedDashboard department="samples"><SamplesDashboard /></ProtectedDashboard>} />
@@ -171,6 +187,8 @@ function App() {
         <Route path="/procurement/bill-of-materials" element={<BillOfMaterialsPage />} />
         <Route path="/procurement/goods-receipt" element={<GoodsReceiptPage />} />
         <Route path="/procurement/vendor-performance" element={<VendorPerformancePage />} />
+        <Route path="/procurement/material-requests" element={<MaterialRequestsPage />} />
+        <Route path="/procurement/production-requests" element={<ProductionRequestsPage />} />
         <Route path="/procurement/reports" element={<ProcurementReportsPage />} />
 
         {/* Challan Routes */}
@@ -178,19 +196,26 @@ function App() {
         <Route path="/challans/create" element={<CreateChallanPage />} />
 
         {/* Inventory Routes */}
-        <Route path="/inventory/products" element={<ProductsPage />} />
-        <Route path="/inventory/barcode-lookup" element={<ProductBarcodeLookup />} />
-        <Route path="/inventory/lifecycle" element={<ProductLifecyclePage />} />
-        <Route path="/inventory/stock" element={<StockManagementPage />} />
-        <Route path="/inventory/alerts" element={<StockAlertsPage />} />
-        <Route path="/inventory/grn" element={<GoodsReceiptNotePage />} />
-        <Route path="/inventory/grn/create" element={<CreateGRNPage />} />
-        <Route path="/inventory/grn/update/:id" element={<UpdateGRNPage />} />
-        <Route path="/inventory/grn/:id/verify" element={<GRNVerificationPage />} />
-        <Route path="/inventory/grn/:id/add-to-inventory" element={<AddGRNToInventoryPage />} />
-        <Route path="/inventory/goods-receipt" element={<GoodsReceiptNotePage />} />
-        <Route path="/inventory/from-po/:poId" element={<POInventoryTrackingPage />} />
-        <Route path="/inventory/reports" element={<InventoryReportsPage />} />
+        {/* Products merged into Inventory - old routes removed */}
+        {/* <Route path="/inventory/products" element={<ProductsPage />} /> */}
+        {/* <Route path="/inventory/barcode-lookup" element={<ProductBarcodeLookup />} /> */}
+        {/* <Route path="/inventory/lifecycle" element={<ProductLifecyclePage />} /> */}
+        <Route path="/inventory/projects/:salesOrderId" element={<ProtectedDashboard department="inventory"><ProjectMaterialDashboard /></ProtectedDashboard>} />
+        <Route path="/inventory/stock" element={<ProtectedDashboard department="inventory"><StockManagementPage /></ProtectedDashboard>} />
+        <Route path="/inventory/alerts" element={<ProtectedDashboard department="inventory"><StockAlertsPage /></ProtectedDashboard>} />
+        <Route path="/inventory/scan" element={<ProtectedDashboard department="inventory"><InventoryBarcodeLookup /></ProtectedDashboard>} />
+        <Route path="/inventory/barcode-scanner" element={<ProtectedDashboard department="inventory"><InventoryBarcodeLookup /></ProtectedDashboard>} />
+        <Route path="/inventory/grn" element={<ProtectedDashboard department="inventory"><GoodsReceiptNotePage /></ProtectedDashboard>} />
+        <Route path="/inventory/grn/create" element={<ProtectedDashboard department="inventory"><CreateGRNPage /></ProtectedDashboard>} />
+        <Route path="/inventory/grn/update/:id" element={<ProtectedDashboard department="inventory"><UpdateGRNPage /></ProtectedDashboard>} />
+        <Route path="/inventory/grn/:id/verify" element={<ProtectedDashboard department="inventory"><GRNVerificationPage /></ProtectedDashboard>} />
+        <Route path="/inventory/grn/:id/add-to-inventory" element={<ProtectedDashboard department="inventory"><AddGRNToInventoryPage /></ProtectedDashboard>} />
+        <Route path="/inventory/goods-receipt" element={<ProtectedDashboard department="inventory"><GoodsReceiptNotePage /></ProtectedDashboard>} />
+        <Route path="/inventory/from-po/:poId" element={<ProtectedDashboard department="inventory"><POInventoryTrackingPage /></ProtectedDashboard>} />
+        <Route path="/inventory/mrn-requests" element={<ProtectedDashboard department="inventory"><MRNRequestsPage /></ProtectedDashboard>} />
+        <Route path="/inventory/mrn/:id" element={<ProtectedDashboard department="inventory"><MaterialRequestReviewPage /></ProtectedDashboard>} />
+        <Route path="/inventory/dispatch/:mrnId" element={<ProtectedDashboard department="inventory"><StockDispatchPage /></ProtectedDashboard>} />
+        <Route path="/inventory/reports" element={<ProtectedDashboard department="inventory"><InventoryReportsPage /></ProtectedDashboard>} />
 
         {/* Manufacturing Routes */}
         <Route path="/manufacturing/orders" element={<ProductionOrdersPage />} />
@@ -198,6 +223,13 @@ function App() {
         <Route path="/manufacturing/quality" element={<QualityControlPage />} />
         <Route path="/manufacturing/wizard" element={<ProductionWizardPage />} />
         <Route path="/manufacturing/dashboard" element={<ProductionDashboardPage />} />
+        <Route path="/manufacturing/production-requests" element={<ManufacturingProductionRequestsPage />} />
+        <Route path="/manufacturing/material-requirements" element={<MaterialRequirementsPage />} />
+        <Route path="/manufacturing/material-requests" element={<MRNListPage />} />
+        <Route path="/manufacturing/material-requests/create" element={<CreateMRMPage />} />
+        <Route path="/manufacturing/material-receipt/:dispatchId" element={<MaterialReceiptPage />} />
+        <Route path="/manufacturing/stock-verification/:receiptId" element={<StockVerificationPage />} />
+        <Route path="/manufacturing/production-approval/:verificationId" element={<ProductionApprovalPage />} />
         <Route path="/manufacturing/reports" element={<ManufacturingReportsPage />} />
 
         {/* Outsourcing Routes */}

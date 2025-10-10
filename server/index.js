@@ -29,6 +29,12 @@ const bomRoutes = require('./routes/bom');
 const grnRoutes = require('./routes/grn');
 const notificationRoutes = require('./routes/notifications');
 const vendorReturnsRoutes = require('./routes/vendorReturns');
+const projectMaterialRequestRoutes = require('./routes/projectMaterialRequest');
+const productionRequestRoutes = require('./routes/productionRequest');
+const materialDispatchRoutes = require('./routes/materialDispatch');
+const materialReceiptRoutes = require('./routes/materialReceipt');
+const materialVerificationRoutes = require('./routes/materialVerification');
+const productionApprovalRoutes = require('./routes/productionApproval');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -87,6 +93,12 @@ app.use('/api/bom', bomRoutes);
 app.use('/api/grn', grnRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/vendor-returns', vendorReturnsRoutes);
+app.use('/api/project-material-requests', projectMaterialRequestRoutes);
+app.use('/api/production-requests', productionRequestRoutes);
+app.use('/api/material-dispatch', materialDispatchRoutes);
+app.use('/api/material-receipt', materialReceiptRoutes);
+app.use('/api/material-verification', materialVerificationRoutes);
+app.use('/api/production-approval', productionApprovalRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -140,6 +152,19 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+// Global error handlers to prevent server crashes
+process.on('uncaughtException', (error) => {
+  console.error('❌ UNCAUGHT EXCEPTION:', error);
+  console.error('Stack:', error.stack);
+  // Don't exit - log and continue (production should use proper logging service)
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ UNHANDLED REJECTION at:', promise);
+  console.error('Reason:', reason);
+  // Don't exit - log and continue (production should use proper logging service)
+});
 
 startServer();
 

@@ -23,6 +23,132 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    sales_order_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'sales_orders',
+        key: 'id'
+      },
+      comment: 'Link to Sales Order (project)'
+    },
+    project_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'Project this stock belongs to (null means general/extra stock)'
+    },
+    // Product details merged into Inventory
+    product_code: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: 'Unique product code'
+    },
+    product_name: {
+      type: DataTypes.STRING(150),
+      allowNull: false,
+      defaultValue: 'Unnamed Product'
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    category: {
+      type: DataTypes.ENUM(
+        'fabric', 'thread', 'button', 'zipper', 'elastic', 'lace',
+        'uniform', 'shirt', 'trouser', 'skirt', 'blazer', 'tie',
+        'belt', 'shoes', 'socks', 'accessories', 'raw_material', 'finished_goods'
+      ),
+      allowNull: true,
+      defaultValue: 'raw_material'
+    },
+    sub_category: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    product_type: {
+      type: DataTypes.ENUM('raw_material', 'semi_finished', 'finished_goods', 'accessory'),
+      allowNull: true,
+      defaultValue: 'raw_material'
+    },
+    unit_of_measurement: {
+      type: DataTypes.ENUM('piece', 'meter', 'yard', 'kg', 'gram', 'liter', 'dozen', 'set'),
+      allowNull: true,
+      defaultValue: 'piece'
+    },
+    hsn_code: {
+      type: DataTypes.STRING(10),
+      allowNull: true
+    },
+    brand: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    color: {
+      type: DataTypes.STRING(50),
+      allowNull: true
+    },
+    size: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    material: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    specifications: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Detailed specifications like dimensions, weight, etc.'
+    },
+    images: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Array of image URLs'
+    },
+    cost_price: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0.00
+    },
+    selling_price: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0.00
+    },
+    mrp: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0.00
+    },
+    tax_percentage: {
+      type: DataTypes.DECIMAL(5, 2),
+      defaultValue: 0.00
+    },
+    weight: {
+      type: DataTypes.DECIMAL(8, 3),
+      allowNull: true,
+      comment: 'Weight in kg'
+    },
+    dimensions: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Length, width, height in cm'
+    },
+    is_serialized: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    is_batch_tracked: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    quality_parameters: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Quality check parameters for this product'
+    },
+    stock_type: {
+      type: DataTypes.ENUM('project_specific', 'general_extra', 'consignment', 'returned'),
+      defaultValue: 'general_extra',
+      comment: 'Type of stock for better categorization and tracking'
+    },
     po_item_index: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -179,7 +305,15 @@ module.exports = (sequelize) => {
       { fields: ['expiry_date'] },
       { fields: ['is_active'] },
       { fields: ['barcode'] },
-      { fields: ['product_id', 'location'] }
+      { fields: ['product_id', 'location'] },
+      { fields: ['project_id'] },
+      { fields: ['stock_type'] },
+      { fields: ['project_id', 'stock_type'] },
+      { fields: ['product_code'] },
+      { fields: ['product_name'] },
+      { fields: ['category'] },
+      { fields: ['sales_order_id'] },
+      { fields: ['sales_order_id', 'stock_type'] }
     ]
   });
 

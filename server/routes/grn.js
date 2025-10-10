@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { GoodsReceiptNote, PurchaseOrder, BillOfMaterials, SalesOrder, Inventory, InventoryMovement, Product, User, Vendor, Customer, Notification, VendorReturn } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
+const { generateBarcode, generateBatchBarcode, generateInventoryQRData } = require('../utils/barcodeUtils');
 
 // Get all GRNs
 router.get('/', authenticateToken, checkDepartment(['procurement', 'inventory', 'admin']), async (req, res) => {
@@ -17,24 +18,24 @@ router.get('/', authenticateToken, checkDepartment(['procurement', 'inventory', 
     const { count, rows: grns } = await GoodsReceiptNote.findAndCountAll({
       where: whereClause,
       include: [
-        { 
-          model: PurchaseOrder, 
-          as: 'purchaseOrder', 
+        {
+          model: PurchaseOrder,
+          as: 'purchaseOrder',
           include: [
             { model: Vendor, as: 'vendor' },
             { model: Customer, as: 'customer' }
-          ] 
+          ]
         },
         { model: BillOfMaterials, as: 'billOfMaterials', required: false },
-        { 
-          model: SalesOrder, 
-          as: 'salesOrder', 
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
           required: false,
-          include: [{ model: Customer, as: 'customer' }] 
+          include: [{ model: Customer, as: 'customer' }]
         },
-        { model: User, as: 'creator', attributes: ['id', 'username', 'name'] },
-        { model: User, as: 'inspector', attributes: ['id', 'username', 'name'], required: false },
-        { model: User, as: 'approver', attributes: ['id', 'username', 'name'], required: false }
+        { model: User, as: 'creator', attributes: ['id', 'email', 'name'] },
+        { model: User, as: 'inspector', attributes: ['id', 'email', 'name'], required: false },
+        { model: User, as: 'approver', attributes: ['id', 'email', 'name'], required: false }
       ],
       limit: parseInt(limit),
       offset: offset,
@@ -61,24 +62,24 @@ router.get('/:id', authenticateToken, checkDepartment(['procurement', 'inventory
   try {
     const grn = await GoodsReceiptNote.findByPk(req.params.id, {
       include: [
-        { 
-          model: PurchaseOrder, 
-          as: 'purchaseOrder', 
+        {
+          model: PurchaseOrder,
+          as: 'purchaseOrder',
           include: [
             { model: Vendor, as: 'vendor' },
             { model: Customer, as: 'customer' }
-          ] 
+          ]
         },
         { model: BillOfMaterials, as: 'billOfMaterials', required: false },
-        { 
-          model: SalesOrder, 
-          as: 'salesOrder', 
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
           required: false,
-          include: [{ model: Customer, as: 'customer' }] 
+          include: [{ model: Customer, as: 'customer' }]
         },
-        { model: User, as: 'creator', attributes: ['id', 'username', 'name'] },
-        { model: User, as: 'inspector', attributes: ['id', 'username', 'name'], required: false },
-        { model: User, as: 'approver', attributes: ['id', 'username', 'name'], required: false }
+        { model: User, as: 'creator', attributes: ['id', 'email', 'name'] },
+        { model: User, as: 'inspector', attributes: ['id', 'email', 'name'], required: false },
+        { model: User, as: 'approver', attributes: ['id', 'email', 'name'], required: false }
       ]
     });
 
@@ -170,7 +171,7 @@ router.get('/create/:poId', authenticateToken, checkDepartment(['inventory', 'ad
 // Create GRN from Purchase Order
 router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
   const transaction = await require('../config/database').sequelize.transaction();
-  
+
   try {
     const { poId } = req.params;
     const {
@@ -181,6 +182,11 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
       remarks,
       attachments
     } = req.body;
+
+    console.log('=== GRN Creation Debug ===');
+    console.log('PO ID:', poId);
+    console.log('Items received count:', items_received?.length);
+    console.log('Items received sample:', items_received?.[0]);
 
     // Get PO with vendor details
     const po = await PurchaseOrder.findByPk(poId, {
@@ -218,25 +224,43 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
 
     // Map items from PO with received quantities
     const poItems = po.items || [];
+    console.log('PO Items count:', poItems.length);
+    if (poItems.length > 0) {
+      console.log('PO Item sample structure:', JSON.stringify(poItems[0], null, 2));
+    }
+
     const mappedItems = items_received.map(receivedItem => {
       const poItem = poItems[receivedItem.item_index];
+
+      if (!poItem) {
+        throw new Error(`Invalid item_index: ${receivedItem.item_index}. PO has ${poItems.length} items.`);
+      }
+
       const orderedQty = parseFloat(poItem.quantity);
       const invoicedQty = receivedItem.invoiced_qty ? parseFloat(receivedItem.invoiced_qty) : orderedQty;
       const receivedQty = parseFloat(receivedItem.received_qty);
-      
+
       // Detect discrepancies
       const hasShortage = receivedQty < Math.min(orderedQty, invoicedQty);
       const hasOverage = receivedQty > Math.max(orderedQty, invoicedQty);
       const invoiceVsOrderMismatch = invoicedQty !== orderedQty;
-      
+
+      // Extract material name with multiple fallback options
+      let materialName = '';
+      if (poItem.type === 'fabric') {
+        materialName = poItem.fabric_name || poItem.material_name || poItem.name || poItem.item_name || 'Unknown Fabric';
+      } else {
+        materialName = poItem.item_name || poItem.material_name || poItem.name || poItem.fabric_name || 'Unknown Item';
+      }
+
       return {
-        material_name: poItem.type === 'fabric' ? poItem.fabric_name : poItem.item_name,
+        material_name: materialName,
         color: poItem.color || '',
-        hsn: poItem.hsn || '',
+        hsn: poItem.hsn || poItem.hsn_code || '',
         gsm: poItem.gsm || '',
         width: poItem.width || '',
         description: poItem.description || '',
-        uom: poItem.uom || 'Meters',
+        uom: poItem.uom || poItem.unit || 'Meters',
         ordered_quantity: orderedQty,
         invoiced_quantity: invoicedQty,
         received_quantity: receivedQty,
@@ -254,8 +278,11 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
     // Calculate total received value
     const totalReceivedValue = mappedItems.reduce((sum, item) => sum + item.total, 0);
 
+    console.log('=== Creating GRN ===');
+    console.log('Mapped Items:', JSON.stringify(mappedItems, null, 2));
+
     // Create GRN
-    const grn = await GoodsReceiptNote.create({
+    const grnData = {
       grn_number: grnNumber,
       purchase_order_id: po.id,
       bill_of_materials_id: null, // Optional
@@ -272,7 +299,11 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
       attachments: attachments || [],
       created_by: req.user.id,
       inventory_added: false
-    }, { transaction });
+    };
+
+    console.log('GRN Data being saved:', JSON.stringify(grnData, null, 2));
+
+    const grn = await GoodsReceiptNote.create(grnData, { transaction });
 
     // Update PO status
     await po.update({
@@ -283,7 +314,7 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
     // Check for shortages and create vendor return request if needed
     const shortageItems = mappedItems.filter(item => item.shortage_quantity > 0);
     let vendorReturn = null;
-    
+
     if (shortageItems.length > 0) {
       // Generate return number: VR-YYYYMMDD-XXXXX
       const returnDateStr = today.toISOString().split('T')[0].replace(/-/g, '');
@@ -305,7 +336,7 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
       const returnNumber = `VR-${returnDateStr}-${returnSequence.toString().padStart(5, '0')}`;
 
       // Calculate total shortage value
-      const totalShortageValue = shortageItems.reduce((sum, item) => 
+      const totalShortageValue = shortageItems.reduce((sum, item) =>
         sum + (item.shortage_quantity * item.rate), 0
       );
 
@@ -360,7 +391,7 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
     await transaction.commit();
 
     res.status(201).json({
-      message: shortageItems.length > 0 
+      message: shortageItems.length > 0
         ? `GRN created with ${shortageItems.length} shortage(s). Vendor return request auto-generated.`
         : 'GRN created successfully. Pending verification.',
       grn,
@@ -376,10 +407,181 @@ router.post('/from-po/:poId', authenticateToken, checkDepartment(['inventory', '
   }
 });
 
+// Create GRN from MRN (Material Request)
+router.post('/from-mrn/:mrnId', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
+  const transaction = await require('../config/database').sequelize.transaction();
+
+  try {
+    const { mrnId } = req.params;
+    const {
+      received_date,
+      inward_challan_number,
+      supplier_invoice_number,
+      items_received, // Array: [{ item_index, received_qty, weight, remarks }]
+      remarks,
+      attachments
+    } = req.body;
+
+    console.log('=== GRN Creation from MRN Debug ===');
+    console.log('MRN ID:', mrnId);
+
+    // Get MRN with all details
+    const mrn = await require('../config/database').ProjectMaterialRequest.findByPk(mrnId, {
+      include: [
+        {
+          model: require('../config/database').PurchaseOrder,
+          as: 'purchaseOrder',
+          include: [
+            { model: require('../config/database').Vendor, as: 'vendor' },
+            { model: require('../config/database').Customer, as: 'customer' }
+          ]
+        },
+        {
+          model: require('../config/database').SalesOrder,
+          as: 'salesOrder',
+          required: false,
+          include: [{ model: require('../config/database').Customer, as: 'customer' }]
+        },
+        { model: require('../config/database').User, as: 'creator', attributes: ['id', 'email', 'name'] }
+      ],
+      transaction
+    });
+
+    if (!mrn) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Material Request not found' });
+    }
+
+    if (mrn.status !== 'pending' && mrn.status !== 'reviewed' && mrn.status !== 'forwarded_to_inventory') {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'MRN is not in a valid state for GRN creation' });
+    }
+
+    // Generate GRN number: GRN-YYYYMMDD-XXXXX
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+    const lastGRN = await GoodsReceiptNote.findOne({
+      where: {
+        grn_number: {
+          [require('sequelize').Op.like]: `GRN-${dateStr}-%`
+        }
+      },
+      order: [['created_at', 'DESC']],
+      transaction
+    });
+
+    let sequence = 1;
+    if (lastGRN) {
+      const lastSequence = parseInt(lastGRN.grn_number.split('-')[2]);
+      sequence = lastSequence + 1;
+    }
+    const grnNumber = `GRN-${dateStr}-${sequence.toString().padStart(5, '0')}`;
+
+    // Map items from MRN with received quantities
+    const mrnItems = mrn.items || [];
+    console.log('MRN Items count:', mrnItems.length);
+
+    const mappedItems = items_received.map(receivedItem => {
+      const mrnItem = mrnItems[receivedItem.item_index];
+
+      if (!mrnItem) {
+        throw new Error(`Invalid item_index: ${receivedItem.item_index}. MRN has ${mrnItems.length} items.`);
+      }
+
+      const requestedQty = parseFloat(mrnItem.quantity);
+      const receivedQty = parseFloat(receivedItem.received_qty);
+
+      return {
+        material_name: mrnItem.material_name,
+        color: mrnItem.color || '',
+        hsn: mrnItem.hsn || '',
+        gsm: mrnItem.gsm || '',
+        width: mrnItem.width || '',
+        description: mrnItem.description || '',
+        uom: mrnItem.unit || mrnItem.uom || 'Units',
+        ordered_quantity: requestedQty,
+        invoiced_quantity: requestedQty, // For MRN, invoiced = requested
+        received_quantity: receivedQty,
+        shortage_quantity: receivedQty < requestedQty ? (requestedQty - receivedQty) : 0,
+        overage_quantity: receivedQty > requestedQty ? (receivedQty - requestedQty) : 0,
+        weight: receivedItem.weight ? parseFloat(receivedItem.weight) : null,
+        rate: parseFloat(mrnItem.rate) || 0,
+        total: receivedQty * (parseFloat(mrnItem.rate) || 0),
+        quality_status: 'pending_inspection',
+        discrepancy_flag: receivedQty !== requestedQty,
+        remarks: receivedItem.remarks || '',
+        purpose: mrnItem.purpose || ''
+      };
+    });
+
+    // Calculate total received value
+    const totalReceivedValue = mappedItems.reduce((sum, item) => sum + item.total, 0);
+
+    console.log('=== Creating GRN from MRN ===');
+    console.log('Mapped Items:', JSON.stringify(mappedItems, null, 2));
+
+    // Create GRN
+    const grnData = {
+      grn_number: grnNumber,
+      purchase_order_id: mrn.purchase_order_id,
+      bill_of_materials_id: null, // Optional
+      sales_order_id: mrn.sales_order_id || null, // Optional
+      received_date: received_date || new Date(),
+      supplier_name: mrn.purchaseOrder?.vendor?.name || 'Internal',
+      supplier_invoice_number: supplier_invoice_number || null,
+      inward_challan_number: inward_challan_number || null,
+      items_received: mappedItems,
+      total_received_value: totalReceivedValue,
+      status: 'received',
+      verification_status: 'pending',
+      remarks: remarks || `Created from MRN ${mrn.request_number}`,
+      attachments: attachments || [],
+      created_by: req.user.id,
+      inventory_added: false,
+      created_from_mrn: true,
+      mrn_id: mrn.id
+    };
+
+    console.log('GRN Data being saved:', JSON.stringify(grnData, null, 2));
+
+    const grn = await GoodsReceiptNote.create(grnData, { transaction });
+
+    // Update MRN status to accepted
+    await mrn.update({
+      status: 'accepted',
+      processed_date: new Date(),
+      processed_by: req.user.id
+    }, { transaction });
+
+    // Send notification
+    const NotificationService = require('../utils/notificationService');
+    await NotificationService.notifyInventoryAction('grn_created', {
+      grn_number: grnNumber,
+      mrn_number: mrn.request_number,
+      project_name: mrn.project_name,
+      total_items: mappedItems.length,
+      total_value: totalReceivedValue
+    });
+
+    await transaction.commit();
+
+    res.status(201).json({
+      message: 'GRN created successfully from MRN',
+      grn,
+      mrn_updated: true,
+      next_step: 'verification'
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error creating GRN from MRN:', error);
+    res.status(500).json({ message: 'Failed to create GRN from MRN', error: error.message });
+  }
+});
+
 // Verify GRN (Quality Check)
 router.post('/:id/verify', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
   const transaction = await require('../config/database').sequelize.transaction();
-  
+
   try {
     const {
       verification_status, // 'verified' or 'discrepancy'
@@ -416,9 +618,219 @@ router.post('/:id/verify', authenticateToken, checkDepartment(['inventory', 'adm
     let notificationMessage = '';
 
     if (verification_status === 'verified') {
-      // No issues - ready to add to inventory
-      nextStep = 'add_to_inventory';
-      notificationMessage = `GRN ${grn.grn_number} verified successfully. Ready to add to inventory.`;
+      // No issues - automatically add to inventory
+      console.log('=== Auto-adding verified GRN to inventory ===');
+
+      const createdInventoryItems = [];
+      const createdMovements = [];
+      const items = grn.items_received || [];
+      const location = 'Main Warehouse'; // Default location for auto-addition
+
+      // Process each item
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item.received_quantity || parseFloat(item.received_quantity) <= 0) {
+          continue;
+        }
+
+        // Try to find or create product
+        let product = null;
+        const productName = item.material_name;
+
+        if (productName) {
+          product = await Product.findOne({
+            where: { name: productName },
+            transaction
+          });
+
+          if (!product) {
+            // Determine category and product type
+            const isFabric = item.color || item.gsm || item.width;
+            const category = isFabric ? 'fabric' : 'accessories';
+            const productType = isFabric ? 'raw_material' : 'accessory';
+
+            // Determine unit of measurement
+            let unitOfMeasurement = 'meter';
+            if (item.uom) {
+              const uomLower = item.uom.toLowerCase();
+              if (uomLower.includes('meter') || uomLower.includes('mtr')) {
+                unitOfMeasurement = 'meter';
+              } else if (uomLower.includes('piece') || uomLower.includes('pcs')) {
+                unitOfMeasurement = 'piece';
+              } else if (uomLower.includes('kg') || uomLower.includes('kilogram')) {
+                unitOfMeasurement = 'kg';
+              } else if (uomLower.includes('gram') || uomLower.includes('gm')) {
+                unitOfMeasurement = 'gram';
+              } else if (uomLower.includes('yard')) {
+                unitOfMeasurement = 'yard';
+              } else if (uomLower.includes('dozen')) {
+                unitOfMeasurement = 'dozen';
+              } else if (uomLower.includes('set')) {
+                unitOfMeasurement = 'set';
+              } else if (uomLower.includes('liter') || uomLower.includes('litre')) {
+                unitOfMeasurement = 'liter';
+              }
+            }
+
+            product = await Product.create({
+              product_code: `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              name: productName,
+              description: item.description || '',
+              category: category,
+              product_type: productType,
+              unit_of_measurement: unitOfMeasurement,
+              hsn_code: item.hsn || null,
+              color: item.color || null,
+              cost_price: parseFloat(item.rate) || 0,
+              selling_price: parseFloat(item.rate) * 1.2 || 0, // 20% markup
+              specifications: {
+                gsm: item.gsm || null,
+                width: item.width || null,
+                source: 'grn_auto_created'
+              },
+              minimum_stock_level: 10,
+              reorder_level: 20,
+              status: 'active',
+              is_batch_tracked: true,
+              created_by: req.user.id
+            }, { transaction });
+          }
+        }
+
+        // Generate unique barcode and batch number using utility functions
+        const barcode = generateBarcode('INV');
+        const batchBarcode = generateBatchBarcode(grn.purchaseOrder.po_number, i);
+
+        // Prepare inventory item data for QR code generation
+        const inventoryData = {
+          id: null, // Will be set after creation
+          barcode: barcode,
+          product_id: product ? product.id : null,
+          location: location,
+          current_stock: item.received_quantity,
+          batch_number: batchBarcode
+        };
+
+        const qr_code = generateInventoryQRData(inventoryData, grn.purchaseOrder.po_number);
+
+        // Determine category and product type for inventory
+        const isFabricInv = item.color || item.gsm || item.width;
+        const categoryInv = isFabricInv ? 'fabric' : 'raw_material';
+        const productTypeInv = isFabricInv ? 'raw_material' : 'raw_material';
+        
+        // Determine unit of measurement from item.uom
+        let unitOfMeasurementInv = 'piece';
+        if (item.uom) {
+          const uomLower = item.uom.toLowerCase();
+          if (uomLower.includes('meter') || uomLower.includes('mtr')) {
+            unitOfMeasurementInv = 'meter';
+          } else if (uomLower.includes('piece') || uomLower.includes('pcs')) {
+            unitOfMeasurementInv = 'piece';
+          } else if (uomLower.includes('kg') || uomLower.includes('kilogram')) {
+            unitOfMeasurementInv = 'kg';
+          } else if (uomLower.includes('gram') || uomLower.includes('gm')) {
+            unitOfMeasurementInv = 'gram';
+          } else if (uomLower.includes('yard')) {
+            unitOfMeasurementInv = 'yard';
+          } else if (uomLower.includes('dozen')) {
+            unitOfMeasurementInv = 'dozen';
+          } else if (uomLower.includes('set')) {
+            unitOfMeasurementInv = 'set';
+          } else if (uomLower.includes('liter') || uomLower.includes('litre')) {
+            unitOfMeasurementInv = 'liter';
+          }
+        }
+
+        // Create inventory entry with barcode, QR code, AND all product details
+        let inventoryItem;
+        try {
+          inventoryItem = await Inventory.create({
+            product_id: product ? product.id : null,
+            purchase_order_id: grn.purchase_order_id,
+            po_item_index: i,
+            // PRODUCT DETAILS (merged fields from Inventory model)
+            product_code: product ? product.product_code : barcode,
+            product_name: item.material_name || 'Unnamed Material',
+            description: item.description || item.material_name || '',
+            category: categoryInv,
+            product_type: productTypeInv,
+            unit_of_measurement: unitOfMeasurementInv,
+            hsn_code: item.hsn || null,
+            color: item.color || null,
+            specifications: {
+              gsm: item.gsm || null,
+              width: item.width || null,
+              uom: item.uom || null,
+              source: 'grn_auto_verified',
+              grn_number: grn.grn_number
+            },
+            cost_price: parseFloat(item.rate) || 0,
+            selling_price: parseFloat(item.rate) * 1.2 || 0, // 20% markup
+            // STOCK AND LOCATION
+            location: location,
+            batch_number: batchBarcode,
+            serial_number: null,
+            current_stock: parseFloat(item.received_quantity),
+            initial_quantity: parseFloat(item.received_quantity),
+            consumed_quantity: 0,
+            reserved_stock: 0,
+            available_stock: parseFloat(item.received_quantity),
+            minimum_level: 0,
+            maximum_level: parseFloat(item.received_quantity) * 2,
+            reorder_level: parseFloat(item.received_quantity) * 0.2,
+            unit_cost: parseFloat(item.rate) || 0,
+            total_value: parseFloat(item.total) || 0,
+            last_purchase_date: new Date(),
+            quality_status: (item.quality_status === 'pending_inspection' || item.quality_status === 'passed') ? 'approved' : (item.quality_status || 'approved'),
+            condition: 'new',
+            notes: `Received from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}`,
+            barcode: barcode,
+            qr_code: qr_code,
+            is_active: true,
+            movement_type: 'inward',
+            last_movement_date: new Date(),
+            // Set stock type based on whether it has a linked sales order
+            project_id: grn.sales_order_id ? grn.purchaseOrder.customer_id : null,
+            stock_type: grn.sales_order_id ? 'project_specific' : 'general_extra',
+            created_by: req.user.id,
+            updated_by: req.user.id
+          }, { transaction });
+
+          createdInventoryItems.push(inventoryItem);
+
+          // Create inventory movement record
+          await InventoryMovement.create({
+            inventory_id: inventoryItem.id,
+            purchase_order_id: grn.purchase_order_id,
+            sales_order_id: grn.sales_order_id || null,
+            movement_type: 'inward',
+            quantity: parseFloat(item.received_quantity),
+            previous_quantity: 0,
+            new_quantity: parseFloat(item.received_quantity),
+            unit_cost: parseFloat(item.rate) || 0,
+            total_cost: parseFloat(item.total) || 0,
+            reference_number: grn.grn_number,
+            notes: `Auto-added from verified GRN ${grn.grn_number}`,
+            location_to: location,
+            performed_by: req.user.id
+          }, { transaction });
+
+          createdMovements.push(inventoryItem);
+        } catch (invError) {
+          console.error(`Failed to create inventory item ${i + 1}:`, invError.message);
+          throw invError;
+        }
+      }
+
+      // Update GRN to mark as added to inventory
+      await grn.update({
+        inventory_added: true,
+        inventory_added_date: new Date(),
+        status: 'approved'
+      }, { transaction });
+
+      nextStep = 'completed';
+      notificationMessage = `GRN ${grn.grn_number} verified and automatically added to inventory. ${createdInventoryItems.length} items added with barcodes generated.`;
     } else {
       // Has discrepancies - needs approval
       nextStep = 'discrepancy_approval';
@@ -440,7 +852,8 @@ router.post('/:id/verify', authenticateToken, checkDepartment(['inventory', 'adm
     res.json({
       message: 'GRN verification completed',
       grn,
-      next_step: nextStep
+      next_step: nextStep,
+      inventory_items_added: verification_status === 'verified' ? createdInventoryItems.length : 0
     });
   } catch (error) {
     await transaction.rollback();
@@ -452,7 +865,7 @@ router.post('/:id/verify', authenticateToken, checkDepartment(['inventory', 'adm
 // Approve Discrepancy
 router.post('/:id/approve-discrepancy', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
   const transaction = await require('../config/database').sequelize.transaction();
-  
+
   try {
     const { approval_notes, decision } = req.body; // decision: 'approve' or 'reject'
 
@@ -481,12 +894,231 @@ router.post('/:id/approve-discrepancy', authenticateToken, checkDepartment(['pro
       status: newStatus
     }, { transaction });
 
+    let nextStep = decision === 'approve' ? 'add_to_inventory' : 'completed';
+    let inventoryItemsAdded = 0;
+
+    // If approved, automatically add to inventory
+    if (decision === 'approve') {
+      console.log('=== Auto-adding approved GRN to inventory ===');
+
+      const createdInventoryItems = [];
+      const createdMovements = [];
+      const items = grn.items_received || [];
+      const location = 'Main Warehouse'; // Default location for auto-addition
+
+      // Process each item
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item.received_quantity || parseFloat(item.received_quantity) <= 0) {
+          continue;
+        }
+
+        // Try to find or create product
+        let product = null;
+        const productName = item.material_name;
+
+        if (productName) {
+          product = await Product.findOne({
+            where: { name: productName },
+            transaction
+          });
+
+          if (!product) {
+            // Determine category and product type
+            const isFabric = item.color || item.gsm || item.width;
+            const category = isFabric ? 'fabric' : 'accessories';
+            const productType = isFabric ? 'raw_material' : 'accessory';
+
+            // Determine unit of measurement
+            let unitOfMeasurement = 'meter';
+            if (item.uom) {
+              const uomLower = item.uom.toLowerCase();
+              if (uomLower.includes('meter') || uomLower.includes('mtr')) {
+                unitOfMeasurement = 'meter';
+              } else if (uomLower.includes('piece') || uomLower.includes('pcs')) {
+                unitOfMeasurement = 'piece';
+              } else if (uomLower.includes('kg') || uomLower.includes('kilogram')) {
+                unitOfMeasurement = 'kg';
+              } else if (uomLower.includes('gram') || uomLower.includes('gm')) {
+                unitOfMeasurement = 'gram';
+              } else if (uomLower.includes('yard')) {
+                unitOfMeasurement = 'yard';
+              } else if (uomLower.includes('dozen')) {
+                unitOfMeasurement = 'dozen';
+              } else if (uomLower.includes('set')) {
+                unitOfMeasurement = 'set';
+              } else if (uomLower.includes('liter') || uomLower.includes('litre')) {
+                unitOfMeasurement = 'liter';
+              }
+            }
+
+            product = await Product.create({
+              product_code: `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              name: productName,
+              description: item.description || '',
+              category: category,
+              product_type: productType,
+              unit_of_measurement: unitOfMeasurement,
+              hsn_code: item.hsn || null,
+              color: item.color || null,
+              cost_price: parseFloat(item.rate) || 0,
+              selling_price: parseFloat(item.rate) * 1.2 || 0, // 20% markup
+              specifications: {
+                gsm: item.gsm || null,
+                width: item.width || null,
+                source: 'grn_auto_created'
+              },
+              minimum_stock_level: 10,
+              reorder_level: 20,
+              status: 'active',
+              is_batch_tracked: true,
+              created_by: req.user.id
+            }, { transaction });
+          }
+        }
+
+        // Generate unique barcode and batch number using utility functions
+        const barcode = generateBarcode('INV');
+        const batchBarcode = generateBatchBarcode(grn.purchaseOrder.po_number, i);
+
+        // Prepare inventory item data for QR code generation
+        const inventoryData = {
+          id: null, // Will be set after creation
+          barcode: barcode,
+          product_id: product ? product.id : null,
+          location: location,
+          current_stock: item.received_quantity,
+          batch_number: batchBarcode
+        };
+
+        const qr_code = generateInventoryQRData(inventoryData, grn.purchaseOrder.po_number);
+
+        // Determine category and product type for inventory
+        const isFabricInv2 = item.color || item.gsm || item.width;
+        const categoryInv2 = isFabricInv2 ? 'fabric' : 'raw_material';
+        const productTypeInv2 = isFabricInv2 ? 'raw_material' : 'raw_material';
+        
+        // Determine unit of measurement from item.uom
+        let unitOfMeasurementInv2 = 'piece';
+        if (item.uom) {
+          const uomLower = item.uom.toLowerCase();
+          if (uomLower.includes('meter') || uomLower.includes('mtr')) {
+            unitOfMeasurementInv2 = 'meter';
+          } else if (uomLower.includes('piece') || uomLower.includes('pcs')) {
+            unitOfMeasurementInv2 = 'piece';
+          } else if (uomLower.includes('kg') || uomLower.includes('kilogram')) {
+            unitOfMeasurementInv2 = 'kg';
+          } else if (uomLower.includes('gram') || uomLower.includes('gm')) {
+            unitOfMeasurementInv2 = 'gram';
+          } else if (uomLower.includes('yard')) {
+            unitOfMeasurementInv2 = 'yard';
+          } else if (uomLower.includes('dozen')) {
+            unitOfMeasurementInv2 = 'dozen';
+          } else if (uomLower.includes('set')) {
+            unitOfMeasurementInv2 = 'set';
+          } else if (uomLower.includes('liter') || uomLower.includes('litre')) {
+            unitOfMeasurementInv2 = 'liter';
+          }
+        }
+
+        // Create inventory entry with barcode, QR code, AND all product details
+        let inventoryItem;
+        try {
+          inventoryItem = await Inventory.create({
+            product_id: product ? product.id : null,
+            purchase_order_id: grn.purchase_order_id,
+            po_item_index: i,
+            // PRODUCT DETAILS (merged fields from Inventory model)
+            product_code: product ? product.product_code : barcode,
+            product_name: item.material_name || 'Unnamed Material',
+            description: item.description || item.material_name || '',
+            category: categoryInv2,
+            product_type: productTypeInv2,
+            unit_of_measurement: unitOfMeasurementInv2,
+            hsn_code: item.hsn || null,
+            color: item.color || null,
+            specifications: {
+              gsm: item.gsm || null,
+              width: item.width || null,
+              uom: item.uom || null,
+              source: 'grn_discrepancy_approved',
+              grn_number: grn.grn_number
+            },
+            cost_price: parseFloat(item.rate) || 0,
+            selling_price: parseFloat(item.rate) * 1.2 || 0, // 20% markup
+            // STOCK AND LOCATION
+            location: location,
+            batch_number: batchBarcode,
+            serial_number: null,
+            current_stock: parseFloat(item.received_quantity),
+            initial_quantity: parseFloat(item.received_quantity),
+            consumed_quantity: 0,
+            reserved_stock: 0,
+            available_stock: parseFloat(item.received_quantity),
+            minimum_level: 0,
+            maximum_level: parseFloat(item.received_quantity) * 2,
+            reorder_level: parseFloat(item.received_quantity) * 0.2,
+            unit_cost: parseFloat(item.rate) || 0,
+            total_value: parseFloat(item.total) || 0,
+            last_purchase_date: new Date(),
+            quality_status: (item.quality_status === 'pending_inspection' || item.quality_status === 'passed') ? 'approved' : (item.quality_status || 'approved'),
+            condition: 'new',
+            notes: `Received from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}`,
+            barcode: barcode,
+            qr_code: qr_code,
+            is_active: true,
+            movement_type: 'inward',
+            last_movement_date: new Date(),
+            // Set stock type based on whether it has a linked sales order
+            project_id: grn.sales_order_id ? grn.purchaseOrder.customer_id : null,
+            stock_type: grn.sales_order_id ? 'project_specific' : 'general_extra',
+            created_by: req.user.id,
+            updated_by: req.user.id
+          }, { transaction });
+
+          createdInventoryItems.push(inventoryItem);
+
+          // Create inventory movement record
+          await InventoryMovement.create({
+            inventory_id: inventoryItem.id,
+            purchase_order_id: grn.purchase_order_id,
+            sales_order_id: grn.sales_order_id || null,
+            movement_type: 'inward',
+            quantity: parseFloat(item.received_quantity),
+            previous_quantity: 0,
+            new_quantity: parseFloat(item.received_quantity),
+            unit_cost: parseFloat(item.rate) || 0,
+            total_cost: parseFloat(item.total) || 0,
+            reference_number: grn.grn_number,
+            notes: `Auto-added from approved GRN ${grn.grn_number}`,
+            location_to: location,
+            performed_by: req.user.id
+          }, { transaction });
+
+          createdMovements.push(inventoryItem);
+        } catch (invError) {
+          console.error(`Failed to create inventory item ${i + 1}:`, invError.message);
+          throw invError;
+        }
+      }
+
+      // Update GRN to mark as added to inventory
+      await grn.update({
+        inventory_added: true,
+        inventory_added_date: new Date(),
+        status: 'approved'
+      }, { transaction });
+
+      nextStep = 'completed';
+      inventoryItemsAdded = createdInventoryItems.length;
+    }
+
     // Create notification
     await Notification.create({
       user_id: null,
       type: 'grn_discrepancy_resolved',
       title: `GRN Discrepancy ${decision === 'approve' ? 'Approved' : 'Rejected'}`,
-      message: `GRN ${grn.grn_number} discrepancy has been ${decision}d. ${decision === 'approve' ? 'Ready to add to inventory.' : 'Rejected by manager.'}`,
+      message: `GRN ${grn.grn_number} discrepancy has been ${decision}d. ${decision === 'approve' ? `${inventoryItemsAdded} items added to inventory with barcodes generated.` : 'Rejected by manager.'}`,
       data: { grn_id: grn.id, po_id: grn.purchase_order_id },
       read: false
     }, { transaction });
@@ -496,7 +1128,8 @@ router.post('/:id/approve-discrepancy', authenticateToken, checkDepartment(['pro
     res.json({
       message: `Discrepancy ${decision}d successfully`,
       grn,
-      next_step: decision === 'approve' ? 'add_to_inventory' : 'completed'
+      next_step: nextStep,
+      inventory_items_added: inventoryItemsAdded
     });
   } catch (error) {
     await transaction.rollback();
@@ -508,8 +1141,9 @@ router.post('/:id/approve-discrepancy', authenticateToken, checkDepartment(['pro
 // Add GRN to Inventory (Final Step)
 router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
   const transaction = await require('../config/database').sequelize.transaction();
-  
+
   try {
+    console.log('=== Starting Add to Inventory ===');
     const { location = 'Main Warehouse' } = req.body;
 
     const grn = await GoodsReceiptNote.findByPk(req.params.id, {
@@ -528,8 +1162,8 @@ router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['invent
     // Check if verification is complete
     if (!['verified', 'approved'].includes(grn.verification_status)) {
       await transaction.rollback();
-      return res.status(400).json({ 
-        message: `Cannot add to inventory. GRN verification status is '${grn.verification_status}'. Must be verified or approved.` 
+      return res.status(400).json({
+        message: `Cannot add to inventory. GRN verification status is '${grn.verification_status}'. Must be verified or approved.`
       });
     }
 
@@ -543,7 +1177,8 @@ router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['invent
     const items = grn.items_received || [];
 
     // Process each item
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (!item.received_quantity || parseFloat(item.received_quantity) <= 0) {
         continue;
       }
@@ -551,7 +1186,7 @@ router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['invent
       // Try to find or create product
       let product = null;
       const productName = item.material_name;
-      
+
       if (productName) {
         product = await Product.findOne({
           where: { name: productName },
@@ -559,89 +1194,224 @@ router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['invent
         });
 
         if (!product) {
+          // Determine category and product type
+          const isFabric = item.color || item.gsm || item.width;
+          const category = isFabric ? 'fabric' : 'accessories';
+          const productType = isFabric ? 'raw_material' : 'accessory';
+          
+          // Determine unit of measurement
+          let unitOfMeasurement = 'meter';
+          if (item.uom) {
+            const uomLower = item.uom.toLowerCase();
+            if (uomLower.includes('meter') || uomLower.includes('mtr')) {
+              unitOfMeasurement = 'meter';
+            } else if (uomLower.includes('piece') || uomLower.includes('pcs')) {
+              unitOfMeasurement = 'piece';
+            } else if (uomLower.includes('kg') || uomLower.includes('kilogram')) {
+              unitOfMeasurement = 'kg';
+            } else if (uomLower.includes('gram') || uomLower.includes('gm')) {
+              unitOfMeasurement = 'gram';
+            } else if (uomLower.includes('yard')) {
+              unitOfMeasurement = 'yard';
+            } else if (uomLower.includes('dozen')) {
+              unitOfMeasurement = 'dozen';
+            } else if (uomLower.includes('set')) {
+              unitOfMeasurement = 'set';
+            } else if (uomLower.includes('liter') || uomLower.includes('litre')) {
+              unitOfMeasurement = 'liter';
+            }
+          }
+
+          console.log('Creating new product with data:', {
+            product_code: `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            name: productName,
+            category: category,
+            product_type: productType,
+            unit_of_measurement: unitOfMeasurement
+          });
+          
           product = await Product.create({
+            product_code: `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             name: productName,
             description: item.description || '',
-            category: item.color ? 'Fabric' : 'Accessory',
-            sku: `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            unit_price: item.rate || 0,
-            cost_price: item.rate || 0,
-            stock_quantity: 0,
-            reorder_level: 10,
-            status: 'active'
+            category: category,
+            product_type: productType,
+            unit_of_measurement: unitOfMeasurement,
+            hsn_code: item.hsn || null,
+            color: item.color || null,
+            cost_price: parseFloat(item.rate) || 0,
+            selling_price: parseFloat(item.rate) * 1.2 || 0, // 20% markup
+            specifications: {
+              gsm: item.gsm || null,
+              width: item.width || null,
+              source: 'grn_auto_created'
+            },
+            minimum_stock_level: 10,
+            reorder_level: 20,
+            status: 'active',
+            is_batch_tracked: true,
+            created_by: req.user.id
           }, { transaction });
+          
+          console.log('Product created successfully:', product.id);
         }
       }
 
-      // Generate barcode: INV-YYYYMMDD-XXXXX
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-      const lastInv = await Inventory.findOne({
-        where: {
-          barcode: {
-            [require('sequelize').Op.like]: `INV-${dateStr}-%`
-          }
-        },
-        order: [['created_at', 'DESC']],
-        transaction
+      // Generate unique barcode and batch number using utility functions
+      const barcode = generateBarcode('INV');
+      const batchBarcode = generateBatchBarcode(grn.purchaseOrder.po_number, i);
+      
+      // Prepare inventory item data for QR code generation
+      const inventoryData = {
+        id: null, // Will be set after creation
+        barcode: barcode,
+        product_id: product ? product.id : null,
+        location: location,
+        current_stock: item.received_quantity,
+        batch_number: batchBarcode
+      };
+      
+      const qr_code = generateInventoryQRData(inventoryData, grn.purchaseOrder.po_number);
+
+      console.log(`Creating inventory item ${i + 1}:`, {
+        product_id: product ? product.id : null,
+        location: location,
+        batch_number: batchBarcode,
+        current_stock: parseFloat(item.received_quantity),
+        quality_status: (item.quality_status === 'pending_inspection' || item.quality_status === 'passed') ? 'approved' : (item.quality_status || 'approved'),
+        movement_type: 'inward'
       });
 
-      let invSequence = 1;
-      if (lastInv && lastInv.barcode) {
-        const lastSeq = parseInt(lastInv.barcode.split('-')[2]);
-        invSequence = lastSeq + 1;
+      // Determine category and product type
+      const isFabric = item.color || item.gsm || item.width;
+      const category = isFabric ? 'fabric' : 'raw_material';
+      const productType = isFabric ? 'raw_material' : 'raw_material';
+      
+      // Determine unit of measurement from item.uom
+      let unitOfMeasurement = 'piece';
+      if (item.uom) {
+        const uomLower = item.uom.toLowerCase();
+        if (uomLower.includes('meter') || uomLower.includes('mtr')) {
+          unitOfMeasurement = 'meter';
+        } else if (uomLower.includes('piece') || uomLower.includes('pcs')) {
+          unitOfMeasurement = 'piece';
+        } else if (uomLower.includes('kg') || uomLower.includes('kilogram')) {
+          unitOfMeasurement = 'kg';
+        } else if (uomLower.includes('gram') || uomLower.includes('gm')) {
+          unitOfMeasurement = 'gram';
+        } else if (uomLower.includes('yard')) {
+          unitOfMeasurement = 'yard';
+        } else if (uomLower.includes('dozen')) {
+          unitOfMeasurement = 'dozen';
+        } else if (uomLower.includes('set')) {
+          unitOfMeasurement = 'set';
+        } else if (uomLower.includes('liter') || uomLower.includes('litre')) {
+          unitOfMeasurement = 'liter';
+        }
       }
-      const barcode = `INV-${dateStr}-${invSequence.toString().padStart(5, '0')}`;
 
-      // Create inventory entry
-      const inventoryItem = await Inventory.create({
-        product_id: product ? product.id : null,
-        name: productName || 'Unknown Material',
-        description: item.description || '',
-        category: item.color ? 'Fabric' : 'Accessory',
-        quantity: item.received_quantity,
-        unit: item.uom || 'Meters',
-        unit_price: item.rate || 0,
-        total_value: item.total || 0,
-        location: location,
-        barcode: barcode,
-        qr_code: JSON.stringify({
-          barcode,
-          name: productName,
-          grn: grn.grn_number,
-          po: grn.purchaseOrder.po_number,
-          quantity: item.received_quantity,
-          date: new Date().toISOString()
-        }),
-        status: 'available',
-        source: 'purchase_order',
-        purchase_order_id: grn.purchase_order_id,
-        sales_order_id: grn.sales_order_id,
-        // Fabric-specific fields
-        color: item.color || null,
-        gsm: item.gsm || null,
-        width: item.width || null,
-        hsn_code: item.hsn || null
-      }, { transaction });
+      // Create inventory entry with barcode, QR code, AND all product details
+      let inventoryItem;
+      try {
+        inventoryItem = await Inventory.create({
+          product_id: product ? product.id : null,
+          purchase_order_id: grn.purchase_order_id,
+          po_item_index: i,
+          // PRODUCT DETAILS (merged fields from Inventory model)
+          product_code: product ? product.product_code : barcode,
+          product_name: item.material_name || 'Unnamed Material',
+          description: item.description || item.material_name || '',
+          category: category,
+          product_type: productType,
+          unit_of_measurement: unitOfMeasurement,
+          hsn_code: item.hsn || null,
+          color: item.color || null,
+          specifications: {
+            gsm: item.gsm || null,
+            width: item.width || null,
+            uom: item.uom || null,
+            source: 'grn_received',
+            grn_number: grn.grn_number
+          },
+          cost_price: parseFloat(item.rate) || 0,
+          selling_price: parseFloat(item.rate) * 1.2 || 0, // 20% markup
+          // STOCK AND LOCATION
+          location: location,
+          batch_number: batchBarcode,
+          serial_number: null,
+          current_stock: parseFloat(item.received_quantity),
+          initial_quantity: parseFloat(item.received_quantity),
+          consumed_quantity: 0,
+          reserved_stock: 0,
+          available_stock: parseFloat(item.received_quantity),
+          minimum_level: 0,
+          maximum_level: parseFloat(item.received_quantity) * 2,
+          reorder_level: parseFloat(item.received_quantity) * 0.2,
+          unit_cost: parseFloat(item.rate) || 0,
+          total_value: parseFloat(item.total) || 0,
+          last_purchase_date: new Date(),
+          quality_status: (item.quality_status === 'pending_inspection' || item.quality_status === 'passed') ? 'approved' : (item.quality_status || 'approved'),
+          condition: 'new',
+          notes: `Received from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}`,
+          barcode: barcode,
+          qr_code: qr_code,
+          is_active: true,
+          movement_type: 'inward',
+          last_movement_date: new Date(),
+          // Set stock type based on whether it has a linked sales order
+          project_id: grn.sales_order_id ? grn.purchaseOrder.customer_id : null,
+          stock_type: grn.sales_order_id ? 'project_specific' : 'general_extra',
+          created_by: req.user.id,
+          updated_by: req.user.id
+        }, { transaction });
+        console.log(`✓ Inventory item ${i + 1} created successfully:`, inventoryItem.id);
+      } catch (invError) {
+        console.error(`✗ Failed to create inventory item ${i + 1}:`, invError.message);
+        console.error('Full error:', invError);
+        throw invError;
+      }
 
       createdInventoryItems.push(inventoryItem);
 
       // Create inventory movement record
-      const movement = await InventoryMovement.create({
+      console.log(`Creating inventory movement ${i + 1}:`, {
         inventory_id: inventoryItem.id,
-        product_id: product ? product.id : null,
-        type: 'inward',
-        quantity: item.received_quantity,
-        unit: item.uom || 'Meters',
-        from_location: grn.supplier_name,
-        to_location: location,
-        reference_type: 'grn',
-        reference_id: grn.id,
-        reference_number: grn.grn_number,
-        performed_by: req.user.id,
-        notes: `Added from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}`,
-        balance_after: item.received_quantity
-      }, { transaction });
+        movement_type: 'inward',
+        quantity: parseFloat(item.received_quantity),
+        previous_quantity: 0,
+        new_quantity: parseFloat(item.received_quantity)
+      });
+      
+      let movement;
+      try {
+        movement = await InventoryMovement.create({
+          inventory_id: inventoryItem.id,
+          purchase_order_id: grn.purchase_order_id,
+          movement_type: 'inward',
+          quantity: parseFloat(item.received_quantity),
+          previous_quantity: 0, // First entry, so previous is 0
+          new_quantity: parseFloat(item.received_quantity),
+          unit_cost: parseFloat(item.rate) || 0,
+          total_cost: parseFloat(item.total) || 0,
+          location_from: grn.supplier_name,
+          location_to: location,
+          reference_number: grn.grn_number,
+          performed_by: req.user.id,
+          movement_date: new Date(),
+          notes: `Added from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}. Unit: ${item.uom || 'Meters'}`,
+          metadata: {
+            grn_id: grn.id,
+            po_number: grn.purchaseOrder.po_number,
+            item_index: i,
+            uom: item.uom || 'Meters'
+          }
+        }, { transaction });
+        console.log(`✓ Inventory movement ${i + 1} created successfully:`, movement.id);
+      } catch (movError) {
+        console.error(`✗ Failed to create inventory movement ${i + 1}:`, movError.message);
+        console.error('Full error:', movError);
+        throw movError;
+      }
 
       createdMovements.push(movement);
     }
@@ -661,16 +1431,25 @@ router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['invent
 
     // Create notification
     await Notification.create({
-      user_id: null,
-      type: 'inventory_updated',
+      type: 'inventory',
       title: 'Materials Added to Inventory',
       message: `${createdInventoryItems.length} items from GRN ${grn.grn_number} added to inventory successfully.`,
-      data: { 
-        grn_id: grn.id, 
+      priority: 'medium',
+      status: 'sent',
+      recipient_department: 'inventory',
+      related_entity_id: grn.id,
+      related_entity_type: 'grn',
+      action_url: `/inventory?grn=${grn.grn_number}`,
+      metadata: {
+        grn_id: grn.id,
+        grn_number: grn.grn_number,
         po_id: grn.purchase_order_id,
-        inventory_count: createdInventoryItems.length 
+        po_number: grn.purchaseOrder.po_number,
+        inventory_count: createdInventoryItems.length
       },
-      read: false
+      trigger_event: 'grn_added_to_inventory',
+      actor_id: req.user.id,
+      created_by: req.user.id
     }, { transaction });
 
     await transaction.commit();
@@ -690,21 +1469,79 @@ router.post('/:id/add-to-inventory', authenticateToken, checkDepartment(['invent
 
 // Old endpoints - kept for backward compatibility but marked as deprecated
 router.post('/', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
-  res.status(400).json({ 
+  res.status(400).json({
     message: 'Deprecated: Use POST /grn/from-po/:poId instead',
     new_endpoint: '/api/grn/from-po/:poId'
   });
 });
 
 router.put('/:id/inspect', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
-  res.status(400).json({ 
+  res.status(400).json({
     message: 'Deprecated: Use POST /grn/:id/verify instead',
     new_endpoint: '/api/grn/:id/verify'
   });
 });
+router.post('/:id/request-vendor-revert', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
+  try {
+    const grnId = req.params.id;
+    const { reason, shortage_items, notes } = req.body;
 
+    console.log('=== Vendor Revert Request ===');
+    console.log('GRN ID:', grnId);
+    console.log('Reason:', reason);
+    console.log('Shortage items:', JSON.stringify(shortage_items, null, 2));
+    console.log('Notes:', notes);
+
+    // 🔍 Find GRN from database
+    const grn = await GoodsReceiptNote.findByPk(req.params.id, {
+      include: [{ model: PurchaseOrder, as: 'purchaseOrder' }]
+    });
+
+    if (!grn) {
+      return res.status(404).json({ message: 'GRN not found' });
+    }
+
+    // ✅ Update status and vendor revert fields with request body data
+    grn.status = 'vendor_revert_requested';
+    grn.vendor_revert_requested = true;
+    grn.vendor_revert_requested_by = req.user.id;
+    grn.vendor_revert_requested_date = new Date();
+    
+    // Save the reason, items, and notes from request body
+    grn.vendor_revert_reason = notes ? `${reason}: ${notes}` : reason;
+    grn.vendor_revert_items = shortage_items || [];
+
+    await grn.save();
+
+    console.log('✅ Vendor revert request saved successfully');
+
+    // 📦 Return updated data from database
+    res.json({
+      message: 'Vendor revert requested successfully',
+      grn: {
+        id: grn.id,
+        grn_number: grn.grn_number,
+        status: grn.status,
+        po_id: grn.purchase_order_id,
+        vendor_id: grn.purchaseOrder ? grn.purchaseOrder.vendor_id : null,
+        total_quantity: grn.total_quantity,
+        total_amount: grn.total_amount,
+        received_date: grn.received_date,
+        vendor_revert_reason: grn.vendor_revert_reason,
+        vendor_revert_items: grn.vendor_revert_items
+      }
+    });
+  } catch (error) {
+    console.error('Error in /request-vendor-revert:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Internal Server Error',
+      error: error.message 
+    });
+  }
+});
 router.put('/:id/approve', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
-  res.status(400).json({ 
+  res.status(400).json({
     message: 'Deprecated: Use POST /grn/:id/add-to-inventory instead',
     new_endpoint: '/api/grn/:id/add-to-inventory'
   });
@@ -743,6 +1580,11 @@ router.put('/:id/update-received', authenticateToken, checkDepartment(['inventor
     const poItems = grn.purchaseOrder.items || [];
     const mappedItems = items_received.map(receivedItem => {
       const poItem = poItems[receivedItem.item_index];
+
+      if (!poItem) {
+        throw new Error(`Invalid item_index: ${receivedItem.item_index}. PO has ${poItems.length} items.`);
+      }
+
       const orderedQty = parseFloat(poItem.quantity);
       const invoicedQty = receivedItem.invoiced_qty ? parseFloat(receivedItem.invoiced_qty) : orderedQty;
       const receivedQty = parseFloat(receivedItem.received_qty);
@@ -752,14 +1594,22 @@ router.put('/:id/update-received', authenticateToken, checkDepartment(['inventor
       const hasOverage = receivedQty > Math.max(orderedQty, invoicedQty);
       const invoiceVsOrderMismatch = invoicedQty !== orderedQty;
 
+      // Extract material name with multiple fallback options
+      let materialName = '';
+      if (poItem.type === 'fabric') {
+        materialName = poItem.fabric_name || poItem.material_name || poItem.name || poItem.item_name || 'Unknown Fabric';
+      } else {
+        materialName = poItem.item_name || poItem.material_name || poItem.name || poItem.fabric_name || 'Unknown Item';
+      }
+
       return {
-        material_name: poItem.type === 'fabric' ? poItem.fabric_name : poItem.item_name,
+        material_name: materialName,
         color: poItem.color || '',
-        hsn: poItem.hsn || '',
+        hsn: poItem.hsn || poItem.hsn_code || '',
         gsm: poItem.gsm || '',
         width: poItem.width || '',
         description: poItem.description || '',
-        uom: poItem.uom || 'Meters',
+        uom: poItem.uom || poItem.unit || 'Meters',
         ordered_quantity: orderedQty,
         invoiced_quantity: invoicedQty,
         received_quantity: receivedQty,

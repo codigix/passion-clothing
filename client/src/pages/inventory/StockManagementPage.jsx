@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Edit,
@@ -7,6 +7,117 @@ import {
   Package,
   AlertTriangle
 } from 'lucide-react';
+import { FaQrcode, FaBarcode, FaEllipsisV, FaColumns, FaEye } from 'react-icons/fa';
+import QRCodeDisplay from '../../components/QRCodeDisplay';
+import { useColumnVisibility } from '../../hooks/useColumnVisibility';
+import { useSmartDropdown } from '../../hooks/useSmartDropdown';
+
+// Define all available columns with their properties
+const AVAILABLE_COLUMNS = [
+  { id: 'barcode', label: 'Barcode / Batch', defaultVisible: true, alwaysVisible: true },
+  { id: 'item_name', label: 'Item Name', defaultVisible: true, alwaysVisible: true },
+  { id: 'category', label: 'Category', defaultVisible: true },
+  { id: 'current_stock', label: 'Current Stock', defaultVisible: true },
+  { id: 'min_stock', label: 'Min Stock', defaultVisible: true },
+  { id: 'max_stock', label: 'Max Stock', defaultVisible: false },
+  { id: 'unit', label: 'Unit', defaultVisible: false },
+  { id: 'location', label: 'Location', defaultVisible: true },
+  { id: 'status', label: 'Status', defaultVisible: true },
+  { id: 'actions', label: 'Actions', defaultVisible: true, alwaysVisible: true }
+];
+
+// Action Dropdown Component
+function ActionDropdown({ stock, onView, onAdd, onRemove, onEdit, showQRModal, setSelectedQRItem, setShowQRModal }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const handleToggle = (event) => {
+    if (!isOpen) {
+      const button = event.currentTarget;
+      const rect = button.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < 250 && spaceAbove > spaceBelow);
+    }
+    setIsOpen(!isOpen);
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="inline-flex items-center justify-center rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+        aria-label="Actions"
+      >
+        <FaEllipsisV className="h-4 w-4" />
+      </button>
+
+      {isOpen && (
+        <div className={`absolute right-0 z-50 ${openUpward ? 'bottom-full mb-2' : 'mt-2'} w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none`}>
+          <div className="py-1">
+            {(stock.barcode || stock.qrCode) && (
+              <button
+                onClick={() => {
+                  setSelectedQRItem(stock);
+                  setShowQRModal(true);
+                  setIsOpen(false);
+                }}
+                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50"
+              >
+                <FaQrcode className="h-4 w-4" />
+                View QR Code
+              </button>
+            )}
+            <button
+              onClick={() => {
+                onAdd();
+                setIsOpen(false);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+            >
+              <Plus className="h-4 w-4" />
+              Add Stock
+            </button>
+            <button
+              onClick={() => {
+                onRemove();
+                setIsOpen(false);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              <Minus className="h-4 w-4" />
+              Remove Stock
+            </button>
+            <button
+              onClick={() => {
+                onEdit();
+                setIsOpen(false);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Edit className="h-4 w-4" />
+              Edit Details
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const StockManagementPage = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -17,6 +128,27 @@ const StockManagementPage = () => {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustMode, setAdjustMode] = useState('edit');
   const [selected, setSelected] = useState(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedQRItem, setSelectedQRItem] = useState(null);
+
+  // Column visibility management
+  const { visibleColumns, isColumnVisible, toggleColumn, resetColumns, showAllColumns } = 
+    useColumnVisibility('stockManagementVisibleColumns', AVAILABLE_COLUMNS);
+
+  // Column manager menu state
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const columnMenuRef = useRef(null);
+
+  // Close column menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target)) {
+        setShowColumnMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchStocks();
@@ -36,7 +168,11 @@ const StockManagementPage = () => {
         maxStock: row.maximum_level ?? (row.reorder_level ? row.reorder_level * 3 : 100),
         unit: row.product?.unit_of_measurement || 'Units',
         location: row.location || 'Unknown',
-        lastUpdated: row.updated_at
+        lastUpdated: row.updated_at,
+        barcode: row.barcode,
+        batchNumber: row.batch_number,
+        qrCode: row.qr_code,
+        product: row.product
       }));
       setStocks(rows);
     } catch (error) {
@@ -107,13 +243,73 @@ const StockManagementPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">
           Stock Management
         </h1>
-        <button
-          className="px-4 py-1 text-sm font-medium text-white bg-primary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus size={18} />
-          Add Stock
-        </button>
+        <div className="flex gap-3">
+          {/* Column Manager */}
+          <div className="relative" ref={columnMenuRef}>
+            <button
+              onClick={() => setShowColumnMenu(!showColumnMenu)}
+              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            >
+              <FaColumns className="h-4 w-4" />
+              Columns
+            </button>
+            
+            {showColumnMenu && (
+              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">Show/Hide Columns</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={showAllColumns}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Show All
+                      </button>
+                      <span className="text-xs text-gray-300">|</span>
+                      <button
+                        onClick={resetColumns}
+                        className="text-xs text-gray-600 hover:text-gray-800"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {AVAILABLE_COLUMNS.map((column) => (
+                      <label
+                        key={column.id}
+                        className={`flex items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 ${
+                          column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isColumnVisible(column.id)}
+                          onChange={() => toggleColumn(column.id)}
+                          disabled={column.alwaysVisible}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:cursor-not-allowed"
+                        />
+                        <span className="text-sm text-gray-700">{column.label}</span>
+                        {column.alwaysVisible && (
+                          <span className="ml-auto text-xs text-gray-400">(Required)</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="px-4 py-1 text-sm font-medium text-white bg-primary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus size={18} />
+            Add Stock
+          </button>
+        </div>
       </div>
 
       {/* Stock Summary Cards */}
@@ -204,64 +400,111 @@ const StockManagementPage = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow border overflow-hidden">
+      <div className="bg-white rounded-lg shadow border overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Stock</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              {isColumnVisible('barcode') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barcode / Batch</th>
+              )}
+              {isColumnVisible('item_name') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+              )}
+              {isColumnVisible('category') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              )}
+              {isColumnVisible('current_stock') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
+              )}
+              {isColumnVisible('min_stock') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
+              )}
+              {isColumnVisible('max_stock') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Stock</th>
+              )}
+              {isColumnVisible('unit') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+              )}
+              {isColumnVisible('location') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+              )}
+              {isColumnVisible('status') && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              )}
+              {isColumnVisible('actions') && (
+                <th className="sticky right-0 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {filteredStocks.map((stock) => {
               const stockStatus = getStockStatus(stock.currentStock, stock.minStock, stock.maxStock);
               return (
-                <tr key={stock.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{stock.itemName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.currentStock}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.minStock}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.maxStock}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.unit}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.location}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      stockStatus.color === 'error' ? 'bg-red-100 text-red-800' :
-                      stockStatus.color === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {stockStatus.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-1">
-                      <button
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                        onClick={() => { setSelected(stock); setAdjustMode('add'); setAdjustOpen(true); }}
-                      >
-                        <Plus size={16} />
-                      </button>
-                      <button
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
-                        onClick={() => { setSelected(stock); setAdjustMode('remove'); setAdjustOpen(true); }}
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <button
-                        className="p-1 text-gray-600 hover:bg-gray-50 rounded"
-                        onClick={() => { setSelected(stock); setAdjustMode('edit'); setAdjustOpen(true); }}
-                      >
-                        <Edit size={16} />
-                      </button>
-                    </div>
-                  </td>
+                <tr key={stock.id} className="group hover:bg-gray-50">
+                  {isColumnVisible('barcode') && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {stock.barcode || stock.batchNumber ? (
+                        <div className="flex items-center gap-2">
+                          <FaBarcode className="text-gray-400" />
+                          <div>
+                            {stock.barcode && (
+                              <div className="text-sm font-medium text-gray-900">{stock.barcode}</div>
+                            )}
+                            {stock.batchNumber && (
+                              <div className="text-xs text-gray-500">{stock.batchNumber}</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">No barcode</span>
+                      )}
+                    </td>
+                  )}
+                  {isColumnVisible('item_name') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{stock.itemName}</td>
+                  )}
+                  {isColumnVisible('category') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.category}</td>
+                  )}
+                  {isColumnVisible('current_stock') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.currentStock}</td>
+                  )}
+                  {isColumnVisible('min_stock') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.minStock}</td>
+                  )}
+                  {isColumnVisible('max_stock') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.maxStock}</td>
+                  )}
+                  {isColumnVisible('unit') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.unit}</td>
+                  )}
+                  {isColumnVisible('location') && (
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.location}</td>
+                  )}
+                  {isColumnVisible('status') && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        stockStatus.color === 'error' ? 'bg-red-100 text-red-800' :
+                        stockStatus.color === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {stockStatus.status}
+                      </span>
+                    </td>
+                  )}
+                  {isColumnVisible('actions') && (
+                    <td className="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm font-medium shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
+                      <ActionDropdown
+                        stock={stock}
+                        onAdd={() => { setSelected(stock); setAdjustMode('add'); setAdjustOpen(true); }}
+                        onRemove={() => { setSelected(stock); setAdjustMode('remove'); setAdjustOpen(true); }}
+                        onEdit={() => { setSelected(stock); setAdjustMode('edit'); setAdjustOpen(true); }}
+                        showQRModal={showQRModal}
+                        setSelectedQRItem={setSelectedQRItem}
+                        setShowQRModal={setShowQRModal}
+                      />
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -389,6 +632,63 @@ const StockManagementPage = () => {
               >
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && selectedQRItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-800">Item QR Code & Barcode</h2>
+            </div>
+
+            <div className="p-6">
+              <div className="text-center mb-4">
+                <QRCodeDisplay
+                  data={selectedQRItem.qrCode || JSON.stringify({
+                    barcode: selectedQRItem.barcode,
+                    product: selectedQRItem.itemName,
+                    location: selectedQRItem.location,
+                    batch: selectedQRItem.batchNumber,
+                    stock: selectedQRItem.currentStock
+                  })}
+                  size={250}
+                />
+              </div>
+
+              <div className="space-y-2 text-sm text-gray-600 mb-4">
+                {selectedQRItem.barcode && (
+                  <div className="flex items-center gap-2">
+                    <FaBarcode className="text-gray-400" />
+                    <strong>Barcode:</strong> {selectedQRItem.barcode}
+                  </div>
+                )}
+                {selectedQRItem.batchNumber && (
+                  <div><strong>Batch:</strong> {selectedQRItem.batchNumber}</div>
+                )}
+                <div><strong>Item:</strong> {selectedQRItem.itemName}</div>
+                <div><strong>Location:</strong> {selectedQRItem.location}</div>
+                <div><strong>Current Stock:</strong> {selectedQRItem.currentStock} {selectedQRItem.unit}</div>
+                <div><strong>Category:</strong> {selectedQRItem.category}</div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg flex items-center justify-center gap-2"
+                >
+                  <FaBarcode /> Print
+                </button>
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

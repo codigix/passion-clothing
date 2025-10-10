@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaBoxOpen, FaPlus, FaSearch, FaExclamationTriangle, FaEye, FaEdit, FaQrcode, FaDownload, FaArrowDown, FaTags, FaWarehouse, FaTruck, FaShoppingCart, FaCheckCircle, FaIndustry } from 'react-icons/fa';
+import { FaBoxOpen, FaPlus, FaSearch, FaExclamationTriangle, FaEye, FaEdit, FaQrcode, FaDownload, FaArrowDown, FaTags, FaWarehouse, FaTruck, FaShoppingCart, FaCheckCircle, FaIndustry, FaClipboardCheck } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -19,6 +19,7 @@ const InventoryDashboard = () => {
   const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [incomingOrders, setIncomingOrders] = useState([]);
+  const [mrnRequests, setMrnRequests] = useState([]);
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [stockReceiptDialogOpen, setStockReceiptDialogOpen] = useState(false);
@@ -31,8 +32,13 @@ const InventoryDashboard = () => {
 
   const fetchIncomingOrders = async () => {
     try {
-      const response = await api.get('/inventory/orders/incoming?status=ready_for_inventory');
-      setIncomingOrders(response.data.orders || []);
+      // Fetch GRN requests (approved POs waiting for GRN creation)
+      const grnResponse = await api.get('/inventory/grn-requests');
+      setIncomingOrders(grnResponse.data.requests || []);
+
+      // Fetch MRN requests (Material Request Notes from manufacturing)
+      const mrnResponse = await api.get('/project-material-requests?status=pending_inventory_review&limit=50');
+      setMrnRequests(mrnResponse.data.requests || []);
     } catch (error) {
       console.error('Error fetching incoming orders:', error);
     }
@@ -295,9 +301,9 @@ const InventoryDashboard = () => {
                 onClick={() => setTabValue(idx)}
               >
                 {tab}
-                {idx === 0 && incomingOrders.length > 0 && (
+                {idx === 0 && (incomingOrders.length + mrnRequests.length) > 0 && (
                   <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    {incomingOrders.length}
+                    {incomingOrders.length + mrnRequests.length}
                   </span>
                 )}
               </button>
@@ -308,13 +314,13 @@ const InventoryDashboard = () => {
         <TabPanel value={tabValue} index={0}>
           <div>
             <div className="flex justify-between items-center mb-4">
-              <div className="font-semibold text-lg text-gray-900">Incoming Orders from Procurement</div>
+              <div className="font-semibold text-lg text-gray-900">GRN Requests - Purchase Orders Awaiting Receipt</div>
               <div className="flex gap-2">
                 <button
-                  className="px-4 py-2 rounded border border-blue-600 text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                  onClick={handleScanQrCode}
+                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+                  onClick={() => navigate('/inventory/grn')}
                 >
-                  <FaQrcode /> Scan QR
+                  <FaCheckCircle /> View All GRNs
                 </button>
               </div>
             </div>
@@ -322,67 +328,137 @@ const InventoryDashboard = () => {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Order No.</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Customer</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Product</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Materials</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Quantity</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Date</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">PO Number</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">Vendor</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">PO Date</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">Expected Delivery</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">Items</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">Amount</th>
+                    <th className="font-semibold text-gray-700 p-2 border-b">Requested By</th>
                     <th className="font-semibold text-gray-700 p-2 border-b text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {incomingOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50 border-b">
-                      <td className="p-2 font-semibold text-gray-900">{order.order_number}</td>
-                      <td className="p-2">{order.customer?.name}</td>
-                      <td className="p-2">{order.garment_specs?.product_type}</td>
-                      <td className="p-2">
-                        <div className="text-xs">
-                          {order.material_requirements?.slice(0, 2).map((mat, idx) => (
-                            <div key={idx}>{mat.item}: {mat.quantity} {mat.unit}</div>
-                          ))}
-                          {order.material_requirements?.length > 2 && (
-                            <div>+{order.material_requirements.length - 2} more</div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-2">{order.quantity}</td>
-                      <td className="p-2">{new Date(order.created_at).toLocaleDateString()}</td>
+                  {incomingOrders.map((request) => (
+                    <tr key={request.id} className="hover:bg-gray-50 border-b">
+                      <td className="p-2 font-semibold text-gray-900">{request.po_number}</td>
+                      <td className="p-2">{request.vendor_name}</td>
+                      <td className="p-2">{request.po_date ? new Date(request.po_date).toLocaleDateString() : 'N/A'}</td>
+                      <td className="p-2">{request.expected_delivery_date ? new Date(request.expected_delivery_date).toLocaleDateString() : 'N/A'}</td>
+                      <td className="p-2 text-center">{request.items_count || 0}</td>
+                      <td className="p-2">₹{request.total_amount?.toLocaleString() || '0'}</td>
+                      <td className="p-2 text-xs text-gray-600">{request.requested_by || 'N/A'}</td>
                       <td className="p-2 text-center">
                         <button
-                          className="p-2 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 mr-1"
-                          onClick={() => handleShowQrCode(order)}
-                          title="View QR Code"
+                          className="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 mr-1"
+                          onClick={() => navigate(`/inventory/grn/create?po_id=${request.po_id}`)}
+                          title="Create GRN"
                         >
-                          <FaQrcode />
+                          Create GRN
                         </button>
                         <button
-                          className="p-2 rounded bg-green-100 text-green-600 hover:bg-green-200 mr-1"
-                          onClick={() => handleReceiveStock(order)}
-                          title="Receive Stock"
+                          className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700"
+                          onClick={() => navigate(`/procurement/purchase-orders/${request.po_id}`)}
+                          title="View PO Details"
                         >
-                          <FaCheckCircle />
-                        </button>
-                        <button
-                          className="p-2 rounded bg-purple-100 text-purple-600 hover:bg-purple-200"
-                          onClick={() => handleSendToManufacturing(order)}
-                          title="Send to Manufacturing"
-                        >
-                          <FaIndustry />
+                          View PO
                         </button>
                       </td>
                     </tr>
                   ))}
                   {incomingOrders.length === 0 && (
                     <tr>
-                      <td colSpan="7" className="p-8 text-center text-gray-500">
-                        No incoming orders from procurement
+                      <td colSpan="8" className="p-8 text-center text-gray-500">
+                        No GRN requests pending. All purchase orders have been processed.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* MRN Requests - Material Release from Manufacturing */}
+            <div className="mt-8">
+              <div className="flex justify-between items-center mb-4">
+                <div className="font-semibold text-lg text-gray-900 flex items-center gap-2">
+                  <FaIndustry className="text-blue-600" />
+                  MRN Requests - Material Release for Projects
+                </div>
+                <button
+                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 text-sm"
+                  onClick={() => navigate('/inventory/mrn-requests')}
+                >
+                  <FaClipboardCheck />
+                  View All MRN Requests
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="font-semibold text-gray-700 p-2 border-b">MRN Number</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b">Project Name</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b">Department</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b">Request Date</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b">Required By</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b">Items</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b">Priority</th>
+                      <th className="font-semibold text-gray-700 p-2 border-b text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mrnRequests.map((request) => (
+                      <tr key={request.id} className="hover:bg-gray-50 border-b">
+                        <td className="p-2 font-semibold text-gray-900">{request.request_number}</td>
+                        <td className="p-2">{request.project_name}</td>
+                        <td className="p-2 text-xs">
+                          <span className="px-2 py-1 rounded bg-blue-100 text-blue-700 font-semibold">
+                            {request.requesting_department?.toUpperCase() || 'MANUFACTURING'}
+                          </span>
+                        </td>
+                        <td className="p-2">{request.request_date ? new Date(request.request_date).toLocaleDateString() : 'N/A'}</td>
+                        <td className="p-2">{request.required_by_date ? new Date(request.required_by_date).toLocaleDateString() : 'N/A'}</td>
+                        <td className="p-2 text-center">{request.total_items || 0}</td>
+                        <td className="p-2">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            request.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                            request.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                            request.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {request.priority?.toUpperCase() || 'MEDIUM'}
+                          </span>
+                        </td>
+                        <td className="p-2 text-center">
+                          <button
+                            className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 mr-1 flex items-center gap-1 inline-flex"
+                            onClick={() => navigate(`/inventory/mrn/${request.id}`)}
+                            title="Review Material Request"
+                          >
+                            <FaClipboardCheck className="text-xs" />
+                            Review
+                          </button>
+                          <button
+                            className="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 flex items-center gap-1 inline-flex"
+                            onClick={() => navigate(`/inventory/dispatch/${request.id}`)}
+                            title="Accept & Dispatch Materials"
+                          >
+                            <FaTruck className="text-xs" />
+                            Dispatch
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {mrnRequests.length === 0 && (
+                      <tr>
+                        <td colSpan="8" className="p-8 text-center text-gray-500">
+                          No MRN requests pending. All material requests have been processed.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </TabPanel>

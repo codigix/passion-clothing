@@ -22,6 +22,7 @@ import {
   Settings,
   Scan,
   CheckCircle,
+  Send,
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,6 +38,8 @@ const Sidebar = ({ open, onToggle }) => {
   const { user, logout } = useAuth();
   const { openStockModal } = useStore();
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [pendingGRNCount, setPendingGRNCount] = useState(0);
+  const [pendingMRNCount, setPendingMRNCount] = useState(0);
 
   // Fetch pending approvals count for procurement department
   useEffect(() => {
@@ -44,6 +47,20 @@ const Sidebar = ({ open, onToggle }) => {
       fetchPendingApprovalsCount();
       // Refresh every 30 seconds
       const interval = setInterval(fetchPendingApprovalsCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.department]);
+
+  // Fetch pending GRN requests count for inventory department
+  useEffect(() => {
+    if (user?.department === 'inventory' || user?.department === 'admin') {
+      fetchPendingGRNCount();
+      fetchPendingMRNCount();
+      // Refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchPendingGRNCount();
+        fetchPendingMRNCount();
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [user?.department]);
@@ -60,6 +77,26 @@ const Sidebar = ({ open, onToggle }) => {
     }
   };
 
+  const fetchPendingGRNCount = async () => {
+    try {
+      const response = await api.get('/inventory/grn-requests');
+      const requests = response.data.requests || [];
+      setPendingGRNCount(requests.length);
+    } catch (error) {
+      console.error('Error fetching pending GRN count:', error);
+    }
+  };
+
+  const fetchPendingMRNCount = async () => {
+    try {
+      const response = await api.get('/project-material-requests?status=pending_inventory_review');
+      const requests = response.data.requests || response.data.data || [];
+      setPendingMRNCount(requests.length);
+    } catch (error) {
+      console.error('Error fetching pending MRN count:', error);
+    }
+  };
+
   const getDepartmentMenuItems = (department) => {
     const menuItems = {
       sales: [
@@ -72,7 +109,7 @@ const Sidebar = ({ open, onToggle }) => {
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/procurement' },
         { text: 'Pending Approvals', icon: <CheckCircle size={18} />, path: '/procurement/pending-approvals', badge: pendingApprovalsCount },
         { text: 'Purchase Orders', icon: <ShoppingCart size={18} />, path: '/procurement/purchase-orders' },
-        { text: 'Create Purchase Order', icon: <FileText size={18} />, path: '/procurement/purchase-orders/create' },
+        { text: 'Material Requests', icon: <Send size={18} />, path: '/procurement/material-requests' },
         { text: 'Vendors', icon: <Building size={18} />, path: '/procurement/vendors' },
         { text: 'Reports', icon: <FileText size={18} />, path: '/procurement/reports' },
       ],
@@ -83,11 +120,10 @@ const Sidebar = ({ open, onToggle }) => {
       ],
       inventory: [
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/inventory' },
-        { text: 'Products', icon: <Package size={18} />, path: '/inventory/products' },
-        { text: 'Barcode Lookup', icon: <Scan size={18} />, path: '/inventory/barcode-lookup' },
-        { text: 'Lifecycle Tracking', icon: <Clock size={18} />, path: '/inventory/lifecycle' },
+        { text: 'Barcode Scanner', icon: <Scan size={18} />, path: '/inventory/scan' },
         { text: 'Stock Management', icon: <Package size={18} />, path: '/inventory/stock' },
-        { text: 'Goods Receipt (GRN)', icon: <Receipt size={18} />, path: '/inventory/grn' },
+        { text: 'Goods Receipt (GRN)', icon: <Receipt size={18} />, path: '/inventory/grn', badge: pendingGRNCount },
+        { text: 'Material Requests (MRN)', icon: <Send size={18} />, path: '/inventory/mrn-requests', badge: pendingMRNCount },
         { text: 'Stock Alerts', icon: <Bell size={18} />, path: '/inventory/alerts' },
         { text: 'Reports', icon: <FileText size={18} />, path: '/inventory/reports' },
       ],
@@ -95,6 +131,7 @@ const Sidebar = ({ open, onToggle }) => {
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/manufacturing' },
         { text: 'Production Orders', icon: <Factory size={18} />, path: '/manufacturing/orders' },
         { text: 'Production Tracking', icon: <Clock size={18} />, path: '/manufacturing/tracking' },
+        { text: 'Material Requests (MRN)', icon: <Send size={18} />, path: '/manufacturing/material-requests' },
         { text: 'Quality Control', icon: <Microscope size={18} />, path: '/manufacturing/quality' },
         { text: 'Reports', icon: <FileText size={18} />, path: '/manufacturing/reports' },
       ],
@@ -212,56 +249,59 @@ const Sidebar = ({ open, onToggle }) => {
 
         <hr className="border-white/20" />
 
-        {/* Department Menu */}
-        <nav className={`flex-1 ${open ? 'px-2' : 'px-0'} py-2`}>
-          {departmentMenuItems.map((item) => (
-            <button
-              key={item.text}
-              onClick={() => handleNavigation(item.path)}
-              className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
-                isActive(item.path) ? 'bg-white/20' : ''
-              } relative`}
-            >
-              <span className="text-white flex-shrink-0">
-                {item.icon}
-              </span>
-              {open && (
-                <span className="text-sm truncate flex-1">
-                  {item.text}
+        {/* Scrollable Menu Container */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          {/* Department Menu */}
+          <nav className={`${open ? 'px-2' : 'px-0'} py-2`}>
+            {departmentMenuItems.map((item) => (
+              <button
+                key={item.text}
+                onClick={() => handleNavigation(item.path)}
+                className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
+                  isActive(item.path) ? 'bg-white/20' : ''
+                } relative`}
+              >
+                <span className="text-white flex-shrink-0">
+                  {item.icon}
                 </span>
-              )}
-              {item.badge > 0 && (
-                <span className={`${open ? 'relative' : 'absolute top-1 right-1'} bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5`}>
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+                {open && (
+                  <span className="text-sm truncate flex-1 text-left">
+                    {item.text}
+                  </span>
+                )}
+                {item.badge > 0 && (
+                  <span className={`${open ? 'relative' : 'absolute top-1 right-1'} bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5`}>
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
 
-        <hr className="border-white/20" />
+          <hr className="border-white/20" />
 
-        {/* Common Menu */}
-        <nav className={`${open ? 'px-2' : 'px-0'} py-2`}>
-          {commonMenuItems.map((item) => (
-            <button
-              key={item.text}
-              onClick={() => handleNavigation(item.path)}
-              className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
-                isActive(item.path) ? 'bg-white/20' : ''
-              }`}
-            >
-              <span className="text-white flex-shrink-0">
-                {item.icon}
-              </span>
-              {open && (
-                <span className="text-sm truncate">
-                  {item.text}
+          {/* Common Menu */}
+          <nav className={`${open ? 'px-2' : 'px-0'} py-2`}>
+            {commonMenuItems.map((item) => (
+              <button
+                key={item.text}
+                onClick={() => handleNavigation(item.path)}
+                className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
+                  isActive(item.path) ? 'bg-white/20' : ''
+                }`}
+              >
+                <span className="text-white flex-shrink-0">
+                  {item.icon}
                 </span>
-              )}
-            </button>
-          ))}
-        </nav>
+                {open && (
+                  <span className="text-sm truncate">
+                    {item.text}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
 
         <hr className="border-white/20" />
 

@@ -530,7 +530,80 @@ router.delete('/orders/:id', authenticateToken, checkDepartment(['manufacturing'
   }
 });
 
-// Update production stage
+// Update production stage by order ID and stage name
+router.put('/orders/:id/stages', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { stage, status, notes, quantity_processed, quantity_approved, quantity_rejected, delay_reason } = req.body;
+
+    if (!stage) {
+      return res.status(400).json({ message: 'Stage name is required' });
+    }
+
+    // Find the production order
+    const order = await ProductionOrder.findByPk(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    // Find the specific stage by name within this order
+    const productionStage = await ProductionStage.findOne({
+      where: {
+        production_order_id: req.params.id,
+        stage_name: stage
+      }
+    });
+
+    if (!productionStage) {
+      return res.status(404).json({ message: `Stage '${stage}' not found for this production order` });
+    }
+
+    const updateData = {};
+    
+    if (status) {
+      updateData.status = status;
+      
+      // Set start time when moving to in_progress
+      if (status === 'in_progress' && !productionStage.actual_start_time) {
+        updateData.actual_start_time = new Date();
+      }
+      
+      // Set end time when completing
+      if (status === 'completed' && !productionStage.actual_end_time) {
+        updateData.actual_end_time = new Date();
+        
+        // Calculate duration
+        if (productionStage.actual_start_time) {
+          const start = new Date(productionStage.actual_start_time);
+          const end = new Date();
+          updateData.actual_duration_hours = (end - start) / (1000 * 60 * 60);
+        }
+      }
+    }
+    
+    if (notes) updateData.notes = notes;
+    if (quantity_processed !== undefined) updateData.quantity_processed = quantity_processed;
+    if (quantity_approved !== undefined) updateData.quantity_approved = quantity_approved;
+    if (quantity_rejected !== undefined) updateData.quantity_rejected = quantity_rejected;
+    if (delay_reason) updateData.delay_reason = delay_reason;
+
+    await productionStage.update(updateData);
+
+    // Update production order status if needed
+    if (status === 'in_progress' && ['cutting', 'embroidery', 'stitching', 'finishing', 'quality_check', 'packaging'].includes(stage)) {
+      await order.update({ status: stage });
+    }
+
+    res.json({ 
+      message: 'Production stage updated successfully',
+      stage: productionStage 
+    });
+  } catch (error) {
+    console.error('Production stage update error:', error);
+    res.status(500).json({ message: 'Failed to update production stage' });
+  }
+});
+
+// Update production stage by stage ID
 router.put('/stages/:id', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
   try {
     const {

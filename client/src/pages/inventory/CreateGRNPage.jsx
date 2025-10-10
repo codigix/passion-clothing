@@ -29,22 +29,37 @@ const CreateGRNPage = () => {
       setLoading(true);
       const response = await api.get(`/procurement/pos/${poId}`);
       const po = response.data;
+      
+      console.log('=== GRN FORM DEBUG ===');
+      console.log('Full PO Response:', po);
+      console.log('PO Items:', po.items);
+      console.log('Items Array?:', Array.isArray(po.items));
+      console.log('Items Length:', po.items?.length);
+      if (po.items?.length > 0) {
+        console.log('First Item Structure:', po.items[0]);
+      }
+      console.log('=== END DEBUG ===');
+      
       setPurchaseOrder(po);
 
       // Initialize items with PO data
-      const items = (po.items || []).map((item, index) => ({
-        item_index: index,
-        material_name: item.type === 'fabric' ? item.fabric_name : item.item_name,
-        color: item.color || '',
-        gsm: item.gsm || '',
-        uom: item.uom || 'Meters',
-        ordered_qty: parseFloat(item.quantity) || 0,
-        invoiced_qty: parseFloat(item.quantity) || 0, // Default to ordered qty - user will update from vendor invoice
-        received_qty: parseFloat(item.quantity) || 0, // Default to ordered qty - user will update after physical count
-        weight: '',
-        remarks: ''
-      }));
+      const items = (po.items || []).map((item, index) => {
+        console.log(`Mapping item ${index}:`, item);
+        return {
+          item_index: index,
+          material_name: item.type === 'fabric' ? item.fabric_name : item.item_name,
+          color: item.color || '',
+          gsm: item.gsm || '',
+          uom: item.uom || 'Meters',
+          ordered_qty: parseFloat(item.quantity) || 0,
+          invoiced_qty: parseFloat(item.quantity) || 0, // Default to ordered qty - user will update from vendor invoice
+          received_qty: parseFloat(item.quantity) || 0, // Default to ordered qty - user will update after physical count
+          weight: '',
+          remarks: ''
+        };
+      });
 
+      console.log('Mapped items for form:', items);
       setFormData(prev => ({ ...prev, items_received: items }));
     } catch (error) {
       console.error('Error fetching PO:', error);

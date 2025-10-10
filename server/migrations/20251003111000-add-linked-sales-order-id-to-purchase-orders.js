@@ -1,8 +1,50 @@
 "use strict";
 
+// Helper functions to safely add/remove columns
+const tableExists = async (queryInterface, tableName) => {
+  const tables = await queryInterface.showAllTables();
+  const normalizedTables = tables.map((t) => (typeof t === 'string' ? t.toLowerCase() : t.tableName?.toLowerCase()));
+  return normalizedTables.includes(tableName.toLowerCase());
+};
+
+const describeTableIfExists = async (queryInterface, tableName) => {
+  const exists = await tableExists(queryInterface, tableName);
+  if (!exists) {
+    return null;
+  }
+  return queryInterface.describeTable(tableName);
+};
+
+const columnExists = (tableDefinition, columnName) => {
+  if (!tableDefinition) {
+    return false;
+  }
+  return Object.prototype.hasOwnProperty.call(tableDefinition, columnName);
+};
+
+const addColumnIfMissing = async (queryInterface, tableName, columnName, columnDefinition) => {
+  const tableDefinition = await describeTableIfExists(queryInterface, tableName);
+  if (!tableDefinition) {
+    return;
+  }
+  if (!columnExists(tableDefinition, columnName)) {
+    await queryInterface.addColumn(tableName, columnName, columnDefinition);
+  }
+};
+
+const removeColumnIfExists = async (queryInterface, tableName, columnName) => {
+  const tableDefinition = await describeTableIfExists(queryInterface, tableName);
+  if (!tableDefinition) {
+    return;
+  }
+  if (columnExists(tableDefinition, columnName)) {
+    await queryInterface.removeColumn(tableName, columnName);
+  }
+};
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.addColumn("purchase_orders", "linked_sales_order_id", {
+    await addColumnIfMissing(queryInterface, "purchase_orders", "linked_sales_order_id", {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -15,6 +57,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.removeColumn("purchase_orders", "linked_sales_order_id");
+    await removeColumnIfExists(queryInterface, "purchase_orders", "linked_sales_order_id");
   }
 };

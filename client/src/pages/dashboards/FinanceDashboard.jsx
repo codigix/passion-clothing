@@ -45,7 +45,6 @@ import {
   getTrendIndicator,
 } from "../finance/financeUtilities";
 
-
 const FinanceDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("invoices");
@@ -54,7 +53,7 @@ const FinanceDashboard = () => {
     totalInvoices: 0,
     totalPayments: 0,
     totalRevenue: 0,
-    outstanding: 0
+    outstanding: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -65,14 +64,45 @@ const FinanceDashboard = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const res = await import('../../utils/api').then(m => m.default.get('/finance/dashboard/stats'));
+      const res = await import("../../utils/api").then((m) =>
+        m.default.get("/finance/dashboard/stats")
+      );
       setStats(res.data);
     } catch (error) {
-      setStats({ totalInvoices: 0, totalPayments: 0, totalRevenue: 0, outstanding: 0 });
+      setStats({
+        totalInvoices: 0,
+        totalPayments: 0,
+        totalRevenue: 0,
+        outstanding: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  // Filter invoices based on filterType
+  const filteredInvoices = React.useMemo(() => {
+    if (filterType === "all") return financeInvoices;
+    return financeInvoices.filter((inv) => inv.type === filterType);
+  }, [filterType]);
+
+  // Invoice totals for summary cards
+  const invoiceTotals = React.useMemo(
+    () => ({
+      count: filteredInvoices.length,
+      value: filteredInvoices.reduce((sum, inv) => sum + inv.amount, 0),
+    }),
+    [filteredInvoices]
+  );
+
+  // Payment totals for summary cards
+  const paymentTotals = React.useMemo(
+    () => ({
+      count: financePayments.length,
+      value: financePayments.reduce((sum, p) => sum + p.amount, 0),
+    }),
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -168,7 +198,9 @@ const FinanceDashboard = () => {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Outstanding Receivables</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Outstanding Receivables
+            </h2>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
               <TrendingUp className="h-4 w-4" /> 4.2%
             </span>
@@ -184,7 +216,9 @@ const FinanceDashboard = () => {
               <div key={item.id} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{item.label}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900">{item.value}</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {item.value}
+                  </span>
                   <span
                     className={`text-xs font-medium ${
                       item.trend >= 0 ? "text-emerald-600" : "text-rose-600"
@@ -200,7 +234,9 @@ const FinanceDashboard = () => {
 
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Outstanding Payables</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Outstanding Payables
+            </h2>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-600">
               <TrendingDown className="h-4 w-4" /> 2.1%
             </span>
@@ -245,7 +281,9 @@ const FinanceDashboard = () => {
 
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Compliance Checklist</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Compliance Checklist
+            </h2>
             <span className="text-xs text-gray-500">This month</span>
           </div>
           <ul className="space-y-3">
@@ -273,7 +311,9 @@ const FinanceDashboard = () => {
 
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Expense Breakdown</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Expense Breakdown
+            </h2>
             <span className="text-xs text-gray-500">Current month</span>
           </div>
           <div className="space-y-3">
@@ -301,7 +341,9 @@ const FinanceDashboard = () => {
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900">Quick Search &amp; Filters</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Quick Search &amp; Filters
+        </h3>
         <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-12">
           <div className="md:col-span-4">
             <div className="relative">
@@ -424,7 +466,11 @@ const FinanceDashboard = () => {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                            getBadgeClass(invoiceTypeStyles, invoice.type, defaultBadgeStyles)
+                            getBadgeClass(
+                              invoiceTypeStyles,
+                              invoice.type,
+                              defaultBadgeStyles
+                            )
                           }`}
                         >
                           {invoice.type.toUpperCase()}
@@ -440,7 +486,11 @@ const FinanceDashboard = () => {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase ${
-                            getBadgeClass(invoiceStatusStyles, invoice.status, defaultBadgeStyles)
+                            getBadgeClass(
+                              invoiceStatusStyles,
+                              invoice.status,
+                              defaultBadgeStyles
+                            )
                           }`}
                         >
                           <span className="inline-flex h-2 w-2 rounded-full bg-current" />
@@ -563,7 +613,11 @@ const FinanceDashboard = () => {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                            getBadgeClass(paymentTypeStyles, payment.type, defaultBadgeStyles)
+                            getBadgeClass(
+                              paymentTypeStyles,
+                              payment.type,
+                              defaultBadgeStyles
+                            )
                           }`}
                         >
                           {payment.type.toUpperCase()}
@@ -576,7 +630,11 @@ const FinanceDashboard = () => {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold uppercase ${
-                            getBadgeClass(paymentModeStyles, payment.paymentMode, defaultBadgeStyles)
+                            getBadgeClass(
+                              paymentModeStyles,
+                              payment.paymentMode,
+                              defaultBadgeStyles
+                            )
                           }`}
                         >
                           {payment.paymentMode.replace("_", " ").toUpperCase()}
@@ -586,7 +644,11 @@ const FinanceDashboard = () => {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase ${
-                            getBadgeClass(paymentStatusStyles, payment.status, defaultBadgeStyles)
+                            getBadgeClass(
+                              paymentStatusStyles,
+                              payment.status,
+                              defaultBadgeStyles
+                            )
                           }`}
                         >
                           <span className="inline-flex h-2 w-2 rounded-full bg-current" />
@@ -668,7 +730,11 @@ const FinanceDashboard = () => {
                     </div>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                        getBadgeClass(cashFlowCategoryStyles, event.category, defaultBadgeStyles)
+                        getBadgeClass(
+                          cashFlowCategoryStyles,
+                          event.category,
+                          defaultBadgeStyles
+                        )
                       }`}
                     >
                       {event.category.toUpperCase()}

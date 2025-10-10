@@ -10,6 +10,14 @@ const baseDefineConfig = {
   indexes: []
 };
 
+const defaultDbConfig = {
+  database: 'passion_erp',
+  username: 'root',
+  password: 'root',
+  host: 'localhost',
+  port: 3306
+};
+
 let sequelize;
 
 if (isTestEnv) {
@@ -20,24 +28,25 @@ if (isTestEnv) {
     define: baseDefineConfig
   });
 } else {
-  sequelize = new Sequelize(
-    process.env.DB_NAME || 'pashion_erp',
-    process.env.DB_USER || 'root',
-    process.env.DB_PASSWORD || 'root',
-    {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 3306,
-      dialect: 'mysql',
-      logging: process.env.NODE_ENV === 'development' ? console.log : false,
-      pool: {
-        max: 10,
-        min: 0,
-        acquire: 30000,
-        idle: 10000
-      },
-      define: baseDefineConfig
-    }
-  );
+  const database = process.env.DB_NAME || defaultDbConfig.database;
+  const username = process.env.DB_USER || defaultDbConfig.username;
+  const password = process.env.DB_PASSWORD || defaultDbConfig.password;
+  const host = process.env.DB_HOST || defaultDbConfig.host;
+  const port = process.env.DB_PORT || defaultDbConfig.port;
+
+  sequelize = new Sequelize(database, username, password, {
+    host,
+    port,
+    dialect: 'mysql',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    },
+    define: baseDefineConfig
+  });
 }
 
 // Import all models
@@ -72,6 +81,12 @@ const Approval = require('../models/Approval')(sequelize);
 const InventoryMovement = require('../models/InventoryMovement')(sequelize);
 const MaterialAllocation = require('../models/MaterialAllocation')(sequelize);
 const VendorReturn = require('../models/VendorReturn')(sequelize);
+const ProjectMaterialRequest = require('../models/ProjectMaterialRequest')(sequelize);
+const ProductionRequest = require('../models/ProductionRequest')(sequelize);
+const MaterialDispatch = require('../models/MaterialDispatch')(sequelize);
+const MaterialReceipt = require('../models/MaterialReceipt')(sequelize);
+const MaterialVerification = require('../models/MaterialVerification')(sequelize);
+const ProductionApproval = require('../models/ProductionApproval')(sequelize);
 
 // Define associations
 const defineAssociations = () => {
@@ -92,6 +107,7 @@ const defineAssociations = () => {
   SalesOrder.hasMany(Challan, { foreignKey: 'order_id', as: 'challans' });
   SalesOrder.hasMany(BillOfMaterials, { foreignKey: 'sales_order_id', as: 'billOfMaterials' });
   SalesOrder.hasMany(SalesOrderHistory, { foreignKey: 'sales_order_id', as: 'history' });
+  SalesOrder.hasMany(ProductionRequest, { foreignKey: 'sales_order_id', as: 'productionRequests' });
 
   // Sales Order History associations
   SalesOrderHistory.belongsTo(SalesOrder, { foreignKey: 'sales_order_id', as: 'salesOrder' });
@@ -250,6 +266,59 @@ const defineAssociations = () => {
   PurchaseOrder.hasMany(VendorReturn, { foreignKey: 'purchase_order_id', as: 'vendorReturns' });
   GoodsReceiptNote.hasMany(VendorReturn, { foreignKey: 'grn_id', as: 'vendorReturns' });
   Vendor.hasMany(VendorReturn, { foreignKey: 'vendor_id', as: 'returns' });
+
+  // Project Material Request associations
+  ProjectMaterialRequest.belongsTo(PurchaseOrder, { foreignKey: 'purchase_order_id', as: 'purchaseOrder' });
+  ProjectMaterialRequest.belongsTo(SalesOrder, { foreignKey: 'sales_order_id', as: 'salesOrder' });
+  ProjectMaterialRequest.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+  ProjectMaterialRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+  ProjectMaterialRequest.belongsTo(User, { foreignKey: 'forwarded_by', as: 'forwarder' });
+  ProjectMaterialRequest.belongsTo(User, { foreignKey: 'processed_by', as: 'processor' });
+
+  PurchaseOrder.hasMany(ProjectMaterialRequest, { foreignKey: 'purchase_order_id', as: 'materialRequests' });
+  SalesOrder.hasMany(ProjectMaterialRequest, { foreignKey: 'sales_order_id', as: 'materialRequests' });
+
+  // Production Request associations
+  ProductionRequest.belongsTo(SalesOrder, { foreignKey: 'sales_order_id', as: 'salesOrder' });
+  ProductionRequest.belongsTo(PurchaseOrder, { foreignKey: 'po_id', as: 'purchaseOrder' });
+  ProductionRequest.belongsTo(User, { foreignKey: 'requested_by', as: 'requester' });
+  ProductionRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+  ProductionRequest.belongsTo(ProductionOrder, { foreignKey: 'production_order_id', as: 'productionOrder' });
+
+  PurchaseOrder.hasMany(ProductionRequest, { foreignKey: 'po_id', as: 'productionRequests' });
+  ProductionOrder.hasMany(ProductionRequest, { foreignKey: 'production_order_id', as: 'productionRequests' });
+
+  // Material Dispatch associations (MRN Flow)
+  MaterialDispatch.belongsTo(ProjectMaterialRequest, { foreignKey: 'mrn_request_id', as: 'mrnRequest' });
+  MaterialDispatch.belongsTo(User, { foreignKey: 'dispatched_by', as: 'dispatcher' });
+  
+  ProjectMaterialRequest.hasMany(MaterialDispatch, { foreignKey: 'mrn_request_id', as: 'dispatches' });
+
+  // Material Receipt associations
+  MaterialReceipt.belongsTo(ProjectMaterialRequest, { foreignKey: 'mrn_request_id', as: 'mrnRequest' });
+  MaterialReceipt.belongsTo(MaterialDispatch, { foreignKey: 'dispatch_id', as: 'dispatch' });
+  MaterialReceipt.belongsTo(User, { foreignKey: 'received_by', as: 'receiver' });
+  
+  MaterialDispatch.hasOne(MaterialReceipt, { foreignKey: 'dispatch_id', as: 'receipt' });
+  ProjectMaterialRequest.hasMany(MaterialReceipt, { foreignKey: 'mrn_request_id', as: 'receipts' });
+
+  // Material Verification associations
+  MaterialVerification.belongsTo(ProjectMaterialRequest, { foreignKey: 'mrn_request_id', as: 'mrnRequest' });
+  MaterialVerification.belongsTo(MaterialReceipt, { foreignKey: 'receipt_id', as: 'receipt' });
+  MaterialVerification.belongsTo(User, { foreignKey: 'verified_by', as: 'verifier' });
+  
+  MaterialReceipt.hasOne(MaterialVerification, { foreignKey: 'receipt_id', as: 'verification' });
+  ProjectMaterialRequest.hasMany(MaterialVerification, { foreignKey: 'mrn_request_id', as: 'verifications' });
+
+  // Production Approval associations
+  ProductionApproval.belongsTo(ProjectMaterialRequest, { foreignKey: 'mrn_request_id', as: 'mrnRequest' });
+  ProductionApproval.belongsTo(MaterialVerification, { foreignKey: 'verification_id', as: 'verification' });
+  ProductionApproval.belongsTo(ProductionOrder, { foreignKey: 'production_order_id', as: 'productionOrder' });
+  ProductionApproval.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
+  
+  MaterialVerification.hasOne(ProductionApproval, { foreignKey: 'verification_id', as: 'approval' });
+  ProjectMaterialRequest.hasMany(ProductionApproval, { foreignKey: 'mrn_request_id', as: 'approvals' });
+  ProductionOrder.hasMany(ProductionApproval, { foreignKey: 'production_order_id', as: 'approvals' });
 };
 
 defineAssociations();
@@ -287,7 +356,13 @@ const db = {
   Approval,
   InventoryMovement,
   MaterialAllocation,
-  VendorReturn
+  VendorReturn,
+  ProjectMaterialRequest,
+  ProductionRequest,
+  MaterialDispatch,
+  MaterialReceipt,
+  MaterialVerification,
+  ProductionApproval
 };
 
 module.exports = db;

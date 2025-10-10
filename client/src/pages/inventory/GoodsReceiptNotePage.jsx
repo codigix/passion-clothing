@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaEye, FaEdit, FaTrash, FaCheck, FaSearch, FaFilter, FaDownload, FaUpload } from 'react-icons/fa';
+import {
+  FaPlus, FaEye, FaEdit, FaTrash, FaCheck, FaSearch, FaFilter, FaDownload, FaUpload,
+  FaClipboardList, FaTruck, FaBox, FaCheckCircle, FaExclamationTriangle, FaClock,
+  FaArrowRight, FaTimes
+} from 'react-icons/fa';
 import api from '../../utils/api';
+import toast from 'react-hot-toast';
 
 const GoodsReceiptNotePage = () => {
   const navigate = useNavigate();
   const [grns, setGrns] = useState([]);
+  const [pendingPOs, setPendingPOs] = useState([]);
+  const [mrnRequests, setMrnRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showInspectDialog, setShowInspectDialog] = useState(false);
+  const [showMrnDetailModal, setShowMrnDetailModal] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState(null);
+  const [selectedMRN, setSelectedMRN] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [mrnStatusFilter, setMrnStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0, limit: 10 });
+  const [mrnPagination, setMrnPagination] = useState({ page: 1, pages: 1, total: 0, limit: 10 });
+  const [activeTab, setActiveTab] = useState('mrn'); // 'mrn', 'pending', 'grns'
 
   // Form states
   const [newGRN, setNewGRN] = useState({
@@ -37,7 +49,38 @@ const GoodsReceiptNotePage = () => {
 
   useEffect(() => {
     fetchGRNs();
-  }, [pagination.page, statusFilter]);
+    fetchPendingPOs();
+    fetchMRNRequests();
+  }, [pagination.page, statusFilter, mrnPagination.page, mrnStatusFilter]);
+
+  const fetchPendingPOs = async () => {
+    try {
+      const response = await api.get('/inventory/grn-requests');
+      setPendingPOs(response.data.requests || []);
+    } catch (error) {
+      console.error('Error fetching pending POs:', error);
+    }
+  };
+
+  const fetchMRNRequests = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: mrnPagination.page,
+        limit: mrnPagination.limit,
+        ...(mrnStatusFilter !== 'all' && { status: mrnStatusFilter })
+      });
+
+      const response = await api.get(`/project-material-requests?${params}`);
+      setMrnRequests(response.data.requests || []);
+      setMrnPagination(prev => ({
+        ...prev,
+        ...response.data.pagination
+      }));
+    } catch (error) {
+      console.error('Error fetching MRN requests:', error);
+      toast.error('Failed to load material requests');
+    }
+  };
 
   const fetchGRNs = async () => {
     try {
@@ -98,6 +141,74 @@ const GoodsReceiptNotePage = () => {
     }
   };
 
+  // MRN Functions
+  const viewMRNDetails = async (mrnId) => {
+    try {
+      const response = await api.get(`/project-material-requests/${mrnId}`);
+      setSelectedMRN(response.data);
+      setShowMrnDetailModal(true);
+    } catch (error) {
+      console.error('Error fetching MRN details:', error);
+      toast.error('Failed to load MRN details');
+    }
+  };
+
+  const acceptMRNRequest = async (mrnId) => {
+    if (window.confirm('Are you sure you want to accept this MRN request? This will convert it to a GRN with all requested quantities marked as received.')) {
+      try {
+        // First fetch the MRN to get its items
+        const mrnResponse = await api.get(`/project-material-requests/${mrnId}`);
+        const mrn = mrnResponse.data;
+
+        // Prepare items_received array (assume all quantities are received)
+        const items_received = mrn.items.map((item, index) => ({
+          item_index: index,
+          received_qty: parseFloat(item.quantity),
+          weight: null, // Can be added later if needed
+          remarks: ''
+        }));
+
+        // Create GRN from MRN with the prepared data
+        const grnData = {
+          received_date: new Date().toISOString().split('T')[0],
+          inward_challan_number: null,
+          supplier_invoice_number: null,
+          items_received: items_received,
+          remarks: `Auto-generated from MRN ${mrn.request_number}`,
+          attachments: []
+        };
+
+        const response = await api.post(`/grn/from-mrn/${mrnId}`, grnData);
+
+        toast.success('MRN accepted and converted to GRN successfully');
+        fetchMRNRequests(); // Refresh MRN list (this MRN should disappear)
+        fetchGRNs(); // Refresh GRN list (new GRN should appear)
+        setShowMrnDetailModal(false);
+        setSelectedMRN(null);
+      } catch (error) {
+        console.error('Error accepting MRN:', error);
+        toast.error('Failed to accept MRN request');
+      }
+    }
+  };
+
+  const rejectMRNRequest = async (mrnId, reason) => {
+    try {
+      await api.patch(`/project-material-requests/${mrnId}/status`, {
+        status: 'rejected',
+        rejection_reason: reason
+      });
+
+      toast.success('MRN rejected successfully');
+      fetchMRNRequests();
+      setShowMrnDetailModal(false);
+      setSelectedMRN(null);
+    } catch (error) {
+      console.error('Error rejecting MRN:', error);
+      toast.error('Failed to reject MRN request');
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-700',
@@ -109,54 +220,360 @@ const GoodsReceiptNotePage = () => {
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
+  const getMRNStatusBadge = (status) => {
+    const badges = {
+      pending: { color: 'bg-yellow-100 text-yellow-700', icon: <FaClock />, text: 'Pending Review' },
+      reviewed: { color: 'bg-blue-100 text-blue-700', icon: <FaCheckCircle />, text: 'Reviewed' },
+      forwarded_to_inventory: { color: 'bg-purple-100 text-purple-700', icon: <FaBox />, text: 'Forwarded to Inventory' },
+      stock_checking: { color: 'bg-indigo-100 text-indigo-700', icon: <FaClock />, text: 'Checking Stock' },
+      stock_available: { color: 'bg-green-100 text-green-700', icon: <FaCheckCircle />, text: 'Stock Available' },
+      partial_available: { color: 'bg-orange-100 text-orange-700', icon: <FaExclamationTriangle />, text: 'Partial Stock' },
+      stock_unavailable: { color: 'bg-red-100 text-red-700', icon: <FaExclamationTriangle />, text: 'Stock Unavailable' },
+      materials_reserved: { color: 'bg-emerald-100 text-emerald-700', icon: <FaCheckCircle />, text: 'Materials Reserved' },
+      materials_issued: { color: 'bg-teal-100 text-teal-700', icon: <FaCheckCircle />, text: 'Materials Issued' },
+      completed: { color: 'bg-gray-100 text-gray-700', icon: <FaCheckCircle />, text: 'Completed' },
+      cancelled: { color: 'bg-red-100 text-red-700', icon: <FaExclamationTriangle />, text: 'Cancelled' },
+      accepted: { color: 'bg-green-100 text-green-700', icon: <FaCheckCircle />, text: 'Accepted' },
+      rejected: { color: 'bg-red-100 text-red-700', icon: <FaExclamationTriangle />, text: 'Rejected' },
+    };
+    const badge = badges[status] || badges.pending;
+    return (
+      <span className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${badge.color}`}>
+        {badge.icon} {badge.text}
+      </span>
+    );
+  };
+
+  const getMRNPriorityBadge = (priority) => {
+    const colors = {
+      low: 'bg-gray-100 text-gray-600',
+      medium: 'bg-blue-100 text-blue-600',
+      high: 'bg-orange-100 text-orange-600',
+      urgent: 'bg-red-100 text-red-600'
+    };
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-semibold ${colors[priority]}`}>
+        {priority.toUpperCase()}
+      </span>
+    );
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Goods Receipt Notes</h1>
-            <p className="text-gray-600">Manage material receipts and inventory updates</p>
+            <h1 className="text-2xl font-bold text-gray-900">Goods Receipt & Material Requests</h1>
+            <p className="text-gray-600">Manage material requests (MRN) and receipts (GRN) in one place</p>
           </div>
-          <button
-            onClick={() => setShowCreateDialog(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <FaPlus /> Create GRN
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/inventory/grn/create')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <FaPlus /> Create GRN
+            </button>
+            <button
+              onClick={() => navigate('/procurement/material-requests')}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+            >
+              <FaClipboardList /> View All MRNs
+            </button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
           <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search GRNs..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+            <button
+              onClick={() => setActiveTab('mrn')}
+              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-2 ${
+                activeTab === 'mrn'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              <FaClipboardList className="w-4 h-4" />
+              Material Requests (MRN)
+              <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+                {mrnRequests.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-2 ${
+                activeTab === 'pending'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              <FaClock className="w-4 h-4" />
+              Pending GRN Approvals
+              <span className="bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-xs">
+                {pendingPOs.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('grns')}
+              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-2 ${
+                activeTab === 'grns'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              <FaTruck className="w-4 h-4" />
+              Goods Receipt Notes (GRN)
+              <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs">
+                {grns.length}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* MRN Tab */}
+        {activeTab === 'mrn' && (
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="p-4 border-b bg-blue-50">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <FaClipboardList className="w-5 h-5" />
+                Material Requests (MRN)
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">Review and approve material requests from manufacturing</p>
+            </div>
+
+            {/* MRN Filters */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="flex gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Status:</label>
+                  <select
+                    value={mrnStatusFilter}
+                    onChange={(e) => setMrnStatusFilter(e.target.value)}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending Review</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="forwarded_to_inventory">Forwarded to Inventory</option>
+                    <option value="stock_checking">Checking Stock</option>
+                    <option value="stock_available">Stock Available</option>
+                    <option value="materials_reserved">Materials Reserved</option>
+                    <option value="materials_issued">Materials Issued</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search MRNs..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="received">Received</option>
-              <option value="verified">Verified</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-        </div>
 
-        {/* GRN List */}
+            {loading ? (
+              <div className="p-8 text-center">Loading...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MRN Number</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Value</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {mrnRequests
+                      .filter(mrn => mrnStatusFilter === 'all' || mrn.status === mrnStatusFilter)
+                      .filter(mrn => !searchTerm ||
+                        mrn.request_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        mrn.project_name.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((mrn) => (
+                        <tr key={mrn.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {mrn.request_number}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {mrn.project_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(mrn.request_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getMRNPriorityBadge(mrn.priority)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getMRNStatusBadge(mrn.status)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            {mrn.total_items}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ₹{mrn.total_value?.toLocaleString() || '0'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => viewMRNDetails(mrn.id)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="View Details"
+                              >
+                                <FaEye />
+                              </button>
+                              {(mrn.status === 'pending' || mrn.status === 'reviewed' || mrn.status === 'forwarded_to_inventory') && (
+                                <>
+                                  <button
+                                    onClick={() => acceptMRNRequest(mrn.id)}
+                                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center gap-1"
+                                    title="Accept & Convert to GRN"
+                                  >
+                                    <FaCheckCircle className="w-3 h-3" /> Accept
+                                  </button>
+                                  <button
+                                    onClick={() => rejectMRNRequest(mrn.id, 'Not approved by inventory')}
+                                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center gap-1"
+                                    title="Reject Request"
+                                  >
+                                    <FaTimes className="w-3 h-3" /> Reject
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    {mrnRequests.length === 0 && (
+                      <tr>
+                        <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                          No material requests found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pending POs Tab */}
+        {activeTab === 'pending' && (
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="p-4 border-b bg-blue-50">
+              <h3 className="font-semibold text-gray-900">Purchase Orders Awaiting GRN Creation</h3>
+              <p className="text-sm text-gray-600 mt-1">These purchase orders have been approved and are ready for goods receipt</p>
+            </div>
+            {loading ? (
+              <div className="p-8 text-center">Loading...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Number</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Delivery</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pendingPOs.map((po) => (
+                      <tr key={po.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{po.po_number}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{po.vendor_name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {po.po_date ? new Date(po.po_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{po.items_count || 0}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹{po.total_amount?.toLocaleString() || '0'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => navigate(`/inventory/grn/create?po_id=${po.po_id}`)}
+                              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center gap-1"
+                              title="Create GRN"
+                            >
+                              <FaPlus className="w-3 h-3" /> Create GRN
+                            </button>
+                            <button
+                              onClick={() => navigate(`/procurement/purchase-orders/${po.po_id}`)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="View PO"
+                            >
+                              <FaEye />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {pendingPOs.length === 0 && (
+                      <tr>
+                        <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                          No purchase orders awaiting GRN creation
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* GRNs Tab */}
+        {activeTab === 'grns' && (
+          <>
+            {/* Filters */}
+            <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search GRNs..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Status</option>
+                  <option value="draft">Draft</option>
+                  <option value="received">Received</option>
+                  <option value="verified">Verified</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            {/* GRN List */}
         <div className="bg-white rounded-lg shadow-sm border">
           {loading ? (
             <div className="p-8 text-center">Loading...</div>
@@ -220,7 +637,7 @@ const GoodsReceiptNotePage = () => {
                                 <FaCheck />
                               </button>
                             )}
-                            {(grn.status === 'verified' || grn.status === 'approved') && (
+                            {(grn.status === 'verified' || grn.status === 'approved') && !grn.inventory_added && (
                               <button
                                 onClick={() => handleAddToInventory(grn.id)}
                                 className="text-green-600 hover:text-green-900"
@@ -270,6 +687,8 @@ const GoodsReceiptNotePage = () => {
             </>
           )}
         </div>
+          </>
+        )}
 
         {/* Create GRN Dialog */}
         {showCreateDialog && (
@@ -466,6 +885,99 @@ const GoodsReceiptNotePage = () => {
                 <button
                   onClick={() => setSelectedGRN(null)}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MRN Detail Modal */}
+        {showMrnDetailModal && selectedMRN && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">MRN Details - {selectedMRN.request_number}</h2>
+                <button
+                  onClick={() => setShowMrnDetailModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div><strong>Project:</strong> {selectedMRN.project_name}</div>
+                <div><strong>Request Date:</strong> {new Date(selectedMRN.request_date).toLocaleDateString()}</div>
+                <div><strong>Priority:</strong> {getMRNPriorityBadge(selectedMRN.priority)}</div>
+                <div><strong>Status:</strong> {getMRNStatusBadge(selectedMRN.status)}</div>
+                <div><strong>Total Items:</strong> {selectedMRN.total_items}</div>
+                <div><strong>Total Value:</strong> ₹{selectedMRN.total_value?.toLocaleString() || '0'}</div>
+                {selectedMRN.requested_by && <div><strong>Requested By:</strong> {selectedMRN.requested_by}</div>}
+                {selectedMRN.approved_by && <div><strong>Approved By:</strong> {selectedMRN.approved_by}</div>}
+              </div>
+
+              <h3 className="font-bold mb-2">Requested Materials</h3>
+              <div className="border rounded mb-4">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Material</th>
+                      <th className="px-4 py-2 text-left">Quantity</th>
+                      <th className="px-4 py-2 text-left">Unit</th>
+                      <th className="px-4 py-2 text-left">Required Date</th>
+                      <th className="px-4 py-2 text-left">Purpose</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedMRN.items?.map((item, index) => (
+                      <tr key={index} className="border-t">
+                        <td className="px-4 py-2">{item.material_name}</td>
+                        <td className="px-4 py-2">{item.quantity}</td>
+                        <td className="px-4 py-2">{item.unit}</td>
+                        <td className="px-4 py-2">{item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'}</td>
+                        <td className="px-4 py-2">{item.purpose || 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {selectedMRN.notes && (
+                <div className="mb-4">
+                  <strong>Notes:</strong>
+                  <p className="mt-1 text-gray-600">{selectedMRN.notes}</p>
+                </div>
+              )}
+
+              {selectedMRN.status === 'rejected' && selectedMRN.rejection_reason && (
+                <div className="mb-4">
+                  <strong>Rejection Reason:</strong>
+                  <p className="mt-1 text-red-600">{selectedMRN.rejection_reason}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                {(selectedMRN.status === 'pending' || selectedMRN.status === 'reviewed' || selectedMRN.status === 'forwarded_to_inventory') && (
+                  <>
+                    <button
+                      onClick={() => acceptMRNRequest(selectedMRN.id)}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+                    >
+                      <FaCheckCircle /> Accept & Convert to GRN
+                    </button>
+                    <button
+                      onClick={() => rejectMRNRequest(selectedMRN.id, 'Not approved by inventory')}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2"
+                    >
+                      <FaTimes /> Reject
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setShowMrnDetailModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
                 >
                   Close
                 </button>

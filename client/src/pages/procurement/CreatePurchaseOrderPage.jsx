@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaArrowLeft, FaQrcode, FaDownload, FaPaperPlane, FaTruck, FaCheck, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaQrcode, FaDownload, FaPaperPlane, FaTruck, FaCheck, FaPlus, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
@@ -282,7 +282,18 @@ const CreatePurchaseOrderPage = () => {
       setCreatedOrder(newOrder);
       setShowQRCode(false);
 
-      toast.success('✅ Purchase Order created and sent for approval!');
+      toast.success(`✅ Purchase Order ${newOrder.po_number} created successfully!`);
+
+      // If linked to a sales order, navigate back to dashboard to see the updated status
+      if (linkedSalesOrder) {
+        setTimeout(() => {
+          navigate('/procurement/dashboard', { 
+            state: { 
+              message: `PO ${newOrder.po_number} created successfully for Sales Order ${linkedSalesOrder.order_number}` 
+            } 
+          });
+        }, 1500);
+      }
 
     } catch (err) {
       const response = err.response?.data;
@@ -324,12 +335,16 @@ const CreatePurchaseOrderPage = () => {
       return;
     }
 
+    if (!window.confirm(`Confirm that materials for PO ${createdOrder.po_number} have been received? This will automatically create a GRN request for the Inventory Department.`)) {
+      return;
+    }
+
     try {
-      await api.patch(`/procurement/pos/${createdOrder.id}`, { status: 'received' });
-      toast.success('Purchase order marked as received');
+      await api.post(`/procurement/purchase-orders/${createdOrder.id}/material-received`);
+      toast.success(`✅ Materials received for PO ${createdOrder.po_number}! GRN request sent to Inventory Department.`);
       setCreatedOrder({ ...createdOrder, status: 'received' });
     } catch (error) {
-      toast.error('Failed to mark as received');
+      toast.error(error.response?.data?.message || 'Failed to mark materials as received');
       console.error('Mark as received error:', error);
     }
   };
@@ -948,27 +963,29 @@ const CreatePurchaseOrderPage = () => {
                 </button>
               )}
 
-              {/* Send to Vendor */}
-              <button
-                type="button"
-                onClick={handleSendToVendor}
-                disabled={!createdOrder || createdOrder?.status === 'sent'}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-600 bg-purple-50 px-6 py-3 text-sm font-semibold text-purple-700 shadow-md transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FaPaperPlane className="h-4 w-4" />
-                {createdOrder?.status === 'sent' ? 'Sent to Vendor' : 'Send to Vendor'}
-              </button>
+              {/* Send to Vendor - Only show for draft or approved status */}
+              {createdOrder && ['draft', 'approved'].includes(createdOrder.status) && (
+                <button
+                  type="button"
+                  onClick={handleSendToVendor}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-600 bg-purple-50 px-6 py-3 text-sm font-semibold text-purple-700 shadow-md transition hover:bg-purple-100"
+                >
+                  <FaPaperPlane className="h-4 w-4" />
+                  Send to Vendor
+                </button>
+              )}
 
-              {/* Mark as Received */}
-              <button
-                type="button"
-                onClick={handleMarkAsReceived}
-                disabled={!createdOrder || createdOrder?.status === 'received'}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-green-600 bg-green-50 px-6 py-3 text-sm font-semibold text-green-700 shadow-md transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FaTruck className="h-4 w-4" />
-                {createdOrder?.status === 'received' ? 'Marked as Received' : 'Mark as Received'}
-              </button>
+              {/* Material Received - Only show for sent or acknowledged status */}
+              {createdOrder && ['sent', 'acknowledged'].includes(createdOrder.status) && (
+                <button
+                  type="button"
+                  onClick={handleMarkAsReceived}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-green-600 bg-green-50 px-6 py-3 text-sm font-semibold text-green-700 shadow-md transition hover:bg-green-100"
+                >
+                  <FaCheckCircle className="h-4 w-4" />
+                  ✅ Material Received
+                </button>
+              )}
 
               {/* Generate QR Code */}
               <button

@@ -172,6 +172,22 @@ const isValidStatusTransition = (currentStatus, nextStatus) => {
     return currentStatus !== 'cancelled' && currentStatus !== 'completed';
   }
 
+  // Allow direct transitions for certain workflows
+  const allowedDirectTransitions = {
+    'draft': ['pending_approval', 'sent', 'approved'], // Allow direct send to vendor from draft
+    'pending_approval': ['approved', 'sent'], // After approval submission
+    'approved': ['sent'], // After admin approval
+    'sent': ['acknowledged', 'partial_received', 'received'], // Vendor acknowledgment or receipt
+    'acknowledged': ['partial_received', 'received'], // Material receipt stages
+    'partial_received': ['received', 'completed'], // Complete receipt
+    'received': ['completed'] // Final completion
+  };
+
+  if (allowedDirectTransitions[currentStatus]?.includes(nextStatus)) {
+    return true;
+  }
+
+  // Fallback to sequential validation
   const currentIndex = STATUS_SEQUENCE.indexOf(currentStatus);
   const nextIndex = STATUS_SEQUENCE.indexOf(nextStatus);
 
@@ -342,6 +358,7 @@ router.post('/pos', authenticateToken, checkDepartment(['procurement', 'admin'])
       vendor_id,
       customer_id: customer_id || null,
       project_name: project_name || null,
+      linked_sales_order_id: req.body.linked_sales_order_id || null,
       po_date: new Date(),
       expected_delivery_date,
       items,
@@ -366,13 +383,60 @@ router.post('/pos', authenticateToken, checkDepartment(['procurement', 'admin'])
       status: status || 'draft'
     });
 
+    // Generate barcode for the purchase order
+    const barcode = generateBarcode('PO');
+    await purchaseOrder.update({ barcode });
+
     // Update linked sales order status if exists
     if (req.body.linked_sales_order_id) {
-      await SalesOrder.update(
-        { procurement_status: 'po_created' },
-        { where: { id: req.body.linked_sales_order_id } }
-      );
+      const salesOrder = await SalesOrder.findByPk(req.body.linked_sales_order_id, {
+        include: [{ model: Customer, as: 'customer' }]
+      });
+
+      if (salesOrder) {
+        // Update sales order lifecycle history
+        const lifecycleHistory = salesOrder.lifecycle_history || [];
+        lifecycleHistory.push({
+          timestamp: new Date(),
+          stage: 'procurement',
+          action: 'po_created',
+          previous_status: salesOrder.status,
+          new_status: 'procurement_created',
+          changed_by: req.user.id,
+          changed_by_name: req.user.name,
+          notes: `Purchase Order ${po_number} created`,
+          po_number: po_number
+        });
+
+        await salesOrder.update({
+          status: 'procurement_created',
+          procurement_status: 'po_created',
+          lifecycle_history: lifecycleHistory
+        });
+
+        // Send notification to sales department
+        await NotificationService.sendToDepartment('sales', {
+          type: 'procurement',
+          title: `Purchase Order Created: ${po_number}`,
+          message: `Purchase Order ${po_number} has been created for Sales Order ${salesOrder.order_number}`,
+          priority: 'medium',
+          related_entity_id: purchaseOrder.id,
+          related_entity_type: 'purchase_order',
+          action_url: `/sales/orders/${salesOrder.id}`,
+          metadata: {
+            po_number: po_number,
+            sales_order_number: salesOrder.order_number,
+            customer_name: salesOrder.customer?.name,
+            vendor_name: vendor.name,
+            total_amount: final_amount
+          },
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        });
+      }
     }
+
+    // Send notification to procurement department
+    await NotificationService.notifyProcurementAction('created', purchaseOrder, req.user.id);
 
     res.status(201).json({
       message: 'Purchase order created successfully',
@@ -381,7 +445,8 @@ router.post('/pos', authenticateToken, checkDepartment(['procurement', 'admin'])
         po_number: purchaseOrder.po_number,
         status: purchaseOrder.status,
         total_quantity: purchaseOrder.total_quantity,
-        final_amount: purchaseOrder.final_amount
+        final_amount: purchaseOrder.final_amount,
+        linked_sales_order_id: purchaseOrder.linked_sales_order_id
       }
     });
   } catch (error) {
@@ -823,15 +888,25 @@ router.delete('/vendors/:id', authenticateToken, checkDepartment(['procurement',
 });
 
 // Get single purchase order
-router.get('/pos/:id', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
+router.get('/pos/:id', authenticateToken, checkDepartment(['procurement', 'admin', 'inventory']), async (req, res) => {
   try {
     const { id } = req.params;
 
     const purchaseOrder = await PurchaseOrder.findByPk(id, {
       include: [
-        { model: Vendor, as: 'vendor', attributes: ['id', 'name', 'vendor_code', 'email', 'phone'] },
-        { model: User, as: 'creator', attributes: ['id', 'name', 'employee_id'] },
-        { model: User, as: 'approver', attributes: ['id', 'name', 'employee_id'], required: false }
+        { model: Vendor, as: 'vendor', attributes: ['id', 'name', 'vendor_code', 'email', 'phone', 'address'] },
+        { model: Customer, as: 'customer', attributes: ['id', 'name', 'customer_code', 'email', 'phone'], required: false },
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
+          attributes: ['id', 'order_number', 'status', 'delivery_date', 'total_quantity', 'items', 'procurement_status', 'lifecycle_history'],
+          include: [
+            { model: Customer, as: 'customer', attributes: ['id', 'name', 'customer_code'] }
+          ],
+          required: false
+        },
+        { model: User, as: 'creator', attributes: ['id', 'name', 'email'] },
+        { model: User, as: 'approver', attributes: ['id', 'name', 'email'], required: false }
       ]
     });
 
@@ -839,7 +914,14 @@ router.get('/pos/:id', authenticateToken, checkDepartment(['procurement', 'admin
       return res.status(404).json({ message: 'Purchase order not found' });
     }
 
-    res.json({ purchaseOrder });
+    // Ensure items is parsed as JSON (Sequelize should do this automatically, but let's be explicit)
+    const poData = purchaseOrder.toJSON();
+    
+    // Log for debugging
+    console.log('Fetching PO:', id);
+    console.log('Items count:', poData.items?.length || 0);
+
+    res.json(poData);
   } catch (error) {
     console.error('Purchase order fetch error:', error);
     res.status(500).json({ message: 'Failed to fetch purchase order' });
@@ -1044,6 +1126,22 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
         { model: User, as: 'approver', attributes: ['id', 'name', 'employee_id'], required: false }
       ]
     });
+
+    // Send notifications based on status change
+    if (updateData.status) {
+      const statusActions = {
+        'approved': 'approved',
+        'sent': 'sent',
+        'acknowledged': 'acknowledged',
+        'received': 'fulfilled',
+        'completed': 'fulfilled'
+      };
+
+      const action = statusActions[updateData.status];
+      if (action) {
+        await NotificationService.notifyProcurementAction(action, updatedOrder, req.user.id);
+      }
+    }
 
     res.json({
       message: 'Purchase order updated successfully',
@@ -1674,6 +1772,169 @@ router.post('/pos/:id/approve-and-add-to-inventory', authenticateToken, checkDep
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+// Mark Materials as Received (Auto-creates GRN request)
+router.post('/purchase-orders/:poId/material-received', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
+  const transaction = await require('../config/database').sequelize.transaction();
+
+  try {
+    const { poId } = req.params;
+
+    // Get PO with details
+    const po = await PurchaseOrder.findByPk(poId, {
+      include: [
+        { model: Vendor, as: 'vendor' },
+        { model: Customer, as: 'customer' },
+        { model: SalesOrder, as: 'salesOrder' }
+      ],
+      transaction
+    });
+
+    if (!po) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Purchase Order not found' });
+    }
+
+    // Check if PO is in appropriate status
+    if (!['sent', 'acknowledged'].includes(po.status)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: `Cannot mark as received. PO status is '${po.status}'. Must be in 'sent' or 'acknowledged' status.`
+      });
+    }
+
+    // Check if already marked as received
+    if (po.received_at) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: 'Materials already marked as received for this Purchase Order',
+        received_at: po.received_at
+      });
+    }
+
+    // Check if GRN already exists
+    const existingGRN = await GoodsReceiptNote.findOne({
+      where: { purchase_order_id: poId },
+      transaction
+    });
+
+    if (existingGRN) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: 'GRN already exists for this Purchase Order',
+        grn_number: existingGRN.grn_number
+      });
+    }
+
+    // Check if GRN request already pending
+    const existingRequest = await Approval.findOne({
+      where: {
+        entity_type: 'grn_creation',
+        entity_id: poId,
+        status: 'pending'
+      },
+      transaction
+    });
+
+    if (existingRequest) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: 'GRN creation request already pending for this Purchase Order'
+      });
+    }
+
+    // Update PO with received information
+    const receivedAt = new Date();
+    await po.update({
+      status: 'received',
+      received_at: receivedAt,
+      internal_notes: `${po.internal_notes || ''}\n\n[${new Date().toISOString()}] Materials received - confirmed by ${req.user.name}`
+    }, { transaction });
+
+    // Get inventory department users for assignment
+    const inventoryUsers = await User.findAll({
+      where: { department: 'inventory', status: 'active' },
+      attributes: ['id', 'name'],
+      transaction
+    });
+
+    // Automatically create GRN creation request for Inventory Department
+    const approval = await Approval.create({
+      entity_type: 'grn_creation',
+      entity_id: poId,
+      stage_key: 'grn_creation_request',
+      stage_label: 'GRN Creation Request - Materials Received',
+      sequence: 1,
+      status: 'pending',
+      assigned_to_user_id: inventoryUsers.length > 0 ? inventoryUsers[0].id : null,
+      created_by: req.user.id,
+      metadata: {
+        received_at: receivedAt,
+        request_notes: 'Materials received at warehouse - ready for GRN creation',
+        po_details: {
+          po_number: po.po_number,
+          vendor_name: po.vendor?.name,
+          customer_name: po.customer?.name,
+          project_name: po.project_name,
+          expected_delivery_date: po.expected_delivery_date,
+          items_count: po.items?.length || 0
+        }
+      }
+    }, { transaction });
+
+    await transaction.commit();
+
+    // Send notification to Inventory Department
+    await NotificationService.sendToDepartment('inventory', {
+      type: 'inventory',
+      title: `📦 Materials Received - PO ${po.po_number}`,
+      message: `Materials from ${po.vendor?.name} for PO ${po.po_number} have been received at the warehouse. Please create GRN to verify and add to inventory.`,
+      priority: po.priority === 'urgent' || po.priority === 'high' ? 'high' : 'medium',
+      related_entity_id: po.id,
+      related_entity_type: 'purchase_order',
+      action_url: `/inventory/grn/create?po_id=${po.id}`,
+      trigger_event: 'materials_received_grn_requested',
+      metadata: {
+        po_number: po.po_number,
+        vendor_name: po.vendor?.name,
+        received_at: receivedAt,
+        items_count: po.items?.length || 0,
+        total_amount: po.final_amount
+      },
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+    });
+
+    // Send notification to Procurement Department
+    await NotificationService.sendToDepartment('procurement', {
+      type: 'procurement',
+      title: `✅ PO ${po.po_number} - Materials Received`,
+      message: `PO ${po.po_number} materials have been marked as received. GRN request automatically created for Inventory department to verify and add to stock.`,
+      priority: 'low',
+      related_entity_id: po.id,
+      related_entity_type: 'purchase_order',
+      action_url: `/procurement/purchase-orders/${po.id}`,
+      trigger_event: 'materials_received_confirmed',
+      metadata: {
+        po_number: po.po_number,
+        vendor_name: po.vendor?.name,
+        confirmed_by: req.user.name
+      },
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    res.json({
+      message: 'Materials marked as received and GRN request created successfully',
+      purchase_order: po,
+      grn_request: approval,
+      next_step: 'awaiting_grn_creation',
+      workflow_info: 'Materials have been received at warehouse. Inventory department has been notified to create GRN for verification and stock addition.'
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error marking PO as dispatched:', error);
+    res.status(500).json({ message: 'Failed to mark purchase order as dispatched', error: error.message });
   }
 });
 

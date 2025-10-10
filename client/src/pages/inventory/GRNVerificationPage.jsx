@@ -86,8 +86,9 @@ const GRNVerificationPage = () => {
       const response = await api.post(`/grn/${id}/verify`, payload);
 
       if (status === 'verified') {
-        alert('GRN verified successfully! Proceeding to add to inventory...');
-        navigate(`/inventory/grn/${id}/add-to-inventory`);
+        const itemsAdded = response.data.inventory_items_added || 0;
+        alert(`GRN verified successfully! ${itemsAdded} items automatically added to inventory with barcodes generated.`);
+        navigate('/inventory/stock');
       } else {
         alert('Discrepancy reported. Awaiting manager approval...');
         navigate('/inventory/grn');

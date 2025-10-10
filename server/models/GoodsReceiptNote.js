@@ -64,7 +64,7 @@ module.exports = (sequelize) => {
     defaultValue: 0.00
   },
   status: {
-    type: DataTypes.ENUM('draft', 'received', 'inspected', 'approved', 'rejected'),
+    type: DataTypes.ENUM('draft', 'received', 'inspected', 'approved', 'rejected', 'vendor_revert_requested'),
     defaultValue: 'draft'
   },
   inspection_notes: {
@@ -196,6 +196,7 @@ module.exports = (sequelize) => {
     allowNull: true
   }
 }, {
+  tableName: 'goods_receipt_notes',
   timestamps: true,
   indexes: [
     { fields: ['purchase_order_id'] },

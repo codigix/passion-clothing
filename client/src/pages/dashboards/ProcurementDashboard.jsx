@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, ShoppingCart, Plus, Search, Eye, Edit, Building, Receipt, Truck, DollarSign, Calendar, CheckCircle, AlertTriangle, Download, Star, Phone, Mail, QrCode, MessageSquare, Package, Factory, RefreshCw } from 'lucide-react';
 // ...existing code...
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import QRCodeScanner from '../../components/manufacturing/QRCodeScanner';
@@ -10,6 +10,7 @@ import PurchaseOrderForm from '../../components/procurement/PurchaseOrderForm';
 
 const ProcurementDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tabValue, setTabValue] = useState(0);
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -29,6 +30,15 @@ const ProcurementDashboard = () => {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [vendors, setVendors] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
+
+  // Show success message if navigated from PO creation
+  useEffect(() => {
+    if (location.state?.message) {
+      toast.success(location.state.message);
+      // Clear the state after showing the message
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -413,17 +423,24 @@ const ProcurementDashboard = () => {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  order.status === 'confirmed'
-                                    ? 'bg-green-100 text-green-800'
-                                    : order.status === 'draft'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : order.status === 'accepted_by_procurement'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {order.status === 'draft' ? '⏳ PENDING APPROVAL' : order.status === 'confirmed' ? '✅ APPROVED' : order.status.replace(/_/g, ' ').toUpperCase()}
-                                </span>
+                                <div className="flex flex-col gap-1">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    order.status === 'confirmed'
+                                      ? 'bg-green-100 text-green-800'
+                                      : order.status === 'draft'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : order.status === 'accepted_by_procurement'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {order.status === 'draft' ? '⏳ PENDING APPROVAL' : order.status === 'confirmed' ? '✅ APPROVED' : order.status.replace(/_/g, ' ').toUpperCase()}
+                                  </span>
+                                  {order.linkedPurchaseOrder && (
+                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                      📦 PO: {order.linkedPurchaseOrder.po_number}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex gap-2">
@@ -450,16 +467,31 @@ const ProcurementDashboard = () => {
                                     </button>
                                   )}
                                   
-                                  {/* Show Create PO button only for CONFIRMED orders (already approved) */}
+                                  {/* Show Create PO button OR PO Created status for CONFIRMED orders */}
                                   {order.status === 'confirmed' && (
-                                    <button
-                                      onClick={() => handleCreatePO(order)}
-                                      className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 flex items-center gap-1"
-                                      title="Create Purchase Order from this Sales Order"
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                      Create PO
-                                    </button>
+                                    <>
+                                      {order.linkedPurchaseOrder ? (
+                                        // PO already created - show success status and allow navigation
+                                        <button
+                                          onClick={() => navigate(`/procurement/purchase-orders/${order.linkedPurchaseOrder.id}`)}
+                                          className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded border border-green-300 hover:bg-green-200 flex items-center gap-1"
+                                          title={`View Purchase Order: ${order.linkedPurchaseOrder.po_number}`}
+                                        >
+                                          <CheckCircle className="w-3 h-3" />
+                                          PO Created ✓
+                                        </button>
+                                      ) : (
+                                        // No PO created yet - show create button
+                                        <button
+                                          onClick={() => handleCreatePO(order)}
+                                          className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 flex items-center gap-1"
+                                          title="Create Purchase Order from this Sales Order"
+                                        >
+                                          <Plus className="w-3 h-3" />
+                                          Create PO
+                                        </button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </td>

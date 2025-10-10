@@ -1,16 +1,130 @@
 'use strict';
 
+const tableExists = async (queryInterface, tableName) => {
+  const tables = await queryInterface.showAllTables();
+  const normalizedTables = tables.map((t) => (typeof t === 'string' ? t.toLowerCase() : t.tableName?.toLowerCase()));
+  return normalizedTables.includes(tableName.toLowerCase());
+};
+
+const describeTableIfExists = async (queryInterface, tableName) => {
+  const exists = await tableExists(queryInterface, tableName);
+  if (!exists) {
+    return null;
+  }
+
+  return queryInterface.describeTable(tableName);
+};
+
+const columnExists = (tableDefinition, columnName) => {
+  if (!tableDefinition) {
+    return false;
+  }
+
+  return Object.prototype.hasOwnProperty.call(tableDefinition, columnName);
+};
+
+const addColumnIfMissing = async (queryInterface, tableName, columnName, columnDefinition) => {
+  const tableDefinition = await describeTableIfExists(queryInterface, tableName);
+
+  if (!tableDefinition) {
+    return;
+  }
+
+  if (!columnExists(tableDefinition, columnName)) {
+    await queryInterface.addColumn(tableName, columnName, columnDefinition);
+  }
+};
+
+const changeColumnIfExists = async (queryInterface, tableName, columnName, columnDefinition) => {
+  const tableDefinition = await describeTableIfExists(queryInterface, tableName);
+
+  if (!tableDefinition) {
+    return;
+  }
+
+  if (columnExists(tableDefinition, columnName)) {
+    await queryInterface.changeColumn(tableName, columnName, columnDefinition);
+  }
+};
+
+const removeColumnIfExists = async (queryInterface, tableName, columnName) => {
+  const tableDefinition = await describeTableIfExists(queryInterface, tableName);
+
+  if (!tableDefinition) {
+    return;
+  }
+
+  if (columnExists(tableDefinition, columnName)) {
+    await queryInterface.removeColumn(tableName, columnName);
+  }
+};
+
+const addIndexIfMissing = async (queryInterface, tableName, fields, options) => {
+  const exists = await tableExists(queryInterface, tableName);
+
+  if (!exists) {
+    return;
+  }
+
+  const indexes = await queryInterface.showIndex(tableName);
+  const indexName = options?.name;
+
+  if (indexName && indexes.some((index) => index.name === indexName)) {
+    return;
+  }
+
+  await queryInterface.addIndex(tableName, fields, options);
+};
+
+const removeIndexIfExists = async (queryInterface, tableName, indexName) => {
+  const exists = await tableExists(queryInterface, tableName);
+
+  if (!exists) {
+    return;
+  }
+
+  const indexes = await queryInterface.showIndex(tableName);
+
+  if (indexes.some((index) => index.name === indexName)) {
+    await queryInterface.removeIndex(tableName, indexName);
+  }
+};
+
+const createTableIfMissing = async (queryInterface, tableName, attributes, options) => {
+  const exists = await tableExists(queryInterface, tableName);
+
+  if (!exists) {
+    await queryInterface.createTable(tableName, attributes, options);
+  }
+};
+
+const dropTableIfExists = async (queryInterface, tableName) => {
+  const exists = await tableExists(queryInterface, tableName);
+
+  if (exists) {
+    await queryInterface.dropTable(tableName);
+  }
+};
+
+const dropEnumTypeIfExists = async (queryInterface, typeName) => {
+  try {
+    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "${typeName}"`);
+  } catch (error) {
+    // Ignore for dialects that do not support DROP TYPE (e.g., MySQL)
+  }
+};
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     // --- Sales Orders: approval & procurement coordination fields ---
-    await queryInterface.addColumn('sales_orders', 'approval_status', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'approval_status', {
       type: Sequelize.ENUM('not_requested', 'pending', 'in_review', 'approved', 'rejected'),
       allowNull: false,
       defaultValue: 'not_requested',
       comment: 'Approval lifecycle status for the sales order'
     });
 
-    await queryInterface.addColumn('sales_orders', 'approval_requested_by', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'approval_requested_by', {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -22,32 +136,32 @@ module.exports = {
       comment: 'User who initiated the approval request'
     });
 
-    await queryInterface.addColumn('sales_orders', 'approval_requested_at', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'approval_requested_at', {
       type: Sequelize.DATE,
       allowNull: true,
       comment: 'Timestamp when approval was requested'
     });
 
-    await queryInterface.addColumn('sales_orders', 'approval_decision_note', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'approval_decision_note', {
       type: Sequelize.TEXT,
       allowNull: true,
       comment: 'Notes captured during approval decision'
     });
 
-    await queryInterface.addColumn('sales_orders', 'approval_decided_at', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'approval_decided_at', {
       type: Sequelize.DATE,
       allowNull: true,
       comment: 'Timestamp when approval decision was finalized'
     });
 
-    await queryInterface.addColumn('sales_orders', 'ready_for_procurement', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'ready_for_procurement', {
       type: Sequelize.BOOLEAN,
       allowNull: false,
       defaultValue: false,
       comment: 'Flag indicating sales order is ready to generate procurement documents'
     });
 
-    await queryInterface.addColumn('sales_orders', 'ready_for_procurement_by', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'ready_for_procurement_by', {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -59,28 +173,28 @@ module.exports = {
       comment: 'User who marked the order as ready for procurement'
     });
 
-    await queryInterface.addColumn('sales_orders', 'ready_for_procurement_at', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'ready_for_procurement_at', {
       type: Sequelize.DATE,
       allowNull: true,
       comment: 'Timestamp when order was marked procurement-ready'
     });
 
-    await queryInterface.addColumn('sales_orders', 'procurement_notes', {
+    await addColumnIfMissing(queryInterface, 'sales_orders', 'procurement_notes', {
       type: Sequelize.TEXT,
       allowNull: true,
       comment: 'Notes intended for procurement during PO creation'
     });
 
-    await queryInterface.addIndex('sales_orders', ['approval_status'], {
+    await addIndexIfMissing(queryInterface, 'sales_orders', ['approval_status'], {
       name: 'sales_orders_approval_status_idx'
     });
 
-    await queryInterface.addIndex('sales_orders', ['ready_for_procurement'], {
+    await addIndexIfMissing(queryInterface, 'sales_orders', ['ready_for_procurement'], {
       name: 'sales_orders_ready_for_procurement_idx'
     });
 
     // --- Sales Order History table ---
-    await queryInterface.createTable('sales_order_history', {
+    await createTableIfMissing(queryInterface, 'sales_order_history', {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -156,51 +270,51 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('sales_order_history', ['sales_order_id', 'performed_at'], {
+    await addIndexIfMissing(queryInterface, 'sales_order_history', ['sales_order_id', 'performed_at'], {
       name: 'sales_order_history_order_performed_idx'
     });
 
-    await queryInterface.addIndex('sales_order_history', ['performed_by'], {
+    await addIndexIfMissing(queryInterface, 'sales_order_history', ['performed_by'], {
       name: 'sales_order_history_performed_by_idx'
     });
 
     // --- Purchase Orders: approval metadata ---
-    await queryInterface.addColumn('purchase_orders', 'approval_status', {
+    await addColumnIfMissing(queryInterface, 'purchase_orders', 'approval_status', {
       type: Sequelize.ENUM('not_requested', 'pending', 'in_review', 'approved', 'rejected'),
       allowNull: false,
       defaultValue: 'not_requested',
       comment: 'Approval lifecycle status for the purchase order'
     });
 
-    await queryInterface.addColumn('purchase_orders', 'approval_decision_note', {
+    await addColumnIfMissing(queryInterface, 'purchase_orders', 'approval_decision_note', {
       type: Sequelize.TEXT,
       allowNull: true,
       comment: 'Notes captured during procurement approval'
     });
 
-    await queryInterface.addColumn('purchase_orders', 'generated_from_sales_order', {
+    await addColumnIfMissing(queryInterface, 'purchase_orders', 'generated_from_sales_order', {
       type: Sequelize.BOOLEAN,
       allowNull: false,
       defaultValue: false,
       comment: 'Indicates if this PO originated from a sales order workflow'
     });
 
-    await queryInterface.addIndex('purchase_orders', ['approval_status'], {
+    await addIndexIfMissing(queryInterface, 'purchase_orders', ['approval_status'], {
       name: 'purchase_orders_approval_status_idx'
     });
 
-    await queryInterface.addIndex('purchase_orders', ['generated_from_sales_order'], {
+    await addIndexIfMissing(queryInterface, 'purchase_orders', ['generated_from_sales_order'], {
       name: 'purchase_orders_generated_from_sales_order_idx'
     });
 
     // --- Notifications: richer context for workflow triggers ---
-    await queryInterface.addColumn('notifications', 'trigger_event', {
+    await addColumnIfMissing(queryInterface, 'notifications', 'trigger_event', {
       type: Sequelize.STRING(100),
       allowNull: true,
       comment: 'Key representing the event that generated the notification'
     });
 
-    await queryInterface.addColumn('notifications', 'actor_id', {
+    await addColumnIfMissing(queryInterface, 'notifications', 'actor_id', {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -212,22 +326,22 @@ module.exports = {
       comment: 'User responsible for the action that generated the notification'
     });
 
-    await queryInterface.addColumn('notifications', 'target_role', {
+    await addColumnIfMissing(queryInterface, 'notifications', 'target_role', {
       type: Sequelize.STRING(100),
       allowNull: true,
       comment: 'Role key targeted by this notification when not tied to a specific role record'
     });
 
-    await queryInterface.addIndex('notifications', ['trigger_event'], {
+    await addIndexIfMissing(queryInterface, 'notifications', ['trigger_event'], {
       name: 'notifications_trigger_event_idx'
     });
 
-    await queryInterface.addIndex('notifications', ['actor_id'], {
+    await addIndexIfMissing(queryInterface, 'notifications', ['actor_id'], {
       name: 'notifications_actor_idx'
     });
 
     // --- Approval workflow table ---
-    await queryInterface.createTable('approvals', {
+    await createTableIfMissing(queryInterface, 'approvals', {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -341,60 +455,60 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('approvals', ['entity_type', 'entity_id', 'sequence'], {
+    await addIndexIfMissing(queryInterface, 'approvals', ['entity_type', 'entity_id', 'sequence'], {
       name: 'approvals_entity_sequence_idx'
     });
 
-    await queryInterface.addIndex('approvals', ['status'], {
+    await addIndexIfMissing(queryInterface, 'approvals', ['status'], {
       name: 'approvals_status_idx'
     });
 
-    await queryInterface.addIndex('approvals', ['assigned_to_user_id'], {
+    await addIndexIfMissing(queryInterface, 'approvals', ['assigned_to_user_id'], {
       name: 'approvals_assigned_user_idx'
     });
 
-    await queryInterface.addIndex('approvals', ['assigned_to_role_id'], {
+    await addIndexIfMissing(queryInterface, 'approvals', ['assigned_to_role_id'], {
       name: 'approvals_assigned_role_idx'
     });
   },
 
-  async down(queryInterface, Sequelize) {
-    await queryInterface.removeIndex('approvals', 'approvals_assigned_role_idx');
-    await queryInterface.removeIndex('approvals', 'approvals_assigned_user_idx');
-    await queryInterface.removeIndex('approvals', 'approvals_status_idx');
-    await queryInterface.removeIndex('approvals', 'approvals_entity_sequence_idx');
-    await queryInterface.dropTable('approvals');
+  async down(queryInterface) {
+    await removeIndexIfExists(queryInterface, 'approvals', 'approvals_assigned_role_idx');
+    await removeIndexIfExists(queryInterface, 'approvals', 'approvals_assigned_user_idx');
+    await removeIndexIfExists(queryInterface, 'approvals', 'approvals_status_idx');
+    await removeIndexIfExists(queryInterface, 'approvals', 'approvals_entity_sequence_idx');
+    await dropTableIfExists(queryInterface, 'approvals');
 
-    await queryInterface.removeIndex('notifications', 'notifications_actor_idx');
-    await queryInterface.removeIndex('notifications', 'notifications_trigger_event_idx');
-    await queryInterface.removeColumn('notifications', 'target_role');
-    await queryInterface.removeColumn('notifications', 'actor_id');
-    await queryInterface.removeColumn('notifications', 'trigger_event');
+    await removeIndexIfExists(queryInterface, 'notifications', 'notifications_actor_idx');
+    await removeIndexIfExists(queryInterface, 'notifications', 'notifications_trigger_event_idx');
+    await removeColumnIfExists(queryInterface, 'notifications', 'target_role');
+    await removeColumnIfExists(queryInterface, 'notifications', 'actor_id');
+    await removeColumnIfExists(queryInterface, 'notifications', 'trigger_event');
 
-    await queryInterface.removeIndex('purchase_orders', 'purchase_orders_generated_from_sales_order_idx');
-    await queryInterface.removeIndex('purchase_orders', 'purchase_orders_approval_status_idx');
-    await queryInterface.removeColumn('purchase_orders', 'generated_from_sales_order');
-    await queryInterface.removeColumn('purchase_orders', 'approval_decision_note');
-    await queryInterface.removeColumn('purchase_orders', 'approval_status');
+    await removeIndexIfExists(queryInterface, 'purchase_orders', 'purchase_orders_generated_from_sales_order_idx');
+    await removeIndexIfExists(queryInterface, 'purchase_orders', 'purchase_orders_approval_status_idx');
+    await removeColumnIfExists(queryInterface, 'purchase_orders', 'generated_from_sales_order');
+    await removeColumnIfExists(queryInterface, 'purchase_orders', 'approval_decision_note');
+    await removeColumnIfExists(queryInterface, 'purchase_orders', 'approval_status');
 
-    await queryInterface.removeIndex('sales_order_history', 'sales_order_history_performed_by_idx');
-    await queryInterface.removeIndex('sales_order_history', 'sales_order_history_order_performed_idx');
-    await queryInterface.dropTable('sales_order_history');
+    await removeIndexIfExists(queryInterface, 'sales_order_history', 'sales_order_history_performed_by_idx');
+    await removeIndexIfExists(queryInterface, 'sales_order_history', 'sales_order_history_order_performed_idx');
+    await dropTableIfExists(queryInterface, 'sales_order_history');
 
-    await queryInterface.removeIndex('sales_orders', 'sales_orders_ready_for_procurement_idx');
-    await queryInterface.removeIndex('sales_orders', 'sales_orders_approval_status_idx');
-    await queryInterface.removeColumn('sales_orders', 'procurement_notes');
-    await queryInterface.removeColumn('sales_orders', 'ready_for_procurement_at');
-    await queryInterface.removeColumn('sales_orders', 'ready_for_procurement_by');
-    await queryInterface.removeColumn('sales_orders', 'ready_for_procurement');
-    await queryInterface.removeColumn('sales_orders', 'approval_decided_at');
-    await queryInterface.removeColumn('sales_orders', 'approval_decision_note');
-    await queryInterface.removeColumn('sales_orders', 'approval_requested_at');
-    await queryInterface.removeColumn('sales_orders', 'approval_requested_by');
-    await queryInterface.removeColumn('sales_orders', 'approval_status');
+    await removeIndexIfExists(queryInterface, 'sales_orders', 'sales_orders_ready_for_procurement_idx');
+    await removeIndexIfExists(queryInterface, 'sales_orders', 'sales_orders_approval_status_idx');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'procurement_notes');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'ready_for_procurement_at');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'ready_for_procurement_by');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'ready_for_procurement');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'approval_decided_at');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'approval_decision_note');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'approval_requested_at');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'approval_requested_by');
+    await removeColumnIfExists(queryInterface, 'sales_orders', 'approval_status');
 
-    await queryInterface.sequelize.query("DROP TYPE IF EXISTS \"enum_sales_orders_approval_status\"");
-    await queryInterface.sequelize.query("DROP TYPE IF EXISTS \"enum_purchase_orders_approval_status\"");
-    await queryInterface.sequelize.query("DROP TYPE IF EXISTS \"enum_approvals_status\"");
+    await dropEnumTypeIfExists(queryInterface, 'enum_sales_orders_approval_status');
+    await dropEnumTypeIfExists(queryInterface, 'enum_purchase_orders_approval_status');
+    await dropEnumTypeIfExists(queryInterface, 'enum_approvals_status');
   }
 };

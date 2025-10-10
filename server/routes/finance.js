@@ -1,6 +1,7 @@
 const express = require('express');
 const { Invoice, Payment, Vendor, Customer } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
+const NotificationService = require('../utils/notificationService');
 const router = express.Router();
 
 // Get invoices

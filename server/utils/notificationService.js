@@ -1,4 +1,4 @@
-const { Notification, User, Role } = require('../config/database');
+const { Notification, User, Role, SalesOrder, PurchaseOrder, Customer, Vendor } = require('../config/database');
 
 // Notification Service
 class NotificationService {
@@ -22,11 +22,12 @@ class NotificationService {
   }
 
   // Send notification to department
-  static async sendToDepartment(department, notificationData) {
+  static async sendToDepartment(department, notificationData, transaction = null) {
     try {
       const users = await User.findAll({
         where: { department, status: 'active' },
-        include: [{ model: Role, as: 'roles' }]
+        include: [{ model: Role, as: 'roles' }],
+        transaction
       });
 
       const notifications = [];
@@ -36,14 +37,15 @@ class NotificationService {
           recipient_department: department,
           recipient_user_id: user.id,
           sent_at: new Date()
-        });
+        }, { transaction });
         notifications.push(notification);
       }
 
       return notifications;
     } catch (error) {
       console.error('Error sending notification to department:', error);
-      return [];
+      console.error('Full error details:', error);
+      throw error; // Re-throw so transaction can be rolled back
     }
   }
 
@@ -159,26 +161,50 @@ class NotificationService {
 
   // Procurement notifications
   static async notifyProcurementAction(action, purchaseOrder, userId) {
+    // Fetch purchase order with associations
+    const fullPurchaseOrder = await PurchaseOrder.findByPk(purchaseOrder.id, {
+      include: [
+        { model: SalesOrder, as: 'salesOrder', include: [{ model: Customer, as: 'customer' }] },
+        { model: Vendor, as: 'vendor' }
+      ]
+    });
+
     const messages = {
-      created: `Purchase Order ${purchaseOrder.po_number} has been created`,
-      approved: `Purchase Order ${purchaseOrder.po_number} has been approved`,
-      sent: `Purchase Order ${purchaseOrder.po_number} has been sent to vendor`,
-      acknowledged: `Purchase Order ${purchaseOrder.po_number} has been acknowledged by vendor`,
-      fulfilled: `Purchase Order ${purchaseOrder.po_number} has been fulfilled`
+      created: `Purchase Order ${fullPurchaseOrder.po_number} has been created`,
+      approved: `Purchase Order ${fullPurchaseOrder.po_number} has been approved`,
+      sent: `Purchase Order ${fullPurchaseOrder.po_number} has been sent to vendor`,
+      acknowledged: `Purchase Order ${fullPurchaseOrder.po_number} has been acknowledged by vendor`,
+      fulfilled: `Purchase Order ${fullPurchaseOrder.po_number} has been fulfilled`
     };
 
     const notificationData = {
       type: 'procurement',
       title: `Purchase Order ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-      message: messages[action] || `Purchase Order ${purchaseOrder.po_number} status updated`,
+      message: messages[action] || `Purchase Order ${fullPurchaseOrder.po_number} status updated`,
       priority: 'medium',
-      related_entity_id: purchaseOrder.id,
+      related_entity_id: fullPurchaseOrder.id,
       related_entity_type: 'purchase_order',
-      action_url: `/procurement/orders/${purchaseOrder.id}`,
+      action_url: `/procurement/orders/${fullPurchaseOrder.id}`,
       metadata: {
-        po_number: purchaseOrder.po_number,
+        po_number: fullPurchaseOrder.po_number,
         action: action,
-        vendor: purchaseOrder.vendor?.name
+        vendor: fullPurchaseOrder.vendor?.name,
+        barcode: fullPurchaseOrder.barcode,
+        status: fullPurchaseOrder.status,
+        po_details: {
+          po_number: fullPurchaseOrder.po_number,
+          vendor_name: fullPurchaseOrder.vendor?.name,
+          total_amount: fullPurchaseOrder.final_amount,
+          total_quantity: fullPurchaseOrder.total_quantity,
+          expected_delivery_date: fullPurchaseOrder.expected_delivery_date,
+          priority: fullPurchaseOrder.priority
+        },
+        so_details: fullPurchaseOrder.salesOrder ? {
+          order_number: fullPurchaseOrder.salesOrder.order_number,
+          customer_name: fullPurchaseOrder.salesOrder.customer?.name,
+          status: fullPurchaseOrder.salesOrder.status
+        } : null,
+        generated_from_sales_order: fullPurchaseOrder.generated_from_sales_order
       },
       expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
     };
@@ -275,6 +301,104 @@ class NotificationService {
     return await this.sendBulk(notificationData, recipients);
   }
 
+  // Challan notifications
+  static async notifyChallanAction(action, challan, userId) {
+    // Fetch challan with associations
+    const fullChallan = await Challan.findByPk(challan.id, {
+      include: [
+        { model: SalesOrder, as: 'salesOrder', include: [{ model: Customer, as: 'customer' }] },
+        { model: Customer, as: 'customer' },
+        { model: Vendor, as: 'vendor' }
+      ]
+    });
+
+    const messages = {
+      created: `Challan ${fullChallan.challan_number} has been created`,
+      approved: `Challan ${fullChallan.challan_number} has been approved`,
+      submitted: `Challan ${fullChallan.challan_number} has been submitted for approval`,
+      rejected: `Challan ${fullChallan.challan_number} has been rejected`,
+      completed: `Challan ${fullChallan.challan_number} has been completed`
+    };
+
+    const notificationData = {
+      type: 'challan',
+      title: `Challan ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: messages[action] || `Challan ${fullChallan.challan_number} status updated`,
+      priority: 'medium',
+      related_entity_id: fullChallan.id,
+      related_entity_type: 'challan',
+      action_url: `/challans/${fullChallan.id}`,
+      metadata: {
+        challan_number: fullChallan.challan_number,
+        action: action,
+        type: fullChallan.type,
+        total_quantity: fullChallan.total_quantity,
+        total_amount: fullChallan.total_amount,
+        customer: fullChallan.customer?.name || fullChallan.salesOrder?.customer?.name,
+        vendor: fullChallan.vendor?.name,
+        sales_order: fullChallan.salesOrder?.order_number
+      },
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    };
+
+    const recipients = [
+      { department: 'sales' },
+      { department: 'shipment' },
+      { department: 'admin' }
+    ];
+
+    return await this.sendBulk(notificationData, recipients);
+  }
+
+  // Invoice notifications
+  static async notifyInvoiceAction(action, invoice, userId) {
+    // Fetch invoice with associations
+    const fullInvoice = await Invoice.findByPk(invoice.id, {
+      include: [
+        { model: SalesOrder, as: 'salesOrder', include: [{ model: Customer, as: 'customer' }] },
+        { model: Customer, as: 'customer' },
+        { model: Vendor, as: 'vendor' }
+      ]
+    });
+
+    const messages = {
+      created: `Invoice ${fullInvoice.invoice_number} has been created`,
+      approved: `Invoice ${fullInvoice.invoice_number} has been approved`,
+      sent: `Invoice ${fullInvoice.invoice_number} has been sent`,
+      paid: `Invoice ${fullInvoice.invoice_number} has been paid`,
+      overdue: `Invoice ${fullInvoice.invoice_number} is overdue`
+    };
+
+    const notificationData = {
+      type: 'invoice',
+      title: `Invoice ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: messages[action] || `Invoice ${fullInvoice.invoice_number} status updated`,
+      priority: action === 'overdue' ? 'high' : 'medium',
+      related_entity_id: fullInvoice.id,
+      related_entity_type: 'invoice',
+      action_url: `/finance/invoices/${fullInvoice.id}`,
+      metadata: {
+        invoice_number: fullInvoice.invoice_number,
+        action: action,
+        invoice_type: fullInvoice.invoice_type,
+        total_amount: fullInvoice.total_amount,
+        outstanding_amount: fullInvoice.outstanding_amount,
+        customer: fullInvoice.customer?.name || fullInvoice.salesOrder?.customer?.name,
+        vendor: fullInvoice.vendor?.name,
+        sales_order: fullInvoice.salesOrder?.order_number
+      },
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+    };
+
+    const recipients = [
+      { department: 'finance' },
+      { department: 'sales' },
+      { department: 'admin' }
+    ];
+
+    return await this.sendBulk(notificationData, recipients);
+  }
+
   // Helper methods
   static getPriorityForStatus(status) {
     const priorities = {
@@ -315,6 +439,85 @@ class NotificationService {
       'completed': [{ department: 'sales' }, { department: 'finance' }, { department: 'admin' }]
     };
     return statusRecipients[status] || [{ department: 'admin' }];
+  }
+
+  // Challan notifications
+  static async notifyChallanAction(action, challan, userId) {
+    const messages = {
+      created: `Challan ${challan.challan_number} has been created`,
+      approved: `Challan ${challan.challan_number} has been approved`,
+      submitted: `Challan ${challan.challan_number} has been submitted`,
+      rejected: `Challan ${challan.challan_number} has been rejected`
+    };
+
+    const notificationData = {
+      type: 'challan',
+      title: `Challan ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: messages[action] || `Challan ${challan.challan_number} status updated`,
+      priority: action === 'rejected' ? 'high' : 'medium',
+      related_entity_id: challan.id,
+      related_entity_type: 'challan',
+      action_url: `/sales/challans/${challan.id}`,
+      metadata: {
+        challan_number: challan.challan_number,
+        action: action,
+        sales_order_number: challan.sales_order?.order_number,
+        customer: challan.sales_order?.customer?.name,
+        total_quantity: challan.total_quantity,
+        total_amount: challan.total_amount,
+        status: challan.status
+      },
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+    };
+
+    const recipients = [
+      { department: 'sales' },
+      { department: 'shipment' },
+      { department: 'admin' }
+    ];
+
+    return await this.sendBulk(notificationData, recipients);
+  }
+
+  // Invoice notifications
+  static async notifyInvoiceAction(action, invoice, userId) {
+    const messages = {
+      created: `Invoice ${invoice.invoice_number} has been created`,
+      approved: `Invoice ${invoice.invoice_number} has been approved`,
+      sent: `Invoice ${invoice.invoice_number} has been sent to customer`,
+      paid: `Invoice ${invoice.invoice_number} has been paid`,
+      overdue: `Invoice ${invoice.invoice_number} is overdue`
+    };
+
+    const notificationData = {
+      type: 'invoice',
+      title: `Invoice ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: messages[action] || `Invoice ${invoice.invoice_number} status updated`,
+      priority: action === 'overdue' ? 'urgent' : (action === 'paid' ? 'low' : 'medium'),
+      related_entity_id: invoice.id,
+      related_entity_type: 'invoice',
+      action_url: `/reports/invoices/${invoice.id}`,
+      metadata: {
+        invoice_number: invoice.invoice_number,
+        action: action,
+        sales_order_number: invoice.sales_order?.order_number,
+        customer: invoice.customer?.name,
+        total_amount: invoice.total_amount,
+        paid_amount: invoice.paid_amount,
+        outstanding_amount: invoice.outstanding_amount,
+        status: invoice.status,
+        payment_status: invoice.payment_status
+      },
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+    };
+
+    const recipients = [
+      { department: 'sales' },
+      { department: 'finance' },
+      { department: 'admin' }
+    ];
+
+    return await this.sendBulk(notificationData, recipients);
   }
 }
 

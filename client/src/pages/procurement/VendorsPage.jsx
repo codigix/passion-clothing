@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaFilter, FaFileExport } from 'react-icons/fa';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaFilter, FaFileExport, FaEllipsisV, FaColumns, FaPhone, FaEnvelope } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../utils/api';
 import DataTable from '../../components/tables/DataTable';
 import VendorForm from '../../components/procurement/VendorForm';
+import { useColumnVisibility } from '../../hooks/useColumnVisibility';
+import { useSmartDropdown } from '../../hooks/useSmartDropdown';
 
 const STATUS_CLASS_MAP = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -31,6 +33,19 @@ function getVendorTypePill(type) {
 }
 
 const QUERY_KEY = ['procurement', 'vendors'];
+
+// Define all available columns with their properties
+const AVAILABLE_COLUMNS = [
+  { id: 'vendor_code', label: 'Vendor Code', defaultVisible: true, alwaysVisible: true },
+  { id: 'name', label: 'Vendor Name', defaultVisible: true, alwaysVisible: true },
+  { id: 'vendor_type', label: 'Type', defaultVisible: true },
+  { id: 'category', label: 'Category', defaultVisible: true },
+  { id: 'contact', label: 'Contact', defaultVisible: true },
+  { id: 'location', label: 'Location', defaultVisible: false },
+  { id: 'rating', label: 'Rating', defaultVisible: false },
+  { id: 'status', label: 'Status', defaultVisible: true },
+  { id: 'actions', label: 'Actions', defaultVisible: true, alwaysVisible: true }
+];
 
 function useVendors(filters) {
   return useQuery({
@@ -58,6 +73,56 @@ function useDeleteVendor() {
   });
 }
 
+// Action Dropdown Component
+function ActionDropdown({ vendor, onView, onEdit, onDelete }) {
+  const { dropdownRef, isOpen, toggleDropdown } = useSmartDropdown();
+
+  return (
+    <div className="action-menu-container relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={toggleDropdown}
+        className="inline-flex items-center justify-center rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+        aria-label="Actions"
+      >
+        <FaEllipsisV className="h-4 w-4" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => { onView(vendor); toggleDropdown(); }}
+              className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              <FaEye className="h-4 w-4 text-blue-500" />
+              View Details
+            </button>
+            <button
+              type="button"
+              onClick={() => { onEdit(vendor); toggleDropdown(); }}
+              className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              <FaEdit className="h-4 w-4 text-amber-500" />
+              Edit Vendor
+            </button>
+            <div className="border-t border-slate-100" />
+            <button
+              type="button"
+              onClick={() => { onDelete(vendor); toggleDropdown(); }}
+              className="group flex w-full items-center gap-3 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
+            >
+              <FaTrash className="h-4 w-4" />
+              Delete Vendor
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function VendorsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -71,6 +136,11 @@ export default function VendorsPage() {
 
   const { data: vendors = [], isFetching } = useVendors({ search });
   const deleteMutation = useDeleteVendor();
+
+  // Column visibility and dropdown hooks
+  const { visibleColumns, isColumnVisible, toggleColumn, showAllColumns, resetColumns } = useColumnVisibility('vendorsVisibleColumns', AVAILABLE_COLUMNS);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const columnMenuRef = useRef(null);
 
   // Handler functions
   const handleCreate = () => {
@@ -93,7 +163,20 @@ export default function VendorsPage() {
     setDeleteConfirmOpen(true);
   };
 
-  const columns = useMemo(() => [
+  // Click outside handler for column menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColumnMenu && columnMenuRef.current && !columnMenuRef.current.contains(event.target)) {
+        setShowColumnMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColumnMenu]);
+
+  const columns = useMemo(() => {
+    const allColumns = [
     {
       id: 'vendor_code',
       label: 'Vendor Code',
@@ -184,36 +267,13 @@ export default function VendorsPage() {
       id: 'actions',
       label: 'Actions',
       align: 'right',
-      render: (row) => (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
-            onClick={() => handleView(row)}
-            aria-label="View details"
-          >
-            <FaEye size={14} />
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
-            onClick={() => handleEdit(row)}
-            aria-label="Edit vendor"
-          >
-            <FaEdit size={14} />
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-full p-2 text-rose-500 transition hover:bg-rose-50 hover:text-rose-600"
-            onClick={() => handleDelete(row)}
-            aria-label="Delete vendor"
-          >
-            <FaTrash size={14} />
-          </button>
-        </div>
-      ),
+      render: (row) => <ActionDropdown vendor={row} onView={handleView} onEdit={handleEdit} onDelete={handleDelete} />,
     },
-  ], []);
+  ];
+
+  // Filter columns based on visibility
+  return allColumns.filter(col => isColumnVisible(col.id));
+}, [isColumnVisible, handleView, handleEdit, handleDelete]);
 
   // Filter vendors based on filters
   const filteredVendors = useMemo(() => {
@@ -250,6 +310,69 @@ export default function VendorsPage() {
             <FaFilter className="h-4 w-4" />
             Filters
           </button>
+          
+          {/* Column Manager */}
+          <div className="column-menu-container relative" ref={columnMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowColumnMenu(!showColumnMenu)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <FaColumns className="h-4 w-4" />
+              Columns
+            </button>
+
+            {showColumnMenu && (
+              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="p-3">
+                  <div className="mb-2 flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="text-sm font-semibold text-slate-700">Show/Hide Columns</span>
+                  </div>
+                  <div className="max-h-96 space-y-2 overflow-y-auto">
+                    {AVAILABLE_COLUMNS.map((column) => (
+                      <label
+                        key={column.id}
+                        className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm transition ${
+                          column.alwaysVisible
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'cursor-pointer hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isColumnVisible(column.id)}
+                          onChange={() => toggleColumn(column.id)}
+                          disabled={column.alwaysVisible}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                        <span className="text-slate-700">{column.label}</span>
+                        {column.alwaysVisible && (
+                          <span className="ml-auto text-xs text-slate-400">(Required)</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex gap-2 border-t border-slate-200 pt-3">
+                    <button
+                      type="button"
+                      onClick={showAllColumns}
+                      className="flex-1 rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                    >
+                      Show All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetColumns}
+                      className="flex-1 rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handleCreate}

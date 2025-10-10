@@ -1,6 +1,7 @@
 const express = require('express');
 const { Challan, User, Vendor, Customer, Product, SalesOrder, PurchaseOrder } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
+const NotificationService = require('../utils/notificationService');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
@@ -193,6 +194,9 @@ router.post('/', authenticateToken, async (req, res) => {
       status: 'draft'
     });
 
+    // Send notification
+    await NotificationService.notifyChallanAction('created', challan, req.user.id);
+
     res.status(201).json({
       message: 'Challan created successfully',
       challan: {
@@ -277,6 +281,9 @@ router.put('/:id/approve', authenticateToken, checkDepartment('admin'), async (r
       approved_at: new Date()
     });
 
+    // Send notification
+    await NotificationService.notifyChallanAction('approved', challan, req.user.id);
+
     res.json({ message: 'Challan approved successfully' });
   } catch (error) {
     console.error('Challan approval error:', error);
@@ -310,6 +317,9 @@ router.put('/:id/reject', authenticateToken, checkDepartment('admin'), async (re
       approved_at: new Date()
     });
 
+    // Send notification
+    await NotificationService.notifyChallanAction('rejected', challan, req.user.id);
+
     res.json({ message: 'Challan rejected successfully' });
   } catch (error) {
     console.error('Challan rejection error:', error);
@@ -336,6 +346,9 @@ router.put('/:id/submit', authenticateToken, async (req, res) => {
     }
 
     await challan.update({ status: 'pending' });
+
+    // Send notification
+    await NotificationService.notifyChallanAction('submitted', challan, req.user.id);
 
     res.json({ message: 'Challan submitted for approval' });
   } catch (error) {

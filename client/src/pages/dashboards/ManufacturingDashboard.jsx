@@ -22,7 +22,8 @@ import {
   Paintbrush,
   Shirt,
   CheckSquare,
-  Send
+  Send,
+  ArrowRight
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
@@ -87,10 +88,55 @@ const ManufacturingDashboard = () => {
 
   const fetchIncomingOrders = async () => {
     try {
-      const response = await api.get('/manufacturing/orders/incoming?status=ready_for_production');
-      setIncomingOrders(response.data.orders || []);
+      // Fetch production requests with pending status (newly created from Sales/Procurement)
+      const response = await api.get('/production-requests?status=pending');
+      const requests = response.data.data || [];
+      
+      // Transform production requests to match the expected order format
+      const transformedOrders = requests.map(request => {
+        // Parse product specifications if it's JSON string
+        let specs = {};
+        try {
+          specs = typeof request.product_specifications === 'string' 
+            ? JSON.parse(request.product_specifications) 
+            : request.product_specifications || {};
+        } catch (e) {
+          specs = {};
+        }
+        
+        return {
+          id: request.id,
+          order_number: request.request_number,
+          request_number: request.request_number,
+          product_id: request.product_id || specs.items?.[0]?.product_id || null,
+          product_name: request.product_name,
+          product_description: request.product_description,
+          quantity: request.quantity,
+          unit: request.unit,
+          priority: request.priority,
+          required_date: request.required_date,
+          project_name: request.project_name,
+          sales_order_id: request.sales_order_id,
+          sales_order_number: request.sales_order_number,
+          po_id: request.po_id,
+          po_number: request.po_number,
+          customer: {
+            name: request.salesOrder?.customer?.name || specs.customer_name || 'N/A'
+          },
+          garment_specs: {
+            product_type: specs.garment_specifications?.product_type || request.product_name
+          },
+          material_requirements: specs.items || [],
+          requested_by: request.requester?.name || 'Unknown',
+          status: request.status,
+          created_at: request.created_at
+        };
+      });
+      
+      setIncomingOrders(transformedOrders);
     } catch (error) {
       console.error('Error fetching incoming orders:', error);
+      toast.error('Failed to load incoming production requests');
     }
   };
 
@@ -376,13 +422,87 @@ const ManufacturingDashboard = () => {
     setProductionStagesDialogOpen(true);
   };
 
-  const handleMaterialVerification = (order) => {
-    setSelectedProductionOrder(order);
-    setMaterialVerificationDialogOpen(true);
+  const handleMaterialVerification = async (order) => {
+    // Check if this is a production request that hasn't been converted to production order yet
+    if (!order.production_order_id && !order.orderNo) {
+      toast.error('Please start production first before verifying materials');
+      return;
+    }
+
+    // If it's from a production request, fetch the actual production order
+    if (order.production_order_id) {
+      try {
+        const response = await api.get(`/manufacturing/orders/${order.production_order_id}`);
+        const productionOrder = response.data.productionOrder;
+        setSelectedProductionOrder({
+          ...productionOrder,
+          id: productionOrder.id, // Use actual production order ID
+          orderNo: productionOrder.production_number
+        });
+        setMaterialVerificationDialogOpen(true);
+      } catch (error) {
+        toast.error('Production order not found. Please start production first.');
+      }
+    } else {
+      // It's already a production order from active orders list
+      setSelectedProductionOrder(order);
+      setMaterialVerificationDialogOpen(true);
+    }
+  };
+
+  const handleCreateMRN = (order) => {
+    // Navigate to Create MRN page with ALL comprehensive project data
+    navigate('/manufacturing/material-requests/create', {
+      state: {
+        prefilledData: {
+          // Basic Information
+          project_name: order.project_name,
+          production_request_id: order.id,
+          request_number: order.request_number,
+          
+          // Product Details
+          product_name: order.product_name,
+          product_description: order.product_description,
+          product_type: order.garment_specs?.product_type,
+          
+          // Quantities & Units
+          quantity: order.quantity,
+          unit: order.unit,
+          
+          // Dates & Priority
+          required_date: order.required_date,
+          priority: order.priority,
+          created_at: order.created_at,
+          
+          // Order References
+          sales_order_id: order.sales_order_id,
+          sales_order_number: order.sales_order_number,
+          po_id: order.po_id,
+          po_number: order.po_number,
+          
+          // Customer & Requester Info
+          customer_name: order.customer?.name,
+          requested_by: order.requested_by,
+          
+          // Material Requirements (from production request specs)
+          material_requirements: order.material_requirements || [],
+          
+          // Status
+          status: order.status
+        }
+      }
+    });
   };
 
   const handleConfirmMaterialVerification = async () => {
     if (!selectedProductionOrder) return;
+
+    // Additional safety check - ensure we have a valid production order
+    if (!selectedProductionOrder.id) {
+      toast.error('Invalid production order. Please refresh and try again.');
+      setMaterialVerificationDialogOpen(false);
+      return;
+    }
 
     try {
       // Update production stage to material_verified
@@ -1013,7 +1133,7 @@ const ManufacturingDashboard = () => {
         <div className={activeTab === 0 ? "block" : "hidden"}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Incoming Orders from Inventory</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Incoming Orders from Sales</h3>
               <div className="flex gap-2">
                 <button
                   className="px-4 py-2 rounded border border-blue-600 text-blue-600 hover:bg-blue-50 flex items-center gap-2"
@@ -1039,7 +1159,14 @@ const ManufacturingDashboard = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {incomingOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-semibold text-gray-900">{order.order_number}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-gray-900">{order.order_number}</div>
+                        {!order.production_order_id && !order.orderNo && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">
+                            Not Started
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">{order.customer?.name}</td>
                       <td className="px-6 py-4">{order.garment_specs?.product_type}</td>
                       <td className="px-6 py-4">
@@ -1065,15 +1192,32 @@ const ManufacturingDashboard = () => {
                           </button>
                           <button
                             onClick={() => handleMaterialVerification(order)}
-                            className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
-                            title="Material Verification"
+                            disabled={!order.production_order_id && !order.orderNo}
+                            className={`p-2 rounded transition-colors ${
+                              !order.production_order_id && !order.orderNo
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-blue-600 hover:text-blue-900 hover:bg-blue-50'
+                            }`}
+                            title={!order.production_order_id && !order.orderNo ? "Start production first" : "Material Verification"}
                           >
                             <CheckSquare className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => handleCreateMRN(order)}
+                            className="p-2 text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded transition-colors"
+                            title="Create Material Request (MRN)"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleOpenProductionStages(order)}
-                            className="p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
-                            title="Production Stages"
+                            disabled={!order.production_order_id && !order.orderNo}
+                            className={`p-2 rounded transition-colors ${
+                              !order.production_order_id && !order.orderNo
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-purple-600 hover:text-purple-900 hover:bg-purple-50'
+                            }`}
+                            title={!order.production_order_id && !order.orderNo ? "Start production first" : "Production Stages"}
                           >
                             <Factory className="w-4 h-4" />
                           </button>
@@ -1084,7 +1228,7 @@ const ManufacturingDashboard = () => {
                   {incomingOrders.length === 0 && (
                     <tr>
                       <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                        No incoming orders from inventory
+                        No Incoming Orders from Sales
                       </td>
                     </tr>
                   )}

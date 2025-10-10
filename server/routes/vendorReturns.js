@@ -33,8 +33,8 @@ router.get('/', authenticateToken, checkDepartment(['procurement', 'inventory', 
           as: 'vendor',
           attributes: ['id', 'name', 'email', 'phone']
         },
-        { model: User, as: 'creator', attributes: ['id', 'username', 'name'] },
-        { model: User, as: 'approver', attributes: ['id', 'username', 'name'], required: false }
+        { model: User, as: 'creator', attributes: ['id', 'email', 'name'] },
+        { model: User, as: 'approver', attributes: ['id', 'email', 'name'], required: false }
       ],
       limit: parseInt(limit),
       offset: offset,
@@ -72,8 +72,8 @@ router.get('/:id', authenticateToken, checkDepartment(['procurement', 'inventory
           required: false
         },
         { model: Vendor, as: 'vendor' },
-        { model: User, as: 'creator', attributes: ['id', 'username', 'name'] },
-        { model: User, as: 'approver', attributes: ['id', 'username', 'name'], required: false }
+        { model: User, as: 'creator', attributes: ['id', 'email', 'name'] },
+        { model: User, as: 'approver', attributes: ['id', 'email', 'name'], required: false }
       ]
     });
 

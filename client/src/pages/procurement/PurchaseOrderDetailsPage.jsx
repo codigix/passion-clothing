@@ -20,7 +20,8 @@ import {
   FaTruck,
   FaStore,
   FaWarehouse,
-  FaBoxOpen
+  FaBoxOpen,
+  FaIndustry
 } from 'react-icons/fa';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
@@ -37,6 +38,24 @@ const PurchaseOrderDetailsPage = () => {
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [inventoryLocation, setInventoryLocation] = useState('Main Warehouse');
   const [inventoryNotes, setInventoryNotes] = useState('');
+  const [showMaterialRequestModal, setShowMaterialRequestModal] = useState(false);
+  const [materialRequestData, setMaterialRequestData] = useState({
+    priority: 'medium',
+    required_date: '',
+    procurement_notes: '',
+    selected_materials: []
+  });
+  const [showProductionRequestModal, setShowProductionRequestModal] = useState(false);
+  const [productionRequestData, setProductionRequestData] = useState({
+    product_name: '',
+    product_description: '',
+    product_specifications: {},
+    quantity: '',
+    unit: '',
+    priority: 'medium',
+    required_date: '',
+    procurement_notes: ''
+  });
 
   useEffect(() => {
     fetchOrderDetails();
@@ -131,6 +150,113 @@ const PurchaseOrderDetailsPage = () => {
       }, 1500);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add items to inventory');
+    }
+  };
+
+  const handleCreateMaterialRequest = async () => {
+    try {
+      if (!materialRequestData.required_date) {
+        toast.error('Please select a required date');
+        return;
+      }
+
+      if (materialRequestData.selected_materials.length === 0) {
+        toast.error('Please select at least one material');
+        return;
+      }
+
+      const response = await api.post(`/project-material-requests/from-po/${id}`, {
+        priority: materialRequestData.priority,
+        required_date: materialRequestData.required_date,
+        procurement_notes: materialRequestData.procurement_notes,
+        materials_requested: materialRequestData.selected_materials.map(index => ({
+          product_id: order.items[index].product_id,
+          product_name: order.items[index].product_name || order.items[index].item_name || order.items[index].fabric_name,
+          quantity: order.items[index].quantity,
+          unit: order.items[index].unit || order.items[index].uom
+        }))
+      });
+
+      toast.success('Material request sent to Manufacturing successfully!');
+      setShowMaterialRequestModal(false);
+      
+      // Reset form
+      setMaterialRequestData({
+        priority: 'medium',
+        required_date: '',
+        procurement_notes: '',
+        selected_materials: []
+      });
+
+      // Navigate to material requests page
+      setTimeout(() => {
+        navigate('/procurement/material-requests');
+      }, 1500);
+
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create material request');
+    }
+  };
+
+  const toggleMaterialSelection = (index) => {
+    setMaterialRequestData(prev => {
+      const selected = [...prev.selected_materials];
+      const idx = selected.indexOf(index);
+      if (idx > -1) {
+        selected.splice(idx, 1);
+      } else {
+        selected.push(index);
+      }
+      return { ...prev, selected_materials: selected };
+    });
+  };
+
+  const handleCreateProductionRequest = async () => {
+    try {
+      if (!productionRequestData.product_name) {
+        toast.error('Please enter product name');
+        return;
+      }
+
+      if (!productionRequestData.quantity || productionRequestData.quantity <= 0) {
+        toast.error('Please enter valid quantity');
+        return;
+      }
+
+      if (!productionRequestData.unit) {
+        toast.error('Please enter unit');
+        return;
+      }
+
+      if (!productionRequestData.required_date) {
+        toast.error('Please select a required date');
+        return;
+      }
+
+      const response = await api.post(`/production-requests/from-po/${id}`, productionRequestData);
+
+      toast.success('Production request sent to Manufacturing successfully!');
+      setShowProductionRequestModal(false);
+      
+      // Reset form
+      setProductionRequestData({
+        product_name: '',
+        product_description: '',
+        product_specifications: {},
+        quantity: '',
+        unit: '',
+        priority: 'medium',
+        required_date: '',
+        procurement_notes: ''
+      });
+
+      // Navigate to production requests page
+      setTimeout(() => {
+        navigate('/procurement/production-requests');
+      }, 1500);
+
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create production request');
     }
   };
 
@@ -309,6 +435,26 @@ const PurchaseOrderDetailsPage = () => {
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm shadow-lg"
             >
               <FaBoxOpen /> ✨ Create GRN (3-Way Matching)
+            </button>
+          )}
+          
+          {/* Material Request Button - Only show for project-linked POs */}
+          {order.project_name && ['approved', 'sent', 'acknowledged', 'received'].includes(order.status) && (
+            <button
+              onClick={() => setShowMaterialRequestModal(true)}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 text-sm shadow-lg"
+            >
+              <FaBoxOpen /> Send Material Request to Manufacturing
+            </button>
+          )}
+
+          {/* Production Request Button - Only show for project-linked POs */}
+          {order.project_name && ['approved', 'sent', 'acknowledged', 'received'].includes(order.status) && (
+            <button
+              onClick={() => setShowProductionRequestModal(true)}
+              className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 text-sm shadow-lg"
+            >
+              <FaIndustry /> Send Production Request
             </button>
           )}
           
@@ -708,6 +854,320 @@ const PurchaseOrderDetailsPage = () => {
                   className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <FaCheckCircle /> Approve & Add to Inventory
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Material Request Modal */}
+      {showMaterialRequestModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Create Material Request</h3>
+              <button
+                onClick={() => setShowMaterialRequestModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Priority */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Priority *</label>
+                <select
+                  value={materialRequestData.priority}
+                  onChange={(e) => setMaterialRequestData({...materialRequestData, priority: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+
+              {/* Required Date */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Required Date *</label>
+                <input
+                  type="date"
+                  value={materialRequestData.required_date}
+                  onChange={(e) => setMaterialRequestData({...materialRequestData, required_date: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Procurement Notes</label>
+                <textarea
+                  value={materialRequestData.procurement_notes}
+                  onChange={(e) => setMaterialRequestData({...materialRequestData, procurement_notes: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Add any special instructions or notes for Manufacturing..."
+                />
+              </div>
+
+              {/* Materials Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700">
+                  Select Materials * ({materialRequestData.selected_materials.length} selected)
+                </label>
+                <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
+                  {order.items && order.items.length > 0 ? (
+                    order.items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={materialRequestData.selected_materials.includes(index)}
+                          onChange={() => toggleMaterialSelection(index)}
+                          className="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">
+                            {item.product_name || item.item_name || item.fabric_name || 'Unknown Material'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Quantity: {item.quantity} {item.unit || item.uom || 'units'}
+                            {item.color && ` • Color: ${item.color}`}
+                            {item.gsm && ` • GSM: ${item.gsm}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="p-4 text-gray-500 text-center">No materials available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h4 className="font-medium text-purple-900 mb-2 flex items-center gap-2">
+                  <FaBoxOpen /> What will happen:
+                </h4>
+                <ul className="text-sm text-purple-800 space-y-1">
+                  <li>✓ Material request will be sent to Manufacturing department</li>
+                  <li>✓ Manufacturing will review and forward to Inventory</li>
+                  <li>✓ Inventory will check stock availability</li>
+                  <li>✓ You'll receive notifications at each step</li>
+                  <li>✓ Materials will be reserved for project: <strong>{order.project_name}</strong></li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowMaterialRequestModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateMaterialRequest}
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <FaPaperPlane /> Send to Manufacturing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Production Request Modal */}
+      {showProductionRequestModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FaIndustry className="text-3xl" />
+                  <div>
+                    <h2 className="text-2xl font-bold">Send Production Request</h2>
+                    <p className="text-orange-100 text-sm mt-1">
+                      Request Manufacturing to produce items for project: <strong>{order.project_name}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProductionRequestModal(false)}
+                  className="text-white hover:bg-orange-800 rounded-lg p-2 transition-colors"
+                >
+                  <FaTimes size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* PO Information */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h3 className="font-semibold text-orange-900 mb-2">Purchase Order Details</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">PO Number:</span>
+                    <span className="ml-2 font-medium text-gray-900">{order.po_number}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Project:</span>
+                    <span className="ml-2 font-medium text-gray-900">{order.project_name}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Name */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">
+                  Product Name *
+                </label>
+                <input
+                  type="text"
+                  value={productionRequestData.product_name}
+                  onChange={(e) => setProductionRequestData({...productionRequestData, product_name: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Enter the product name to be manufactured"
+                  required
+                />
+              </div>
+
+              {/* Product Description */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">
+                  Product Description
+                </label>
+                <textarea
+                  value={productionRequestData.product_description}
+                  onChange={(e) => setProductionRequestData({...productionRequestData, product_description: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Describe the product details, features, or specifications..."
+                />
+              </div>
+
+              {/* Product Specifications */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">
+                  Product Specifications
+                </label>
+                <textarea
+                  value={productionRequestData.product_specifications}
+                  onChange={(e) => setProductionRequestData({...productionRequestData, product_specifications: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  rows="4"
+                  placeholder="Enter technical specifications (e.g., dimensions, materials, colors, quality standards)..."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter specifications in any format. You can use bullet points or key-value pairs.
+                </p>
+              </div>
+
+              {/* Quantity and Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Quantity *</label>
+                  <input
+                    type="number"
+                    value={productionRequestData.quantity}
+                    onChange={(e) => setProductionRequestData({...productionRequestData, quantity: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="0"
+                    min="1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Unit *</label>
+                  <input
+                    type="text"
+                    value={productionRequestData.unit}
+                    onChange={(e) => setProductionRequestData({...productionRequestData, unit: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="e.g., pcs, kg, meters"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Priority and Required Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Priority *</label>
+                  <select
+                    value={productionRequestData.priority}
+                    onChange={(e) => setProductionRequestData({...productionRequestData, priority: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Required Date *</label>
+                  <input
+                    type="date"
+                    value={productionRequestData.required_date}
+                    onChange={(e) => setProductionRequestData({...productionRequestData, required_date: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              </div>
+
+              {/* Procurement Notes */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Procurement Notes</label>
+                <textarea
+                  value={productionRequestData.procurement_notes}
+                  onChange={(e) => setProductionRequestData({...productionRequestData, procurement_notes: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Add any special instructions, quality requirements, or notes for Manufacturing..."
+                />
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h4 className="font-medium text-orange-900 mb-2 flex items-center gap-2">
+                  <FaIndustry /> What will happen:
+                </h4>
+                <ul className="text-sm text-orange-800 space-y-1">
+                  <li>✓ Production request will be sent to Manufacturing department</li>
+                  <li>✓ Manufacturing will review product specifications</li>
+                  <li>✓ They will check material requirements and availability</li>
+                  <li>✓ Production planning will be initiated</li>
+                  <li>✓ You'll receive notifications at each production stage</li>
+                  <li>✓ Request linked to project: <strong>{order.project_name}</strong></li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowProductionRequestModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProductionRequest}
+                  className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <FaPaperPlane /> Send to Manufacturing
                 </button>
               </div>
             </div>

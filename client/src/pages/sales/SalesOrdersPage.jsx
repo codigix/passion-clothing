@@ -17,6 +17,7 @@ import {
   FaShoppingCart,
   FaClock,
   FaCog,
+  FaCogs,
   FaCheck,
   FaMoneyBillWave,
   FaColumns
@@ -239,6 +240,18 @@ const SalesOrdersPage = () => {
         fetchSummary();
       } catch (error) {
         alert(error.response?.data?.message || 'Failed to send to procurement');
+      }
+    }
+  };
+
+  const handleSendToProduction = async (order) => {
+    if (window.confirm(`Create a production request for ${order.order_number}?`)) {
+      try {
+        await api.post(`/sales/orders/${order.id}/request-production`);
+        alert('Production request sent to Manufacturing successfully!');
+        fetchOrders();
+      } catch (error) {
+        alert(error.response?.data?.message || 'Failed to send production request');
       }
     }
   };
@@ -827,6 +840,15 @@ const SalesOrdersPage = () => {
                                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaClipboardList /> Send to Procurement
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleSendToProduction(order);
+                                  closeActionMenu();
+                                }}
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
+                              >
+                                <FaCogs /> Request Production
                               </button>
                               <button
                                 onClick={() => {
