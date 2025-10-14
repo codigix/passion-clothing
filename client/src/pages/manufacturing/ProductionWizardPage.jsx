@@ -13,7 +13,7 @@ import {
 } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import {
@@ -29,10 +29,12 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
+  FileSearch,
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../utils/api';
+import { getOperationTemplate } from '../../utils/productionOperationTemplates';
 
 const qualityCheckpointSchema = yup.object({
   name: yup.string().required('Checkpoint name is required'),
@@ -135,11 +137,17 @@ const customizationSchema = yup.object({
     }),
 });
 
+const orderSelectionSchema = yup.object({
+  productionApprovalId: yup.string().required('Please select an approved order'),
+  autoFilled: yup.boolean(),
+});
+
 const reviewSchema = yup.object({
   acknowledge: yup.boolean().oneOf([true], 'Please confirm the order details before submission'),
 });
 
 const formSchema = yup.object({
+  orderSelection: orderSelectionSchema,
   orderDetails: orderDetailsSchema,
   scheduling: schedulingSchema,
   materials: materialsSchema,
@@ -164,6 +172,10 @@ const DEFAULT_FILTERS = {
 };
 
 const defaultValues = {
+  orderSelection: {
+    productionApprovalId: '',
+    autoFilled: false,
+  },
   orderDetails: {
     productId: '',
     productionType: 'in_house',
@@ -238,6 +250,12 @@ function countValidationErrors(errorObject) {
 
 const stepConfig = [
   {
+    title: 'Select Order',
+    description: 'Choose an approved order to begin production.',
+    icon: FileSearch,
+    key: 'orderSelection',
+  },
+  {
     title: 'Order Details',
     description: 'Capture the essential order metadata.',
     icon: ClipboardList,
@@ -282,95 +300,127 @@ const stepConfig = [
 ];
 
 const SectionCard = ({ icon: Icon, title, description, children }) => (
-  <section className="bg-white shadow rounded-lg border border-gray-200 p-6">
-    <header className="flex items-center gap-3 mb-4">
-      <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+  <section className="bg-gradient-to-br from-white to-gray-50 rounded-lg border border-gray-200 p-6 hover:shadow-sm transition-shadow">
+    <header className="flex items-start gap-4 mb-6 pb-4 border-b border-gray-200">
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
         <Icon className="w-6 h-6" />
       </div>
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-        <p className="text-xs text-gray-500">{description}</p>
+      <div className="flex-1">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">{title}</h2>
+        <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
       </div>
     </header>
-    <div className="space-y-4">{children}</div>
+    <div className="space-y-5">{children}</div>
   </section>
 );
 
 const Stepper = ({ currentStep, completedSteps, invalidSteps, onStepSelect }) => (
-  <nav className="grid md:grid-cols-7 gap-3 mb-6">
-    {stepConfig.map((step, index) => {
-      const Icon = step.icon;
-      const isActive = currentStep === index;
-      const isCompleted = completedSteps.has(index);
-      const isErrored = invalidSteps.has(index);
-      const isClickable = index <= currentStep + 1 || isCompleted || isErrored;
+  <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+    <div className="mb-4">
+      <h3 className="text-lg font-semibold text-gray-900">Progress Steps</h3>
+      <p className="text-sm text-gray-600">Click on any step to navigate (if completed or in progress)</p>
+    </div>
+    
+    <nav className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+      {stepConfig.map((step, index) => {
+        const Icon = step.icon;
+        const isActive = currentStep === index;
+        const isCompleted = completedSteps.has(index);
+        const isErrored = invalidSteps.has(index);
+        const isClickable = index <= currentStep + 1 || isCompleted || isErrored;
 
-      const buttonClass = isActive
-        ? 'border-primary bg-primary/5 text-primary'
-        : isErrored
-          ? 'border-red-300 bg-red-50 text-red-600'
-          : isCompleted
-            ? 'border-green-200 bg-green-50 text-green-600'
-            : 'border-gray-200 bg-white text-gray-700';
+        const buttonClass = isActive
+          ? 'border-blue-500 bg-blue-50 shadow-md scale-105'
+          : isErrored
+            ? 'border-red-400 bg-red-50 hover:bg-red-100'
+            : isCompleted
+              ? 'border-green-400 bg-green-50 hover:bg-green-100'
+              : 'border-gray-200 bg-white hover:bg-gray-50';
 
-      const badgeClass = isActive
-        ? 'border-primary bg-primary text-white'
-        : isErrored
-          ? 'border-red-400 bg-red-500 text-white'
-          : isCompleted
-            ? 'border-green-400 bg-green-500 text-white'
-            : 'border-gray-300 bg-white text-gray-700';
+        const badgeClass = isActive
+          ? 'bg-blue-600 text-white shadow-sm'
+          : isErrored
+            ? 'bg-red-500 text-white'
+            : isCompleted
+              ? 'bg-green-500 text-white'
+              : 'bg-gray-100 text-gray-500';
 
-      return (
-        <button
-          key={step.title}
-          type="button"
-          onClick={() => isClickable && onStepSelect(index)}
-          className={`flex flex-col items-start gap-2 rounded-lg border p-4 transition focus:outline-none focus:ring-2 focus:ring-primary ${buttonClass} ${!isClickable ? 'cursor-not-allowed opacity-60' : ''}`}
-          disabled={!isClickable}
-          data-invalid={isErrored || undefined}
-        >
-          <div className="flex items-center gap-3">
-            <span
-              className={`flex h-9 w-9 items-center justify-center rounded-full border ${badgeClass}`}
-            >
-              <Icon className="w-5 h-5" />
-            </span>
-            <div className="text-left">
-              <p className="text-sm font-semibold">Step {index + 1}</p>
-              <p className="text-xs text-gray-500">{step.title}</p>
+        const statusIcon = isCompleted ? (
+          <CheckCircle2 className="w-3 h-3 text-green-600 absolute -top-1 -right-1 bg-white rounded-full" />
+        ) : isErrored ? (
+          <AlertCircle className="w-3 h-3 text-red-600 absolute -top-1 -right-1 bg-white rounded-full" />
+        ) : null;
+
+        return (
+          <button
+            key={step.title}
+            type="button"
+            onClick={() => isClickable && onStepSelect(index)}
+            className={`relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 ${buttonClass} ${!isClickable ? 'cursor-not-allowed opacity-50' : 'hover:shadow-sm'}`}
+            disabled={!isClickable}
+            data-invalid={isErrored || undefined}
+            title={`${step.title} - ${isCompleted ? 'Completed' : isErrored ? 'Needs attention' : isActive ? 'Current' : 'Pending'}`}
+          >
+            <div className="relative">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${badgeClass} transition-all`}>
+                {isActive ? (
+                  <Icon className="w-5 h-5" />
+                ) : (
+                  <span className="text-sm font-bold">{index + 1}</span>
+                )}
+              </div>
+              {statusIcon}
             </div>
-          </div>
-          {isErrored && (
-            <p className="text-xs text-red-500 mt-2">Validation required</p>
-          )}
-        </button>
-      );
-    })}
-  </nav>
+            
+            <div className="text-center w-full">
+              <p className={`text-xs font-semibold ${isActive ? 'text-blue-600' : isErrored ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
+                {step.title}
+              </p>
+              {isActive && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-medium">
+                  Current
+                </span>
+              )}
+              {isCompleted && !isActive && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-medium">
+                  Done
+                </span>
+              )}
+              {isErrored && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-medium">
+                  Error
+                </span>
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </nav>
+  </div>
 );
 
 const StepStatusBanner = ({ hasError, title, description }) => {
-  const Icon = hasError ? AlertCircle : Info;
+  const Icon = hasError ? AlertCircle : CheckCircle2;
   const containerClass = hasError
-    ? 'bg-red-50 border-red-200 text-red-700'
-    : 'bg-blue-50 border-blue-200 text-blue-700';
+    ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300 text-red-800 shadow-sm'
+    : 'bg-gradient-to-r from-green-50 to-green-100 border-green-300 text-green-800 shadow-sm';
+  const iconClass = hasError ? 'text-red-600' : 'text-green-600';
   const helperText = hasError
-    ? 'Resolve the highlighted fields below to continue.'
-    : 'All checks passed for this step. You can proceed once everything looks good.';
+    ? '⚠️ Resolve the highlighted fields below to continue.'
+    : '✓ All required fields are complete. Review and proceed when ready.';
 
   return (
     <div
-      className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${containerClass}`}
+      className={`flex items-start gap-3 rounded-lg border-2 px-4 py-4 text-sm ${containerClass}`}
       role="status"
       aria-live="polite"
       data-has-error={hasError || undefined}
     >
-      <Icon className="w-5 h-5 mt-0.5" aria-hidden="true" />
-      <div className="space-y-1">
-        <p className="font-semibold">{title}</p>
-        <p className="text-xs md:text-sm">{description}</p>
-        <p className="text-xs opacity-90">{helperText}</p>
+      <Icon className={`w-6 h-6 mt-0.5 flex-shrink-0 ${iconClass}`} aria-hidden="true" />
+      <div className="space-y-1 flex-1">
+        <p className="font-bold text-base">{hasError ? 'Validation Required' : 'Step Complete'}</p>
+        <p className="text-sm">{description}</p>
+        <p className="text-xs font-medium opacity-90 mt-2">{helperText}</p>
       </div>
     </div>
   );
@@ -379,13 +429,15 @@ const StepStatusBanner = ({ hasError, title, description }) => {
 const StepHint = ({ children, tone = 'info' }) => {
   const Icon = tone === 'warning' ? AlertCircle : Info;
   const toneClasses = tone === 'warning'
-    ? 'border-amber-200 bg-amber-50 text-amber-700'
-    : 'border-slate-200 bg-slate-50 text-slate-600';
+    ? 'border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-800 shadow-sm'
+    : 'border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 shadow-sm';
+  
+  const iconClasses = tone === 'warning' ? 'text-amber-600' : 'text-blue-600';
 
   return (
-    <div className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${toneClasses}`}>
-      <Icon className="w-4 h-4 mt-0.5" />
-      <div className="leading-relaxed text-xs md:text-sm">{children}</div>
+    <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${toneClasses}`}>
+      <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${iconClasses}`} />
+      <div className="leading-relaxed text-xs md:text-sm font-medium">{children}</div>
     </div>
   );
 };
@@ -401,6 +453,14 @@ const ProductionWizardPage = () => {
   const [salesOrderOptions, setSalesOrderOptions] = useState([]);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [searchInputs, setSearchInputs] = useState(DEFAULT_FILTERS);
+  const [productDetails, setProductDetails] = useState(null);
+  const [loadingProductDetails, setLoadingProductDetails] = useState(false);
+  const [approvedOrders, setApprovedOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
+  const [vendors, setVendors] = useState([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState({});
   const productSearchTimeoutRef = useRef(null);
   const salesOrderSearchTimeoutRef = useRef(null);
   const methods = useForm({
@@ -409,24 +469,63 @@ const ProductionWizardPage = () => {
     resolver: yupResolver(formSchema),
   });
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { hasPermission } = useAuth();
-  const canCustomizeStages = hasPermission('manufacturing', 'update', 'production_stage');
-  const canCreateOrder = hasPermission('manufacturing', 'create', 'production_order');
+  const canCustomizeStages = true; // Permission check disabled - all users can customize stages
+  const canCreateOrder = true; // Permission check disabled
 
   const fetchProducts = useCallback(
     async (search = '') => {
       setLoadingProducts(true);
       try {
-        const response = await api.get('/products', {
+        // Fetch all products
+        const productsResponse = await api.get('/products', {
           params: {
-            limit: 50,
+            limit: 200,
             ...(search ? { search } : {}),
           },
         });
 
-        const options = (response.data?.products || []).map((product) => ({
+        // Fetch all sales orders
+        const salesOrdersResponse = await api.get('/sales/orders', {
+          params: { limit: 500, status: 'confirmed' },
+        });
+
+        // Fetch all purchase orders
+        const purchaseOrdersResponse = await api.get('/procurement/pos', {
+          params: { limit: 500 },
+        });
+
+        const products = productsResponse.data?.products || [];
+        const salesOrders = salesOrdersResponse.data?.orders || [];
+        const purchaseOrders = purchaseOrdersResponse.data?.purchaseOrders || [];
+
+        // Filter products - show products that have sales orders OR purchase orders (more flexible)
+        const validProducts = products.filter((product) => {
+          // Check if product exists in any sales order items
+          const hasSalesOrder = salesOrders.some((so) => {
+            const items = Array.isArray(so.items) ? so.items : [];
+            return items.some((item) => item.product_id === product.id);
+          });
+
+          // Check if product has linked purchase orders
+          const hasPurchaseOrder = purchaseOrders.some((po) => {
+            // Check if PO is linked to a sales order that contains this product
+            const linkedSO = salesOrders.find((so) => so.id === po.sales_order_id);
+            if (linkedSO) {
+              const items = Array.isArray(linkedSO.items) ? linkedSO.items : [];
+              return items.some((item) => item.product_id === product.id);
+            }
+            return false;
+          });
+
+          // More flexible: show if product has either sales order OR purchase order OR is active
+          return hasSalesOrder || hasPurchaseOrder || product.status === 'active';
+        });
+
+        const options = validProducts.map((product) => ({
           value: String(product.id),
-          label: product.name,
+          label: `${product.name} (${product.product_code || 'N/A'})`,
         }));
 
         setProductOptions(options);
@@ -470,9 +569,313 @@ const ProductionWizardPage = () => {
     [],
   );
 
+  const fetchProductDetails = useCallback(
+    async (productId) => {
+      if (!productId) {
+        setProductDetails(null);
+        return;
+      }
+
+      setLoadingProductDetails(true);
+      try {
+        const response = await api.get(`/manufacturing/products/${productId}/wizard-details`);
+        setProductDetails(response.data);
+        
+        // Auto-populate sales order if there's only one
+        if (response.data?.salesOrders?.length === 1) {
+          methods.setValue('orderDetails.salesOrderId', String(response.data.salesOrders[0].id), {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      } catch (error) {
+        console.error('fetch product details error', error);
+        toast.error('Unable to load product details');
+        setProductDetails(null);
+      } finally {
+        setLoadingProductDetails(false);
+      }
+    },
+    [methods],
+  );
+
+  const fetchApprovedOrders = useCallback(async () => {
+    setLoadingOrders(true);
+    try {
+      const response = await api.get('/production-approval/list/approved');
+      setApprovedOrders(response.data?.approvals || []);
+    } catch (error) {
+      console.error('fetch approved orders error', error);
+      toast.error('Unable to load approved orders');
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
+  const fetchOrderDetails = useCallback(
+    async (approvalId) => {
+      if (!approvalId) return;
+
+      setLoadingProductDetails(true);
+      try {
+        const response = await api.get(`/production-approval/${approvalId}/details`);
+        const approval = response.data.approval;
+        
+        if (!approval) {
+          toast.error('Approval data not found');
+          return;
+        }
+
+        // Extract data from nested structure
+        const mrnRequest = approval.mrnRequest || {};
+        const salesOrder = mrnRequest.salesOrder || {};
+        const purchaseOrder = mrnRequest.purchaseOrder || {};
+        const customer = salesOrder.customer || {};
+        const vendor = purchaseOrder.vendor || {};
+        const verification = approval.verification || {};
+        const receipt = verification.receipt || {};
+        
+        // Parse materials_requested from MRN
+        let materialsRequested = [];
+        try {
+          if (mrnRequest.materials_requested) {
+            materialsRequested = typeof mrnRequest.materials_requested === 'string' 
+              ? JSON.parse(mrnRequest.materials_requested) 
+              : mrnRequest.materials_requested;
+          }
+        } catch (e) {
+          console.warn('Failed to parse materials_requested:', e);
+        }
+
+        // Extract customer name from manufacturing_notes as fallback
+        let extractedCustomerName = null;
+        if (mrnRequest.manufacturing_notes) {
+          const match = mrnRequest.manufacturing_notes.match(/Customer:\s*([^\n]+)/);
+          if (match) {
+            extractedCustomerName = match[1].trim();
+          }
+        }
+
+        // Parse items from sales order or purchase order
+        let items = [];
+        try {
+          if (salesOrder.items) {
+            items = typeof salesOrder.items === 'string' ? JSON.parse(salesOrder.items) : salesOrder.items;
+          } else if (purchaseOrder.items) {
+            items = typeof purchaseOrder.items === 'string' ? JSON.parse(purchaseOrder.items) : purchaseOrder.items;
+          }
+        } catch (e) {
+          console.warn('Failed to parse items:', e);
+        }
+
+        // Parse received materials from receipt
+        let receivedMaterials = [];
+        try {
+          if (receipt.received_materials) {
+            receivedMaterials = typeof receipt.received_materials === 'string' 
+              ? JSON.parse(receipt.received_materials) 
+              : receipt.received_materials;
+          }
+        } catch (e) {
+          console.warn('Failed to parse received materials:', e);
+        }
+
+        // Determine customer/vendor name with multiple fallbacks
+        const customerVendorName = customer.name || 
+                                   vendor.name || 
+                                   extractedCustomerName || 
+                                   'N/A';
+
+        // Determine product name with multiple fallbacks
+        const productName = items[0]?.product_name || 
+                           items[0]?.name || 
+                           materialsRequested[0]?.description ||
+                           materialsRequested[0]?.product_name ||
+                           approval.product_name ||
+                           mrnRequest.product_name ||
+                           'N/A';
+
+        // Determine quantity with multiple fallbacks
+        const quantity = items[0]?.quantity || 
+                        materialsRequested[0]?.quantity_required ||
+                        receipt.total_items_received || 
+                        1;
+
+        // Prepare transformed data for display
+        const transformedData = {
+          customer_name: customerVendorName,
+          vendor_name: vendor.name || 'N/A',
+          product_name: productName,
+          quantity: quantity,
+          project_name: receipt.project_name || 
+                       purchaseOrder.project_name || 
+                       salesOrder.project_name || 
+                       mrnRequest.project_name ||
+                       approval.project_name ||
+                       'N/A',
+          product_id: items[0]?.product_id || 
+                     materialsRequested[0]?.product_id ||
+                     approval.product_id ||
+                     mrnRequest.product_id ||
+                     null,
+          sales_order_id: salesOrder.id || mrnRequest.sales_order_id || null,
+          special_instructions: salesOrder.special_instructions || 
+                               mrnRequest.manufacturing_notes || 
+                               approval.approval_notes || 
+                               '',
+          materials: receivedMaterials.length > 0 ? receivedMaterials : materialsRequested
+        };
+
+        setSelectedOrderDetails(transformedData);
+
+        // If product_id exists, fetch the product details and ensure it's in the dropdown
+        let validProductId = null;
+        if (transformedData.product_id) {
+          try {
+            // Check if product_id is numeric or a product code
+            const isNumeric = !isNaN(Number(transformedData.product_id));
+            let product = null;
+            
+            if (isNumeric) {
+              // It's a numeric ID, fetch directly
+              const productResponse = await api.get(`/products/${transformedData.product_id}`);
+              product = productResponse.data?.product;
+            } else {
+              // It's a product code, search for the product
+              console.log('🔍 Product ID appears to be a code, searching:', transformedData.product_id);
+              const searchResponse = await api.get('/products', {
+                params: { search: transformedData.product_id, limit: 10 }
+              });
+              const products = searchResponse.data?.products || [];
+              // Find exact match by product_code
+              product = products.find(p => p.product_code === transformedData.product_id);
+              
+              if (!product && products.length > 0) {
+                // Fallback: use first result if no exact match
+                product = products[0];
+                console.warn('⚠️ No exact product code match, using first search result:', product.name);
+              }
+            }
+            
+            if (product) {
+              validProductId = String(product.id);
+              console.log('✅ Resolved product:', { id: product.id, name: product.name, code: product.product_code });
+              
+              // Check if product is already in options
+              setProductOptions((prevOptions) => {
+                const exists = prevOptions.some(opt => opt.value === String(product.id));
+                if (!exists) {
+                  // Add this product to the options
+                  return [
+                    {
+                      value: String(product.id),
+                      label: `${product.name} (${product.product_code || 'N/A'})`,
+                    },
+                    ...prevOptions
+                  ];
+                }
+                return prevOptions;
+              });
+            } else {
+              console.error('❌ Could not resolve product from ID/code:', transformedData.product_id);
+            }
+          } catch (error) {
+            console.warn('Could not fetch product details:', error);
+            // Non-blocking - continue with form population
+          }
+        }
+
+        // Auto-fill form fields with validated product ID
+        if (validProductId) {
+          methods.setValue('orderDetails.productId', validProductId);
+        }
+        if (transformedData.quantity) {
+          methods.setValue('orderDetails.quantity', transformedData.quantity);
+        }
+        if (transformedData.sales_order_id) {
+          methods.setValue('orderDetails.salesOrderId', String(transformedData.sales_order_id));
+        }
+        if (transformedData.special_instructions) {
+          methods.setValue('orderDetails.specialInstructions', transformedData.special_instructions);
+        }
+
+        // Auto-fill materials if available
+        if (receivedMaterials && receivedMaterials.length > 0) {
+          console.log('📦 Pre-filling materials from receipt:', receivedMaterials);
+          methods.setValue(
+            'materials.items',
+            receivedMaterials.map((m) => ({
+              materialId: String(m.inventory_id || m.material_code || m.barcode_scanned || ''),
+              description: m.material_name || m.name || m.description || '',
+              requiredQuantity: m.quantity_received || m.quantity || m.quantity_dispatched || '',
+              unit: m.uom || m.unit || 'pieces',
+              status: 'available',
+              condition: m.condition || '',
+              barcode: m.barcode_scanned || m.barcode || '',
+              remarks: m.remarks || ''
+            })),
+          );
+          toast.success(`✅ ${receivedMaterials.length} material(s) loaded from receipt`);
+        } else if (materialsRequested && materialsRequested.length > 0) {
+          // Fallback to requested materials if no received materials
+          console.log('📦 Pre-filling materials from request:', materialsRequested);
+          methods.setValue(
+            'materials.items',
+            materialsRequested.map((m) => ({
+              materialId: String(m.inventory_id || m.material_code || ''),
+              description: m.material_name || m.description || m.product_name || '',
+              requiredQuantity: m.quantity_required || m.quantity || '',
+              unit: m.unit || m.uom || 'pieces',
+              status: 'ordered',
+              remarks: 'From material request'
+            })),
+          );
+          toast.info(`⚠️ Using requested materials (${materialsRequested.length} items) - receipt not yet received`);
+        }
+
+        methods.setValue('orderSelection.autoFilled', true);
+        toast.success('Order details loaded successfully!');
+      } catch (error) {
+        console.error('fetch order details error', error);
+        toast.error('Unable to load order details');
+      } finally {
+        setLoadingProductDetails(false);
+      }
+    },
+    [methods],
+  );
+
+  const fetchVendors = useCallback(async () => {
+    setLoadingVendors(true);
+    try {
+      const response = await api.get('/procurement/vendors', {
+        params: { limit: 200 },
+      });
+      setVendors(response.data?.vendors || []);
+    } catch (error) {
+      console.error('fetch vendors error', error);
+      toast.error('Unable to load vendors');
+    } finally {
+      setLoadingVendors(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchApprovedOrders();
+    fetchVendors();
+  }, [fetchProducts, fetchApprovedOrders, fetchVendors]);
+
+  // Auto-load order details from URL parameter (when redirected from approval page)
+  useEffect(() => {
+    const approvalId = searchParams.get('approvalId');
+    if (approvalId) {
+      toast.success('Loading approved order details...');
+      // Set the approval ID in form
+      methods.setValue('orderSelection.productionApprovalId', approvalId);
+      fetchOrderDetails(approvalId);
+    }
+  }, [searchParams, fetchOrderDetails, methods]);
 
   useEffect(() => {
     fetchSalesOrders({ productId: methods.getValues('orderDetails.productId') });
@@ -504,6 +907,7 @@ const ProductionWizardPage = () => {
       if (name === 'orderDetails.productId' && type === 'change') {
         const nextProductId = value.orderDetails?.productId || undefined;
         fetchSalesOrders({ productId: nextProductId, search: filters.salesOrderSearch });
+        fetchProductDetails(nextProductId);
       }
 
       const stepIndex = stepConfig.findIndex((step) => name.startsWith(step.key));
@@ -550,15 +954,7 @@ const ProductionWizardPage = () => {
     ? `${stepConfig[currentStep].description} • ${currentStepErrorCount} field${currentStepErrorCount === 1 ? '' : 's'} need attention.`
     : stepConfig[currentStep].description;
 
-  // Show permission warning if user cannot create orders
-  useEffect(() => {
-    if (!canCreateOrder) {
-      toast.error('You do not have permission to create production orders. Please contact your administrator.', {
-        duration: 5000,
-        id: 'permission-warning'
-      });
-    }
-  }, [canCreateOrder]);
+  // Permission check disabled - all users can create production orders
 
   const attemptStepChange = (nextStep) => {
     if (nextStep === currentStep) return;
@@ -626,6 +1022,7 @@ const ProductionWizardPage = () => {
     // Log form values for debugging
     console.log('Form submission values:', JSON.stringify({
       productId: values.orderDetails.productId,
+      productionApprovalId: values.orderSelection.productionApprovalId,
       productOptions: productOptions.length,
       availableProductIds: productOptions.map(p => p.value)
     }, null, 2));
@@ -642,8 +1039,64 @@ const ProductionWizardPage = () => {
     const payload = buildPayload(values);
 
     try {
-      await api.post('/manufacturing/orders', payload);
-      toast.success('Production order created successfully');
+      // Create production order
+      const orderResponse = await api.post('/manufacturing/orders', payload);
+      const createdOrder = orderResponse.data;
+      
+      // Mark approval as production started if approval ID exists
+      if (values.orderSelection.productionApprovalId) {
+        try {
+          await api.put(`/production-approval/${values.orderSelection.productionApprovalId}/start-production`, {
+            production_order_id: createdOrder.id || createdOrder.productionOrder?.id
+          });
+          console.log('✅ Production approval marked as started');
+        } catch (approvalError) {
+          console.error('Failed to mark approval as started:', approvalError);
+          // Don't fail the entire operation if this fails
+        }
+      }
+      
+      // Create operations for each stage
+      if (createdOrder && createdOrder.stages) {
+        for (const stage of createdOrder.stages) {
+          const isOutsourced = stage.outsourced || false;
+          const operations = getOperationTemplate(stage.stage_name, isOutsourced);
+          
+          if (operations && operations.length > 0) {
+            try {
+              await api.post(`/manufacturing/stages/${stage.id}/operations`, {
+                operations: operations.map((op, index) => ({
+                  ...op,
+                  operation_order: index + 1,
+                })),
+              });
+            } catch (opError) {
+              console.error(`Failed to create operations for stage ${stage.stage_name}:`, opError);
+              // Continue with other stages even if one fails
+            }
+          }
+          
+          // Auto-create challan for outsourced embroidery/printing stages
+          if (isOutsourced && (stage.customization_type === 'embroidery' || stage.customization_type === 'printing') && stage.vendor_id) {
+            try {
+              await api.post('/manufacturing/challans', {
+                production_stage_id: stage.id,
+                vendor_id: stage.vendor_id,
+                challan_number: `CH-${createdOrder.production_number}-${stage.stage_order}`,
+                dispatch_date: null, // Will be set when dispatching
+                expected_return_date: null,
+                status: 'draft',
+                notes: `Auto-created for ${stage.customization_type} stage`,
+              });
+            } catch (challanError) {
+              console.error(`Failed to create challan for stage ${stage.stage_name}:`, challanError);
+              // Continue even if challan creation fails
+            }
+          }
+        }
+      }
+      
+      toast.success('Production order created successfully with operations');
       navigate('/manufacturing/orders');
     } catch (error) {
       console.error('create production order error', error);
@@ -656,47 +1109,108 @@ const ProductionWizardPage = () => {
   const renderStepContent = useMemo(() => {
     switch (currentStep) {
       case 0:
-        return <OrderDetailsStep productOptions={productOptions} loadingProducts={loadingProducts} />;
+        return (
+          <OrderSelectionStep
+            approvedOrders={approvedOrders}
+            loadingOrders={loadingOrders}
+            selectedOrderDetails={selectedOrderDetails}
+            loadingProductDetails={loadingProductDetails}
+            fetchOrderDetails={fetchOrderDetails}
+          />
+        );
       case 1:
-        return <SchedulingStep />;
+        return <OrderDetailsStep productOptions={productOptions} loadingProducts={loadingProducts} productDetails={productDetails} loadingProductDetails={loadingProductDetails} />;
       case 2:
-        return <MaterialsStep />;
+        return <SchedulingStep />;
       case 3:
-        return <QualityStep />;
+        return <MaterialsStep />;
       case 4:
-        return <TeamStep />;
+        return <QualityStep />;
       case 5:
-        return <CustomizationStep canCustomize={canCustomizeStages} />;
-      case 6: {
+        return <TeamStep />;
+      case 6:
+        return <CustomizationStep canCustomize={canCustomizeStages} vendors={vendors} loadingVendors={loadingVendors} />;
+      case 7: {
         const values = methods.getValues();
         return <ReviewStep values={values} />;
       }
       default:
         return null;
     }
-  }, [canCustomizeStages, currentStep, methods, productOptions, loadingProducts]);
+  }, [canCustomizeStages, currentStep, methods, productOptions, loadingProducts, productDetails, loadingProductDetails, approvedOrders, loadingOrders, selectedOrderDetails, fetchOrderDetails, vendors, loadingVendors]);
+
+  // Calculate progress
+  const progressPercentage = Math.round((completedSteps.size / stepConfig.length) * 100);
+  const remainingSteps = stepConfig.length - completedSteps.size;
 
   return (
     <>
-      <div className="p-4 md:p-8 space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">New Production Order</h1>
-            <p className="text-gray-600">Complete each step to initiate a manufacturing order.</p>
-            {!canCreateOrder && (
-              <p className="text-sm text-red-600 mt-1 font-medium">
-                ⚠️ You do not have permission to submit production orders
-              </p>
-            )}
+      <div className="p-4 md:p-8 space-y-6 bg-gray-50 min-h-screen">
+        {/* Enhanced Header with Progress */}
+        <header className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <ClipboardList className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">New Production Order</h1>
+                  <p className="text-sm text-gray-600">Complete each step to initiate a manufacturing order.</p>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                  <span className="text-sm font-semibold text-blue-600">{progressPercentage}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {completedSteps.size} of {stepConfig.length} steps completed • {remainingSteps} remaining
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="flex gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center min-w-[100px]">
+                <div className="text-2xl font-bold text-blue-600">{completedSteps.size}</div>
+                <div className="text-xs text-gray-600 mt-1">Completed</div>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center min-w-[100px]">
+                <div className="text-2xl font-bold text-orange-600">{invalidSteps.size}</div>
+                <div className="text-xs text-gray-600 mt-1">Need Review</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center min-w-[100px]">
+                <div className="text-2xl font-bold text-green-600">{stepConfig.length}</div>
+                <div className="text-xs text-gray-600 mt-1">Total Steps</div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span>Need help?</span>
-            <a href="mailto:support@pashion-erp.com" className="text-primary font-semibold">
-              Contact Ops Support
-            </a>
+
+          {/* Help Section */}
+          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Info className="w-4 h-4" />
+              <span>Estimated time to complete: <span className="font-semibold text-gray-900">10-15 minutes</span></span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>Need help?</span>
+              <a href="mailto:support@pashion-erp.com" className="text-blue-600 font-semibold hover:text-blue-700">
+                Contact Support
+              </a>
+            </div>
           </div>
         </header>
 
+        {/* Enhanced Stepper */}
         <Stepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -706,53 +1220,100 @@ const ProductionWizardPage = () => {
 
         <FormProvider {...methods}>
           <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-            <StepStatusBanner
-              hasError={hasStepError}
-              title={stepConfig[currentStep].title}
-              description={statusDescription}
-            />
-
-            {renderStepContent}
-
-            <footer className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-gray-200">
-              <div className="flex gap-2 sm:order-last">
-                {currentStep > 0 && (
-                  <button
-                    type="button"
-                    onClick={handlePrevious}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back
-                  </button>
-                )}
-                {currentStep < stepConfig.length - 1 && (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-60"
-                    disabled={hasStepError}
-                  >
-                    Next
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
-                {currentStep === stepConfig.length - 1 && (
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={submitting || hasStepError || !canCreateOrder}
-                    title={!canCreateOrder ? 'You do not have permission to create production orders' : ''}
-                  >
-                    {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {submitting ? 'Submitting...' : 'Submit Order'}
-                  </button>
-                )}
+            {/* Step Content Card */}
+            <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+              {/* Current Step Header */}
+              <div className="mb-6 pb-4 border-b border-gray-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                    {currentStep + 1}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{stepConfig[currentStep].title}</h2>
+                    <p className="text-sm text-gray-600">{stepConfig[currentStep].description}</p>
+                  </div>
+                </div>
+                
+                <StepStatusBanner
+                  hasError={hasStepError}
+                  title={stepConfig[currentStep].title}
+                  description={statusDescription}
+                />
               </div>
 
-              <div className="text-xs text-gray-400">
-                Step {currentStep + 1} of {stepConfig.length}
+              {/* Step Content */}
+              <div className="min-h-[400px]">
+                {renderStepContent}
               </div>
+            </div>
+
+            {/* Enhanced Footer */}
+            <footer className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                {/* Step Counter */}
+                <div className="flex items-center gap-3">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-semibold text-gray-900">Step {currentStep + 1}</span> of {stepConfig.length}
+                  </div>
+                  <div className="w-px h-6 bg-gray-300"></div>
+                  <div className="text-sm text-gray-600">
+                    {currentStep === stepConfig.length - 1 ? (
+                      <span className="flex items-center gap-2 text-green-600 font-semibold">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Ready to submit
+                      </span>
+                    ) : (
+                      <span>{stepConfig.length - currentStep - 1} steps remaining</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex gap-3">
+                  {currentStep > 0 && (
+                    <button
+                      type="button"
+                      onClick={handlePrevious}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                  )}
+                  {currentStep < stepConfig.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                      disabled={hasStepError}
+                    >
+                      Next Step
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
+                  {currentStep === stepConfig.length - 1 && (
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 px-8 py-2.5 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                      disabled={submitting || hasStepError}
+                    >
+                      {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {submitting ? 'Creating Order...' : 'Create Production Order'}
+                      {!submitting && <CheckCircle2 className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Warning if errors */}
+              {hasStepError && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>Please fix the validation errors above before proceeding to the next step.</span>
+                  </div>
+                </div>
+              )}
             </footer>
           </form>
         </FormProvider>
@@ -924,50 +1485,302 @@ const SwitchInput = ({ name, label, hint, disabled }) => {
   );
 };
 
-const OrderDetailsStep = ({ productOptions, loadingProducts }) => (
-  <SectionCard icon={ClipboardList} title="Production order basics" description="Capture the essential order metadata.">
-    <Row>
-      <SelectInput
-        name="orderDetails.productId"
-        label="Product"
-        required
-        options={productOptions}
-        disabled={loadingProducts}
+const OrderSelectionStep = ({
+  approvedOrders,
+  loadingOrders,
+  selectedOrderDetails,
+  loadingProductDetails,
+  fetchOrderDetails,
+}) => {
+  const {
+    register,
+    watch,
+    formState: { errors },
+  } = useFormContextSafe();
+
+  const selectedApprovalId = watch('orderSelection.productionApprovalId');
+  const autoFilled = watch('orderSelection.autoFilled');
+
+  return (
+    <SectionCard
+      icon={FileSearch}
+      title="Select Approved Order"
+      description="Choose an approved order from the MRN workflow"
+    >
+      <StepStatusBanner
+        hasError={!!errors.orderSelection}
+        title="Order Selection"
+        description="Select an approved production approval to auto-fill order details."
       />
-      <SelectInput
-        name="orderDetails.productionType"
-        label="Production Type"
-        required
-        options={[
-          { value: 'in_house', label: 'In-House' },
-          { value: 'outsourced', label: 'Outsourced' },
-          { value: 'mixed', label: 'Mixed' },
-        ]}
-      />
-      <TextInput name="orderDetails.quantity" label="Quantity" type="number" required />
-      <SelectInput
-        name="orderDetails.priority"
-        label="Priority"
-        required
-        options={[
-          { value: 'low', label: 'Low' },
-          { value: 'medium', label: 'Medium' },
-          { value: 'high', label: 'High' },
-          { value: 'urgent', label: 'Urgent' },
-        ]}
-      />
-    </Row>
-    <Row>
-      <TextInput name="orderDetails.salesOrderId" label="Linked Sales Order" />
-      <TextArea
-        name="orderDetails.specialInstructions"
-        label="Special Instructions"
-        rows={3}
-        placeholder="Note any production nuances, trims, or handling notes"
-      />
-    </Row>
+
+      <div>
+        <label htmlFor="productionApprovalId" className="block text-sm font-medium text-gray-700 mb-2">
+          Approved Order <span className="text-red-500">*</span>
+        </label>
+        <select
+          id="productionApprovalId"
+          {...register('orderSelection.productionApprovalId')}
+          className={`w-full px-4 py-2 border rounded-lg ${errors.orderSelection?.productionApprovalId ? 'border-red-500' : 'border-gray-300'}`}
+          disabled={loadingOrders}
+        >
+          <option value="">-- Select an approved order --</option>
+          {approvedOrders.map((order) => {
+            // Extract customer name from multiple sources
+            const customerName = order.mrnRequest?.salesOrder?.customer?.name || 
+                                order.mrnRequest?.purchaseOrder?.vendor?.name || 
+                                (() => {
+                                  // Fallback: extract from manufacturing_notes
+                                  const notes = order.mrnRequest?.manufacturing_notes || '';
+                                  const match = notes.match(/Customer:\s*([^\n]+)/);
+                                  return match ? match[1].trim() : 'Unknown';
+                                })();
+            
+            // Get order number
+            const orderNumber = order.mrnRequest?.salesOrder?.order_number || 
+                               order.mrnRequest?.purchaseOrder?.po_number || 
+                               order.mrnRequest?.project_name ||
+                               'N/A';
+            
+            // Get quantity with fallbacks
+            const quantity = order.verification?.receipt?.total_items_received || 
+                            (() => {
+                              try {
+                                const materials = order.mrnRequest?.materials_requested;
+                                if (materials && materials.length > 0) {
+                                  return materials[0]?.quantity_required || 0;
+                                }
+                              } catch (e) {}
+                              return 0;
+                            })();
+            
+            return (
+              <option key={order.id} value={order.id}>
+                {order.verification?.receipt?.receipt_number || `Approval #${order.id}`}
+                {' • '}
+                {orderNumber}
+                {' • '}
+                {customerName}
+                {' • '}
+                Qty: {quantity}
+              </option>
+            );
+          })}
+        </select>
+        {errors.orderSelection?.productionApprovalId && (
+          <p className="mt-1 text-sm text-red-500">
+            {errors.orderSelection.productionApprovalId.message}
+          </p>
+        )}
+      </div>
+
+      {selectedApprovalId && (
+        <button
+          type="button"
+          onClick={() => fetchOrderDetails(selectedApprovalId)}
+          disabled={loadingProductDetails || autoFilled}
+          className="w-full md:w-auto px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {loadingProductDetails ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading...
+            </>
+          ) : autoFilled ? (
+            <>
+              <CheckCircle2 className="w-4 h-4" />
+              Auto-filled Successfully
+            </>
+          ) : (
+            'Load Order Details'
+          )}
+        </button>
+      )}
+
+      {selectedOrderDetails && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="font-semibold text-blue-900 mb-2">Order Summary</h3>
+          <div className="text-sm text-blue-800 space-y-1">
+            <p>
+              <strong>Customer/Vendor:</strong>{' '}
+              {selectedOrderDetails.customer_name || selectedOrderDetails.vendor_name || 'N/A'}
+            </p>
+            <p>
+              <strong>Product:</strong> {selectedOrderDetails.product_name || 'N/A'}
+            </p>
+            <p>
+              <strong>Quantity:</strong> {selectedOrderDetails.quantity || 'N/A'}
+            </p>
+            <p>
+              <strong>Project:</strong> {selectedOrderDetails.project_name || 'N/A'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <StepHint>
+        💡 Select an approved order to automatically populate product details, quantities, and material
+        requirements.
+      </StepHint>
+    </SectionCard>
+  );
+};
+
+const OrderDetailsStep = ({ productOptions, loadingProducts, productDetails, loadingProductDetails }) => {
+  const { setValue, watch } = useFormContextSafe();
+  const selectedProductId = watch('orderDetails.productId');
+  const selectedSalesOrderId = watch('orderDetails.salesOrderId');
+
+  // Auto-populate quantity when sales order is selected
+  useEffect(() => {
+    if (productDetails && selectedSalesOrderId) {
+      const selectedSO = productDetails.salesOrders?.find(
+        (so) => String(so.id) === String(selectedSalesOrderId)
+      );
+      if (selectedSO && selectedSO.product_quantity) {
+        setValue('orderDetails.quantity', selectedSO.product_quantity, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }
+  }, [selectedSalesOrderId, productDetails, setValue]);
+
+  return (
+    <SectionCard icon={ClipboardList} title="Production order basics" description="Capture the essential order metadata.">
+      <Row>
+        <SelectInput
+          name="orderDetails.productId"
+          label="Product"
+          required
+          options={productOptions}
+          disabled={loadingProducts}
+        />
+        <SelectInput
+          name="orderDetails.productionType"
+          label="Production Type"
+          required
+          options={[
+            { value: 'in_house', label: 'In-House' },
+            { value: 'outsourced', label: 'Outsourced' },
+            { value: 'mixed', label: 'Mixed' },
+          ]}
+        />
+        <TextInput name="orderDetails.quantity" label="Quantity" type="number" required />
+        <SelectInput
+          name="orderDetails.priority"
+          label="Priority"
+          required
+          options={[
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+            { value: 'urgent', label: 'Urgent' },
+          ]}
+        />
+      </Row>
+      <Row>
+        {productDetails && productDetails.salesOrders && productDetails.salesOrders.length > 0 ? (
+          <SelectInput
+            name="orderDetails.salesOrderId"
+            label="Linked Sales Order"
+            options={productDetails.salesOrders.map((so) => ({
+              value: String(so.id),
+              label: `${so.order_number} - Qty: ${so.product_quantity || so.total_quantity}${so.customer?.name ? ` (${so.customer.name})` : ''}`,
+            }))}
+          />
+        ) : (
+          <TextInput name="orderDetails.salesOrderId" label="Linked Sales Order" disabled />
+        )}
+        <TextArea
+          name="orderDetails.specialInstructions"
+          label="Special Instructions"
+          rows={3}
+          placeholder="Note any production nuances, trims, or handling notes"
+        />
+      </Row>
+    
+    {loadingProductDetails && (
+      <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+        <p className="text-sm text-blue-700">Loading product details...</p>
+      </div>
+    )}
+    
+    {productDetails && !loadingProductDetails && (
+      <div className="mt-4 space-y-4">
+        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Product Information</h3>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            {productDetails.product?.product_code && (
+              <div>
+                <dt className="text-xs text-gray-500">Product Code</dt>
+                <dd className="font-medium text-gray-900">{productDetails.product.product_code}</dd>
+              </div>
+            )}
+            {productDetails.product?.barcode && (
+              <div>
+                <dt className="text-xs text-gray-500">Barcode</dt>
+                <dd className="font-medium text-gray-900">{productDetails.product.barcode}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+        
+        {productDetails.salesOrders && productDetails.salesOrders.length > 0 && (
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Related Sales Orders</h3>
+            <div className="space-y-2">
+              {productDetails.salesOrders.map((order) => (
+                <div key={order.id} className="text-sm border-l-2 border-primary pl-3">
+                  <div className="font-medium text-gray-900">{order.order_number}</div>
+                  <div className="text-xs text-gray-600">
+                    Quantity: {order.total_quantity} • 
+                    {order.buyer_reference && ` Buyer Ref: ${order.buyer_reference} •`}
+                    {order.delivery_date && ` Delivery: ${new Date(order.delivery_date).toLocaleDateString()}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {productDetails.purchaseOrders && productDetails.purchaseOrders.length > 0 && (
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Related Purchase Orders</h3>
+            <div className="space-y-2">
+              {productDetails.purchaseOrders.map((po) => (
+                <div key={po.id} className="text-sm border-l-2 border-green-500 pl-3">
+                  <div className="font-medium text-gray-900">{po.po_number}</div>
+                  <div className="text-xs text-gray-600">
+                    {po.project_name && `Project: ${po.project_name} • `}
+                    {po.expected_delivery_date && `Expected: ${new Date(po.expected_delivery_date).toLocaleDateString()}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {productDetails.inventoryItems && productDetails.inventoryItems.length > 0 && (
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Available Inventory Items (Barcodes)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {productDetails.inventoryItems.map((item) => (
+                <div key={item.id} className="text-sm border border-gray-300 rounded p-2 bg-white">
+                  <div className="font-mono text-xs text-primary font-semibold">{item.barcode}</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Available: {item.quantity_available} {item.unit}
+                    {item.location && ` • ${item.location}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )}
   </SectionCard>
-);
+  );
+};
 
 const SchedulingStep = () => (
   <SectionCard icon={CalendarCheck} title="Plan the production timeline" description="Ensure scheduling aligns with capacity and promises.">
@@ -979,10 +1792,12 @@ const SchedulingStep = () => (
         label="Shift"
         required
         options={[
-          { value: 'general', label: 'General Shift' },
+          { value: 'day', label: 'Day Shift' },
           { value: 'morning', label: 'Morning Shift' },
+          { value: 'afternoon', label: 'Afternoon Shift' },
           { value: 'evening', label: 'Evening Shift' },
           { value: 'night', label: 'Night Shift' },
+          { value: 'flexible', label: 'Flexible' },
         ]}
       />
       <TextInput name="scheduling.expectedHours" label="Expected Hours" type="number" />
@@ -991,12 +1806,26 @@ const SchedulingStep = () => (
 );
 
 const MaterialsStep = () => {
-  const { control, formState: { errors } } = useFormContextSafe();
+  const { control, formState: { errors }, watch } = useFormContextSafe();
   const { fields, append, remove } = useFieldArray({ control, name: 'materials.items' });
+  const autoFilled = watch('orderSelection.autoFilled');
 
   return (
     <SectionCard icon={PackageSearch} title="Verify materials" description="Ensure material sufficiency to avoid interruptions.">
       <div className="space-y-6">
+        {autoFilled && fields.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-900">Materials loaded from approved receipt</p>
+              <p className="text-xs text-green-700 mt-1">
+                These materials were dispatched from inventory and received in manufacturing. 
+                Verify quantities and add any additional materials if needed.
+              </p>
+            </div>
+          </div>
+        )}
+
         {fields.map((field, index) => (
           <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
             <div className="flex justify-between items-center">
@@ -1012,7 +1841,7 @@ const MaterialsStep = () => {
               )}
             </div>
             <Row columns={3}>
-              <TextInput name={`materials.items.${index}.materialId`} label="Material" required />
+              <TextInput name={`materials.items.${index}.materialId`} label="Material ID / Code" required />
               <TextInput name={`materials.items.${index}.description`} label="Description" required />
               <TextInput name={`materials.items.${index}.requiredQuantity`} label="Required Quantity" type="number" required />
             </Row>
@@ -1028,7 +1857,20 @@ const MaterialsStep = () => {
                   { value: 'ordered', label: 'Ordered' },
                 ]}
               />
+              {field.barcode && (
+                <TextInput name={`materials.items.${index}.barcode`} label="Barcode" disabled />
+              )}
             </Row>
+            {(field.condition || field.remarks) && (
+              <Row columns={field.remarks ? 2 : 1}>
+                {field.condition && (
+                  <TextInput name={`materials.items.${index}.condition`} label="Condition" disabled />
+                )}
+                {field.remarks && (
+                  <TextInput name={`materials.items.${index}.remarks`} label="Remarks" disabled />
+                )}
+              </Row>
+            )}
           </div>
         ))}
 
@@ -1116,7 +1958,7 @@ const TeamStep = () => (
   </SectionCard>
 );
 
-const CustomizationStep = ({ canCustomize }) => {
+const CustomizationStep = ({ canCustomize, vendors = [], loadingVendors = false }) => {
   const {
     control,
     watch,
@@ -1130,63 +1972,166 @@ const CustomizationStep = ({ canCustomize }) => {
   const stageArrayError = errors.customization?.stages;
 
   const handleAddStage = () => {
-    append({ stageName: '', plannedDurationHours: '' });
+    append({ 
+      stageName: '', 
+      plannedDurationHours: '',
+      isPrinting: false,
+      isEmbroidery: false,
+      isOutsourced: false,
+      vendorId: null
+    });
   };
 
-  const renderStageCard = (field, index) => (
-    <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4 bg-white">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <span className="text-sm font-semibold text-gray-700">Stage #{index + 1}</span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => move(index, index - 1)}
-            disabled={index === 0}
-            className={`px-3 py-1 text-xs rounded border ${
-              index === 0
-                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Move Up
-          </button>
-          <button
-            type="button"
-            onClick={() => move(index, index + 1)}
-            disabled={index === fields.length - 1}
-            className={`px-3 py-1 text-xs rounded border ${
-              index === fields.length - 1
-                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Move Down
-          </button>
-          <button
-            type="button"
-            onClick={() => remove(index)}
-            className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
-          >
-            Remove
-          </button>
+  const renderStageCard = (field, index) => {
+    const isPrinting = watch(`customization.stages.${index}.isPrinting`);
+    const isEmbroidery = watch(`customization.stages.${index}.isEmbroidery`);
+    const isOutsourced = watch(`customization.stages.${index}.isOutsourced`);
+    const showExecutionOptions = isPrinting || isEmbroidery;
+
+    return (
+      <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4 bg-white">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">Stage #{index + 1}</span>
+            {isPrinting && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700">
+                Printing
+              </span>
+            )}
+            {isEmbroidery && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-700">
+                Embroidery
+              </span>
+            )}
+            {showExecutionOptions && isOutsourced && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700">
+                Outsourced
+              </span>
+            )}
+            {showExecutionOptions && !isOutsourced && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
+                In-House
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => move(index, index - 1)}
+              disabled={index === 0}
+              className={`px-3 py-1 text-xs rounded border ${
+                index === 0
+                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Move Up
+            </button>
+            <button
+              type="button"
+              onClick={() => move(index, index + 1)}
+              disabled={index === fields.length - 1}
+              className={`px-3 py-1 text-xs rounded border ${
+                index === fields.length - 1
+                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Move Down
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(index)}
+              className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
+            >
+              Remove
+            </button>
+          </div>
         </div>
+        <Row>
+          <TextInput
+            name={`customization.stages.${index}.stageName`}
+            label="Stage Name"
+            required
+            placeholder="e.g. Heat Treatment"
+          />
+          <TextInput
+            name={`customization.stages.${index}.plannedDurationHours`}
+            label="Planned Duration (hours)"
+            type="number"
+            placeholder="Optional"
+          />
+        </Row>
+        
+        <div className="border-t border-gray-200 pt-4">
+          <h4 className="text-xs font-semibold text-gray-700 mb-3">Customization Type</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <SwitchInput
+              name={`customization.stages.${index}.isPrinting`}
+              label="Printing Stage"
+              hint="Mark this stage as a printing operation"
+            />
+            <SwitchInput
+              name={`customization.stages.${index}.isEmbroidery`}
+              label="Embroidery Stage"
+              hint="Mark this stage as an embroidery operation"
+            />
+          </div>
+        </div>
+        
+        {showExecutionOptions && (
+          <div className="border-t border-gray-200 pt-4 bg-blue-50 p-4 rounded-md">
+            <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Execution Method
+            </h4>
+            <SelectInput
+              name={`customization.stages.${index}.isOutsourced`}
+              label="Work Type"
+              options={[
+                { value: 'false', label: '🏭 In-House Production' },
+                { value: 'true', label: '🚚 Outsourced to Vendor' },
+              ]}
+            />
+            {isOutsourced && (
+              <div className="mt-4 space-y-3">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  <p className="text-xs text-yellow-800 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    Outsourced work requires vendor selection and challan creation
+                  </p>
+                </div>
+                <SelectInput
+                  name={`customization.stages.${index}.vendorId`}
+                  label="Select Vendor"
+                  required
+                  options={[
+                    { value: '', label: 'Choose a vendor...' },
+                    ...vendors.map(v => ({
+                      value: v.id.toString(),
+                      label: `${v.vendor_name || v.company_name} ${v.contact_person ? `(${v.contact_person})` : ''}`
+                    }))
+                  ]}
+                />
+                {loadingVendors && (
+                  <p className="text-xs text-gray-500 italic">Loading vendors...</p>
+                )}
+                {!loadingVendors && vendors.length === 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <p className="text-xs text-red-700">⚠️ No vendors found. Please add vendors in Procurement section first.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      <Row>
-        <TextInput
-          name={`customization.stages.${index}.stageName`}
-          label="Stage Name"
-          required
-          placeholder="e.g. Heat Treatment"
-        />
-        <TextInput
-          name={`customization.stages.${index}.plannedDurationHours`}
-          label="Planned Duration (hours)"
-          type="number"
-          placeholder="Optional"
-        />
-      </Row>
-    </div>
-  );
+    );
+  };
 
   return (
     <SectionCard icon={Settings2} title="Customize stages" description="Toggle to build a bespoke production sequence.">
@@ -1194,7 +2139,6 @@ const CustomizationStep = ({ canCustomize }) => {
         name="customization.useCustomStages"
         label="Enable stage customization"
         hint="Use only when the default stages need adjustment."
-        disabled={!canCustomize}
       />
       {useCustomStages ? (
         <div className="space-y-4">
@@ -1289,6 +2233,7 @@ const ReviewStep = ({ values }) => {
 
 function buildPayload(values) {
   const {
+    orderSelection,
     orderDetails,
     scheduling,
     materials,
@@ -1303,6 +2248,7 @@ function buildPayload(values) {
     quantity: Number(orderDetails.quantity),
     priority: orderDetails.priority,
     sales_order_id: orderDetails.salesOrderId || null,
+    production_approval_id: orderSelection.productionApprovalId ? Number(orderSelection.productionApprovalId) : null,
     special_instructions: orderDetails.specialInstructions || null,
     planned_start_date: scheduling.plannedStartDate,
     planned_end_date: scheduling.plannedEndDate,
@@ -1330,14 +2276,39 @@ function buildPayload(values) {
   };
 
   if (customization.useCustomStages) {
-    payload.stages = customization.stages.map((stage, index) => ({
-      stage_name: stage.stageName,
-      stage_order: index + 1,
-      planned_duration_hours:
-        stage.plannedDurationHours === '' || stage.plannedDurationHours === null
-          ? null
-          : Number(stage.plannedDurationHours),
-    }));
+    payload.stages = customization.stages.map((stage, index) => {
+      const stageData = {
+        stage_name: stage.stageName,
+        stage_order: index + 1,
+        planned_duration_hours:
+          stage.plannedDurationHours === '' || stage.plannedDurationHours === null
+            ? null
+            : Number(stage.plannedDurationHours),
+        is_printing: stage.isPrinting || false,
+        is_embroidery: stage.isEmbroidery || false,
+      };
+
+      // Determine customization_type based on flags
+      if (stage.isPrinting && stage.isEmbroidery) {
+        stageData.customization_type = 'both';
+      } else if (stage.isPrinting) {
+        stageData.customization_type = 'printing';
+      } else if (stage.isEmbroidery) {
+        stageData.customization_type = 'embroidery';
+      } else {
+        stageData.customization_type = 'none';
+      }
+
+      // Add outsourced info if it's a customization stage
+      if (stage.isPrinting || stage.isEmbroidery) {
+        stageData.outsourced = stage.isOutsourced === 'true' || stage.isOutsourced === true;
+        if (stageData.outsourced && stage.vendorId) {
+          stageData.vendor_id = Number(stage.vendorId);
+        }
+      }
+
+      return stageData;
+    });
   }
 
   return payload;

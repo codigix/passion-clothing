@@ -36,6 +36,20 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'Project name from the PO'
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product these materials are for'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     requesting_department: {
       type: DataTypes.ENUM('manufacturing', 'procurement'),
       allowNull: false,
@@ -202,6 +216,7 @@ module.exports = (sequelize) => {
       { fields: ['request_number'] },
       { fields: ['purchase_order_id'] },
       { fields: ['sales_order_id'] },
+      { fields: ['product_id'] },
       { fields: ['project_name'] },
       { fields: ['status'] },
       { fields: ['priority'] },

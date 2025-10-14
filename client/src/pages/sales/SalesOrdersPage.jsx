@@ -3,7 +3,6 @@ import {
   FaPlus,
   FaSearch,
   FaFilter,
-  FaEye,
   FaEdit,
   FaTrash,
   FaQrcode,
@@ -279,10 +278,7 @@ const SalesOrdersPage = () => {
     navigate(`/sales/orders/${order.id}?tab=procurement`);
   };
 
-  const handleCreatePurchaseOrder = (order) => {
-    // Navigate to procurement with order details to create PO
-    navigate(`/procurement/purchase-orders?create_from_so=${order.id}`);
-  };
+
 
   const handleUpdateStatus = async (order, newStatus) => {
     try {
@@ -811,11 +807,11 @@ const SalesOrdersPage = () => {
                       )}
                       {isColumnVisible('actions') && (
                         <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] transition-colors">
-                        <div className="relative action-menu-container">
+                        <div className="relative action-menu-container flex items-center gap-1">
                           <button
                             onClick={(e) => handleActionMenuToggle(order.id, e)}
                             className="p-2 hover:bg-gray-100 rounded transition-colors"
-                            title="Actions"
+                            title="More Actions"
                           >
                             <FaChevronDown size={14} />
                           </button>
@@ -823,15 +819,6 @@ const SalesOrdersPage = () => {
                             <div className={`absolute right-0 w-56 bg-white rounded-lg shadow-xl z-[100] border ${
                               menuPosition[order.id] ? 'bottom-full mb-2' : 'top-full mt-2'
                             }`}>
-                              <button
-                                onClick={() => {
-                                  navigate(`/sales/orders/${order.id}`);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                              >
-                                <FaEye /> View / Edit
-                              </button>
                               <button
                                 onClick={() => {
                                   handleSendToProcurement(order);
@@ -849,15 +836,6 @@ const SalesOrdersPage = () => {
                                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
                               >
                                 <FaCogs /> Request Production
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleCreatePurchaseOrder(order);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
-                              >
-                                <FaShoppingCart /> Create Purchase Order
                               </button>
                               <button
                                 onClick={() => {

@@ -40,6 +40,22 @@ export const testUsers = {
     employee_id: 'EMP005',
     role: 'finance_manager',
     department: 'finance'
+  },
+  inventoryController: {
+    email: 'inventory@passion-inventory.com',
+    password: 'inventory123',
+    name: 'Inventory Controller',
+    employee_id: 'EMP006',
+    role: 'inventory_controller',
+    department: 'inventory'
+  },
+  manufacturingReceiver: {
+    email: 'manufacturing.receiver@passion-inventory.com',
+    password: 'manufacturing123',
+    name: 'Manufacturing Receiver',
+    employee_id: 'EMP007',
+    role: 'manufacturing_receiver',
+    department: 'manufacturing'
   }
 };
 

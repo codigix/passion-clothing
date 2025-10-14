@@ -7,7 +7,10 @@ import {
   FaTimes,
   FaShoppingCart,
   FaTruck,
-  FaBoxOpen
+  FaBoxOpen,
+  FaDownload,
+  FaPrint,
+  FaCheckCircle
 } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
@@ -20,6 +23,7 @@ const CreateChallanPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [salesOrder, setSalesOrder] = useState(null);
+  const [createdChallan, setCreatedChallan] = useState(null);
   const [challanData, setChallanData] = useState({
     type: 'outward',
     sub_type: 'sales',
@@ -166,11 +170,10 @@ const CreateChallanPage = () => {
       };
 
       const response = await api.post('/challans', payload);
+      const challan = response.data.challan;
       
-      toast.success(`Challan ${response.data.challan.challan_number} created successfully!`);
-      
-      // Navigate to challan register
-      navigate('/challans/register');
+      setCreatedChallan(challan);
+      toast.success(`Challan ${challan.challan_number} created successfully!`);
     } catch (error) {
       console.error('Challan creation error:', error);
       toast.error(error.response?.data?.message || 'Failed to create challan');
@@ -179,9 +182,211 @@ const CreateChallanPage = () => {
     }
   };
 
+  // Download challan as PDF
+  const handleDownloadPDF = () => {
+    if (!createdChallan) return;
+    
+    // Generate PDF content
+    const printWindow = window.open('', '_blank');
+    const challanHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Challan ${createdChallan.challan_number}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+          .info-section { margin: 20px 0; }
+          .info-row { display: flex; justify-content: space-between; margin: 10px 0; }
+          .label { font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+          th { background-color: #f4f4f4; font-weight: bold; }
+          .total-row { font-weight: bold; background-color: #f9f9f9; }
+          .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+          @media print {
+            body { margin: 0; }
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>DELIVERY CHALLAN</h1>
+          <p>Challan No: <strong>${createdChallan.challan_number}</strong></p>
+          <p>Date: ${new Date(createdChallan.challan_date || createdChallan.created_at).toLocaleDateString()}</p>
+        </div>
+        
+        <div class="info-section">
+          <div class="info-row">
+            <div><span class="label">From:</span> ${challanData.location_from}</div>
+            <div><span class="label">To:</span> ${challanData.location_to}</div>
+          </div>
+          <div class="info-row">
+            <div><span class="label">Party Name:</span> ${challanData.partyName}</div>
+            <div><span class="label">Type:</span> ${challanData.type} - ${challanData.sub_type}</div>
+          </div>
+          ${challanData.partyAddress ? `<div class="info-row"><span class="label">Address:</span> ${challanData.partyAddress}</div>` : ''}
+          ${challanData.transport_details ? `<div class="info-row"><span class="label">Transport:</span> ${challanData.transport_details}</div>` : ''}
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Description</th>
+              <th>Product Type</th>
+              <th>Quantity</th>
+              <th>Unit</th>
+              <th>Rate</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${challanItems.map((item, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${item.description}</td>
+                <td>${item.product_type || '-'}</td>
+                <td>${item.quantity}</td>
+                <td>${item.unit}</td>
+                <td>₹${item.rate}</td>
+                <td>₹${(item.quantity * item.rate).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+            <tr class="total-row">
+              <td colspan="3"><strong>Total</strong></td>
+              <td><strong>${totalQuantity}</strong></td>
+              <td></td>
+              <td></td>
+              <td><strong>₹${totalAmount.toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        ${challanData.notes ? `<div class="info-section"><span class="label">Notes:</span> ${challanData.notes}</div>` : ''}
+
+        <div class="footer">
+          <p>This is a computer-generated document. No signature required.</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+
+        <div style="margin-top: 20px; text-align: center;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">Print</button>
+          <button onclick="window.close()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(challanHTML);
+    printWindow.document.close();
+  };
+
   // Calculate totals
   const totalQuantity = challanItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
   const totalAmount = challanItems.reduce((sum, item) => sum + ((parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0)), 0);
+
+  // Show success screen after challan creation
+  if (createdChallan) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <div className="flex justify-center mb-4">
+              <FaCheckCircle className="text-green-500 text-6xl" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Challan Created Successfully!</h1>
+            <p className="text-xl text-gray-600 mb-6">
+              Challan Number: <strong className="text-blue-600">{createdChallan.challan_number}</strong>
+            </p>
+            
+            <div className="bg-gray-50 rounded-lg p-6 mb-6 text-left">
+              <h3 className="font-semibold text-gray-800 mb-3">Challan Details:</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Type:</span>
+                  <span className="font-medium">{challanData.type} - {challanData.sub_type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Party:</span>
+                  <span className="font-medium">{challanData.partyName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">From:</span>
+                  <span className="font-medium">{challanData.location_from}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">To:</span>
+                  <span className="font-medium">{challanData.location_to}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Items:</span>
+                  <span className="font-medium">{challanItems.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Quantity:</span>
+                  <span className="font-medium">{totalQuantity} pcs</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Amount:</span>
+                  <span className="font-medium text-green-600">₹{totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleDownloadPDF}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <FaDownload /> Download / Print Challan
+              </button>
+              <button
+                onClick={() => navigate(`/challans/register`)}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <FaBoxOpen /> View All Challans
+              </button>
+              <button
+                onClick={() => {
+                  setCreatedChallan(null);
+                  setChallanData({
+                    type: 'outward',
+                    sub_type: 'sales',
+                    order_id: '',
+                    order_type: '',
+                    customer_id: '',
+                    partyName: '',
+                    partyAddress: '',
+                    challanDate: new Date().toISOString().split('T')[0],
+                    expected_date: '',
+                    location_from: 'Warehouse',
+                    location_to: '',
+                    transport_details: '',
+                    notes: ''
+                  });
+                  setChallanItems([{
+                    id: 1,
+                    product_id: '',
+                    product_type: '',
+                    description: '',
+                    quantity: 0,
+                    unit: 'pcs',
+                    rate: 0,
+                    remarks: ''
+                  }]);
+                }}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <FaPlus /> Create Another Challan
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading && !salesOrder) {
     return (

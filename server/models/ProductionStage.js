@@ -125,6 +125,60 @@ module.exports = (sequelize) => {
     outsource_cost: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true
+    },
+    is_printing: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: 'Whether this stage involves printing'
+    },
+    is_embroidery: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: 'Whether this stage involves embroidery'
+    },
+    customization_type: {
+      type: DataTypes.ENUM('none', 'printing', 'embroidery', 'both'),
+      defaultValue: 'none',
+      comment: 'Type of customization for this stage'
+    },
+    start_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Start date of the stage'
+    },
+    end_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'End date of the stage'
+    },
+    operations: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Array of operations for this stage'
+    },
+    outsource_type: {
+      type: DataTypes.ENUM('none', 'printing', 'embroidery', 'both'),
+      defaultValue: 'none',
+      comment: 'Type of outsourcing for this stage'
+    },
+    outsource_dispatch_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Date when materials were dispatched to vendor'
+    },
+    outsource_return_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Expected/actual return date from vendor'
+    },
+    challan_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'challans',
+        key: 'id'
+      },
+      comment: 'Challan for outsourced work'
     }
   }, {
     tableName: 'production_stages',
@@ -137,7 +191,14 @@ module.exports = (sequelize) => {
       { fields: ['planned_start_time'] },
       { fields: ['actual_start_time'] },
       { fields: ['outsourced'] },
-      { fields: ['vendor_id'] }
+      { fields: ['vendor_id'] },
+      { fields: ['is_printing'] },
+      { fields: ['is_embroidery'] },
+      { fields: ['customization_type'] },
+      { fields: ['start_date'] },
+      { fields: ['end_date'] },
+      { fields: ['outsource_type'] },
+      { fields: ['challan_id'] }
     ]
   });
 

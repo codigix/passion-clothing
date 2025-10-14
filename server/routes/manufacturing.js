@@ -1,10 +1,49 @@
+
 const express = require('express');
-const { Op } = require('sequelize');
-const { ProductionOrder, ProductionStage, Rejection, SalesOrder, Product, User, Challan, MaterialAllocation, Inventory, InventoryMovement, MaterialRequirement, QualityCheckpoint } = require('../config/database');
+
+const { Op, fn, col } = require('sequelize');
+const {
+  ProductionOrder,
+  ProductionStage,
+  Rejection,
+  SalesOrder,
+  Product,
+  User,
+  Challan,
+  MaterialAllocation,
+  Inventory,
+  InventoryMovement,
+  MaterialRequirement,
+  QualityCheckpoint,
+  StageOperation,
+  MaterialConsumption,
+  ProductionCompletion,
+  Shipment,
+  Vendor,
+  Customer,
+  PurchaseOrder
+} = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
 const { updateOrderQRCode } = require('../utils/qrCodeUtils');
 const NotificationService = require('../utils/notificationService');
+const { createOperationsForStage } = require('../utils/stageTemplates');
+
+console.log('Manufacturing routes module loaded.');
+
 const router = express.Router();
+
+const STAGE_INCLUDE = [
+  {
+    model: User,
+    as: 'assignedUser',
+    attributes: ['id', 'name', 'employee_id']
+  },
+  {
+    model: Vendor,
+    as: 'vendor',
+    attributes: ['id', 'name', 'contact_person', 'phone', 'mobile', 'email']
+  }
+];
 
 // Get production order detail
 router.get(
@@ -13,6 +52,7 @@ router.get(
   checkDepartment(['manufacturing', 'admin']),
   async (req, res) => {
     try {
+      console.log(`[DEBUG] Fetching production order ID: ${req.params.id}`);
       const productionOrder = await ProductionOrder.findByPk(req.params.id, {
         include: [
           {
@@ -100,15 +140,16 @@ router.get(
               'notes',
               'assigned_to',
               'machine_id',
-              'rejection_reasons'
+              'rejection_reasons',
+              'is_embroidery',
+              'is_printing',
+              'customization_type',
+              'outsource_type',
+              'outsourced',
+              'vendor_id',
+              'outsource_cost'
             ],
-            include: [
-              {
-                model: User,
-                as: 'assignedUser',
-                attributes: ['id', 'name', 'employee_id']
-              }
-            ]
+            include: STAGE_INCLUDE
           },
           {
             model: Rejection,
@@ -140,9 +181,11 @@ router.get(
       });
 
       if (!productionOrder) {
+        console.log(`[DEBUG] Production order ${req.params.id} not found`);
         return res.status(404).json({ message: 'Production order not found' });
       }
 
+      console.log(`[DEBUG] Production order ${req.params.id} loaded successfully`);
       const completedStages = productionOrder.stages.filter(
         (stage) => stage.status === 'completed'
       ).length;
@@ -184,180 +227,1051 @@ router.get(
         }
       });
     } catch (error) {
-      console.error('Production order detail fetch error:', error);
-      res.status(500).json({ message: 'Failed to fetch production order detail' });
+      console.error(`[ERROR] Production order ${req.params.id} fetch failed:`, error);
+      console.error('[ERROR] Stack trace:', error.stack);
+      console.error('[ERROR] Error name:', error.name);
+      console.error('[ERROR] Error message:', error.message);
+      res.status(500).json({ 
+        message: 'Failed to fetch production order detail',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 );
 
-// Start production order
-router.post('/orders/:id/start', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+// Helper function to generate production number
+const generateProductionNumber = async () => {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const lastOrder = await ProductionOrder.findOne({
+    where: {
+      production_number: {
+        [Op.like]: `PRD-${dateStr}-%`
+      }
+    },
+    order: [['production_number', 'DESC']]
+  });
+
+  let sequence = 1;
+  if (lastOrder) {
+    const lastSequence = parseInt(lastOrder.production_number.split('-')[2]);
+    sequence = lastSequence + 1;
+  }
+
+  return `PRD-${dateStr}-${sequence.toString().padStart(4, '0')}`;
+};
+
+// POST /api/manufacturing/orders - Create new production order
+router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
+  
   try {
-    const order = await ProductionOrder.findByPk(req.params.id, {
-      include: [{ model: ProductionStage, as: 'stages' }]
-    });
+    const {
+      product_id,
+      sales_order_id,
+      production_approval_id,
+      production_type,
+      quantity,
+      priority,
+      planned_start_date,
+      planned_end_date,
+      estimated_hours,
+      special_instructions,
+      shift,
+      team_notes,
+      materials_required,
+      quality_parameters,
+      supervisor_id,
+      assigned_user_id,
+      qa_lead_id,
+      stages
+    } = req.body;
 
-    if (!order) {
-      return res.status(404).json({ message: 'Production order not found' });
-    }
-
-    if (order.status === 'completed') {
-      return res.status(400).json({ message: 'Order is already completed' });
-    }
-
-    // Ensure stages are evaluated in their defined order
-    const sortedStages = [...order.stages].sort(
-      (a, b) => (a.stage_order || 0) - (b.stage_order || 0),
-    );
-
-    // Find the first stage that is pending (or on hold after a stop)
-    const firstPendingStage = sortedStages.find((stage) =>
-      ['pending', 'on_hold'].includes(stage.status),
-    );
-
-    if (!firstPendingStage) {
-      return res.status(400).json({ message: 'No pending stages to start' });
-    }
-
-    // Start the first available stage
-    await firstPendingStage.update({
-      status: 'in_progress',
-      actual_start_time: firstPendingStage.actual_start_time || new Date(),
-    });
-
-    // Update order status when transitioning from an idle state
-    if (['pending', 'material_allocated', 'on_hold'].includes(order.status)) {
-      const stageDrivenStatuses = new Set([
-        'cutting',
-        'embroidery',
-        'stitching',
-        'finishing',
-        'quality_check',
-      ]);
-
-      const derivedStatus = stageDrivenStatuses.has(firstPendingStage.stage_name)
-        ? firstPendingStage.stage_name
-        : 'material_allocated';
-
-      await order.update({
-        status: derivedStatus,
-        actual_start_date: order.actual_start_date || new Date(),
+    // Validate required fields
+    if (!product_id || !quantity || !planned_start_date || !planned_end_date) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        message: 'Missing required fields: product_id, quantity, planned_start_date, planned_end_date' 
       });
+    }
 
-      // Update QR code and send notification if sales order exists
-      if (order.sales_order_id) {
-        await updateOrderQRCode(order.sales_order_id, {
-          status: derivedStatus,
-          current_stage: firstPendingStage.stage_name,
-          production_progress: {
-            stage_started: firstPendingStage.stage_name
-          }
-        });
+    // Validate and sanitize user IDs (must be integers or null)
+    const sanitizeUserId = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') return null;
+      const parsed = parseInt(value, 10);
+      return isNaN(parsed) ? null : parsed;
+    };
 
-        // Send notification
-        const salesOrder = await SalesOrder.findByPk(order.sales_order_id);
-        await NotificationService.createNotification({
-          type: 'production_started',
-          title: 'Production Started',
-          message: `Production started for order ${salesOrder.order_number} at ${firstPendingStage.stage_name} stage`,
-          recipients: ['manufacturing', 'admin'],
-          related_entity_type: 'production_order',
-          related_entity_id: order.id,
-          priority: 'medium',
-          user_id: req.user.id
-        });
+    const validatedSupervisorId = sanitizeUserId(supervisor_id);
+    const validatedAssignedUserId = sanitizeUserId(assigned_user_id);
+    const validatedQaLeadId = sanitizeUserId(qa_lead_id);
+
+    // Fetch sales order to get project reference
+    let projectReference = null;
+    let salesOrder = null;
+    if (sales_order_id) {
+      salesOrder = await SalesOrder.findByPk(sales_order_id);
+      if (salesOrder) {
+        // Use sales order number as project reference
+        projectReference = salesOrder.order_number;
       }
     }
 
-    res.json({ message: 'Production started successfully' });
+    // Generate production number
+    const production_number = await generateProductionNumber();
+
+    // Create production order with project reference
+    const productionOrder = await ProductionOrder.create({
+      production_number,
+      sales_order_id: sales_order_id || null,
+      production_approval_id: production_approval_id || null,
+      project_reference: projectReference,
+      product_id,
+      quantity,
+      production_type: production_type || 'in_house',
+      priority: priority || 'medium',
+      status: 'pending',
+      planned_start_date,
+      planned_end_date,
+      estimated_hours: estimated_hours || null,
+      special_instructions: special_instructions || null,
+      shift: shift || null,
+      team_notes: team_notes || null,
+      created_by: req.user.id,
+      assigned_to: validatedAssignedUserId,
+      supervisor_id: validatedSupervisorId,
+      qa_lead_id: validatedQaLeadId,
+      specifications: {
+        created_from: production_approval_id ? 'approval' : 'direct'
+      }
+    }, { transaction });
+
+    console.log(`✅ Production order created: ${production_number} (ID: ${productionOrder.id})`);
+
+    // Create production stages if provided
+    let createdStages = [];
+    if (stages && Array.isArray(stages) && stages.length > 0) {
+      for (const stageData of stages) {
+        const stage = await ProductionStage.create({
+          production_order_id: productionOrder.id,
+          stage_name: stageData.stage_name,
+          stage_order: stageData.stage_order,
+          status: 'pending',
+          planned_duration_hours: stageData.planned_duration_hours || null,
+          is_printing: stageData.is_printing || false,
+          is_embroidery: stageData.is_embroidery || false,
+          customization_type: stageData.customization_type || 'none',
+          outsourced: stageData.outsourced || false,
+          vendor_id: stageData.vendor_id || null,
+          outsource_type: stageData.outsource_type || null
+        }, { transaction });
+        
+        createdStages.push(stage);
+      }
+      console.log(`✅ Created ${createdStages.length} production stages`);
+    }
+
+    // Create material requirements if provided
+    let createdMaterialReqs = [];
+    if (materials_required && Array.isArray(materials_required) && materials_required.length > 0) {
+      for (const material of materials_required) {
+        const materialReq = await MaterialRequirement.create({
+          production_order_id: productionOrder.id,
+          material_id: material.material_id || null,
+          description: material.description,
+          required_quantity: material.required_quantity,
+          unit: material.unit || 'pieces',
+          status: material.status || 'pending'
+        }, { transaction });
+        
+        createdMaterialReqs.push(materialReq);
+      }
+      console.log(`✅ Created ${createdMaterialReqs.length} material requirements`);
+    }
+
+    // Create quality checkpoints if provided
+    let createdCheckpoints = [];
+    if (quality_parameters?.checkpoints && Array.isArray(quality_parameters.checkpoints)) {
+      for (let i = 0; i < quality_parameters.checkpoints.length; i++) {
+        const checkpoint = quality_parameters.checkpoints[i];
+        const qc = await QualityCheckpoint.create({
+          production_order_id: productionOrder.id,
+          production_stage_id: null, // Order-level checkpoints
+          name: checkpoint.name,
+          frequency: checkpoint.frequency || 'per_batch',
+          acceptance_criteria: checkpoint.acceptance_criteria,
+          checkpoint_order: i + 1,
+          status: 'pending'
+        }, { transaction });
+        
+        createdCheckpoints.push(qc);
+      }
+      console.log(`✅ Created ${createdCheckpoints.length} quality checkpoints`);
+    }
+
+    // Auto-start production when validations pass
+    const firstStage = (createdStages.length ? createdStages : await ProductionStage.findAll({
+      where: { production_order_id: productionOrder.id },
+      order: [['stage_order', 'ASC']],
+      transaction
+    }))[0]?.get ? (createdStages.length ? createdStages[0] : (await ProductionStage.findAll({
+      where: { production_order_id: productionOrder.id },
+      order: [['stage_order', 'ASC']],
+      transaction
+    }))[0]) : (createdStages.length ? createdStages[0] : (await ProductionStage.findAll({
+      where: { production_order_id: productionOrder.id },
+      order: [['stage_order', 'ASC']],
+      transaction
+    }))[0]);
+
+    if (!firstStage) {
+      throw new Error('Production order created without any stages. At least one stage is required to start production.');
+    }
+
+    // Start the first stage
+    await firstStage.update({
+      status: 'in_progress',
+      actual_start_time: new Date()
+    }, { transaction });
+
+    // Update production order status
+    await productionOrder.update({
+      status: firstStage.stage_name || 'in_production',
+      actual_start_date: new Date()
+    }, { transaction });
+
+    // Update sales order status if linked
+    if (sales_order_id && salesOrder) {
+      await salesOrder.update({
+        status: 'in_production',
+        production_started_at: new Date()
+      }, { transaction });
+      
+      console.log(`✅ Updated sales order ${salesOrder.order_number} to in_production`);
+    }
+
+    // Update QR code if linked to sales order
+    if (sales_order_id) {
+      await updateOrderQRCode(sales_order_id, firstStage.stage_name || 'in_production');
+    }
+
+    // Send notifications for creation and start events
+    await NotificationService.notifyManufacturingUpdate(productionOrder, firstStage.stage_name || 'production', 'created', req.user.id);
+    await NotificationService.notifyManufacturingUpdate(productionOrder, firstStage.stage_name || 'production', 'started', req.user.id);
+
+    await transaction.commit();
+
+    // Fetch complete order with relations
+    const completeOrder = await ProductionOrder.findByPk(productionOrder.id, {
+      include: [
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name', 'product_code', 'specifications']
+        },
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
+          attributes: ['id', 'order_number', 'customer_id', 'delivery_date']
+        },
+        {
+          model: ProductionStage,
+          as: 'stages',
+          attributes: ['id', 'stage_name', 'stage_order', 'status', 'planned_duration_hours', 
+                      'is_printing', 'is_embroidery', 'customization_type', 'outsourced', 'vendor_id'],
+          include: STAGE_INCLUDE
+        },
+        {
+          model: MaterialRequirement,
+          as: 'materialRequirements',
+          attributes: ['id', 'material_id', 'description', 'required_quantity', 'unit', 'status']
+        },
+        {
+          model: QualityCheckpoint,
+          as: 'qualityCheckpoints',
+          attributes: ['id', 'name', 'frequency', 'acceptance_criteria', 'checkpoint_order', 'status']
+        }
+      ]
+    });
+
+    res.status(201).json({
+      message: 'Production order created and started successfully',
+      productionOrder: completeOrder,
+      // Legacy support for frontend
+      id: completeOrder.id,
+      production_number: completeOrder.production_number,
+      stages: completeOrder.stages
+    });
+
   } catch (error) {
-    console.error('Start production error:', error);
-    res.status(500).json({ message: 'Failed to start production' });
+    await transaction.rollback();
+    console.error('❌ Error creating production order:', error);
+    res.status(500).json({ 
+      message: 'Failed to create production order',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Stage endpoints
+router.get('/stages/:id', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [
+        {
+          model: ProductionOrder,
+          as: 'productionOrder',
+          include: [
+            {
+              model: SalesOrder,
+              as: 'salesOrder',
+              attributes: ['id', 'order_number', 'status']
+            }
+          ]
+        },
+        ...STAGE_INCLUDE
+      ]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    res.json({ stage });
+  } catch (error) {
+    console.error('Stage detail fetch error:', error);
+    res.status(500).json({ message: 'Failed to fetch stage detail' });
+  }
+});
+
+router.get('/stages/:id/challans', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const stage = await ProductionStage.findByPk(req.params.id);
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    // Find all stage operations for this stage
+    const stageOperations = await StageOperation.findAll({
+      where: { production_stage_id: req.params.id },
+      attributes: ['id', 'challan_id', 'return_challan_id']
+    });
+
+    // Collect all challan IDs (both outward and return)
+    const challanIds = new Set();
+    stageOperations.forEach(op => {
+      if (op.challan_id) challanIds.add(op.challan_id);
+      if (op.return_challan_id) challanIds.add(op.return_challan_id);
+    });
+
+    // If no challans found, return empty array
+    if (challanIds.size === 0) {
+      return res.json({ challans: [] });
+    }
+
+    // Fetch all challans
+    const challans = await Challan.findAll({
+      where: {
+        id: { [Op.in]: Array.from(challanIds) }
+      },
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'employee_id'],
+          required: false
+        },
+        {
+          model: Vendor,
+          as: 'vendor',
+          attributes: ['id', 'name', 'contact_person', 'phone', 'mobile', 'email'],
+          required: false
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({ challans });
+  } catch (error) {
+    console.error('[ERROR] Stage challans fetch error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to fetch stage challans',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Create Outward Challan for Outsourcing
+router.post('/stages/:id/outsource/outward', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { vendor_id, items, expected_return_date, notes, transport_details } = req.body;
+    
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    // Create outward challan
+    const challan = await Challan.create({
+      challan_number: `CHN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      type: 'outward',
+      sub_type: 'outsourcing',
+      department: 'manufacturing',
+      vendor_id,
+      items: JSON.stringify(items),
+      expected_return_date,
+      notes,
+      transport_details: JSON.stringify(transport_details || {}),
+      status: 'pending',
+      created_by: req.user.id
+    });
+
+    // Create stage operation linking the challan
+    await StageOperation.create({
+      production_stage_id: stage.id,
+      operation_name: `Outsourced to ${vendor_id}`,
+      operation_type: 'outsourcing',
+      status: 'in_progress',
+      challan_id: challan.id,
+      started_at: new Date()
+    });
+
+    // Update stage to mark as outsourced
+    await stage.update({
+      outsourced: true,
+      vendor_id,
+      status: 'in_progress'
+    });
+
+    res.json({ 
+      message: 'Outward challan created successfully', 
+      challan 
+    });
+  } catch (error) {
+    console.error('[ERROR] Outward challan creation error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to create outward challan',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Create Inward Challan for Outsourcing
+router.post('/stages/:id/outsource/inward', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { outward_challan_id, items, received_quantity, quality_notes, discrepancies } = req.body;
+    
+    const stage = await ProductionStage.findByPk(req.params.id);
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    // Get the outward challan
+    const outwardChallan = await Challan.findByPk(outward_challan_id);
+    if (!outwardChallan) {
+      return res.status(404).json({ message: 'Outward challan not found' });
+    }
+
+    // Create inward/return challan
+    const inwardChallan = await Challan.create({
+      challan_number: `CHN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      type: 'inward',
+      sub_type: 'outsourcing',
+      department: 'manufacturing',
+      vendor_id: outwardChallan.vendor_id,
+      items: JSON.stringify(items),
+      received_quantity,
+      quality_notes,
+      discrepancies,
+      status: 'completed',
+      created_by: req.user.id
+    });
+
+    // Update the outward challan status
+    await outwardChallan.update({ status: 'completed' });
+
+    // Update stage operation with return challan
+    const stageOp = await StageOperation.findOne({
+      where: {
+        production_stage_id: stage.id,
+        challan_id: outward_challan_id
+      }
+    });
+
+    if (stageOp) {
+      await stageOp.update({
+        return_challan_id: inwardChallan.id,
+        status: 'completed',
+        completed_at: new Date()
+      });
+    }
+
+    res.json({ 
+      message: 'Inward challan created successfully', 
+      challan: inwardChallan,
+      stage_updated: true
+    });
+  } catch (error) {
+    console.error('[ERROR] Inward challan creation error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to create inward challan',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+const deriveOrderStatusFromStage = (stageName, fallback) => {
+  if (!stageName) return fallback || 'in_production';
+  const normalized = stageName.toLowerCase();
+  const stageDrivenStatuses = new Set([
+    'cutting',
+    'embroidery',
+    'stitching',
+    'finishing',
+    'quality_check',
+    'printing',
+    'washing'
+  ]);
+  return stageDrivenStatuses.has(normalized) ? normalized : (fallback || 'in_production');
+};
+
+// Update stage details (general update endpoint)
+router.put('/stages/:id', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { status, actual_start_time, actual_end_time, notes } = req.body;
+    
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    // Build update object with only provided fields
+    const updateData = {};
+    if (status !== undefined) updateData.status = status;
+    if (actual_start_time !== undefined) updateData.actual_start_time = actual_start_time;
+    if (actual_end_time !== undefined) updateData.actual_end_time = actual_end_time;
+    if (notes !== undefined) updateData.notes = notes;
+
+    // Update the stage
+    await stage.update(updateData);
+
+    // Update QR code if we have a sales order and status changed
+    if (stage.productionOrder && stage.productionOrder.sales_order_id && status) {
+      const derivedStatus = deriveOrderStatusFromStage(stage.stage_name, status);
+      await updateOrderQRCode(stage.productionOrder.sales_order_id, derivedStatus);
+    }
+
+    res.json({ 
+      message: 'Stage updated successfully', 
+      stage 
+    });
+  } catch (error) {
+    console.error('[ERROR] Stage update error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to update stage',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+router.post('/stages/:id/start', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (!['pending', 'on_hold'].includes(stage.status)) {
+      return res.status(400).json({ message: `Cannot start stage from status '${stage.status}'` });
+    }
+
+    const prevIncomplete = await ProductionStage.count({
+      where: {
+        production_order_id: stage.production_order_id,
+        stage_order: { [Op.lt]: stage.stage_order },
+        status: { [Op.notIn]: ['completed', 'skipped'] }
+      }
+    });
+
+    if (prevIncomplete > 0) {
+      return res.status(400).json({ message: 'Previous stages must be completed or skipped before starting this stage' });
+    }
+
+    await stage.update({
+      status: 'in_progress',
+      actual_start_time: stage.actual_start_time || new Date(),
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order) {
+      const derivedStatus = deriveOrderStatusFromStage(stage.stage_name, order.status);
+      await order.update({
+        actual_start_date: order.actual_start_date || new Date(),
+        status: derivedStatus
+      });
+
+      if (order.sales_order_id) {
+        await updateOrderQRCode(order.sales_order_id, derivedStatus);
+
+        await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'started', req.user.id);
+      }
+    }
+
+    res.json({ message: 'Stage started', stage });
+  } catch (error) {
+    console.error('[ERROR] Stage start error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to start stage',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+router.post('/stages/:id/pause', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { delay_reason, notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (stage.status !== 'in_progress') {
+      return res.status(400).json({ message: `Cannot pause stage from status '${stage.status}'` });
+    }
+
+    await stage.update({
+      status: 'on_hold',
+      delay_reason: delay_reason || stage.delay_reason,
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order?.sales_order_id) {
+      await updateOrderQRCode(order.sales_order_id, 'production_paused');
+
+      await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'paused', req.user.id);
+    }
+
+    res.json({ message: 'Stage paused', stage });
+  } catch (error) {
+    console.error('Stage pause error:', error);
+    res.status(500).json({ message: 'Failed to pause stage' });
   }
 });
 
 // Stop production order
-router.post('/orders/:id/stop', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+router.post('/stages/:id/resume', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
   try {
-    const order = await ProductionOrder.findByPk(req.params.id, {
-      include: [{ model: ProductionStage, as: 'stages' }]
+    const { notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
     });
 
-    if (!order) {
-      return res.status(404).json({ message: 'Production order not found' });
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
     }
 
-    // Find the currently in-progress stage and pause it
-    const inProgressStage = order.stages.find(stage => stage.status === 'in_progress');
-
-    if (inProgressStage) {
-      await inProgressStage.update({
-        status: 'on_hold',
-        actual_end_time: new Date()
-      });
+    if (stage.status !== 'on_hold') {
+      return res.status(400).json({ message: `Cannot resume stage from status '${stage.status}'` });
     }
 
-    // Update order status
-    await order.update({ status: 'on_hold' });
+    await stage.update({
+      status: 'in_progress',
+      notes: notes || stage.notes
+    });
 
-    // Update QR code and send notification if sales order exists
-    if (order.sales_order_id) {
-      await updateOrderQRCode(order.sales_order_id, {
-        status: 'production_paused',
-        current_stage: 'on_hold',
-        production_progress: {
-          production_paused: true
-        }
-      });
+    const order = stage.productionOrder;
+    if (order) {
+      const derivedStatus = deriveOrderStatusFromStage(stage.stage_name, order.status);
+      await order.update({ status: derivedStatus });
 
-      // Send notification
-      const salesOrder = await SalesOrder.findByPk(order.sales_order_id);
-      await NotificationService.createNotification({
-        type: 'production_paused',
-        title: 'Production Paused',
-        message: `Production paused for order ${salesOrder.order_number}`,
-        recipients: ['manufacturing', 'admin'],
-        related_entity_type: 'production_order',
-        related_entity_id: order.id,
-        priority: 'medium',
-        user_id: req.user.id
-      });
+      if (order.sales_order_id) {
+        await updateOrderQRCode(order.sales_order_id, derivedStatus);
+
+        await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'resumed', req.user.id);
+      }
     }
 
-    res.json({ message: 'Production stopped successfully' });
+    res.json({ message: 'Stage resumed', stage });
   } catch (error) {
-    console.error('Stop production error:', error);
-    res.status(500).json({ message: 'Failed to stop production' });
+    console.error('Stage resume error:', error);
+    res.status(500).json({ message: 'Failed to resume stage' });
   }
 });
 
-// Pause production order
-router.post('/orders/:id/pause', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+router.post('/stages/:id/complete', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
   try {
-    const order = await ProductionOrder.findByPk(req.params.id, {
-      include: [{ model: ProductionStage, as: 'stages' }]
+    const {
+      quantity_processed = 0,
+      quantity_approved = 0,
+      quantity_rejected = 0,
+      notes
+    } = req.body;
+
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
     });
 
-    if (!order) {
-      return res.status(404).json({ message: 'Production order not found' });
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
     }
 
-    // Find the currently in-progress stage and pause it
-    const inProgressStage = order.stages.find(stage => stage.status === 'in_progress');
+    if (stage.status !== 'in_progress') {
+      return res.status(400).json({ message: `Cannot complete stage from status '${stage.status}'` });
+    }
 
-    if (inProgressStage) {
-      await inProgressStage.update({
-        status: 'paused'
+    const processed = Number(quantity_processed) || 0;
+    const approved = Number(quantity_approved) || 0;
+    const rejected = Number(quantity_rejected) || 0;
+
+    if (processed < 0 || approved < 0 || rejected < 0) {
+      return res.status(400).json({ message: 'Quantities cannot be negative' });
+    }
+
+    if (approved + rejected > processed) {
+      return res.status(400).json({ message: 'Approved + Rejected cannot exceed Processed quantity' });
+    }
+
+    const now = new Date();
+    const start = stage.actual_start_time ? new Date(stage.actual_start_time) : now;
+    const durationHours = (now - start) / (1000 * 60 * 60);
+
+    await stage.update({
+      status: 'completed',
+      actual_end_time: now,
+      actual_duration_hours: durationHours,
+      quantity_processed: processed,
+      quantity_approved: approved,
+      quantity_rejected: rejected,
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order) {
+      const allStages = await ProductionStage.findAll({
+        where: { production_order_id: order.id }
       });
+      const completedCount = allStages.filter((s) => s.status === 'completed').length;
+      const progress = Math.round((completedCount / Math.max(1, allStages.length)) * 100);
+      const aggregateApproved = allStages.reduce((sum, s) => sum + (s.quantity_approved || 0), 0);
+      const aggregateRejected = allStages.reduce((sum, s) => sum + (s.quantity_rejected || 0), 0);
+
+      await order.update({
+        progress_percentage: progress,
+        approved_quantity: aggregateApproved,
+        rejected_quantity: aggregateRejected,
+        produced_quantity: aggregateApproved + aggregateRejected,
+        status: progress === 100 ? 'completed' : order.status,
+        actual_end_date: progress === 100 ? now : order.actual_end_date
+      });
+
+      if (order.sales_order_id) {
+        await updateOrderQRCode(order.sales_order_id, order.status);
+
+        await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'completed', req.user.id);
+      }
     }
 
-    // Update order status
-    await order.update({ status: 'paused' });
-
-    res.json({ message: 'Production paused successfully', order });
+    res.json({ message: 'Stage completed', stage });
   } catch (error) {
-    console.error('Pause production error:', error);
-    res.status(500).json({ message: 'Failed to pause production' });
+    console.error('Stage complete error:', error);
+    res.status(500).json({ message: 'Failed to complete stage' });
+  }
+});
+
+router.post('/stages/:id/hold', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { delay_reason, notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (!['pending', 'in_progress'].includes(stage.status)) {
+      return res.status(400).json({ message: `Cannot put on hold from status '${stage.status}'` });
+    }
+
+    await stage.update({
+      status: 'on_hold',
+      delay_reason: delay_reason || stage.delay_reason,
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order?.sales_order_id) {
+      await updateOrderQRCode(order.sales_order_id, 'production_paused');
+
+      await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'paused', req.user.id);
+    }
+
+    res.json({ message: 'Stage put on hold', stage });
+  } catch (error) {
+    console.error('Stage hold error:', error);
+    res.status(500).json({ message: 'Failed to hold stage' });
+  }
+});
+
+router.post('/stages/:id/skip', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (!['pending', 'on_hold'].includes(stage.status)) {
+      return res.status(400).json({ message: `Cannot skip stage from status '${stage.status}'` });
+    }
+
+    await stage.update({
+      status: 'skipped',
+      actual_start_time: stage.actual_start_time || new Date(),
+      actual_end_time: new Date(),
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order?.sales_order_id) {
+      await updateOrderQRCode(order.sales_order_id, order.status);
+
+      await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'skipped', req.user.id);
+    }
+
+    res.json({ message: 'Stage skipped', stage });
+  } catch (error) {
+    console.error('Stage skip error:', error);
+    res.status(500).json({ message: 'Failed to skip stage' });
+  }
+});
+
+router.post('/stages/:id/rejections', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (stage.status !== 'completed') {
+      return res.status(400).json({ message: 'Rejections can only be logged after stage completion' });
+    }
+
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Items array is required' });
+    }
+
+    for (const item of items) {
+      if (!item || typeof item.reason !== 'string') {
+        return res.status(400).json({ message: 'Each item must include a reason (string)' });
+      }
+      const quantity = Number(item.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return res.status(400).json({ message: 'Each item must have a positive quantity' });
+      }
+    }
+
+    const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    if (totalQuantity > (stage.quantity_rejected || 0)) {
+      return res.status(400).json({ message: 'Sum of item quantities cannot exceed stage rejected quantity' });
+    }
+
+    const records = items.map((item) => ({
+      production_order_id: stage.production_order_id,
+      stage_name: stage.stage_name,
+      rejected_quantity: Number(item.quantity),
+      rejection_reason: item.reason,
+      detailed_reason: item.notes || null,
+      severity: 'minor',
+      action_taken: 'pending',
+      responsible_party: 'internal',
+      responsible_person: null,
+      vendor_id: stage.vendor_id || null,
+      reported_by: req.user.id
+    }));
+
+    const createdRejections = await Rejection.bulkCreate(records);
+
+    const previous = Array.isArray(stage.rejection_reasons) ? stage.rejection_reasons : [];
+    const summaryItems = items.map((item) => ({
+      reason: item.reason,
+      quantity: Number(item.quantity),
+      notes: item.notes || null
+    }));
+    await stage.update({ rejection_reasons: [...previous, ...summaryItems] });
+
+    const order = stage.productionOrder;
+    if (order?.sales_order_id) {
+      await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'rejected', req.user.id);
+    }
+
+    res.status(201).json({
+      message: 'Rejections logged',
+      count: createdRejections.length,
+      items: createdRejections.map((record) => ({
+        id: record.id,
+        reason: record.rejection_reason,
+        quantity: record.rejected_quantity
+      }))
+    });
+  } catch (error) {
+    console.error('Stage rejections error:', error);
+    res.status(500).json({ message: 'Failed to log rejections' });
+  }
+});
+
+router.post('/stages/:id/hold', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { delay_reason, notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (!['pending', 'in_progress'].includes(stage.status)) {
+      return res.status(400).json({ message: `Cannot put on hold from status '${stage.status}'` });
+    }
+
+    await stage.update({
+      status: 'on_hold',
+      delay_reason: delay_reason || stage.delay_reason,
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order?.sales_order_id) {
+      await updateOrderQRCode(order.sales_order_id, 'production_paused');
+
+      await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'paused', req.user.id);
+    }
+
+    res.json({ message: 'Stage put on hold', stage });
+  } catch (error) {
+    console.error('Stage hold error:', error);
+    res.status(500).json({ message: 'Failed to hold stage' });
+  }
+});
+
+router.post('/stages/:id/skip', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const stage = await ProductionStage.findByPk(req.params.id, {
+      include: [{ model: ProductionOrder, as: 'productionOrder' }]
+    });
+
+    if (!stage) {
+      return res.status(404).json({ message: 'Stage not found' });
+    }
+
+    if (!['pending', 'on_hold'].includes(stage.status)) {
+      return res.status(400).json({ message: `Cannot skip stage from status '${stage.status}'` });
+    }
+
+    await stage.update({
+      status: 'skipped',
+      actual_start_time: stage.actual_start_time || new Date(),
+      actual_end_time: new Date(),
+      notes: notes || stage.notes
+    });
+
+    const order = stage.productionOrder;
+    if (order?.sales_order_id) {
+      await updateOrderQRCode(order.sales_order_id, order.status);
+
+      await NotificationService.notifyManufacturingUpdate(order, stage.stage_name, 'skipped', req.user.id);
+    }
+
+    res.json({ message: 'Stage skipped', stage });
+  } catch (error) {
+    console.error('Stage skip error:', error);
+    res.status(500).json({ message: 'Failed to skip stage' });
+  }
+});
+
+// Get manufacturing dashboard statistics
+router.get('/dashboard/stats', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    console.log('=== MANUFACTURING DASHBOARD STATS START ===');
+    
+    // Total production orders
+    const totalOrders = await ProductionOrder.count();
+    console.log('Total orders:', totalOrders);
+    
+    // Active orders (in_progress, pending, on_hold)
+    const activeOrders = await ProductionOrder.count({
+      where: {
+        status: { [Op.in]: ['pending', 'in_progress', 'on_hold'] }
+      }
+    });
+    console.log('Active orders:', activeOrders);
+    
+    // Completed orders
+    const completedOrders = await ProductionOrder.count({
+      where: {
+        status: 'completed'
+      }
+    });
+    console.log('Completed orders:', completedOrders);
+    
+    // Delayed orders (planned_end_date is in the past and status is not completed)
+    const now = new Date();
+    const delayedOrders = await ProductionOrder.count({
+      where: {
+        planned_end_date: { [Op.lt]: now },
+        status: { [Op.notIn]: ['completed', 'cancelled'] }
+      }
+    });
+    console.log('Delayed orders:', delayedOrders);
+    
+    // Calculate efficiency (completed vs total)
+    const efficiency = totalOrders > 0 
+      ? Math.round((completedOrders / totalOrders) * 100) 
+      : 0;
+    console.log('Efficiency:', efficiency);
+    
+    console.log('=== MANUFACTURING DASHBOARD STATS END ===');
+    
+    res.json({
+      totalOrders,
+      activeOrders,
+      completedOrders,
+      delayedOrders,
+      efficiency
+    });
+  } catch (error) {
+    console.error('Manufacturing dashboard stats error:', error);
+    res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
   }
 });
 
@@ -385,32 +1299,55 @@ router.get('/orders', authenticateToken, checkDepartment(['manufacturing', 'admi
       }
     }
     if (priority) where.priority = priority;
+
     if (production_type) where.production_type = production_type;
 
     if (search) {
       where[Op.or] = [
-        { production_number: { [Op.like]: `%${search}%` } }
+        { production_number: { [Op.like]: `%${search}%` } },
+        { '$product.name$': { [Op.like]: `%${search}%` } },
+        { '$salesOrder.order_number$': { [Op.like]: `%${search}%` } },
+        { '$supervisor.name$': { [Op.like]: `%${search}%` } }
       ];
     }
 
-    const { count, rows } = await ProductionOrder.findAndCountAll({
+    const { rows: productionOrders, count } = await ProductionOrder.findAndCountAll({
       where,
       include: [
-        { model: Product, as: 'product', attributes: ['id', 'name', 'product_code'] },
-        { model: ProductionStage, as: 'stages', attributes: ['id', 'stage_name', 'status'] }
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name', 'product_code', 'specifications']
+        },
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
+          attributes: ['id', 'order_number', 'customer_id', 'status']
+        },
+        {
+          model: User,
+          as: 'supervisor',
+          attributes: ['id', 'name', 'employee_id']
+        },
+        {
+          model: User,
+          as: 'assignedUser',
+          attributes: ['id', 'name', 'employee_id']
+        }
       ],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset,
+      distinct: true
     });
 
     res.json({
-      productionOrders: rows,
+      productionOrders,
       pagination: {
         total: count,
         page: parseInt(page),
         limit: parseInt(limit),
-        pages: Math.ceil(count / limit)
+        totalPages: Math.ceil(count / limit)
       }
     });
   } catch (error) {
@@ -419,1586 +1356,657 @@ router.get('/orders', authenticateToken, checkDepartment(['manufacturing', 'admi
   }
 });
 
-// Create production order
-router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+// Update production order status
+router.patch('/orders/:id/status', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
   try {
-    const {
-      sales_order_id,
-      product_id,
-      quantity,
-      priority = 'medium',
-      production_type = 'in_house',
-      planned_start_date,
-      planned_end_date,
-      special_instructions,
-      assigned_user_id,
-      supervisor_id,
-      qa_lead_id,
-      shift,
-      team_notes,
-      estimated_hours,
-      materials_required = [],
-      quality_parameters = [],
-      stages = [],
-      use_custom_stages = false
-    } = req.body;
-
-    console.log('=== Production Order Creation Request ===');
-    console.log('product_id received:', product_id, 'Type:', typeof product_id);
-    console.log('quantity received:', quantity, 'Type:', typeof quantity);
-    console.log('materials_required:', materials_required.length, 'items');
-    console.log('quality_parameters:', quality_parameters.length, 'checkpoints');
-    console.log('use_custom_stages:', use_custom_stages, 'custom stages:', stages.length);
-
-    if (!product_id || !quantity || !planned_start_date || !planned_end_date) {
-      return res.status(400).json({ message: 'Product, quantity, and dates are required' });
-    }
-
-    // Validate product_id is numeric
-    const numericProductId = Number(product_id);
-    console.log('numericProductId after conversion:', numericProductId, 'isNaN:', isNaN(numericProductId), 'isInteger:', Number.isInteger(numericProductId));
-    if (isNaN(numericProductId) || numericProductId <= 0 || !Number.isInteger(numericProductId)) {
-      console.error('Invalid product_id received:', product_id, 'Type:', typeof product_id);
-      return res.status(400).json({ 
-        message: 'Invalid product ID. Product ID must be a valid positive integer.',
-        received: product_id,
-        type: typeof product_id
-      });
-    }
-
-    // Generate production number
-    const lastOrder = await ProductionOrder.findOne({
-      order: [['created_at', 'DESC']]
-    });
-    const nextNumber = lastOrder ? parseInt(lastOrder.production_number.split('-')[2]) + 1 : 1;
-    const productionNumber = `PROD-${new Date().getFullYear()}-${nextNumber.toString().padStart(3, '0')}`;
-
-    // Create production order with all wizard data
-    const order = await ProductionOrder.create({
-      production_number: productionNumber,
-      sales_order_id: sales_order_id || null,
-      product_id: numericProductId,
-      quantity,
-      priority,
-      production_type,
-      planned_start_date,
-      planned_end_date,
-      special_instructions,
-      assigned_user_id: assigned_user_id || null,
-      supervisor_id: supervisor_id || null,
-      qa_lead_id: qa_lead_id || null,
-      shift: shift || null,
-      team_notes: team_notes || null,
-      estimated_hours: estimated_hours || null,
-      created_by: req.user.id
-    });
-
-    console.log('Production order created with ID:', order.id);
-
-    // Create material requirements
-    if (materials_required && materials_required.length > 0) {
-      const materialRecords = materials_required.map(material => ({
-        production_order_id: order.id,
-        material_id: material.materialId || material.material_id,
-        description: material.description,
-        required_quantity: material.requiredQuantity || material.required_quantity,
-        unit: material.unit,
-        status: material.status || 'available',
-        notes: material.notes || null
-      }));
-      
-      await MaterialRequirement.bulkCreate(materialRecords);
-      console.log('Created', materialRecords.length, 'material requirements');
-    }
-
-    // Create quality checkpoints
-    if (quality_parameters && quality_parameters.length > 0) {
-      const checkpointRecords = quality_parameters.map((checkpoint, index) => ({
-        production_order_id: order.id,
-        name: checkpoint.name,
-        frequency: checkpoint.frequency || 'per_batch',
-        acceptance_criteria: checkpoint.acceptanceCriteria || checkpoint.acceptance_criteria,
-        checkpoint_order: index + 1,
-        status: 'pending'
-      }));
-      
-      await QualityCheckpoint.bulkCreate(checkpointRecords);
-      console.log('Created', checkpointRecords.length, 'quality checkpoints');
-    }
-
-    // Create production stages (custom or default)
-    let stagesToCreate = [];
-    
-    if (use_custom_stages && stages && stages.length > 0) {
-      // Use custom stages from wizard
-      stagesToCreate = stages.map((stage, index) => ({
-        production_order_id: order.id,
-        stage_name: stage.stageName || stage.stage_name,
-        stage_order: index + 1,
-        planned_duration_hours: stage.plannedDurationHours || stage.planned_duration_hours || null,
-        status: 'pending'
-      }));
-      console.log('Using', stages.length, 'custom stages from wizard');
-    } else {
-      // Use default stages
-      stagesToCreate = [
-        { stage_name: 'Calculate Material Review', stage_order: 1, planned_duration_hours: null },
-        { stage_name: 'Cutting', stage_order: 2, planned_duration_hours: null },
-        { stage_name: 'Embroidery or Printing', stage_order: 3, planned_duration_hours: null },
-        { stage_name: 'Stitching', stage_order: 4, planned_duration_hours: null },
-        { stage_name: 'Finishing', stage_order: 5, planned_duration_hours: null },
-        { stage_name: 'Quality Check', stage_order: 6, planned_duration_hours: null }
-      ].map(stage => ({
-        production_order_id: order.id,
-        ...stage,
-        status: 'pending'
-      }));
-      console.log('Using 6 default stages');
-    }
-
-    await ProductionStage.bulkCreate(stagesToCreate);
-    console.log('Created', stagesToCreate.length, 'production stages');
-
-    // Send notification to manufacturing team
-    try {
-      await NotificationService.notifyDepartment('manufacturing', {
-        title: 'New Production Order Created',
-        message: `Production order ${productionNumber} has been created and is ready for processing.`,
-        type: 'production_order_created',
-        related_id: order.id
-      });
-    } catch (notificationError) {
-      console.error('Failed to send notification:', notificationError);
-      // Don't fail the request if notification fails
-    }
-
-    res.status(201).json({
-      message: 'Production order created successfully',
-      order: {
-        id: order.id,
-        production_number: order.production_number,
-        materials_count: materials_required.length,
-        quality_checkpoints_count: quality_parameters.length,
-        stages_count: stagesToCreate.length
-      }
-    });
-  } catch (error) {
-    console.error('Production order creation error:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Request body:', JSON.stringify(req.body, null, 2));
-    res.status(500).json({ 
-      message: 'Failed to create production order',
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-});
-
-// Update production order
-router.put('/orders/:id', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const {
-      status,
-      priority,
-      planned_start_date,
-      planned_end_date,
-      special_instructions,
-      assigned_user_id
-    } = req.body;
+    const { status, reason } = req.body;
 
     const order = await ProductionOrder.findByPk(req.params.id);
-    if (!order) {
-      return res.status(404).json({ message: 'Production order not found' });
-    }
-
-    const updateData = {};
-    
-    if (status) updateData.status = status;
-    if (priority) updateData.priority = priority;
-    if (planned_start_date) updateData.planned_start_date = planned_start_date;
-    if (planned_end_date) updateData.planned_end_date = planned_end_date;
-    if (special_instructions !== undefined) updateData.special_instructions = special_instructions;
-    if (assigned_user_id) updateData.assigned_user_id = assigned_user_id;
-
-    await order.update(updateData);
-
-    // If status is updated, update the current stage status as well
-    if (status) {
-      const currentStage = await ProductionStage.findOne({
-        where: {
-          production_order_id: order.id,
-          status: 'in_progress'
-        }
-      });
-
-      if (currentStage && status !== 'in_progress') {
-        await currentStage.update({ status: 'pending' });
-      }
-
-      // If moving to a specific stage, update that stage to in_progress
-      if (['cutting', 'embroidery', 'stitching', 'finishing', 'quality_check', 'packaging'].includes(status)) {
-        const targetStage = await ProductionStage.findOne({
-          where: {
-            production_order_id: order.id,
-            stage_name: status
-          }
-        });
-
-        if (targetStage) {
-          await targetStage.update({ 
-            status: 'in_progress',
-            actual_start_time: new Date()
-          });
-        }
-      }
-    }
-
-    res.json({ message: 'Production order updated successfully', order });
-  } catch (error) {
-    console.error('Production order update error:', error);
-    res.status(500).json({ message: 'Failed to update production order' });
-  }
-});
-
-// Delete production order
-router.delete('/orders/:id', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const order = await ProductionOrder.findByPk(req.params.id, {
-      include: [{ model: ProductionStage, as: 'stages' }]
-    });
 
     if (!order) {
       return res.status(404).json({ message: 'Production order not found' });
     }
 
-    // Check if order can be deleted (only if not in progress)
-    if (order.status === 'in_progress') {
-      return res.status(400).json({ 
-        message: 'Cannot delete production order that is currently in progress. Please stop the order first.' 
-      });
+    await order.update({ status });
+
+    if (status === 'on_hold' && reason) {
+      order.status_notes = reason;
+      await order.save();
     }
 
-    // Delete associated stages first
-    await ProductionStage.destroy({
-      where: { production_order_id: order.id }
-    });
-
-    // Delete associated rejections
-    await Rejection.destroy({
-      where: { production_order_id: order.id }
-    });
-
-    // Delete the production order
-    await order.destroy();
-
-    res.json({ message: 'Production order deleted successfully' });
+    res.json({ message: 'Order status updated successfully', order });
   } catch (error) {
-    console.error('Production order delete error:', error);
-    res.status(500).json({ message: 'Failed to delete production order' });
+    console.error('Update order status error:', error);
+    res.status(500).json({ message: 'Failed to update order status' });
   }
 });
 
-// Update production stage by order ID and stage name
-router.put('/orders/:id/stages', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+// Update production stage status
+router.patch('/orders/:orderId/stages/:stageId/status', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
   try {
-    const { stage, status, notes, quantity_processed, quantity_approved, quantity_rejected, delay_reason } = req.body;
+    const { status, reason } = req.body;
+    const { orderId, stageId } = req.params;
 
-    if (!stage) {
-      return res.status(400).json({ message: 'Stage name is required' });
-    }
-
-    // Find the production order
-    const order = await ProductionOrder.findByPk(req.params.id);
-    if (!order) {
-      return res.status(404).json({ message: 'Production order not found' });
-    }
-
-    // Find the specific stage by name within this order
-    const productionStage = await ProductionStage.findOne({
+    const stage = await ProductionStage.findOne({
       where: {
-        production_order_id: req.params.id,
-        stage_name: stage
-      }
-    });
-
-    if (!productionStage) {
-      return res.status(404).json({ message: `Stage '${stage}' not found for this production order` });
-    }
-
-    const updateData = {};
-    
-    if (status) {
-      updateData.status = status;
-      
-      // Set start time when moving to in_progress
-      if (status === 'in_progress' && !productionStage.actual_start_time) {
-        updateData.actual_start_time = new Date();
-      }
-      
-      // Set end time when completing
-      if (status === 'completed' && !productionStage.actual_end_time) {
-        updateData.actual_end_time = new Date();
-        
-        // Calculate duration
-        if (productionStage.actual_start_time) {
-          const start = new Date(productionStage.actual_start_time);
-          const end = new Date();
-          updateData.actual_duration_hours = (end - start) / (1000 * 60 * 60);
-        }
-      }
-    }
-    
-    if (notes) updateData.notes = notes;
-    if (quantity_processed !== undefined) updateData.quantity_processed = quantity_processed;
-    if (quantity_approved !== undefined) updateData.quantity_approved = quantity_approved;
-    if (quantity_rejected !== undefined) updateData.quantity_rejected = quantity_rejected;
-    if (delay_reason) updateData.delay_reason = delay_reason;
-
-    await productionStage.update(updateData);
-
-    // Update production order status if needed
-    if (status === 'in_progress' && ['cutting', 'embroidery', 'stitching', 'finishing', 'quality_check', 'packaging'].includes(stage)) {
-      await order.update({ status: stage });
-    }
-
-    res.json({ 
-      message: 'Production stage updated successfully',
-      stage: productionStage 
-    });
-  } catch (error) {
-    console.error('Production stage update error:', error);
-    res.status(500).json({ message: 'Failed to update production stage' });
-  }
-});
-
-// Update production stage by stage ID
-router.put('/stages/:id', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const {
-      status,
-      actual_start_time,
-      actual_end_time,
-      quantity_processed,
-      quantity_approved,
-      quantity_rejected,
-      notes,
-      delay_reason
-    } = req.body;
-
-    const stage = await ProductionStage.findByPk(req.params.id);
-    if (!stage) {
-      return res.status(404).json({ message: 'Production stage not found' });
-    }
-
-    const updateData = {};
-    
-    if (status) updateData.status = status;
-    if (actual_start_time) updateData.actual_start_time = actual_start_time;
-    if (actual_end_time) updateData.actual_end_time = actual_end_time;
-    if (quantity_processed !== undefined) updateData.quantity_processed = quantity_processed;
-    if (quantity_approved !== undefined) updateData.quantity_approved = quantity_approved;
-    if (quantity_rejected !== undefined) updateData.quantity_rejected = quantity_rejected;
-    if (notes) updateData.notes = notes;
-    if (delay_reason) updateData.delay_reason = delay_reason;
-
-    // Calculate duration if both start and end times are provided
-    if (actual_start_time && actual_end_time) {
-      const start = new Date(actual_start_time);
-      const end = new Date(actual_end_time);
-      updateData.actual_duration_hours = (end - start) / (1000 * 60 * 60);
-    }
-
-    await stage.update(updateData);
-
-    res.json({ message: 'Production stage updated successfully' });
-  } catch (error) {
-    console.error('Production stage update error:', error);
-    res.status(500).json({ message: 'Failed to update production stage' });
-  }
-});
-
-// Create rejection record
-router.post('/rejections', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const {
-      production_order_id,
-      stage_name,
-      rejected_quantity,
-      rejection_reason,
-      detailed_reason,
-      severity,
-      action_taken,
-      responsible_party,
-      responsible_person,
-      vendor_id
-    } = req.body;
-
-    if (!production_order_id || !stage_name || !rejected_quantity || !rejection_reason || !severity || !action_taken || !responsible_party) {
-      return res.status(400).json({ message: 'All required fields must be provided' });
-    }
-
-    const rejection = await Rejection.create({
-      production_order_id,
-      stage_name,
-      rejected_quantity,
-      rejection_reason,
-      detailed_reason,
-      severity,
-      action_taken,
-      responsible_party,
-      responsible_person,
-      vendor_id,
-      reported_by: req.user.id
-    });
-
-    res.status(201).json({
-      message: 'Rejection record created successfully',
-      rejection: {
-        id: rejection.id,
-        production_order_id: rejection.production_order_id,
-        stage_name: rejection.stage_name,
-        rejected_quantity: rejection.rejected_quantity
-      }
-    });
-  } catch (error) {
-    console.error('Rejection creation error:', error);
-    res.status(500).json({ message: 'Failed to create rejection record' });
-  }
-});
-
-// Get manufacturing dashboard stats
-router.get('/dashboard/stats', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const totalOrders = await ProductionOrder.count();
-    const activeOrders = await ProductionOrder.count({
-      where: {
-        status: { [require('sequelize').Op.in]: ['cutting', 'embroidery', 'stitching', 'finishing'] }
-      }
-    });
-
-    const completedOrders = await ProductionOrder.count({
-      where: { status: 'completed' }
-    });
-
-    const delayedOrders = await ProductionOrder.count({
-      where: {
-        planned_end_date: { [require('sequelize').Op.lt]: new Date() },
-        status: { [require('sequelize').Op.notIn]: ['completed', 'cancelled'] }
-      }
-    });
-
-    const rejectionStats = await Rejection.findAll({
-      attributes: [
-        'rejection_reason',
-        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
-        [require('sequelize').fn('SUM', require('sequelize').col('rejected_quantity')), 'total_quantity']
-      ],
-      group: ['rejection_reason']
-    });
-
-    res.json({
-      totalOrders,
-      activeOrders,
-      completedOrders,
-      delayedOrders,
-      rejectionStats: rejectionStats.map(stat => ({
-        reason: stat.rejection_reason,
-        count: parseInt(stat.dataValues.count),
-        total_quantity: parseInt(stat.dataValues.total_quantity || 0)
-      }))
-    });
-  } catch (error) {
-    console.error('Manufacturing stats error:', error);
-    res.status(500).json({ message: 'Failed to fetch manufacturing statistics' });
-  }
-});
-
-// Stage action endpoints
-router.post('/stages/:id/start',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const { notes } = req.body;
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (!['pending', 'on_hold'].includes(stage.status)) {
-        return res.status(400).json({ message: `Cannot start stage from status '${stage.status}'` });
-      }
-
-      // Enforce previous stages completion
-      const prevIncomplete = await ProductionStage.count({
-        where: {
-          production_order_id: stage.production_order_id,
-          stage_order: { [require('sequelize').Op.lt]: stage.stage_order },
-          status: { [require('sequelize').Op.notIn]: ['completed', 'skipped'] }
-        }
-      });
-      if (prevIncomplete > 0) {
-        return res.status(400).json({ message: 'Previous stages must be completed or skipped before starting this stage' });
-      }
-
-      await stage.update({
-        status: 'in_progress',
-        actual_start_time: stage.actual_start_time || new Date(),
-        notes: notes || stage.notes
-      });
-
-      // Ensure production order has start date
-      const order = await ProductionOrder.findByPk(stage.production_order_id);
-      if (order && !order.actual_start_date) {
-        await order.update({ actual_start_date: new Date(), status: order.status === 'pending' ? 'material_allocated' : order.status });
-      }
-
-      res.json({ message: 'Stage started', stage });
-    } catch (error) {
-      console.error('Stage start error:', error);
-      res.status(500).json({ message: 'Failed to start stage' });
-    }
-  }
-);
-
-router.post('/stages/:id/pause',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const { delay_reason, notes } = req.body;
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (stage.status !== 'in_progress') {
-        return res.status(400).json({ message: `Cannot pause stage from status '${stage.status}'` });
-      }
-
-      await stage.update({ status: 'on_hold', delay_reason: delay_reason || stage.delay_reason, notes: notes || stage.notes });
-      res.json({ message: 'Stage paused', stage });
-    } catch (error) {
-      console.error('Stage pause error:', error);
-      res.status(500).json({ message: 'Failed to pause stage' });
-    }
-  }
-);
-
-router.post('/stages/:id/resume',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const { notes } = req.body;
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (stage.status !== 'on_hold') {
-        return res.status(400).json({ message: `Cannot resume stage from status '${stage.status}'` });
-      }
-
-      await stage.update({ status: 'in_progress', notes: notes || stage.notes });
-      res.json({ message: 'Stage resumed', stage });
-    } catch (error) {
-      console.error('Stage resume error:', error);
-      res.status(500).json({ message: 'Failed to resume stage' });
-    }
-  }
-);
-
-router.post('/stages/:id/complete',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const { quantity_processed = 0, quantity_approved = 0, quantity_rejected = 0, notes } = req.body;
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (stage.status !== 'in_progress') {
-        return res.status(400).json({ message: `Cannot complete stage from status '${stage.status}'` });
-      }
-
-      // Validate quantities
-      const qp = Number(quantity_processed) || 0;
-      const qa = Number(quantity_approved) || 0;
-      const qr = Number(quantity_rejected) || 0;
-      if (qp < 0 || qa < 0 || qr < 0) {
-        return res.status(400).json({ message: 'Quantities cannot be negative' });
-      }
-      if (qa + qr > qp) {
-        return res.status(400).json({ message: 'Approved + Rejected cannot exceed Processed quantity' });
-      }
-
-      const now = new Date();
-      const start = stage.actual_start_time ? new Date(stage.actual_start_time) : now;
-      const duration = (now - start) / (1000 * 60 * 60);
-
-      await stage.update({
-        status: 'completed',
-        actual_end_time: now,
-        actual_duration_hours: duration,
-        quantity_processed: qp,
-        quantity_approved: qa,
-        quantity_rejected: qr,
-        notes: notes || stage.notes
-      });
-
-      // Roll up to production order: accumulate approved/rejected/produced and progress
-      const order = await ProductionOrder.findByPk(stage.production_order_id);
-      if (order) {
-        const stages = await ProductionStage.findAll({ where: { production_order_id: order.id } });
-        const completed = stages.filter(s => s.status === 'completed').length;
-        const progress = Math.round((completed / Math.max(1, stages.length)) * 100);
-        const producedApproved = stages.reduce((sum, s) => sum + (s.quantity_approved || 0), 0);
-        const producedRejected = stages.reduce((sum, s) => sum + (s.quantity_rejected || 0), 0);
-        await order.update({
-          progress_percentage: progress,
-          approved_quantity: producedApproved,
-          rejected_quantity: producedRejected,
-          produced_quantity: producedApproved + producedRejected,
-          status: progress === 100 ? 'completed' : order.status,
-          actual_end_date: progress === 100 ? now : order.actual_end_date
-        });
-      }
-
-      res.json({ message: 'Stage completed', stage });
-    } catch (error) {
-      console.error('Stage complete error:', error);
-      res.status(500).json({ message: 'Failed to complete stage' });
-    }
-  }
-);
-
-// Create rejection line-items for a completed stage
-router.post('/stages/:id/rejections',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (stage.status !== 'completed') {
-        return res.status(400).json({ message: 'Rejections can only be logged after stage completion' });
-      }
-
-      const { items } = req.body;
-      if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ message: 'Items array is required' });
-      }
-
-      // Validate items
-      for (const it of items) {
-        if (!it || typeof it.reason !== 'string') {
-          return res.status(400).json({ message: 'Each item must include a reason (string)' });
-        }
-        const qty = Number(it.quantity);
-        if (!Number.isFinite(qty) || qty <= 0) {
-          return res.status(400).json({ message: 'Each item must have a positive quantity' });
-        }
-      }
-
-      const totalQty = items.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
-      if (totalQty > (stage.quantity_rejected || 0)) {
-        return res.status(400).json({ message: 'Sum of item quantities cannot exceed stage rejected quantity' });
-      }
-
-      // Create rejection records with sensible defaults
-      const records = items.map(it => ({
-        production_order_id: stage.production_order_id,
-        stage_name: stage.stage_name,
-        rejected_quantity: Number(it.quantity),
-        rejection_reason: it.reason, // validated by ENUM at DB level
-        detailed_reason: it.notes || null,
-        severity: 'minor',
-        action_taken: 'pending',
-        responsible_party: 'internal',
-        responsible_person: null,
-        vendor_id: stage.vendor_id || null,
-        reported_by: req.user.id
-      }));
-
-      const created = await Rejection.bulkCreate(records);
-
-      // Append to stage.rejection_reasons summary
-      const prev = Array.isArray(stage.rejection_reasons) ? stage.rejection_reasons : [];
-      const summaryItems = items.map(it => ({ reason: it.reason, quantity: Number(it.quantity), notes: it.notes || null }));
-      await stage.update({ rejection_reasons: [...prev, ...summaryItems] });
-
-      // Send notification for rejections
-      const productionOrder = await ProductionOrder.findByPk(stage.production_order_id, {
-        include: [{ model: SalesOrder, as: 'salesOrder' }]
-      });
-
-      if (productionOrder && productionOrder.salesOrder) {
-        await NotificationService.createNotification({
-          type: 'quality_rejection',
-          title: 'Quality Rejections Logged',
-          message: `${totalQty} items rejected in ${stage.stage_name} stage for order ${productionOrder.salesOrder.order_number}`,
-          recipients: ['manufacturing', 'admin', 'quality'],
-          related_entity_type: 'production_stage',
-          related_entity_id: stage.id,
-          priority: totalQty > 10 ? 'high' : 'medium',
-          user_id: req.user.id
-        });
-      }
-
-      return res.status(201).json({
-        message: 'Rejections logged',
-        count: created.length,
-        items: created.map(r => ({ id: r.id, reason: r.rejection_reason, quantity: r.rejected_quantity }))
-      });
-    } catch (error) {
-      console.error('Stage rejections error:', error);
-      return res.status(500).json({ message: 'Failed to log rejections' });
-    }
-  }
-);
-
-router.post('/stages/:id/hold',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const { delay_reason, notes } = req.body;
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (!['pending', 'in_progress'].includes(stage.status)) {
-        return res.status(400).json({ message: `Cannot put on hold from status '${stage.status}'` });
-      }
-
-      await stage.update({ status: 'on_hold', delay_reason: delay_reason || stage.delay_reason, notes: notes || stage.notes });
-
-      // Send notification for stage hold
-      const productionOrder = await ProductionOrder.findByPk(stage.production_order_id, {
-        include: [{ model: SalesOrder, as: 'salesOrder' }]
-      });
-
-      if (productionOrder && productionOrder.salesOrder) {
-        await NotificationService.createNotification({
-          type: 'production_delay',
-          title: 'Production Stage Delayed',
-          message: `${stage.stage_name} stage put on hold for order ${productionOrder.salesOrder.order_number}${delay_reason ? ': ' + delay_reason : ''}`,
-          recipients: ['manufacturing', 'admin'],
-          related_entity_type: 'production_stage',
-          related_entity_id: stage.id,
-          priority: 'medium',
-          user_id: req.user.id
-        });
-      }
-
-      res.json({ message: 'Stage put on hold', stage });
-    } catch (error) {
-      console.error('Stage hold error:', error);
-      res.status(500).json({ message: 'Failed to hold stage' });
-    }
-  }
-);
-
-router.post('/stages/:id/skip',
-  authenticateToken,
-  checkDepartment(['manufacturing', 'admin']),
-  async (req, res) => {
-    try {
-      const { notes } = req.body;
-      const stage = await ProductionStage.findByPk(req.params.id);
-      if (!stage) return res.status(404).json({ message: 'Stage not found' });
-
-      if (!['pending', 'on_hold'].includes(stage.status)) {
-        return res.status(400).json({ message: `Cannot skip stage from status '${stage.status}'` });
-      }
-
-      await stage.update({ status: 'skipped', actual_start_time: stage.actual_start_time || new Date(), actual_end_time: new Date(), notes: notes || stage.notes });
-
-      // Send notification for stage skip
-      const productionOrder = await ProductionOrder.findByPk(stage.production_order_id, {
-        include: [{ model: SalesOrder, as: 'salesOrder' }]
-      });
-
-      if (productionOrder && productionOrder.salesOrder) {
-        await NotificationService.createNotification({
-          type: 'production_stage_skipped',
-          title: 'Production Stage Skipped',
-          message: `${stage.stage_name} stage skipped for order ${productionOrder.salesOrder.order_number}`,
-          recipients: ['manufacturing', 'admin'],
-          related_entity_type: 'production_stage',
-          related_entity_id: stage.id,
-          priority: 'low',
-          user_id: req.user.id
-        });
-      }
-
-      res.json({ message: 'Stage skipped', stage });
-    } catch (error) {
-      console.error('Stage skip error:', error);
-      res.status(500).json({ message: 'Failed to skip stage' });
-    }
-  }
-);
-
-// Manufacturing reports
-router.get('/reports', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const { type = 'summary', dateRange = 'thisMonth' } = req.query;
-
-    // Calculate date range
-    const now = new Date();
-    let dateFrom, dateTo;
-
-    switch (dateRange) {
-      case 'today':
-        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-        break;
-      case 'thisWeek':
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        dateFrom = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate());
-        dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-        break;
-      case 'thisMonth':
-        dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-        dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        break;
-      case 'lastMonth':
-        dateFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        dateTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-        break;
-      default:
-        dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-        dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    }
-
-    const whereClause = {
-      created_at: {
-        [require('sequelize').Op.between]: [dateFrom, dateTo]
-      }
-    };
-
-    let metrics = {};
-    let charts = {};
-
-    // Calculate metrics based on type
-    switch (type) {
-      case 'summary':
-      case 'production':
-        const totalProduction = await ProductionOrder.sum('produced_quantity', { where: whereClause }) || 0;
-        const completedOrders = await ProductionOrder.count({
-          where: { ...whereClause, status: 'completed' }
-        });
-        const totalOrders = await ProductionOrder.count({ where: whereClause }) || 1;
-
-        // Calculate efficiency (simplified - actual implementation would be more complex)
-        const productionEfficiency = Math.round((completedOrders / totalOrders) * 100);
-
-        // Quality rate based on rejections
-        const totalRejected = await Rejection.sum('rejected_quantity', {
-          where: {
-            created_at: {
-              [require('sequelize').Op.between]: [dateFrom, dateTo]
-            }
-          }
-        }) || 0;
-
-        const totalProduced = totalProduction + totalRejected;
-        const qualityRate = totalProduced > 0 ? Math.round(((totalProduced - totalRejected) / totalProduced) * 100) : 100;
-
-        // On-time delivery (simplified)
-        const onTimeOrders = await ProductionOrder.count({
-          where: {
-            ...whereClause,
-            status: 'completed',
-            actual_end_date: {
-              [require('sequelize').Op.lte]: require('sequelize').col('planned_end_date')
-            }
-          }
-        });
-        const onTimeDelivery = completedOrders > 0 ? Math.round((onTimeOrders / completedOrders) * 100) : 100;
-
-        metrics = {
-          totalProduction,
-          productionEfficiency,
-          qualityRate,
-          onTimeDelivery
-        };
-
-        // Generate production trend chart data
-        const productionTrend = [];
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-          const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
-
-          const dayProduction = await ProductionOrder.sum('produced_quantity', {
-            where: {
-              created_at: {
-                [require('sequelize').Op.between]: [dayStart, dayEnd]
-              }
-            }
-          }) || 0;
-
-          productionTrend.push({
-            date: dayStart.toISOString().split('T')[0],
-            production: dayProduction
-          });
-        }
-
-        charts = {
-          productionTrend,
-          qualityAnalysis: [
-            { name: 'Passed', value: qualityRate, color: '#4caf50' },
-            { name: 'Failed', value: 100 - qualityRate, color: '#f44336' }
-          ],
-          efficiencyVsTarget: [
-            { month: new Date().toLocaleString('default', { month: 'short' }), efficiency: productionEfficiency, target: 90 }
-          ]
-        };
-        break;
-
-      default:
-        metrics = {
-          totalProduction: 0,
-          productionEfficiency: 0,
-          qualityRate: 0,
-          onTimeDelivery: 0
-        };
-        charts = {
-          productionTrend: [],
-          qualityAnalysis: [],
-          efficiencyVsTarget: []
-        };
-    }
-
-    res.json({ metrics, charts });
-  } catch (error) {
-    console.error('Manufacturing reports error:', error);
-    res.status(500).json({ message: 'Failed to generate manufacturing reports' });
-  }
-});
-
-// Start production from sales order
-router.post('/start-production/:salesOrderId', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const { SalesOrder, BillOfMaterials, Inventory } = require('../config/database');
-
-    const salesOrder = await SalesOrder.findByPk(req.params.salesOrderId, {
-      include: [{ model: require('../models/Customer'), as: 'customer' }]
-    });
-
-    if (!salesOrder) {
-      return res.status(404).json({ message: 'Sales order not found' });
-    }
-
-    if (salesOrder.status !== 'materials_received') {
-      return res.status(400).json({ message: 'Materials must be received before starting production' });
-    }
-
-    // Check material availability
-    const bom = await BillOfMaterials.findOne({ where: { sales_order_id: req.params.salesOrderId } });
-    if (!bom) {
-      return res.status(400).json({ message: 'BOM not found for this sales order' });
-    }
-
-    // Check if all materials are available
-    let materialsAvailable = true;
-    for (const material of bom.materials) {
-      const inventory = await Inventory.findOne({ where: { material_id: material.material_id } });
-      if (!inventory || inventory.quantity < material.required_quantity * salesOrder.total_quantity) {
-        materialsAvailable = false;
-        break;
-      }
-    }
-
-    if (!materialsAvailable) {
-      return res.status(400).json({ message: 'Insufficient materials available' });
-    }
-
-    // Create production order
-    const productionNumber = `PROD-${Date.now()}`;
-    const productionOrder = await ProductionOrder.create({
-      production_number: productionNumber,
-      sales_order_id: req.params.salesOrderId,
-      product_id: salesOrder.items[0]?.product_id || 1, // Assuming first item
-      quantity: salesOrder.total_quantity,
-      status: 'material_allocated',
-      planned_start_date: new Date(),
-      planned_end_date: salesOrder.delivery_date,
-      created_by: req.user.id
-    });
-
-    // Create production stages
-    const stages = [
-      { stage_name: 'cutting', stage_order: 1 },
-      { stage_name: 'printing', stage_order: 2 },
-      { stage_name: 'stitching', stage_order: 3 },
-      { stage_name: 'finishing', stage_order: 4 },
-      { stage_name: 'quality_control', stage_order: 5 }
-    ];
-
-    for (const stageData of stages) {
-      await ProductionStage.create({
-        production_order_id: productionOrder.id,
-        ...stageData,
-        status: 'pending',
-        planned_duration_hours: 8
-      });
-    }
-
-    // Update sales order status
-    await salesOrder.update({
-      status: 'in_production',
-      production_started_at: new Date(),
-      lifecycle_history: [
-        ...(salesOrder.lifecycle_history || []),
-        {
-          event: 'production_started',
-          timestamp: new Date(),
-          user: req.user.id,
-          details: `Production started with order ${productionNumber}`
-        }
-      ]
-    });
-
-    // Update QR code (placeholder - implement QR update logic)
-    await updateOrderQRCode(salesOrder.id, 'in_production');
-
-    res.json({
-      message: 'Production started successfully',
-      productionOrder,
-      salesOrder
-    });
-  } catch (error) {
-    console.error('Start production error:', error);
-    res.status(500).json({ message: 'Failed to start production' });
-  }
-});
-
-// Update production stage with QR code update
-router.put('/update-stage/:stageId', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const {
-      status,
-      quantity_processed,
-      quantity_approved,
-      quantity_rejected,
-      notes,
-      materials_used
-    } = req.body;
-
-    const stage = await ProductionStage.findByPk(req.params.stageId, {
-      include: [{ model: ProductionOrder, as: 'productionOrder', include: [{ model: SalesOrder, as: 'salesOrder' }] }]
-    });
-
-    if (!stage) {
-      return res.status(404).json({ message: 'Production stage not found' });
-    }
-
-    await stage.update({
-      status,
-      quantity_processed: quantity_processed || stage.quantity_processed,
-      quantity_approved: quantity_approved || stage.quantity_approved,
-      quantity_rejected: quantity_rejected || stage.quantity_rejected,
-      notes: notes || stage.notes,
-      actual_end_time: status === 'completed' ? new Date() : stage.actual_end_time,
-      materials_used: materials_used || stage.materials_used
-    });
-
-    // Update production order quantities
-    const productionOrder = stage.productionOrder;
-    if (stage.stage_name === 'quality_check' && status === 'completed') {
-      await productionOrder.update({
-        produced_quantity: quantity_approved,
-        approved_quantity: quantity_approved,
-        rejected_quantity: quantity_rejected,
-        status: 'completed',
-        actual_end_date: new Date()
-      });
-
-      // Update sales order status
-      const salesOrder = productionOrder.salesOrder;
-      const newStatus = quantity_rejected > 0 ? 'qc_passed' : 'ready_to_ship';
-      await salesOrder.update({
-        status: newStatus,
-        lifecycle_history: [
-          ...(salesOrder.lifecycle_history || []),
-          {
-            event: 'production_completed',
-            timestamp: new Date(),
-            user: req.user.id,
-            details: `Production completed with ${quantity_approved} approved, ${quantity_rejected} rejected`
-          }
-        ]
-      });
-
-      // Update QR code
-      await updateOrderQRCode(salesOrder.id, {
-        status: newStatus,
-        current_stage: 'production_completed',
-        production_progress: {
-          total_quantity: productionOrder.quantity,
-          approved_quantity: quantity_approved,
-          rejected_quantity: quantity_rejected
-        }
-      });
-
-      // Send notifications
-      await NotificationService.createNotification({
-        type: 'production_completed',
-        title: 'Production Completed',
-        message: `Production completed for order ${salesOrder.order_number} with ${quantity_approved} approved and ${quantity_rejected} rejected items`,
-        recipients: ['sales', 'finance', 'shipment'],
-        related_entity_type: 'sales_order',
-        related_entity_id: salesOrder.id,
-        priority: 'high',
-        user_id: req.user.id
-      });
-
-      if (quantity_rejected > 0) {
-        await NotificationService.createNotification({
-          type: 'quality_issue',
-          title: 'Quality Issues Detected',
-          message: `Quality control found ${quantity_rejected} rejected items in order ${salesOrder.order_number}`,
-          recipients: ['manufacturing', 'admin'],
-          related_entity_type: 'production_order',
-          related_entity_id: productionOrder.id,
-          priority: 'medium',
-          user_id: req.user.id
-        });
-      }
-    } else if (status === 'completed') {
-      // Update sales order status based on current stage
-      const statusMap = {
-        cutting: 'cutting_completed',
-        embroidery: 'embroidery_completed',
-        stitching: 'stitching_completed',
-        finishing: 'finishing_completed',
-        packaging: 'packaging_completed'
-      };
-
-      if (statusMap[stage.stage_name]) {
-        const salesOrder = productionOrder.salesOrder;
-        await salesOrder.update({
-          status: statusMap[stage.stage_name],
-          lifecycle_history: [
-            ...(salesOrder.lifecycle_history || []),
-            {
-              event: `${stage.stage_name}_completed`,
-              timestamp: new Date(),
-              user: req.user.id,
-              details: `${stage.stage_name} completed with ${quantity_processed || 0} pieces processed`
-            }
-          ]
-        });
-
-        // Update QR code
-        await updateOrderQRCode(salesOrder.id, {
-          status: statusMap[stage.stage_name],
-          current_stage: stage.stage_name,
-          production_progress: {
-            stage_completed: stage.stage_name,
-            quantity_processed: quantity_processed || 0
-          }
-        });
-
-        // Send notification for stage completion
-        await NotificationService.createNotification({
-          type: 'production_stage_completed',
-          title: `${stage.stage_name.charAt(0).toUpperCase() + stage.stage_name.slice(1)} Stage Completed`,
-          message: `${stage.stage_name} stage completed for order ${salesOrder.order_number}`,
-          recipients: ['manufacturing', 'admin'],
-          related_entity_type: 'production_stage',
-          related_entity_id: stage.id,
-          priority: 'medium',
-          user_id: req.user.id
-        });
-      }
-    }
-
-    res.json({ message: 'Stage updated successfully', stage });
-  } catch (error) {
-    console.error('Update stage error:', error);
-    res.status(500).json({ message: 'Failed to update stage' });
-  }
-});
-
-// ==================== MATERIAL ALLOCATION ENDPOINTS ====================
-
-/**
- * POST /api/manufacturing/orders/:id/allocate-materials
- * Allocate materials from inventory to a production order
- */
-router.post('/orders/:id/allocate-materials', authenticateToken, checkDepartment(['manufacturing', 'inventory', 'admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { materials } = req.body; // Array of { inventory_id, barcode, quantity }
-
-    if (!materials || !Array.isArray(materials) || materials.length === 0) {
-      return res.status(400).json({ message: 'Materials array is required' });
-    }
-
-    // Check if production order exists
-    const productionOrder = await ProductionOrder.findByPk(id);
-    if (!productionOrder) {
-      return res.status(404).json({ message: 'Production order not found' });
-    }
-
-    const allocations = [];
-    const errors = [];
-
-    // Process each material allocation
-    for (const material of materials) {
-      const { inventory_id, barcode, quantity } = material;
-
-      if (!inventory_id || !barcode || !quantity) {
-        errors.push(`Invalid material data: ${JSON.stringify(material)}`);
-        continue;
-      }
-
-      // Check inventory availability
-      const inventoryItem = await Inventory.findOne({
-        where: { id: inventory_id, barcode }
-      });
-
-      if (!inventoryItem) {
-        errors.push(`Inventory item not found: ${barcode}`);
-        continue;
-      }
-
-      const availableQty = inventoryItem.quantity - (inventoryItem.reserved_quantity || 0);
-      if (availableQty < quantity) {
-        errors.push(`Insufficient quantity for ${barcode}. Available: ${availableQty}, Requested: ${quantity}`);
-        continue;
-      }
-
-      // Create material allocation
-      const allocation = await MaterialAllocation.create({
-        production_order_id: id,
-        inventory_id: inventory_id,
-        barcode: barcode,
-        quantity_allocated: quantity,
-        quantity_consumed: 0,
-        quantity_returned: 0,
-        quantity_wasted: 0,
-        allocation_date: new Date(),
-        allocated_by: req.user.id,
-        status: 'allocated',
-        consumption_log: []
-      });
-
-      // Update inventory reserved quantity
-      await inventoryItem.update({
-        reserved_quantity: (inventoryItem.reserved_quantity || 0) + parseFloat(quantity)
-      });
-
-      // Create inventory movement record
-      await InventoryMovement.create({
-        inventory_id: inventory_id,
-        movement_type: 'allocation',
-        quantity: -quantity,
-        reference_type: 'production_order',
-        reference_id: id,
-        production_order_id: id,
-        performed_by: req.user.id,
-        notes: `Material allocated to production order ${productionOrder.production_number}`,
-        barcode: barcode
-      });
-
-      allocations.push(allocation);
-    }
-
-    // Update production order status if materials allocated
-    if (allocations.length > 0 && productionOrder.status === 'pending') {
-      await productionOrder.update({ status: 'material_allocated' });
-
-      // Send notification
-      await NotificationService.createNotification({
-        type: 'materials_allocated',
-        title: 'Materials Allocated to Production',
-        message: `${allocations.length} materials allocated to production order ${productionOrder.production_number}`,
-        recipients: ['manufacturing', 'inventory', 'admin'],
-        related_entity_type: 'production_order',
-        related_entity_id: id,
-        priority: 'medium',
-        user_id: req.user.id
-      });
-    }
-
-    res.json({
-      message: 'Material allocation completed',
-      allocations,
-      errors: errors.length > 0 ? errors : undefined,
-      summary: {
-        total_requested: materials.length,
-        successfully_allocated: allocations.length,
-        failed: errors.length
-      }
-    });
-  } catch (error) {
-    console.error('Material allocation error:', error);
-    res.status(500).json({ message: 'Failed to allocate materials', error: error.message });
-  }
-});
-
-/**
- * GET /api/manufacturing/orders/:id/materials
- * Get all materials allocated to a production order
- */
-router.get('/orders/:id/materials', authenticateToken, checkDepartment(['manufacturing', 'inventory', 'admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const allocations = await MaterialAllocation.findAll({
-      where: { production_order_id: id },
-      include: [
-        {
-          model: Inventory,
-          as: 'inventory',
-          attributes: ['id', 'item_name', 'category', 'unit', 'barcode', 'quantity', 'reserved_quantity']
-        },
-        {
-          model: User,
-          as: 'allocator',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: User,
-          as: 'returner',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: ProductionStage,
-          as: 'currentStage',
-          attributes: ['id', 'stage_name', 'status']
-        }
-      ],
-      order: [['allocation_date', 'DESC']]
-    });
-
-    // Calculate summary
-    const summary = {
-      total_materials: allocations.length,
-      total_allocated: allocations.reduce((sum, a) => sum + parseFloat(a.quantity_allocated || 0), 0),
-      total_consumed: allocations.reduce((sum, a) => sum + parseFloat(a.quantity_consumed || 0), 0),
-      total_returned: allocations.reduce((sum, a) => sum + parseFloat(a.quantity_returned || 0), 0),
-      total_wasted: allocations.reduce((sum, a) => sum + parseFloat(a.quantity_wasted || 0), 0),
-      by_status: {
-        allocated: allocations.filter(a => a.status === 'allocated').length,
-        in_use: allocations.filter(a => a.status === 'in_use').length,
-        consumed: allocations.filter(a => a.status === 'consumed').length,
-        partially_returned: allocations.filter(a => a.status === 'partially_returned').length,
-        fully_returned: allocations.filter(a => a.status === 'fully_returned').length,
-        wasted: allocations.filter(a => a.status === 'wasted').length
-      }
-    };
-
-    res.json({
-      materials: allocations,
-      summary
-    });
-  } catch (error) {
-    console.error('Fetch materials error:', error);
-    res.status(500).json({ message: 'Failed to fetch allocated materials', error: error.message });
-  }
-});
-
-/**
- * POST /api/manufacturing/stages/:stageId/consume-material
- * Record material consumption at a specific production stage
- */
-router.post('/stages/:stageId/consume-material', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
-  try {
-    const { stageId } = req.params;
-    const { barcode, quantity, wastage = 0, notes } = req.body;
-
-    if (!barcode || !quantity) {
-      return res.status(400).json({ message: 'Barcode and quantity are required' });
-    }
-
-    // Find the production stage
-    const stage = await ProductionStage.findByPk(stageId, {
-      include: [{ model: ProductionOrder, as: 'productionOrder' }]
-    });
-
-    if (!stage) {
-      return res.status(404).json({ message: 'Production stage not found' });
-    }
-
-    // Find the material allocation
-    const allocation = await MaterialAllocation.findOne({
-      where: {
-        production_order_id: stage.production_order_id,
-        barcode: barcode
+        id: stageId,
+        production_order_id: orderId
       },
-      include: [
-        { model: Inventory, as: 'inventory' }
-      ]
-    });
-
-    if (!allocation) {
-      return res.status(404).json({ message: `Material with barcode ${barcode} not allocated to this production order` });
-    }
-
-    // Check if enough material is available
-    const remainingQty = parseFloat(allocation.quantity_allocated) - parseFloat(allocation.quantity_consumed) - parseFloat(allocation.quantity_returned);
-    const totalRequired = parseFloat(quantity) + parseFloat(wastage);
-
-    if (remainingQty < totalRequired) {
-      return res.status(400).json({
-        message: `Insufficient material. Available: ${remainingQty}, Required: ${totalRequired}`,
-        available: remainingQty,
-        requested: totalRequired
-      });
-    }
-
-    // Update consumption log
-    const consumptionLog = allocation.consumption_log || [];
-    consumptionLog.push({
-      stage_id: stage.id,
-      stage_name: stage.stage_name,
-      quantity: parseFloat(quantity),
-      wastage: parseFloat(wastage),
-      consumed_at: new Date().toISOString(),
-      consumed_by: req.user.id,
-      consumed_by_name: req.user.name,
-      barcode_scan: barcode,
-      notes: notes || ''
-    });
-
-    // Update allocation
-    const newConsumed = parseFloat(allocation.quantity_consumed) + parseFloat(quantity);
-    const newWasted = parseFloat(allocation.quantity_wasted) + parseFloat(wastage);
-    const newRemaining = parseFloat(allocation.quantity_allocated) - newConsumed - parseFloat(allocation.quantity_returned);
-
-    await allocation.update({
-      quantity_consumed: newConsumed,
-      quantity_wasted: newWasted,
-      current_stage_id: stage.id,
-      consumption_log: consumptionLog,
-      status: newRemaining > 0 ? 'in_use' : 'consumed'
-    });
-
-    // Update production stage material consumption if field exists
-    if (stage.material_consumption) {
-      const stageMaterialLog = stage.material_consumption || [];
-      stageMaterialLog.push({
-        barcode,
-        item_name: allocation.inventory?.item_name || 'Unknown',
-        quantity: parseFloat(quantity),
-        wastage: parseFloat(wastage),
-        timestamp: new Date().toISOString()
-      });
-      await stage.update({ material_consumption: stageMaterialLog });
-    }
-
-    res.json({
-      message: 'Material consumption recorded successfully',
-      allocation: {
-        id: allocation.id,
-        barcode: allocation.barcode,
-        item_name: allocation.inventory?.item_name,
-        quantity_allocated: allocation.quantity_allocated,
-        quantity_consumed: newConsumed,
-        quantity_wasted: newWasted,
-        quantity_remaining: newRemaining,
-        status: allocation.status
-      },
-      consumption_entry: consumptionLog[consumptionLog.length - 1]
-    });
-  } catch (error) {
-    console.error('Material consumption error:', error);
-    res.status(500).json({ message: 'Failed to record material consumption', error: error.message });
-  }
-});
-
-/**
- * GET /api/manufacturing/materials/scan/:barcode
- * Scan barcode to get material information
- */
-router.get('/materials/scan/:barcode', authenticateToken, checkDepartment(['manufacturing', 'inventory', 'admin']), async (req, res) => {
-  try {
-    const { barcode } = req.params;
-
-    // Check if it's an inventory barcode
-    const inventoryItem = await Inventory.findOne({
-      where: { barcode }
-    });
-
-    if (inventoryItem) {
-      return res.json({
-        type: 'inventory',
-        item: inventoryItem,
-        available_quantity: inventoryItem.quantity - (inventoryItem.reserved_quantity || 0),
-        status: 'available_in_inventory'
-      });
-    }
-
-    // Check if it's allocated to production
-    const allocation = await MaterialAllocation.findOne({
-      where: { barcode },
       include: [
         {
           model: ProductionOrder,
           as: 'productionOrder',
-          attributes: ['id', 'production_number', 'status']
-        },
-        {
-          model: Inventory,
-          as: 'inventory'
-        },
-        {
-          model: ProductionStage,
-          as: 'currentStage',
-          attributes: ['id', 'stage_name', 'status']
+          attributes: ['id', 'status']
         }
-      ],
-      order: [['allocation_date', 'DESC']],
-      limit: 1
-    });
-
-    if (allocation) {
-      const remaining = parseFloat(allocation.quantity_allocated) - parseFloat(allocation.quantity_consumed) - parseFloat(allocation.quantity_returned);
-      return res.json({
-        type: 'allocated_material',
-        allocation: {
-          id: allocation.id,
-          barcode: allocation.barcode,
-          item_name: allocation.inventory?.item_name,
-          production_order: allocation.productionOrder?.production_number,
-          production_order_id: allocation.production_order_id,
-          current_stage: allocation.currentStage?.stage_name,
-          quantity_allocated: allocation.quantity_allocated,
-          quantity_consumed: allocation.quantity_consumed,
-          quantity_remaining: remaining,
-          status: allocation.status,
-          consumption_log: allocation.consumption_log
-        }
-      });
-    }
-
-    // Check if it's a returned material barcode
-    const returnedAllocation = await MaterialAllocation.findOne({
-      where: { return_barcode: barcode },
-      include: [
-        { model: Inventory, as: 'inventory' },
-        { model: ProductionOrder, as: 'productionOrder' }
       ]
     });
 
-    if (returnedAllocation) {
-      return res.json({
-        type: 'returned_material',
-        allocation: returnedAllocation,
-        message: 'This material was returned from production'
-      });
+    if (!stage) {
+      return res.status(404).json({ message: 'Production stage not found' });
     }
 
-    res.status(404).json({ message: 'Barcode not found in inventory or allocations' });
+    await stage.update({ status });
+
+    if (status === 'in_progress') {
+      stage.actual_start_time = stage.actual_start_time || new Date();
+      await stage.save();
+    }
+
+    if (status === 'completed') {
+      stage.actual_end_time = new Date();
+      stage.actual_duration_hours = stage.actual_end_time
+        ? Math.round((stage.actual_end_time - (stage.actual_start_time || new Date())) / (1000 * 60 * 60))
+        : null;
+      await stage.save();
+    }
+
+    if (status === 'on_hold' && reason) {
+      stage.delay_reason = reason;
+      await stage.save();
+    }
+
+    res.json({ message: 'Stage status updated successfully', stage });
   } catch (error) {
-    console.error('Barcode scan error:', error);
-    res.status(500).json({ message: 'Failed to scan barcode', error: error.message });
+    console.error('Update stage status error:', error);
+    res.status(500).json({ message: 'Failed to update stage status' });
   }
 });
 
+// Update production stage details
+router.patch(
+  '/orders/:orderId/stages/:stageId',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    const { orderId, stageId } = req.params;
+    const { status, remarks, completed_by } = req.body;
 
+    try {
+      // Check if stage exists
+      const [stageCheck] = await db.query(
+        'SELECT * FROM production_stages WHERE id = ? AND order_id = ?',
+        [stageId, orderId]
+      );
+
+      if (!stageCheck || stageCheck.length === 0) {
+        return res.status(404).json({ message: 'Stage not found for this order.' });
+      }
+
+      // Update the stage record
+      await db.query(
+        `UPDATE production_stages
+         SET status = ?, remarks = ?, completed_by = ?, updated_at = NOW()
+         WHERE id = ? AND order_id = ?`,
+        [status, remarks, completed_by, stageId, orderId]
+      );
+
+      res.status(200).json({
+        message: 'Stage updated successfully.',
+        orderId,
+        stageId,
+        updatedStatus: status,
+      });
+    } catch (error) {
+      console.error('Error updating production stage:', error);
+      res.status(500).json({
+        message: 'Internal Server Error while updating stage.',
+        error: error.message,
+      });
+    }
+  }
+);
+
+router.get(
+  '/orders/:orderId/stages',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+      const [stages] = await db.query(
+        'SELECT * FROM production_stages WHERE order_id = ? ORDER BY id ASC',
+        [orderId]
+      );
+
+      if (!stages || stages.length === 0) {
+        return res.status(404).json({ message: 'No stages found for this order.' });
+      }
+
+      res.status(200).json({ stages });
+    } catch (error) {
+      console.error('Error fetching production stages:', error);
+      res.status(500).json({
+        message: 'Internal Server Error while fetching stages.',
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ------------------------------------------------------------
+// POST: Create a new production stage for an order
+// ------------------------------------------------------------
+router.post(
+  '/orders/:orderId/stages',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    const { orderId } = req.params;
+    const { stage_name, assigned_to, status = 'pending', remarks = '' } = req.body;
+
+    try {
+      await db.query(
+        `INSERT INTO production_stages
+         (order_id, stage_name, assigned_to, status, remarks, created_at)
+         VALUES (?, ?, ?, ?, ?, NOW())`,
+        [orderId, stage_name, assigned_to, status, remarks]
+      );
+
+      res.status(201).json({ message: 'New production stage created successfully.' });
+    } catch (error) {
+      console.error('Error creating new production stage:', error);
+      res.status(500).json({
+        message: 'Internal Server Error while creating stage.',
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ------------------------------------------------------------
+// DELETE: Remove a production stage
+// ------------------------------------------------------------
+router.delete(
+  '/orders/:orderId/stages/:stageId',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    const { orderId, stageId } = req.params;
+
+    try {
+      const [result] = await db.query(
+        'DELETE FROM production_stages WHERE id = ? AND order_id = ?',
+        [stageId, orderId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Stage not found or already deleted.' });
+      }
+
+      res.status(200).json({ message: 'Stage deleted successfully.' });
+    } catch (error) {
+      console.error('Error deleting stage:', error);
+      res.status(500).json({
+        message: 'Internal Server Error while deleting stage.',
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ------------------------------------------------------------
+// GET: Fetch approved sales orders for production wizard
+// Sales Order-centric approach: Get all approved sales orders ready for production
+// ------------------------------------------------------------
+router.get(
+  '/approved-sales-orders',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    try {
+      // Fetch sales orders that are approved/confirmed and ready for production
+      const salesOrders = await SalesOrder.findAll({
+        where: {
+          status: {
+            [Op.in]: ['confirmed', 'approved']
+          }
+        },
+        include: [
+          {
+            model: Customer,
+            as: 'customer',
+            attributes: ['id', 'name', 'company_name', 'email', 'phone']
+          },
+          {
+            model: Product,
+            as: 'product',
+            attributes: ['id', 'name', 'product_code', 'category', 'specifications']
+          }
+        ],
+        order: [['order_date', 'DESC']]
+      });
+
+      res.json({
+        salesOrders: salesOrders.map(so => ({
+          id: so.id,
+          order_number: so.order_number,
+          customer_id: so.customer_id,
+          customer_name: so.customer?.name || so.customer?.company_name || 'N/A',
+          product_id: so.product_id,
+          product_name: so.product_name || so.product?.name || 'N/A',
+          product_code: so.product?.product_code || 'N/A',
+          total_quantity: so.total_quantity,
+          delivery_date: so.delivery_date,
+          order_date: so.order_date,
+          status: so.status,
+          special_instructions: so.special_instructions,
+          buyer_reference: so.buyer_reference,
+          order_type: so.order_type,
+          items: so.items
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching approved sales orders:', error);
+      res.status(500).json({
+        message: 'Failed to fetch approved sales orders',
+        error: error.message
+      });
+    }
+  }
+);
+
+// ------------------------------------------------------------
+// GET: Fetch complete sales order details for production wizard
+// Returns: Sales Order + Product + Materials + Approvals + Everything needed
+// ------------------------------------------------------------
+router.get(
+  '/sales-orders/:id/production-details',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    try {
+      const salesOrderId = req.params.id;
+
+      // Fetch sales order with all related data
+      const salesOrder = await SalesOrder.findByPk(salesOrderId, {
+        include: [
+          {
+            model: Customer,
+            as: 'customer',
+            attributes: ['id', 'name', 'company_name', 'email', 'phone', 'billing_address', 'shipping_address']
+          },
+          {
+            model: Product,
+            as: 'product',
+            attributes: ['id', 'name', 'product_code', 'category', 'specifications', 'description']
+          }
+        ]
+      });
+
+      if (!salesOrder) {
+        return res.status(404).json({ message: 'Sales order not found' });
+      }
+
+      // Fetch material requests related to this sales order
+      const { ProjectMaterialRequest } = require('../config/database');
+      const materialRequests = await ProjectMaterialRequest.findAll({
+        where: { sales_order_id: salesOrderId },
+        attributes: ['id', 'request_number', 'materials_requested', 'status', 'created_at'],
+        order: [['created_at', 'DESC']]
+      });
+
+      // Fetch production approvals related to this sales order
+      const { ProductionApproval, MaterialVerification, MaterialReceipt } = require('../config/database');
+      const productionApprovals = await ProductionApproval.findAll({
+        include: [
+          {
+            model: ProjectMaterialRequest,
+            as: 'mrnRequest',
+            where: { sales_order_id: salesOrderId },
+            required: true
+          },
+          {
+            model: MaterialVerification,
+            as: 'verification',
+            include: [
+              {
+                model: MaterialReceipt,
+                as: 'receipt',
+                attributes: ['id', 'receipt_number', 'received_materials', 'total_items_received', 'project_name']
+              }
+            ]
+          },
+          {
+            model: User,
+            as: 'approver',
+            attributes: ['id', 'name', 'email']
+          }
+        ],
+        order: [['approved_at', 'DESC']]
+      });
+
+      // Parse items from sales order
+      let items = [];
+      try {
+        items = typeof salesOrder.items === 'string' ? JSON.parse(salesOrder.items) : salesOrder.items;
+      } catch (e) {
+        console.warn('Failed to parse sales order items:', e);
+      }
+
+      // Parse materials from material requests
+      let allMaterials = [];
+      for (const mrn of materialRequests) {
+        try {
+          const materials = typeof mrn.materials_requested === 'string' 
+            ? JSON.parse(mrn.materials_requested) 
+            : mrn.materials_requested;
+          if (Array.isArray(materials)) {
+            allMaterials = [...allMaterials, ...materials];
+          }
+        } catch (e) {
+          console.warn('Failed to parse materials_requested:', e);
+        }
+      }
+
+      // Parse received materials from approvals
+      let receivedMaterials = [];
+      for (const approval of productionApprovals) {
+        if (approval.verification?.receipt?.received_materials) {
+          try {
+            const materials = typeof approval.verification.receipt.received_materials === 'string'
+              ? JSON.parse(approval.verification.receipt.received_materials)
+              : approval.verification.receipt.received_materials;
+            if (Array.isArray(materials)) {
+              receivedMaterials = [...receivedMaterials, ...materials];
+            }
+          } catch (e) {
+            console.warn('Failed to parse received_materials:', e);
+          }
+        }
+      }
+
+      // Check if production order already exists for this sales order
+      const existingProductionOrders = await ProductionOrder.findAll({
+        where: { sales_order_id: salesOrderId },
+        attributes: ['id', 'production_number', 'status', 'quantity', 'created_at'],
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json({
+        salesOrder: {
+          id: salesOrder.id,
+          order_number: salesOrder.order_number,
+          customer_id: salesOrder.customer_id,
+          customer_name: salesOrder.customer?.name || salesOrder.customer?.company_name || 'N/A',
+          customer_email: salesOrder.customer?.email,
+          customer_phone: salesOrder.customer?.phone,
+          product_id: salesOrder.product_id,
+          product_name: salesOrder.product_name || salesOrder.product?.name || 'N/A',
+          product_code: salesOrder.product?.product_code || 'N/A',
+          product_specifications: salesOrder.product?.specifications,
+          total_quantity: salesOrder.total_quantity,
+          delivery_date: salesOrder.delivery_date,
+          order_date: salesOrder.order_date,
+          status: salesOrder.status,
+          special_instructions: salesOrder.special_instructions,
+          buyer_reference: salesOrder.buyer_reference,
+          order_type: salesOrder.order_type,
+          garment_specifications: salesOrder.garment_specifications,
+          items: items
+        },
+        materialRequests: materialRequests.map(mrn => ({
+          id: mrn.id,
+          request_number: mrn.request_number,
+          status: mrn.status,
+          created_at: mrn.created_at
+        })),
+        requestedMaterials: allMaterials,
+        receivedMaterials: receivedMaterials,
+        productionApprovals: productionApprovals.map(approval => ({
+          id: approval.id,
+          approval_status: approval.approval_status,
+          approved_at: approval.approved_at,
+          approved_by: approval.approver?.name,
+          approval_notes: approval.approval_notes,
+          production_started: approval.production_started
+        })),
+        existingProductionOrders: existingProductionOrders.map(po => ({
+          id: po.id,
+          production_number: po.production_number,
+          status: po.status,
+          quantity: po.quantity,
+          created_at: po.created_at
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching sales order production details:', error);
+      res.status(500).json({
+        message: 'Failed to fetch sales order production details',
+        error: error.message
+      });
+    }
+  }
+);
+
+// ------------------------------------------------------------
+// GET: Fetch product wizard details (product info + related sales orders)
+// ------------------------------------------------------------
+router.get(
+  '/products/:id/wizard-details',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    try {
+      const productId = req.params.id;
+
+      // Fetch product details
+      const product = await Product.findByPk(productId, {
+        attributes: ['id', 'name', 'product_code', 'category', 'specifications', 'description']
+      });
+
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+
+      // Fetch related sales orders for this product
+      const salesOrders = await SalesOrder.findAll({
+        where: {
+          product_id: productId,
+          status: {
+            [Op.in]: ['pending', 'confirmed', 'in_production']
+          }
+        },
+        attributes: [
+          'id',
+          'order_number',
+          'customer_id',
+          'total_quantity',
+          'delivery_date',
+          'status',
+          'special_instructions'
+        ],
+        include: [
+          {
+            model: Customer,
+            as: 'customer',
+            attributes: ['id', 'name', 'company_name']
+          }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json({
+        product: {
+          id: product.id,
+          name: product.name,
+          product_code: product.product_code,
+          category: product.category,
+          specifications: product.specifications,
+          description: product.description
+        },
+        salesOrders: salesOrders.map(so => ({
+          id: so.id,
+          order_number: so.order_number,
+          customer_id: so.customer_id,
+          customer_name: so.customer?.name || so.customer?.company_name || 'N/A',
+          product_quantity: so.total_quantity,
+          delivery_date: so.delivery_date,
+          status: so.status,
+          special_instructions: so.special_instructions
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching product wizard details:', error);
+      res.status(500).json({
+        message: 'Failed to fetch product wizard details',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get Materials for Reconciliation
+router.get('/orders/:orderId/materials/reconciliation', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    
+    const productionOrder = await ProductionOrder.findByPk(orderId);
+    if (!productionOrder) {
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    // Get all material allocations for this order
+    const materials = await MaterialAllocation.findAll({
+      where: { production_order_id: orderId },
+      include: [
+        {
+          model: Inventory,
+          as: 'inventory',
+          attributes: ['id', 'product_name', 'category', 'barcode', 'unit_of_measurement']
+        }
+      ]
+    });
+
+    // Format materials with reconciliation data
+    const formattedMaterials = materials.map(allocation => {
+      const remaining = allocation.quantity_allocated - 
+                       (allocation.quantity_consumed || 0) - 
+                       (allocation.quantity_wasted || 0) - 
+                       (allocation.quantity_returned || 0);
+      
+      return {
+        id: allocation.id,
+        inventory_id: allocation.inventory_id,
+        item_name: allocation.inventory?.product_name || 'Unknown',
+        category: allocation.inventory?.category || 'N/A',
+        barcode: allocation.inventory?.barcode || '',
+        unit: allocation.inventory?.unit_of_measurement || 'piece',
+        quantity_allocated: allocation.quantity_allocated,
+        quantity_consumed: allocation.quantity_consumed || 0,
+        quantity_wasted: allocation.quantity_wasted || 0,
+        quantity_returned: allocation.quantity_returned || 0,
+        quantity_remaining: remaining,
+        status: allocation.status || 'in_use'
+      };
+    });
+
+    res.json({ materials: formattedMaterials });
+  } catch (error) {
+    console.error('[ERROR] Material reconciliation fetch error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to fetch materials for reconciliation',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Submit Material Reconciliation
+router.post('/orders/:orderId/materials/reconcile', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    const { materials, notes } = req.body;
+    
+    const productionOrder = await ProductionOrder.findByPk(orderId);
+    if (!productionOrder) {
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    const reconciliationResults = [];
+
+    // Process each material reconciliation
+    for (const material of materials) {
+      const allocation = await MaterialAllocation.findByPk(material.allocation_id, {
+        include: [{ model: Inventory, as: 'inventory' }]
+      });
+
+      if (!allocation) {
+        console.warn(`Allocation ${material.allocation_id} not found, skipping`);
+        continue;
+      }
+
+      // Update the material allocation
+      await allocation.update({
+        quantity_consumed: material.actual_consumed,
+        quantity_wasted: material.actual_wasted,
+        quantity_returned: material.leftover_quantity,
+        status: 'reconciled',
+        notes: material.notes || notes
+      });
+
+      // Return leftover materials to inventory
+      if (material.leftover_quantity > 0) {
+        const inventory = allocation.inventory;
+        const newQuantity = parseFloat(inventory.quantity_on_hand) + parseFloat(material.leftover_quantity);
+        
+        await inventory.update({
+          quantity_on_hand: newQuantity
+        });
+
+        // Create inventory movement record
+        await InventoryMovement.create({
+          inventory_id: inventory.id,
+          movement_type: 'return',
+          quantity: material.leftover_quantity,
+          from_location: 'manufacturing',
+          to_location: 'warehouse',
+          reference_type: 'production_order',
+          reference_id: orderId,
+          notes: `Material reconciliation - leftover returned from Production Order ${productionOrder.order_number}`,
+          performed_by: req.user.id
+        });
+
+        reconciliationResults.push({
+          item: inventory.product_name,
+          leftover_returned: material.leftover_quantity,
+          new_inventory_quantity: newQuantity
+        });
+      }
+    }
+
+    res.json({ 
+      message: 'Material reconciliation completed successfully',
+      reconciliation_results: reconciliationResults
+    });
+  } catch (error) {
+    console.error('[ERROR] Material reconciliation error:', error);
+    console.error('[ERROR] Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to complete material reconciliation',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 module.exports = router;

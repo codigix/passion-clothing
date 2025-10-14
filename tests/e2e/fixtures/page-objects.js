@@ -186,6 +186,7 @@ export class NavigationPage {
     this.shipmentLink = page.locator('a[href*="shipment"], text=Shipment');
     this.financeLink = page.locator('a[href*="finance"], text=Finance');
     this.adminLink = page.locator('a[href*="admin"], text=Admin');
+    this.mrnRequestsLink = page.locator('a[href*="material-requests"], text=Material Requests');
     this.profileDropdown = page.locator('[data-testid="profile-dropdown"], .profile-dropdown');
     this.logoutButton = page.locator('button:has-text("Logout"), a:has-text("Logout")');
   }
@@ -206,6 +207,10 @@ export class NavigationPage {
     await this.manufacturingLink.click();
   }
 
+  async navigateToMrnRequests() {
+    await this.mrnRequestsLink.click();
+  }
+
   async navigateToAdmin() {
     await this.adminLink.click();
   }
@@ -217,6 +222,7 @@ export class NavigationPage {
 }
 
 export class ApiHelpers {
+  // Generic API helper leveraging browser context storage for tokens
   constructor(page) {
     this.page = page;
   }
@@ -240,9 +246,14 @@ export class ApiHelpers {
       }
 
       const response = await fetch(`${baseURL}${endpoint}`, config);
+      const contentType = response.headers.get('content-type');
+      const responseBody = contentType && contentType.includes('application/json')
+        ? await response.json()
+        : await response.text();
+
       return {
         status: response.status,
-        data: await response.json()
+        data: responseBody
       };
     }, { method, endpoint, data, headers });
   }
@@ -257,6 +268,50 @@ export class ApiHelpers {
 
   async getDashboardStats() {
     return await this.makeApiRequest('GET', '/admin/dashboard-stats');
+  }
+
+  async createMrnRequest(payload) {
+    return await this.makeApiRequest('POST', '/project-material-request/create', payload);
+  }
+
+  async getMrnRequest(mrnId) {
+    return await this.makeApiRequest('GET', `/project-material-request/${mrnId}`);
+  }
+
+  async getMrnRequests() {
+    return await this.makeApiRequest('GET', '/project-material-request');
+  }
+
+  async getDispatchByMrn(mrnId) {
+    return await this.makeApiRequest('GET', `/material-dispatch/${mrnId}`);
+  }
+
+  async getDispatchList() {
+    return await this.makeApiRequest('GET', '/material-dispatch/list/all');
+  }
+
+  async createMaterialDispatch(payload) {
+    return await this.makeApiRequest('POST', '/material-dispatch/create', payload);
+  }
+
+  async getReceiptByDispatch(dispatchId) {
+    return await this.makeApiRequest('GET', `/material-receipt/${dispatchId}`);
+  }
+
+  async createMaterialReceipt(payload) {
+    return await this.makeApiRequest('POST', '/material-receipt/create', payload);
+  }
+
+  async cleanupMrnTestData({ mrnIds = [], dispatchIds = [], receiptIds = [] } = {}) {
+    for (const receiptId of receiptIds) {
+      await this.makeApiRequest('DELETE', `/material-receipt/${receiptId}`);
+    }
+    for (const dispatchId of dispatchIds) {
+      await this.makeApiRequest('DELETE', `/material-dispatch/${dispatchId}`);
+    }
+    for (const mrnId of mrnIds) {
+      await this.makeApiRequest('DELETE', `/project-material-request/${mrnId}`);
+    }
   }
 
   async cleanupTestData(userIds = [], roleIds = []) {

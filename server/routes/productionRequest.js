@@ -99,14 +99,16 @@ router.post('/from-po/:poId', authenticateToken, async (req, res) => {
     });
 
     const notifications = manufacturingUsers.map(user => ({
-      user_id: user.id,
-      type: 'production_request',
+      recipient_user_id: user.id,
+      type: 'manufacturing',
       title: 'New Production Request',
       message: `New production request ${request_number} for project "${po.project_name}" - ${product_name}`,
-      reference_type: 'production_request',
-      reference_id: productionRequest.id,
-      link: `/manufacturing/production-requests/${productionRequest.id}`,
-      priority: priority || 'medium'
+      related_entity_type: 'production_request',
+      related_entity_id: productionRequest.id,
+      action_url: `/manufacturing/production-requests/${productionRequest.id}`,
+      priority: priority || 'medium',
+      actor_id: req.user.id,
+      trigger_event: 'production_request_created'
     }));
 
     await Notification.bulkCreate(notifications, { transaction });
@@ -141,7 +143,13 @@ router.get('/', authenticateToken, async (req, res) => {
     const where = {};
     
     if (status) {
-      where.status = status;
+      // Support multiple statuses separated by comma
+      const statuses = status.split(',').map(s => s.trim()).filter(s => s);
+      if (statuses.length > 1) {
+        where.status = { [Op.in]: statuses };
+      } else {
+        where.status = status;
+      }
     }
     
     if (priority) {
@@ -311,14 +319,16 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
     // Notify procurement user
     await Notification.create({
-      user_id: request.requested_by,
-      type: 'production_request_update',
+      recipient_user_id: request.requested_by,
+      type: 'manufacturing',
       title: 'Production Request Updated',
       message: `Production request ${request.request_number} status changed to: ${status}`,
-      reference_type: 'production_request',
-      reference_id: request.id,
-      link: `/procurement/production-requests/${request.id}`,
-      priority: 'medium'
+      related_entity_type: 'production_request',
+      related_entity_id: request.id,
+      action_url: `/procurement/production-requests/${request.id}`,
+      priority: 'medium',
+      actor_id: req.user.id,
+      trigger_event: 'production_request_status_update'
     }, { transaction });
 
     await transaction.commit();

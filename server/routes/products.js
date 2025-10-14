@@ -51,10 +51,24 @@ router.get('/', authenticateToken, checkDepartment(['inventory', 'procurement', 
   }
 });
 
-// Get single product
+// Get single product (by ID or product_code)
 router.get('/:id', authenticateToken, checkDepartment(['inventory', 'procurement', 'manufacturing', 'admin']), async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
+    const identifier = req.params.id;
+    
+    // Try to find by ID first (numeric), then by product_code
+    let product;
+    if (/^\d+$/.test(identifier)) {
+      product = await Product.findByPk(identifier);
+    }
+    
+    // If not found by ID or identifier is not numeric, try product_code
+    if (!product) {
+      product = await Product.findOne({ 
+        where: { product_code: identifier }
+      });
+    }
+    
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json({ product });
   } catch (err) {

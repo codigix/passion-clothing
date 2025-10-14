@@ -38,6 +38,20 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'Project name for this verification'
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product these materials are for'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     verification_checklist: {
       type: DataTypes.JSON,
       allowNull: false,
@@ -92,6 +106,7 @@ module.exports = (sequelize) => {
       { fields: ['verification_number'], unique: true },
       { fields: ['mrn_request_id'] },
       { fields: ['receipt_id'] },
+      { fields: ['product_id'] },
       { fields: ['project_name'] },
       { fields: ['overall_result'] },
       { fields: ['verified_by'] },

@@ -21,6 +21,20 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product to be manufactured'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     order_date: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -46,9 +60,9 @@ module.exports = (sequelize) => {
       comment: 'Array of items with item_code, product_type, style_no, fabric_type, color, size_breakdown, quantity, unit_price, remarks, etc.'
     },
     qr_code: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.TEXT,
       allowNull: true,
-      comment: 'QR code data containing order information'
+      comment: 'QR code data containing comprehensive order information (large JSON)'
     },
     garment_specifications: {
       type: DataTypes.JSON,
@@ -294,6 +308,7 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['order_number'] },
       { fields: ['customer_id'] },
+      { fields: ['product_id'] },
       { fields: ['status'] },
       { fields: ['priority'] },
       { fields: ['order_date'] },

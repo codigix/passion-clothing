@@ -32,8 +32,11 @@ import BarcodeDisplay from "../../components/BarcodeDisplay";
 import BarcodeScanner from "../../components/BarcodeScanner";
 import QRCodeScanner from "../../components/manufacturing/QRCodeScanner";
 
-const StatCard = ({ title, value, icon, subtitle }) => (
-  <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+const StatCard = ({ title, value, icon, subtitle, onClick }) => (
+  <div 
+    className={`p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ${onClick ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
+    onClick={onClick}
+  >
     <div>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-600 uppercase">{title}</span>
@@ -44,6 +47,26 @@ const StatCard = ({ title, value, icon, subtitle }) => (
     </div>
   </div>
 );
+
+const getStageStatusColor = (status) => {
+  switch (status) {
+    case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+    case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'on_hold': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'pending': return 'bg-gray-100 text-gray-800 border-gray-300';
+    default: return 'bg-gray-100 text-gray-800 border-gray-300';
+  }
+};
+
+const getStageIcon = (status) => {
+  switch (status) {
+    case 'completed': return <CheckCircle className="w-4 h-4 text-green-600" />;
+    case 'in_progress': return <Clock className="w-4 h-4 text-blue-600" />;
+    case 'on_hold': return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
+    case 'pending': return <Clock className="w-4 h-4 text-gray-400" />;
+    default: return <Clock className="w-4 h-4 text-gray-400" />;
+  }
+};
 
 const ManufacturingDashboard = () => {
   const navigate = useNavigate();
@@ -61,8 +84,6 @@ const ManufacturingDashboard = () => {
   const [activeOrders, setActiveOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [productionStages, setProductionStages] = useState([]);
-  const [workerPerformance, setWorkerPerformance] = useState([]);
-  const [qualityMetrics, setQualityMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
@@ -72,28 +93,34 @@ const ManufacturingDashboard = () => {
   const [productionStagesDialogOpen, setProductionStagesDialogOpen] = useState(false);
   const [selectedProductionOrder, setSelectedProductionOrder] = useState(null);
   const [materialVerificationDialogOpen, setMaterialVerificationDialogOpen] = useState(false);
-  const [outsourcingDialogOpen, setOutsourcingDialogOpen] = useState(false);
   const [qualityCheckDialogOpen, setQualityCheckDialogOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [productSelectionDialogOpen, setProductSelectionDialogOpen] = useState(false);
   const [pendingProductionOrder, setPendingProductionOrder] = useState(null);
   const [availableProducts, setAvailableProducts] = useState([]);
   const [selectedProductForProduction, setSelectedProductForProduction] = useState(null);
+  const [pendingDispatches, setPendingDispatches] = useState([]);
+  const [pendingReceipts, setPendingReceipts] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [productTrackingDialogOpen, setProductTrackingDialogOpen] = useState(false);
+  const [trackingData, setTrackingData] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
     fetchActiveOrders();
     fetchProducts();
     fetchProductionStages();
-    fetchWorkerPerformance();
-    fetchQualityMetrics();
     fetchIncomingOrders();
+    fetchPendingMaterialReceipts();
   }, []);
 
   const fetchIncomingOrders = async () => {
     try {
-      // Fetch production requests with pending status (newly created from Sales/Procurement)
-      const response = await api.get('/production-requests?status=pending');
+      // Fetch production requests with pending and reviewed status (newly created from Sales/Procurement)
+      const response = await api.get('/production-requests?status=pending,reviewed');
       const requests = response.data.data || [];
       
       // Transform production requests to match the expected order format
@@ -108,16 +135,37 @@ const ManufacturingDashboard = () => {
           specs = {};
         }
         
+        // Extract product info from multiple sources with better fallback logic
+        const productName = request.product_name || 
+                           specs.garment_specifications?.product_type ||
+                           specs.product_name ||
+                           'Unknown Product';
+        
+        const productDescription = request.product_description || 
+                                  specs.garment_specifications?.description ||
+                                  specs.description ||
+                                  '';
+        
+        const productId = request.product_id || 
+                         specs.items?.[0]?.product_id || 
+                         null;
+        
+        // Extract customer name from multiple sources
+        const customerName = request.salesOrder?.customer?.name || 
+                           request.salesOrder?.customer_name ||
+                           specs.customer_name || 
+                           'N/A';
+        
         return {
           id: request.id,
           order_number: request.request_number,
           request_number: request.request_number,
-          product_id: request.product_id || specs.items?.[0]?.product_id || null,
-          product_name: request.product_name,
-          product_description: request.product_description,
+          product_id: productId,
+          product_name: productName,
+          product_description: productDescription,
           quantity: request.quantity,
           unit: request.unit,
-          priority: request.priority,
+          priority: request.priority || 'medium',
           required_date: request.required_date,
           project_name: request.project_name,
           sales_order_id: request.sales_order_id,
@@ -125,22 +173,60 @@ const ManufacturingDashboard = () => {
           po_id: request.po_id,
           po_number: request.po_number,
           customer: {
-            name: request.salesOrder?.customer?.name || specs.customer_name || 'N/A'
+            name: customerName
           },
           garment_specs: {
-            product_type: specs.garment_specifications?.product_type || request.product_name
+            product_type: productName
           },
           material_requirements: specs.items || [],
           requested_by: request.requester?.name || 'Unknown',
           status: request.status,
-          created_at: request.created_at
+          created_at: request.created_at,
+          special_instructions: request.notes || specs.special_instructions || ''
         };
+      });
+      
+      console.log('📦 Incoming Orders:', transformedOrders.length);
+      transformedOrders.forEach(order => {
+        console.log(`  - ${order.order_number}: Product="${order.product_name}" (ID: ${order.product_id || 'NULL'})`);
       });
       
       setIncomingOrders(transformedOrders);
     } catch (error) {
       console.error('Error fetching incoming orders:', error);
       toast.error('Failed to load incoming production requests');
+    }
+  };
+
+  const fetchPendingMaterialReceipts = async () => {
+    try {
+      // Fetch pending dispatches (materials dispatched by inventory, awaiting receipt in manufacturing)
+      const dispatchResponse = await api.get('/material-dispatch/list/all');
+      const allDispatches = dispatchResponse.data.dispatches || [];
+      const pending = allDispatches.filter(d => d.received_status === 'pending');
+      setPendingDispatches(pending);
+
+      // Fetch pending receipts (materials received but awaiting verification)
+      try {
+        const receiptResponse = await api.get('/material-receipt/list/pending-verification');
+        setPendingReceipts(receiptResponse.data.receipts || []);
+      } catch (err) {
+        console.log('No pending receipts endpoint yet');
+        setPendingReceipts([]);
+      }
+
+      // Fetch pending verifications (materials verified but awaiting production approval)
+      try {
+        const verificationResponse = await api.get('/material-verification/list/pending-approval');
+        setPendingVerifications(verificationResponse.data.verifications || []);
+      } catch (err) {
+        console.log('No pending verifications endpoint yet');
+        setPendingVerifications([]);
+      }
+
+    } catch (error) {
+      console.error('Error fetching pending material receipts:', error);
+      // Don't show error toast to avoid spam
     }
   };
 
@@ -173,10 +259,10 @@ const ManufacturingDashboard = () => {
 
   const fetchActiveOrders = async () => {
     try {
-      const response = await api.get('/manufacturing/orders?status=cutting,embroidery,stitching,finishing,quality_check');
+      const response = await api.get('/manufacturing/orders?limit=100');
       const orders = response.data.productionOrders || [];
       
-      // Transform data for display
+      // Transform data for display with complete stage information
       const transformedOrders = orders.map(order => {
         const completedStages = order.stages?.filter(stage => stage.status === 'completed').length || 0;
         const totalStages = order.stages?.length || 1;
@@ -186,9 +272,34 @@ const ManufacturingDashboard = () => {
                            order.stages?.find(stage => stage.status === 'pending')?.stage_name || 
                            'Not Started';
 
+        // Extract project name from multiple sources
+        const projectName = order.project_name || 
+                           order.salesOrder?.project_name || 
+                           order.productionRequest?.project_name ||
+                           'N/A';
+
+        // Transform stages with complete details
+        const stages = (order.stages || []).map(stage => ({
+          id: stage.id,
+          name: stage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          rawName: stage.stage_name,
+          status: stage.status,
+          progress: stage.status === 'completed' ? 100 : stage.status === 'in_progress' ? 50 : 0,
+          startTime: stage.actual_start_time ? new Date(stage.actual_start_time).toLocaleString() : null,
+          endTime: stage.actual_end_time ? new Date(stage.actual_end_time).toLocaleString() : null,
+          processedQty: stage.quantity_processed || 0,
+          approvedQty: stage.quantity_approved || 0,
+          rejectedQty: stage.quantity_rejected || 0,
+          isOutsourced: stage.work_type === 'outsourced',
+          isPrinting: stage.stage_name === 'printing',
+          isEmbroidery: stage.stage_name === 'embroidery',
+          notes: stage.notes || ''
+        }));
+
         return {
           id: order.id,
           orderNo: order.production_number,
+          projectName: projectName,
           productName: order.product?.name || 'Unknown Product',
           quantity: order.quantity,
           currentStage: currentStage.replace('_', ' ').toUpperCase(),
@@ -197,7 +308,12 @@ const ManufacturingDashboard = () => {
           status: order.status,
           expectedCompletion: order.planned_end_date ? new Date(order.planned_end_date).toLocaleDateString() : 'TBD',
           productCode: order.product?.product_code,
-          priority: order.priority
+          priority: order.priority,
+          stages: stages,
+          actualStartDate: order.actual_start_date ? new Date(order.actual_start_date).toLocaleDateString() : null,
+          actualEndDate: order.actual_end_date ? new Date(order.actual_end_date).toLocaleDateString() : null,
+          salesOrderNumber: order.salesOrder?.order_number || 'N/A',
+          customerName: order.salesOrder?.customer?.name || 'N/A'
         };
       });
 
@@ -210,12 +326,20 @@ const ManufacturingDashboard = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.get('/products');
+      // Fetch products with larger limit to get all available products
+      const response = await api.get('/products?limit=1000&status=active');
       const productsList = response.data.products || [];
+      console.log('✅ Fetched products:', productsList.length);
       setProducts(productsList);
       setAvailableProducts(productsList);
+      
+      // If no products found, show a warning
+      if (productsList.length === 0) {
+        console.warn('⚠️ No products found. Please create products in the Inventory module first.');
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      toast.error('Failed to load products. Please check your connection.');
     }
   };
 
@@ -250,37 +374,7 @@ const ManufacturingDashboard = () => {
     }
   };
 
-  const fetchWorkerPerformance = async () => {
-    try {
-      // Mock worker performance data - replace with actual API call
-      const mockData = [
-        { id: 1, name: 'John Doe', efficiency: 95, tasksCompleted: 12, currentTask: 'Cutting Order #123' },
-        { id: 2, name: 'Jane Smith', efficiency: 88, tasksCompleted: 10, currentTask: 'Stitching Order #124' },
-        { id: 3, name: 'Mike Johnson', efficiency: 92, tasksCompleted: 11, currentTask: 'Quality Check Order #125' },
-      ];
-      setWorkerPerformance(mockData);
-    } catch (error) {
-      console.error('Failed to fetch worker performance:', error);
-    }
-  };
 
-  const fetchQualityMetrics = async () => {
-    try {
-      const response = await api.get('/manufacturing/dashboard/stats');
-      const rejectionStats = response.data.rejectionStats || [];
-      
-      const totalRejections = rejectionStats.reduce((sum, stat) => sum + stat.total_quantity, 0);
-      const qualityRate = totalRejections > 0 ? Math.max(0, 100 - (totalRejections / 100)) : 100;
-
-      setQualityMetrics([
-        { label: 'Quality Rate', value: `${qualityRate.toFixed(1)}%`, color: 'text-green-600' },
-        { label: 'Total Rejections', value: totalRejections, color: 'text-red-600' },
-        { label: 'Top Rejection Reason', value: rejectionStats[0]?.reason || 'None', color: 'text-yellow-600' }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch quality metrics:', error);
-    }
-  };
 
   // Action handlers for production orders
   const handleStartOrder = async (orderId) => {
@@ -332,27 +426,141 @@ const ManufacturingDashboard = () => {
 
   const handleScanSuccess = async (decodedText) => {
     try {
-      // Look up product by barcode
-      const response = await api.get(`/products/scan/${decodedText}`);
-      const product = response.data.product;
+      setIsScanning(false);
+      setTrackingLoading(true);
+      setProductTrackingDialogOpen(true);
       
-      if (product) {
-        // Find orders with this product
-        const ordersWithProduct = activeOrders.filter(order => 
-          order.productCode === product.product_code
-        );
-        
-        if (ordersWithProduct.length > 0) {
-          toast.success(`Found ${ordersWithProduct.length} order(s) for ${product.name}`);
-          // You could navigate to filtered view or highlight the orders
-        } else {
-          toast.info(`Product ${product.name} found, but no active orders`);
-        }
+      // Look up product by barcode
+      const productResponse = await api.get(`/products/scan/${decodedText}`);
+      const product = productResponse.data.product;
+      
+      if (!product) {
+        toast.error('Product not found with this barcode');
+        setProductTrackingDialogOpen(false);
+        return;
       }
+
+      // Fetch comprehensive tracking data
+      const trackingInfo = {
+        product: product,
+        salesOrders: [],
+        productionRequests: [],
+        productionOrders: [],
+        materialRequests: [],
+        currentStatus: 'Not Found'
+      };
+
+      // Find sales orders with this product
+      try {
+        const salesResponse = await api.get(`/sales/orders?product_id=${product.id}`);
+        trackingInfo.salesOrders = salesResponse.data.orders || [];
+      } catch (err) {
+        console.log('No sales orders found');
+      }
+
+      // Find production requests
+      try {
+        const productionRequestsResponse = await api.get(`/production-requests?product_id=${product.id}`);
+        trackingInfo.productionRequests = productionRequestsResponse.data.data || [];
+      } catch (err) {
+        console.log('No production requests found');
+      }
+
+      // Find production orders
+      try {
+        const productionOrdersResponse = await api.get(`/manufacturing/orders?product_id=${product.id}`);
+        trackingInfo.productionOrders = productionOrdersResponse.data.productionOrders || [];
+      } catch (err) {
+        console.log('No production orders found');
+      }
+
+      // Find material requests
+      try {
+        const materialRequestsResponse = await api.get(`/material-request-manufacture?product_id=${product.id}`);
+        trackingInfo.materialRequests = materialRequestsResponse.data.requests || [];
+      } catch (err) {
+        console.log('No material requests found');
+      }
+
+      // Determine current status
+      if (trackingInfo.productionOrders.length > 0) {
+        const latestOrder = trackingInfo.productionOrders[0];
+        trackingInfo.currentStatus = latestOrder.status.replace(/_/g, ' ').toUpperCase();
+      } else if (trackingInfo.productionRequests.length > 0) {
+        trackingInfo.currentStatus = 'PRODUCTION REQUESTED';
+      } else if (trackingInfo.salesOrders.length > 0) {
+        trackingInfo.currentStatus = 'SALES ORDER CREATED';
+      }
+
+      setTrackingData(trackingInfo);
+      toast.success(`Product ${product.name} found!`);
+      
     } catch (error) {
-      toast.error('Product not found with this barcode');
+      console.error('Scan error:', error);
+      
+      // Check if it's a 404 error (product not found)
+      if (error.response?.status === 404) {
+        // Try to fetch available products to help user
+        try {
+          const productsResponse = await api.get('/products?limit=10&status=active');
+          const availableProducts = productsResponse.data.products || [];
+          
+          if (availableProducts.length > 0) {
+            const productList = availableProducts
+              .map(p => `  • ${p.name} (${p.barcode || 'No barcode'})`)
+              .join('\n');
+            
+            toast.error(
+              <div>
+                <p className="font-semibold mb-2">❌ Product Not Found</p>
+                <p className="mb-2">Barcode "{decodedText}" doesn't exist in the system.</p>
+                <p className="text-xs mb-1">Available products:</p>
+                <pre className="text-xs bg-gray-100 p-2 rounded max-h-32 overflow-y-auto">
+                  {productList}
+                </pre>
+                <p className="text-xs mt-2 text-gray-600">
+                  💡 Add products via Inventory → GRN workflow
+                </p>
+              </div>,
+              {
+                duration: 8000,
+                style: {
+                  maxWidth: '600px'
+                }
+              }
+            );
+          } else {
+            toast.error(
+              `❌ Product with barcode "${decodedText}" not found.\n\n` +
+              `⚠️ No products exist in the system yet.\n` +
+              `💡 Add products via: Inventory → GRN Workflow`,
+              {
+                duration: 6000,
+                style: {
+                  maxWidth: '500px'
+                }
+              }
+            );
+          }
+        } catch (fetchError) {
+          // Fallback if we can't fetch products
+          toast.error(`Product with barcode "${decodedText}" not found in system.\nPlease check the barcode or add the product first.`, {
+            duration: 5000,
+            style: {
+              maxWidth: '500px'
+            }
+          });
+        }
+      } else {
+        // Other errors (network, server, etc.)
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to fetch product tracking information';
+        toast.error(errorMessage);
+      }
+      
+      setProductTrackingDialogOpen(false);
+    } finally {
+      setTrackingLoading(false);
     }
-    setIsScanning(false);
   };
 
   const handleScanError = (error) => {
@@ -378,80 +586,26 @@ const ManufacturingDashboard = () => {
     fetchDashboardData();
     fetchActiveOrders();
     fetchProductionStages();
-    fetchWorkerPerformance();
-    fetchQualityMetrics();
     fetchIncomingOrders();
   };
 
-  // Production Workflow Functions
+  // Production Workflow Functions - Simplified Approval
   const handleStartProduction = async (order) => {
     try {
-      console.log('=== Start Production Clicked ===');
-      console.log('Order data:', JSON.stringify(order, null, 2));
-      console.log('product_id:', order.product_id, 'Type:', typeof order.product_id);
+      console.log('=== Approve Order Clicked ===');
+      console.log('Order:', order.order_number || order.request_number);
 
-      // Validate product_id before sending
-      if (!order.product_id || isNaN(Number(order.product_id))) {
-        console.warn('Invalid product_id detected:', order.product_id);
-        console.log('Opening product selection dialog...');
-        
-        // Store the order and open product selection dialog
-        setPendingProductionOrder(order);
-        setProductSelectionDialogOpen(true);
-        
-        // Try to pre-select a matching product by name
-        const matchingProduct = availableProducts.find(p => 
-          p.name?.toLowerCase().includes(order.product_name?.toLowerCase()) ||
-          order.product_name?.toLowerCase().includes(p.name?.toLowerCase())
-        );
-        if (matchingProduct) {
-          setSelectedProductForProduction(matchingProduct.id);
-        }
-        
-        return;
-      }
-
-      // Create production order from incoming order
-      const payload = {
-        sales_order_id: order.sales_order_id || null, // Use sales_order_id instead of order_id
-        product_id: Number(order.product_id), // Convert to number
-        quantity: order.quantity,
-        priority: order.priority || 'medium',
-        production_type: 'standard',
-        planned_start_date: new Date().toISOString().split('T')[0],
-        planned_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-        special_instructions: order.special_instructions || order.product_description || ''
-      };
-
-      console.log('Sending payload:', JSON.stringify(payload, null, 2));
-
-      await api.post('/manufacturing/orders', payload);
-
-      // Update order status to manufacturing_started
-      await api.put(`/orders/${order.id}/status`, {
-        status: 'manufacturing_started',
-        department: 'manufacturing',
-        action: 'production_started',
-        notes: 'Production order created and started'
+      // Update production request status to reviewed (approved by manufacturing)
+      await api.patch(`/production-requests/${order.id}/status`, {
+        status: 'reviewed',
+        manufacturing_notes: 'Order reviewed and approved. Ready for MRN request.'
       });
 
-      // Update QR code
-      await api.put(`/orders/${order.id}/qr-code`, {
-        department: 'manufacturing',
-        status: 'production_started',
-        timestamp: new Date().toISOString(),
-        materials: order.material_requirements,
-        customer: order.customer,
-        stage: 'material_review'
-      });
-
-      toast.success('Production started successfully');
+      toast.success('Order approved successfully. Ready for MRN request.');
       fetchIncomingOrders();
-      fetchActiveOrders();
     } catch (error) {
-      console.error('Start production error:', error);
-      console.error('Error response:', error.response?.data);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to start production';
+      console.error('Approval error:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to approve order';
       toast.error(errorMessage);
     }
   };
@@ -482,7 +636,7 @@ const ManufacturingDashboard = () => {
         product_id: Number(selectedProductForProduction), // Use selected product
         quantity: orderWithProduct.quantity,
         priority: orderWithProduct.priority || 'medium',
-        production_type: 'standard',
+        production_type: 'in_house', // Valid values: 'in_house', 'outsourced', 'mixed'
         planned_start_date: new Date().toISOString().split('T')[0],
         planned_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         special_instructions: orderWithProduct.special_instructions || orderWithProduct.product_description || ''
@@ -492,39 +646,40 @@ const ManufacturingDashboard = () => {
 
       await api.post('/manufacturing/orders', payload);
 
-      // Update order status to manufacturing_started
-      await api.put(`/orders/${orderWithProduct.id}/status`, {
-        status: 'manufacturing_started',
-        department: 'manufacturing',
-        action: 'production_started',
-        notes: 'Production order created and started'
-      });
+      // Update production request status if applicable
+      if (orderWithProduct.request_number) {
+        try {
+          await api.put(`/production-requests/${orderWithProduct.id}`, {
+            status: 'in_production',
+            notes: 'Production order created with selected product'
+          });
+        } catch (reqError) {
+          console.warn('Failed to update production request status:', reqError);
+          // Don't fail the entire operation
+        }
+      }
 
-      // Update QR code
-      await api.put(`/orders/${orderWithProduct.id}/qr-code`, {
-        department: 'manufacturing',
-        status: 'production_started',
-        timestamp: new Date().toISOString(),
-        materials: orderWithProduct.material_requirements,
-        customer: orderWithProduct.customer,
-        stage: 'material_review'
-      });
-
-      toast.success('Production started successfully with selected product');
-      
-      // Close dialog and reset state
+      // Close the dialog first
       setProductSelectionDialogOpen(false);
       setPendingProductionOrder(null);
       setSelectedProductForProduction(null);
-      
+
+      toast.success('Production started successfully');
       fetchIncomingOrders();
       fetchActiveOrders();
     } catch (error) {
-      console.error('Start production error:', error);
+      console.error('Start production with selected product error:', error);
       console.error('Error response:', error.response?.data);
       const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to start production';
       toast.error(errorMessage);
     }
+  };
+
+  const handleCreateNewProduct = () => {
+    // Close the dialog
+    setProductSelectionDialogOpen(false);
+    // Navigate to inventory dashboard to create new product
+    navigate('/inventory');
   };
 
   const handleOpenProductionStages = (order) => {
@@ -676,39 +831,7 @@ const ManufacturingDashboard = () => {
     }
   };
 
-  const handleOutsourceStage = (order, stage) => {
-    setSelectedProductionOrder({ ...order, outsourceStage: stage });
-    setOutsourcingDialogOpen(true);
-  };
 
-  const handleConfirmOutsourcing = async () => {
-    if (!selectedProductionOrder) return;
-
-    try {
-      // Create outsourcing record
-      await api.post('/manufacturing/outsourcing', {
-        production_order_id: selectedProductionOrder.id,
-        stage: selectedProductionOrder.outsourceStage,
-        vendor_name: 'Third Party Vendor', // This would come from form
-        estimated_cost: 0, // This would come from form
-        estimated_delivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      });
-
-      // Update stage to outsourced
-      await handleUpdateProductionStage(
-        selectedProductionOrder.id,
-        selectedProductionOrder.outsourceStage,
-        'outsourced',
-        'Sent to third party vendor'
-      );
-
-      toast.success('Stage outsourced successfully');
-      setOutsourcingDialogOpen(false);
-      setSelectedProductionOrder(null);
-    } catch (error) {
-      toast.error('Failed to outsource stage');
-    }
-  };
 
   const handleQualityCheck = (order) => {
     setSelectedProductionOrder(order);
@@ -1140,6 +1263,283 @@ const ManufacturingDashboard = () => {
     </div>
   );
 
+  const ProductTrackingDialog = () => (
+    <div className={`fixed inset-0 z-50 ${productTrackingDialogOpen ? 'block' : 'hidden'}`}>
+      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setProductTrackingDialogOpen(false)}></div>
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Package className="w-6 h-6" />
+                Product Tracking Details
+              </h3>
+              <button 
+                onClick={() => setProductTrackingDialogOpen(false)}
+                className="text-white hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {trackingLoading ? (
+            <div className="px-6 py-12 text-center">
+              <RefreshCw className="w-12 h-12 mx-auto text-blue-600 animate-spin mb-4" />
+              <p className="text-gray-600">Loading tracking information...</p>
+            </div>
+          ) : trackingData ? (
+            <div className="px-6 py-6">
+              {/* Product Info Section */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg mb-6 border border-blue-200">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">{trackingData.product.name}</h4>
+                    {trackingData.product.description && (
+                      <p className="text-gray-600 mb-3">{trackingData.product.description}</p>
+                    )}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500 font-medium">Product Code:</span>
+                        <p className="text-gray-900 font-semibold">{trackingData.product.product_code}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 font-medium">Category:</span>
+                        <p className="text-gray-900 font-semibold">{trackingData.product.category || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 font-medium">Barcode:</span>
+                        <p className="text-gray-900 font-semibold">{trackingData.product.barcode || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 font-medium">Current Status:</span>
+                        <span className="inline-block px-3 py-1 text-sm font-bold bg-blue-600 text-white rounded">
+                          {trackingData.currentStatus}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {trackingData.product.barcode && (
+                    <div className="ml-6">
+                      <BarcodeDisplay value={trackingData.product.barcode} width={1.5} height={60} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Journey Timeline */}
+              <div className="space-y-6">
+                {/* Sales Orders */}
+                <div>
+                  <h5 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <span className="text-green-700 font-bold">1</span>
+                    </div>
+                    Sales Orders ({trackingData.salesOrders.length})
+                  </h5>
+                  {trackingData.salesOrders.length > 0 ? (
+                    <div className="space-y-2">
+                      {trackingData.salesOrders.map((order, idx) => (
+                        <div key={idx} className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Order #:</span>
+                              <p className="font-semibold text-gray-900">{order.order_number}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Customer:</span>
+                              <p className="font-semibold text-gray-900">{order.customer?.name || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Quantity:</span>
+                              <p className="font-semibold text-gray-900">{order.quantity || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Status:</span>
+                              <span className="inline-block px-2 py-1 text-xs bg-green-600 text-white rounded">
+                                {order.status?.replace(/_/g, ' ').toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic p-4 bg-gray-50 rounded border border-gray-200">No sales orders found</p>
+                  )}
+                </div>
+
+                {/* Production Requests */}
+                <div>
+                  <h5 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-700 font-bold">2</span>
+                    </div>
+                    Production Requests ({trackingData.productionRequests.length})
+                  </h5>
+                  {trackingData.productionRequests.length > 0 ? (
+                    <div className="space-y-2">
+                      {trackingData.productionRequests.map((request, idx) => (
+                        <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Request #:</span>
+                              <p className="font-semibold text-gray-900">{request.request_number}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Project:</span>
+                              <p className="font-semibold text-gray-900">{request.project_name || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Quantity:</span>
+                              <p className="font-semibold text-gray-900">{request.quantity} {request.unit}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Status:</span>
+                              <span className="inline-block px-2 py-1 text-xs bg-blue-600 text-white rounded">
+                                {request.status?.replace(/_/g, ' ').toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic p-4 bg-gray-50 rounded border border-gray-200">No production requests found</p>
+                  )}
+                </div>
+
+                {/* Material Requests */}
+                <div>
+                  <h5 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                      <span className="text-purple-700 font-bold">3</span>
+                    </div>
+                    Material Requests ({trackingData.materialRequests.length})
+                  </h5>
+                  {trackingData.materialRequests.length > 0 ? (
+                    <div className="space-y-2">
+                      {trackingData.materialRequests.map((request, idx) => (
+                        <div key={idx} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">MRN #:</span>
+                              <p className="font-semibold text-gray-900">{request.mrm_number || request.id}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Project:</span>
+                              <p className="font-semibold text-gray-900">{request.project_name || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Requested Date:</span>
+                              <p className="font-semibold text-gray-900">{new Date(request.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Status:</span>
+                              <span className="inline-block px-2 py-1 text-xs bg-purple-600 text-white rounded">
+                                {request.status?.replace(/_/g, ' ').toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic p-4 bg-gray-50 rounded border border-gray-200">No material requests found</p>
+                  )}
+                </div>
+
+                {/* Production Orders */}
+                <div>
+                  <h5 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                      <span className="text-orange-700 font-bold">4</span>
+                    </div>
+                    Production Orders ({trackingData.productionOrders.length})
+                  </h5>
+                  {trackingData.productionOrders.length > 0 ? (
+                    <div className="space-y-2">
+                      {trackingData.productionOrders.map((order, idx) => (
+                        <div key={idx} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                            <div>
+                              <span className="text-gray-600">Production #:</span>
+                              <p className="font-semibold text-gray-900">{order.production_number}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Quantity:</span>
+                              <p className="font-semibold text-gray-900">{order.quantity}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Priority:</span>
+                              <span className={`inline-block px-2 py-1 text-xs rounded ${
+                                order.priority === 'urgent' ? 'bg-red-600 text-white' :
+                                order.priority === 'high' ? 'bg-orange-600 text-white' :
+                                order.priority === 'medium' ? 'bg-yellow-600 text-white' :
+                                'bg-gray-600 text-white'
+                              }`}>
+                                {order.priority?.toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Status:</span>
+                              <span className="inline-block px-2 py-1 text-xs bg-orange-600 text-white rounded">
+                                {order.status?.replace(/_/g, ' ').toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                          {/* Production Stages */}
+                          {order.stages && order.stages.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-orange-200">
+                              <span className="text-xs font-medium text-gray-600 mb-2 block">Production Stages:</span>
+                              <div className="flex flex-wrap gap-2">
+                                {order.stages.map((stage, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${
+                                      stage.status === 'completed' ? 'bg-green-100 text-green-800 border border-green-300' :
+                                      stage.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
+                                      stage.status === 'on_hold' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+                                      'bg-gray-100 text-gray-800 border border-gray-300'
+                                    }`}
+                                  >
+                                    {getStageIcon(stage.status)}
+                                    {stage.stage_name.replace(/_/g, ' ').toUpperCase()}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic p-4 bg-gray-50 rounded border border-gray-200">No production orders found</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="px-6 py-12 text-center text-gray-600">
+              No tracking data available
+            </div>
+          )}
+
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end bg-gray-50">
+            <button
+              onClick={() => setProductTrackingDialogOpen(false)}
+              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -1155,7 +1555,7 @@ const ManufacturingDashboard = () => {
             Refresh
           </button>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full justify-end">
           <button
             onClick={() => setIsScanning(true)}
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition"
@@ -1164,23 +1564,15 @@ const ManufacturingDashboard = () => {
             Scan Product
           </button>
           <button
-            onClick={() => setCreateDialogOpen(true)}
+            onClick={() => navigate('/manufacturing/wizard')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
           >
             <Plus className="w-4 h-4" />
             Create Order
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition shadow-sm"
-            onClick={() => navigate('/manufacturing/wizard')}
-            title="Create production order with full workflow"
-          >
-            <Factory className="w-5 h-5" />
-            Production Wizard
-          </button>
-          <button
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-            onClick={() => setActiveTab(5)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-purple-700"
+            onClick={() => navigate('/outsourcing')}
           >
             <Users className="w-5 h-5" />
             Outsourcing
@@ -1189,7 +1581,7 @@ const ManufacturingDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
         <StatCard
           title="Total Orders"
           value={stats.totalOrders}
@@ -1201,6 +1593,13 @@ const ManufacturingDashboard = () => {
           value={stats.activeOrders}
           icon={<Play className="w-6 h-6 text-green-600" />}
           subtitle="Currently in production"
+        />
+        <StatCard
+          title="Pending Materials"
+          value={pendingDispatches.length + pendingReceipts.length + pendingVerifications.length}
+          icon={<Package className="w-6 h-6 text-orange-600" />}
+          subtitle="Awaiting receipt/verification"
+          onClick={() => setActiveTab(1)}
         />
         <StatCard
           title="Completed Orders"
@@ -1218,12 +1617,12 @@ const ManufacturingDashboard = () => {
 
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow border border-gray-200">
-        <nav className="flex space-x-8 px-6 border-b border-gray-200">
-          {["Incoming Orders", "Active Orders", "Production Stages", "Worker Performance", "Quality Control", "Outsourcing", "QR Code Scanner"].map((tab, idx) => (
+        <nav className="flex space-x-8 px-6 border-b border-gray-200 overflow-x-auto">
+          {["Incoming Orders", "Material Receipts", "Active Orders", "Production Stages", "QR Code Scanner"].map((tab, idx) => (
             <button
               key={tab}
               onClick={() => setActiveTab(idx)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === idx
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -1233,6 +1632,11 @@ const ManufacturingDashboard = () => {
               {idx === 0 && incomingOrders.length > 0 && (
                 <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
                   {incomingOrders.length}
+                </span>
+              )}
+              {idx === 1 && (pendingDispatches.length + pendingReceipts.length + pendingVerifications.length) > 0 && (
+                <span className="ml-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                  {pendingDispatches.length + pendingReceipts.length + pendingVerifications.length}
                 </span>
               )}
             </button>
@@ -1245,14 +1649,6 @@ const ManufacturingDashboard = () => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Incoming Orders from Sales</h3>
-              <div className="flex gap-2">
-                <button
-                  className="px-4 py-2 rounded border border-blue-600 text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                  onClick={handleScanQrCode}
-                >
-                  <QrCode className="w-4 h-4" /> Scan QR
-                </button>
-              </div>
             </div>
             <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
               <table className="min-w-full divide-y divide-gray-200">
@@ -1279,7 +1675,17 @@ const ManufacturingDashboard = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">{order.customer?.name}</td>
-                      <td className="px-6 py-4">{order.garment_specs?.product_type}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{order.product_name}</div>
+                        {order.product_description && (
+                          <div className="text-xs text-gray-500 mt-0.5">{order.product_description}</div>
+                        )}
+                        {!order.product_id && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700 mt-1">
+                            No Product Link
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="text-xs">
                           {order.material_requirements?.slice(0, 2).map((mat, idx) => (
@@ -1293,45 +1699,32 @@ const ManufacturingDashboard = () => {
                       <td className="px-6 py-4 text-right">{order.quantity}</td>
                       <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center space-x-1">
-                          <button
-                            onClick={() => handleStartProduction(order)}
-                            className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
-                            title="Start Production"
-                          >
-                            <Play className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleMaterialVerification(order)}
-                            disabled={!order.production_order_id && !order.orderNo}
-                            className={`p-2 rounded transition-colors ${
-                              !order.production_order_id && !order.orderNo
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-blue-600 hover:text-blue-900 hover:bg-blue-50'
-                            }`}
-                            title={!order.production_order_id && !order.orderNo ? "Start production first" : "Material Verification"}
-                          >
-                            <CheckSquare className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleCreateMRN(order)}
-                            className="p-2 text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded transition-colors"
-                            title="Create Material Request (MRN)"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenProductionStages(order)}
-                            disabled={!order.production_order_id && !order.orderNo}
-                            className={`p-2 rounded transition-colors ${
-                              !order.production_order_id && !order.orderNo
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-purple-600 hover:text-purple-900 hover:bg-purple-50'
-                            }`}
-                            title={!order.production_order_id && !order.orderNo ? "Start production first" : "Production Stages"}
-                          >
-                            <Factory className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center justify-center space-x-2">
+                          {order.status === 'pending' ? (
+                            <button
+                              onClick={() => handleStartProduction(order)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+                              title="Approve order and prepare for MRN request"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Approve Order
+                            </button>
+                          ) : order.status === 'reviewed' ? (
+                            <>
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 rounded border border-green-300">
+                                <CheckCircle className="w-4 h-4" />
+                                
+                              </span>
+                              <button
+                                onClick={() => handleCreateMRN(order)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                                title="Create Material Request for this project"
+                              >
+                                <ArrowRight className="w-4 h-4" />
+                                Create MRN
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -1349,115 +1742,484 @@ const ManufacturingDashboard = () => {
           </div>
         </div>
 
+        {/* Material Receipts Tab */}
         <div className={activeTab === 1 ? "block" : "hidden"}>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Orders in Production</h3>
-            {/* ...existing table code for active orders... */}
-            <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order No.</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Stage</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Worker</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expected Completion</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {activeOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">{order.orderNo}</td>
-                      <td className="px-6 py-4">{order.productName}</td>
-                      <td className="px-6 py-4 text-right">{order.quantity}</td>
-                      <td className="px-6 py-4">{order.currentStage}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${order.progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-900">{order.progress}%</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">{order.assignedWorker}</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                          {order.status.replace("_", " ").toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">{order.expectedCompletion}</td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center space-x-1">
-                          <button 
-                            onClick={() => handleStartOrder(order.id)}
-                            className="p-1 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
-                            title="Start Production"
-                          >
-                            <Play className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handlePauseOrder(order.id)}
-                            className="p-1 text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded transition-colors"
-                            title="Pause Production"
-                          >
-                            <Pause className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleStopOrder(order.id)}
-                            className="p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
-                            title="Stop Production"
-                          >
-                            <Square className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleEditOrder(order)}
-                            className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
-                            title="Edit Order"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleViewOrder(order)}
-                            className="p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded transition-colors"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleShowBarcode(order)}
-                            className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
-                            title="Show Barcode"
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteOrder(order.id)}
-                            className="p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
-                            title="Delete Order"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Pending Material Receipts</h3>
+              <button
+                onClick={fetchPendingMaterialReceipts}
+                className="px-4 py-2 rounded border border-blue-600 text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" /> Refresh
+              </button>
             </div>
+
+            {/* Pending Dispatches - Need to Receive */}
+            {pendingDispatches.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-orange-600" />
+                  Materials Dispatched from Inventory ({pendingDispatches.length})
+                </h4>
+                <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dispatch #</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">MRN Request</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dispatched By</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dispatched At</th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {pendingDispatches.map((dispatch) => (
+                        <tr key={dispatch.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-gray-900">{dispatch.dispatch_number}</div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 mt-1">
+                              Awaiting Receipt
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">{dispatch.mrnRequest?.request_number || 'N/A'}</td>
+                          <td className="px-6 py-4">{dispatch.project_name}</td>
+                          <td className="px-6 py-4">{dispatch.total_items} items</td>
+                          <td className="px-6 py-4">{dispatch.dispatcher?.name || 'N/A'}</td>
+                          <td className="px-6 py-4">{new Date(dispatch.dispatched_at).toLocaleString()}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => navigate(`/manufacturing/material-receipt/${dispatch.id}`)}
+                              className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md gap-2"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Receive Materials
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Pending Receipts - Need to Verify */}
+            {pendingReceipts.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-blue-600" />
+                  Materials Received - Awaiting Verification ({pendingReceipts.length})
+                </h4>
+                <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt #</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discrepancy</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Received By</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Received At</th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {pendingReceipts.map((receipt) => (
+                        <tr key={receipt.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-gray-900">{receipt.receipt_number}</div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                              Need Verification
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">{receipt.project_name}</td>
+                          <td className="px-6 py-4">{receipt.total_items_received} items</td>
+                          <td className="px-6 py-4">
+                            {receipt.has_discrepancy ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                No
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">{receipt.receiver?.name || 'N/A'}</td>
+                          <td className="px-6 py-4">{new Date(receipt.received_at).toLocaleString()}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => navigate(`/manufacturing/stock-verification/${receipt.id}`)}
+                              className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md gap-2"
+                            >
+                              <CheckSquare className="w-4 h-4" />
+                              Verify Stock
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Pending Verifications - Need Production Approval */}
+            {pendingVerifications.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-purple-600" />
+                  Stock Verified - Awaiting Production Approval ({pendingVerifications.length})
+                </h4>
+                <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Verification #</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Verified By</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Verified At</th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {pendingVerifications.map((verification) => (
+                        <tr key={verification.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-gray-900">{verification.verification_number}</div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
+                              Need Approval
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">{verification.project_name}</td>
+                          <td className="px-6 py-4">
+                            {verification.overall_result === 'passed' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Passed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Failed
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">{verification.verifier?.name || 'N/A'}</td>
+                          <td className="px-6 py-4">{new Date(verification.verified_at).toLocaleString()}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => navigate(`/manufacturing/production-approval/${verification.id}`)}
+                              className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md gap-2"
+                            >
+                              <Send className="w-4 h-4" />
+                              Approve Production
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {pendingDispatches.length === 0 && pendingReceipts.length === 0 && pendingVerifications.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Material Receipts</h3>
+                <p className="text-gray-600">
+                  All materials have been received, verified, and approved for production.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Production Stages Tab */}
-        <div className={activeTab === 1 ? "block" : "hidden"}>
+        {/* Active Orders Tab */}
+        <div className={activeTab === 2 ? "block" : "hidden"}>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Stages Overview</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Production Tracking - Active Orders</h3>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{activeOrders.length}</span> orders in production
+              </div>
+            </div>
+            
+            {activeOrders.length === 0 ? (
+              <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No Active Production Orders</h4>
+                <p className="text-gray-600 mb-4">There are currently no orders in production.</p>
+                <button 
+                  onClick={() => navigate('/manufacturing/wizard')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Production Order
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activeOrders.map((order) => (
+                  <div key={order.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    {/* Order Summary Row */}
+                    <div className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        {/* Order Info */}
+                        <div className="col-span-3">
+                          <div className="font-semibold text-gray-900">{order.orderNo}</div>
+                          <div className="text-sm text-blue-600 font-medium mt-1">{order.projectName}</div>
+                          <div className="text-xs text-gray-500 mt-1">Customer: {order.customerName}</div>
+                        </div>
+                        
+                        {/* Product & Quantity */}
+                        <div className="col-span-2">
+                          <div className="text-sm font-medium text-gray-900">{order.productName}</div>
+                          <div className="text-xs text-gray-600 mt-1">Qty: {order.quantity}</div>
+                          {order.productCode && (
+                            <div className="text-xs text-gray-500 mt-1">Code: {order.productCode}</div>
+                          )}
+                        </div>
+                        
+                        {/* Current Stage */}
+                        <div className="col-span-2">
+                          <div className="text-sm font-medium text-gray-900">{order.currentStage}</div>
+                          <div className="text-xs text-gray-600 mt-1">Assigned: {order.assignedWorker}</div>
+                        </div>
+                        
+                        {/* Progress */}
+                        <div className="col-span-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${order.progress}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs font-medium text-gray-900 w-10">{order.progress}%</span>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {order.stages.filter(s => s.status === 'completed').length} / {order.stages.length} stages
+                          </div>
+                        </div>
+                        
+                        {/* Status & Date */}
+                        <div className="col-span-2">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {order.status.replace("_", " ").toUpperCase()}
+                          </span>
+                          <div className="text-xs text-gray-600 mt-2">Due: {order.expectedCompletion}</div>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="col-span-1 text-right">
+                          <button
+                            onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title={expandedOrderId === order.id ? "Collapse Details" : "Expand Details"}
+                          >
+                            <ArrowRight className={`w-5 h-5 transition-transform duration-200 ${expandedOrderId === order.id ? 'rotate-90' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Expanded Details - Stage Breakdown */}
+                    {expandedOrderId === order.id && (
+                      <div className="border-t border-gray-200 bg-gray-50 p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Stage-by-Stage Tracking</h4>
+                        
+                        {/* Stages Table */}
+                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
+                          <table className="min-w-full text-sm">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Stage</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Status</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Progress</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Quantities</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Start Time</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">End Time</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {order.stages.map((stage, index) => (
+                                <tr key={index} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {getStageIcon(stage.status)}
+                                      <span className="font-medium">{stage.name}</span>
+                                      {stage.isPrinting && (
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium flex items-center gap-1">
+                                          <Paintbrush className="w-3 h-3" />
+                                          Printing
+                                        </span>
+                                      )}
+                                      {stage.isEmbroidery && (
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-700 font-medium flex items-center gap-1">
+                                          <Scissors className="w-3 h-3" />
+                                          Embroidery
+                                        </span>
+                                      )}
+                                      {stage.isOutsourced ? (
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 font-medium flex items-center gap-1">
+                                          <Send className="w-3 h-3" />
+                                          Outsourced
+                                        </span>
+                                      ) : (
+                                        (stage.isPrinting || stage.isEmbroidery) && (
+                                          <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 font-medium">
+                                            In-House
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStageStatusColor(stage.status)}`}>
+                                      {stage.status.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                                        <div
+                                          className={`h-2 rounded-full ${
+                                            stage.status === 'completed' ? 'bg-green-600' : 
+                                            stage.status === 'in_progress' ? 'bg-blue-600' : 'bg-gray-400'
+                                          }`}
+                                          style={{ width: `${stage.progress}%` }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-xs text-gray-600 w-8">{stage.progress}%</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-xs space-y-1">
+                                      {stage.processedQty > 0 && (
+                                        <div className="text-gray-700">Processed: <span className="font-medium">{stage.processedQty}</span></div>
+                                      )}
+                                      {stage.approvedQty > 0 && (
+                                        <div className="text-green-700">Approved: <span className="font-medium">{stage.approvedQty}</span></div>
+                                      )}
+                                      {stage.rejectedQty > 0 && (
+                                        <div className="text-red-700">Rejected: <span className="font-medium">{stage.rejectedQty}</span></div>
+                                      )}
+                                      {stage.processedQty === 0 && stage.approvedQty === 0 && stage.rejectedQty === 0 && (
+                                        <div className="text-gray-500">-</div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-xs text-gray-700">{stage.startTime || '-'}</div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-xs text-gray-700">{stage.endTime || '-'}</div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleStartOrder(order.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-green-700 bg-green-100 hover:bg-green-200 rounded-lg transition-colors"
+                              title="Start Production"
+                            >
+                              <Play className="w-4 h-4" />
+                              Start
+                            </button>
+                            <button 
+                              onClick={() => handlePauseOrder(order.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition-colors"
+                              title="Pause Production"
+                            >
+                              <Pause className="w-4 h-4" />
+                              Pause
+                            </button>
+                            <button 
+                              onClick={() => handleStopOrder(order.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                              title="Stop Production"
+                            >
+                              <Square className="w-4 h-4" />
+                              Stop
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleEditOrder(order)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                              title="Edit Order"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => handleViewOrder(order)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                              title="View Full Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View
+                            </button>
+                            <button 
+                              onClick={() => handleShowBarcode(order)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
+                              title="Show Barcode"
+                            >
+                              <QrCode className="w-4 h-4" />
+                              Barcode
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                              title="Delete Order"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Additional Notes */}
+                        {order.stages.some(s => s.notes) && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <h5 className="text-xs font-semibold text-gray-700 mb-2">Stage Notes:</h5>
+                            {order.stages.filter(s => s.notes).map((stage, idx) => (
+                              <div key={idx} className="text-xs text-gray-600 mb-1">
+                                <span className="font-medium">{stage.name}:</span> {stage.notes}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Production Stages Tab - MOVED TO INDEX 3 */}
+        {/* Production Stages Tab */}
+        <div className={activeTab === 3 ? "block" : "hidden"}>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Stages Overview (DUPLICATE - REMOVE)</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {productionStages.map((stage) => {
                 const IconComponent = stage.icon;
@@ -1481,274 +2243,16 @@ const ManufacturingDashboard = () => {
           </div>
         </div>
 
-        {/* Worker Performance Tab */}
-        <div className={activeTab === 2 ? "block" : "hidden"}>
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Worker Performance</h3>
-            {workerPerformance.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {workerPerformance.map((worker) => (
-                  <div key={worker.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-gray-900">{worker.name}</h4>
-                          <p className="text-xs text-gray-500">Production Worker</p>
-                        </div>
-                      </div>
-                      <div className={`text-sm font-medium ${
-                        worker.efficiency >= 90 ? 'text-green-600' : 
-                        worker.efficiency >= 80 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {worker.efficiency}%
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Tasks Completed:</span>
-                        <span className="font-medium">{worker.tasksCompleted}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Current Task:</span>
-                        <span className="font-medium text-blue-600">{worker.currentTask}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${worker.efficiency}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No worker performance data available.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quality Control Tab */}
-        <div className={activeTab === 3 ? "block" : "hidden"}>
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quality Control Metrics</h3>
-            {qualityMetrics.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                {qualityMetrics.map((metric, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">{metric.label}</h4>
-                    <div className={`text-2xl font-bold ${metric.color}`}>{metric.value}</div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Quality Actions</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button 
-                  onClick={() => navigate('/manufacturing/quality')}
-                  className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">Quality Reports</span>
-                </button>
-                <button 
-                  onClick={() => navigate('/manufacturing/orders?tab=rejections')}
-                  className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                  <span className="font-medium">Rejection Analysis</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Outsourcing Tab */}
-        <div className={activeTab === 5 ? "block" : "hidden"}>
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Outsourcing Management</h3>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => navigate('/outsourcing/vendors')}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition"
-                >
-                  <Users className="w-4 h-4" />
-                  Manage Vendors
-                </button>
-                <button
-                  onClick={() => navigate('/outsourcing/create-order')}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Outsource Order
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              <StatCard
-                title="Active Outsource Orders"
-                value={12}
-                icon={<Package className="w-6 h-6 text-blue-600" />}
-                subtitle="Currently with vendors"
-              />
-              <StatCard
-                title="Completed Orders"
-                value={45}
-                icon={<CheckCircle className="w-6 h-6 text-green-600" />}
-                subtitle="Successfully completed"
-              />
-              <StatCard
-                title="Total Vendors"
-                value={8}
-                icon={<Users className="w-6 h-6 text-purple-600" />}
-                subtitle="Active partnerships"
-              />
-              <StatCard
-                title="Avg Delivery Time"
-                value="6.2"
-                icon={<Clock className="w-6 h-6 text-orange-600" />}
-                subtitle="Days from vendor"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Outsource Orders */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-lg font-semibold text-gray-900">Recent Outsource Orders</h4>
-                  <button
-                    onClick={() => navigate('/outsourcing/orders')}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    View All
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { id: 1, orderNo: 'OUT-2024-001', vendor: 'Precision Embroidery', product: 'Logo Embroidery', status: 'in_progress', progress: 65 },
-                    { id: 2, orderNo: 'OUT-2024-002', vendor: 'Elite Stitching', product: 'Trouser Stitching', status: 'completed', progress: 100 },
-                    { id: 3, orderNo: 'OUT-2024-003', vendor: 'Quick Print', product: 'Screen Printing', status: 'delayed', progress: 40 }
-                  ].map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{order.orderNo}</div>
-                        <div className="text-sm text-gray-600">{order.vendor} - {order.product}</div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className={`text-xs px-2 py-1 rounded-full ${
-                           order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                           order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                           'bg-yellow-100 text-yellow-800'
-                         }`}>
-                           {order.status.replace('_', ' ').toUpperCase()}
-                         </div>
-                          <div className="text-xs text-gray-500 mt-1">{order.progress}%</div>
-                        </div>
-                        <button
-                          onClick={() => navigate(`/outsourcing/orders/${order.id}`)}
-                          className="p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Vendor Performance */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-lg font-semibold text-gray-900">Top Performing Vendors</h4>
-                  <button
-                    onClick={() => navigate('/outsourcing/performance')}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    View All
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Precision Embroidery', rating: 4.8, orders: 25, onTime: 96 },
-                    { name: 'Elite Stitching Services', rating: 4.6, orders: 18, onTime: 92 },
-                    { name: 'Quick Print Solutions', rating: 4.2, orders: 12, onTime: 88 }
-                  ].map((vendor, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{vendor.name}</div>
-                        <div className="text-sm text-gray-600">{vendor.orders} orders completed</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium">{vendor.rating}</span>
-                          <span className="text-yellow-500">★</span>
-                        </div>
-                        <div className="text-xs text-gray-500">{vendor.onTime}% on-time</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Outsourcing Actions */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 mt-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Outsourcing Actions</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button
-                  onClick={() => navigate('/outsourcing/performance')}
-                  className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                  <span className="font-medium">Vendor Performance</span>
-                </button>
-                <button
-                  onClick={() => navigate('/outsourcing/quality')}
-                  className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <CheckCircle className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">Quality Reports</span>
-                </button>
-                <button
-                  onClick={() => navigate('/outsourcing/reports')}
-                  className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <BarChart3 className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium">Outsource Reports</span>
-                </button>
-                <button
-                  onClick={() => navigate('/outsourcing/reports/export')}
-                  className="flex items-center justify-center gap-2 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Package className="w-5 h-5 text-orange-600" />
-                  <span className="font-medium">Export Data</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* QR Code Scanner Tab */}
-        <div className={activeTab === 6 ? "block" : "hidden"}>
+        <div className={activeTab === 4 ? "block" : "hidden"}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold text-gray-900">QR Code Scanner</h3>
               <div className="text-sm text-gray-600">
-                Scan QR codes from production orders, challans, and materials to view detailed information
+                Scan QR codes from production orders, challans, and materials
               </div>
             </div>
-
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Scanner Component */}
               <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -1764,33 +2268,16 @@ const ManufacturingDashboard = () => {
                     onClick={() => navigate('/manufacturing/orders')}
                     className="flex items-center justify-center gap-2 w-full p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <Factory className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium">View All Orders</span>
+                    <Package className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium">View Production Orders</span>
                   </button>
                   <button
-                    onClick={() => navigate('/manufacturing/challans')}
+                    onClick={() => navigate('/challans')}
                     className="flex items-center justify-center gap-2 w-full p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <Package className="w-5 h-5 text-green-600" />
+                    <Scan className="w-5 h-5 text-green-600" />
                     <span className="font-medium">View Challans</span>
                   </button>
-                  <button
-                    onClick={() => navigate('/inventory')}
-                    className="flex items-center justify-center gap-2 w-full p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <BarChart3 className="w-5 h-5 text-purple-600" />
-                    <span className="font-medium">Inventory Management</span>
-                  </button>
-                </div>
-
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h5 className="text-sm font-semibold text-blue-900 mb-2">QR Code Features</h5>
-                  <ul className="text-xs text-blue-800 space-y-1">
-                    <li>• Scan production order QR codes to view progress</li>
-                    <li>• Track challan details and delivery status</li>
-                    <li>• Monitor material usage and quality metrics</li>
-                    <li>• Verify vendor work with external partners</li>
-                  </ul>
                 </div>
               </div>
             </div>
@@ -2063,71 +2550,121 @@ const ManufacturingDashboard = () => {
                   Select Product:
                 </label>
                 {availableProducts.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Package className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                    <p>No products available. Please create a product first.</p>
+                  <div className="text-center py-12 px-4">
+                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6">
+                      <Package className="w-16 h-16 mx-auto mb-3 text-yellow-500" />
+                      <p className="text-lg font-semibold text-gray-900 mb-2">No Products Found</p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        You need to create a product before starting production.<br/>
+                        The product should match: <strong>{pendingProductionOrder?.product_name}</strong>
+                      </p>
+                      <button
+                        onClick={() => {
+                          setProductSelectionDialogOpen(false);
+                          navigate('/inventory/products/create', { 
+                            state: { 
+                              suggestedName: pendingProductionOrder?.product_name,
+                              returnTo: '/manufacturing'
+                            } 
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Create Product Now
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {availableProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        onClick={() => setSelectedProductForProduction(product.id)}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                          selectedProductForProduction === product.id
-                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">{product.name}</h4>
-                            {product.description && (
-                              <p className="text-sm text-gray-600 mt-1">{product.description}</p>
-                            )}
-                            <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                              {product.product_code && (
-                                <span><strong>Code:</strong> {product.product_code}</span>
+                  <div className="space-y-2 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {availableProducts.map((product) => {
+                      // Highlight products that match the order's product name
+                      const isRecommended = pendingProductionOrder?.product_name && 
+                        product.name.toLowerCase().includes(pendingProductionOrder.product_name.toLowerCase());
+                      
+                      return (
+                        <div
+                          key={product.id}
+                          onClick={() => setSelectedProductForProduction(product.id)}
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedProductForProduction === product.id
+                              ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                              : isRecommended
+                              ? 'border-green-300 bg-green-50 hover:border-green-400'
+                              : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-gray-900">{product.name}</h4>
+                                {isRecommended && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-green-600 text-white rounded">
+                                    Recommended
+                                  </span>
+                                )}
+                              </div>
+                              {product.description && (
+                                <p className="text-sm text-gray-600 mt-1">{product.description}</p>
                               )}
-                              {product.category && (
-                                <span><strong>Category:</strong> {product.category}</span>
+                              <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                                {product.product_code && (
+                                  <span><strong>Code:</strong> {product.product_code}</span>
+                                )}
+                                {product.category && (
+                                  <span><strong>Category:</strong> {product.category}</span>
+                                )}
+                                {product.unit_of_measurement && (
+                                  <span><strong>Unit:</strong> {product.unit_of_measurement}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              {selectedProductForProduction === product.id && (
+                                <CheckCircle className="w-6 h-6 text-blue-600" />
                               )}
                             </div>
                           </div>
-                          <div className="ml-4">
-                            {selectedProductForProduction === product.id && (
-                              <CheckCircle className="w-6 h-6 text-blue-600" />
-                            )}
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center gap-3">
-              <button
-                onClick={() => navigate('/products')}
-                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
-              >
-                + Create New Product
-              </button>
-              <div className="flex gap-3">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center gap-3 bg-gray-50">
+              {availableProducts.length > 0 && (
+                <button
+                  onClick={() => {
+                    setProductSelectionDialogOpen(false);
+                    navigate('/inventory/products/create', { 
+                      state: { 
+                        suggestedName: pendingProductionOrder?.product_name,
+                        returnTo: '/manufacturing'
+                      } 
+                    });
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Product
+                </button>
+              )}
+              <div className="flex gap-3 ml-auto">
                 <button
                   onClick={() => {
                     setProductSelectionDialogOpen(false);
                     setPendingProductionOrder(null);
                     setSelectedProductForProduction(null);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmProductSelection}
                   disabled={!selectedProductForProduction}
-                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     selectedProductForProduction
                       ? 'bg-blue-600 text-white hover:bg-blue-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -2140,7 +2677,110 @@ const ManufacturingDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Product Tracking Dialog */}
+      <ProductTrackingDialog />
+
+      {/* Barcode Scanner */}
+      {isScanning && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Scan className="w-5 h-5" />
+                Scan or Enter Barcode
+              </h3>
+              <button
+                onClick={() => {
+                  setIsScanning(false);
+                  setManualBarcode('');
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Manual Barcode Input Section */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Enter Barcode Manually
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={manualBarcode}
+                  onChange={(e) => setManualBarcode(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && manualBarcode.trim()) {
+                      handleScanSuccess(manualBarcode.trim());
+                      setManualBarcode('');
+                    }
+                  }}
+                  placeholder="Type barcode number..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => {
+                    if (manualBarcode.trim()) {
+                      handleScanSuccess(manualBarcode.trim());
+                      setManualBarcode('');
+                    } else {
+                      toast.error('Please enter a barcode');
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
+                >
+                  Check
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Press Enter or click Check to lookup the barcode
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">OR</span>
+              </div>
+            </div>
+
+            {/* Camera Scanner Section */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Scan with Camera
+              </label>
+              <BarcodeScanner
+                onScanSuccess={(barcode) => {
+                  handleScanSuccess(barcode);
+                  setManualBarcode('');
+                }}
+                onScanError={handleScanError}
+                isScanning={isScanning}
+                setIsScanning={setIsScanning}
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                setIsScanning(false);
+                setManualBarcode('');
+              }}
+              className="w-full mt-4 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  
   );
 };
 

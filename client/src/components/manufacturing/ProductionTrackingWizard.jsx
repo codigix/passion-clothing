@@ -1,752 +1,1196 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
 import {
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle,
-  Clock,
+  ArrowLeft,
   Play,
   Pause,
-  Square,
+  CheckCircle,
+  Clock,
   AlertCircle,
-  Calendar,
-  Timer,
-  Edit3,
+  Edit,
   Save,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Building2,
+  FileText,
+  Send,
+  Download,
+  Package,
+  Calculator
 } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
-const statusSchema = yup.object({
-  status: yup.string().oneOf(['pending', 'in_progress', 'completed', 'on_hold', 'skipped']).required(),
-  startDate: yup.string().nullable(),
-  endDate: yup.string().nullable(),
-  notes: yup.string().nullable(),
-  quantity_processed: yup.number().nullable().transform((value) => (Number.isNaN(value) ? null : value)).min(0),
-  quantity_approved: yup.number().nullable().transform((value) => (Number.isNaN(value) ? null : value)).min(0),
-  quantity_rejected: yup.number().nullable().transform((value) => (Number.isNaN(value) ? null : value)).min(0),
-  material_used: yup.number().nullable().transform((value) => (Number.isNaN(value) ? null : value)).min(0),
-}).test('completion-validation', 'Please provide completion details', function(value) {
-  if (value.status === 'completed') {
-    return value.quantity_processed !== null && value.quantity_processed >= 0;
-  }
-  return true;
-});
-
 const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [orderData, setOrderData] = useState(null);
+  const [productionOrder, setProductionOrder] = useState(null);
+  const [stages, setStages] = useState([]);
+  const [selectedStageIndex, setSelectedStageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [editingMode, setEditingMode] = useState(false);
-
-  const { control, handleSubmit, reset, watch, setValue, formState: { errors, isDirty } } = useForm({
-    resolver: yupResolver(statusSchema),
-    defaultValues: {
-      status: 'pending',
-      startDate: '',
-      endDate: '',
-      notes: '',
-      quantity_processed: 0,
-      quantity_approved: 0,
-      quantity_rejected: 0,
-      material_used: 0
-    }
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    status: '',
+    start_date: '',
+    start_time: '',
+    end_date: '',
+    end_time: '',
+    notes: ''
   });
-
-  const currentStatus = watch('status');
+  
+  // Outsourcing dialogs
+  const [outsourcingDialogOpen, setOutsourcingDialogOpen] = useState(false);
+  const [workType, setWorkType] = useState('in_house'); // 'in_house' or 'outsourced'
+  const [vendors, setVendors] = useState([]);
+  const [outwardChallanDialog, setOutwardChallanDialog] = useState(false);
+  const [inwardChallanDialog, setInwardChallanDialog] = useState(false);
+  const [challans, setChallans] = useState([]);
+  
+  // Material reconciliation
+  const [reconciliationDialog, setReconciliationDialog] = useState(false);
+  const [materials, setMaterials] = useState([]);
+  const [reconciliationData, setReconciliationData] = useState([]);
 
   useEffect(() => {
-    fetchOrderData();
+    fetchProductionOrder();
+    fetchVendors();
   }, [orderId]);
 
   useEffect(() => {
-    if (orderData?.stages?.[currentStep]) {
-      const stage = orderData.stages[currentStep];
-      reset({
-        status: stage.status,
-        startDate: stage.actual_start_time ? new Date(stage.actual_start_time).toISOString().slice(0, 16) : '',
-        endDate: stage.actual_end_time ? new Date(stage.actual_end_time).toISOString().slice(0, 16) : '',
-        notes: stage.notes || '',
-        quantity_processed: stage.quantity_processed || 0,
-        quantity_approved: stage.quantity_approved || 0,
-        quantity_rejected: stage.quantity_rejected || 0,
-        material_used: stage.material_used || 0
-      });
+    if (stages.length > 0 && !selectedStageIndex) {
+      const inProgressIndex = stages.findIndex(s => s.status === 'in_progress');
+      const pendingIndex = stages.findIndex(s => s.status === 'pending');
+      const defaultIndex = inProgressIndex !== -1 ? inProgressIndex : (pendingIndex !== -1 ? pendingIndex : 0);
+      setSelectedStageIndex(defaultIndex);
     }
-  }, [currentStep, orderData, reset]);
+  }, [stages]);
 
-  // Dummy data for demonstration
-  const dummyOrderData = {
-    id: 1,
-    production_number: "PO-2024-001",
-    product: {
-      id: 1,
-      name: "Cotton T-Shirt"
-    },
-    quantity: 100,
-    stages: [
-      {
-        id: 1,
-        stage_name: "calculate_material_review",
-        status: "completed",
-        actual_start_time: "2024-01-15T08:00:00Z",
-        actual_end_time: "2024-01-15T08:30:00Z",
-        notes: "Material review completed, all materials verified",
-        quantity_processed: 100,
-        quantity_approved: 100,
-        quantity_rejected: 0,
-        material_used: 10
-      },
-      {
-        id: 2,
-        stage_name: "cutting",
-        status: "completed",
-        actual_start_time: "2024-01-15T09:00:00Z",
-        actual_end_time: "2024-01-15T10:30:00Z",
-        notes: "Cutting completed successfully with minimal waste",
-        quantity_processed: 100,
-        quantity_approved: 95,
-        quantity_rejected: 5,
-        material_used: 20
-      },
-      {
-        id: 3,
-        stage_name: "embroidery_or_printing",
-        status: "in_progress",
-        actual_start_time: "2024-01-15T11:00:00Z",
-        actual_end_time: null,
-        notes: "Embroidery in progress",
-        quantity_processed: 50,
-        quantity_approved: 0,
-        quantity_rejected: 0,
-        material_used: 5
-      },
-      {
-        id: 4,
-        stage_name: "stitching",
-        status: "pending",
-        actual_start_time: null,
-        actual_end_time: null,
-        notes: null,
-        quantity_processed: 0,
-        quantity_approved: 0,
-        quantity_rejected: 0,
-        material_used: 0
-      },
-      {
-        id: 5,
-        stage_name: "finishing",
-        status: "pending",
-        actual_start_time: null,
-        actual_end_time: null,
-        notes: null,
-        quantity_processed: 0,
-        quantity_approved: 0,
-        quantity_rejected: 0,
-        material_used: 0
-      },
-      {
-        id: 6,
-        stage_name: "quality_check",
-        status: "pending",
-        actual_start_time: null,
-        actual_end_time: null,
-        notes: null,
-        quantity_processed: 0,
-        quantity_approved: 0,
-        quantity_rejected: 0,
-        material_used: 0
+  useEffect(() => {
+    if (stages.length > 0 && stages[selectedStageIndex]) {
+      const stage = stages[selectedStageIndex];
+      setFormData({
+        status: stage.status || 'pending',
+        start_date: stage.actual_start_time ? new Date(stage.actual_start_time).toISOString().split('T')[0] : '',
+        start_time: stage.actual_start_time ? new Date(stage.actual_start_time).toTimeString().slice(0, 5) : '',
+        end_date: stage.actual_end_time ? new Date(stage.actual_end_time).toISOString().split('T')[0] : '',
+        end_time: stage.actual_end_time ? new Date(stage.actual_end_time).toTimeString().slice(0, 5) : '',
+        notes: stage.notes || ''
+      });
+      
+      // Fetch challans for this stage if it supports outsourcing
+      if (isOutsourcingStage(stage)) {
+        fetchStageChallans(stage.id);
       }
-    ]
-  };
+    }
+  }, [selectedStageIndex, stages]);
 
-  const fetchOrderData = async () => {
+  const fetchProductionOrder = async () => {
     try {
       setLoading(true);
-      // Use dummy data for now instead of API call
-      setOrderData(dummyOrderData);
-      // Uncomment below to use real API:
-      // const { data } = await api.get(`/manufacturing/orders/${orderId}`);
-      // setOrderData(data);
+      const response = await api.get(`/manufacturing/orders/${orderId}`);
+      const order = response.data.productionOrder;
+      setProductionOrder(order);
+      setStages(order.stages || []);
     } catch (error) {
-      console.error('Error fetching order data:', error);
-      toast.error('Failed to load order data');
+      console.error('Error fetching production order:', error);
+      toast.error('Failed to load production order');
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'in_progress': return <Clock className="w-5 h-5 text-blue-500" />;
-      case 'on_hold': return <Pause className="w-5 h-5 text-yellow-500" />;
-      case 'skipped': return <Square className="w-5 h-5 text-gray-500" />;
-      default: return <AlertCircle className="w-5 h-5 text-gray-400" />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 border-green-300 text-green-700';
-      case 'in_progress': return 'bg-blue-100 border-blue-300 text-blue-700';
-      case 'on_hold': return 'bg-yellow-100 border-yellow-300 text-yellow-700';
-      case 'skipped': return 'bg-gray-100 border-gray-300 text-gray-700';
-      default: return 'bg-gray-50 border-gray-200 text-gray-600';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    return status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-  };
-
-  const handleSave = async (formData) => {
-    if (!orderData?.stages?.[currentStep]) return;
-
+  const fetchVendors = async () => {
     try {
-      setSaving(true);
-      const stage = orderData.stages[currentStep];
+      const response = await api.get('/procurement/vendors');
+      setVendors(response.data.vendors || []);
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+    }
+  };
 
-      const updateData = {
+  const fetchStageChallans = async (stageId) => {
+    try {
+      const response = await api.get(`/manufacturing/stages/${stageId}/challans`);
+      setChallans(response.data.challans || []);
+    } catch (error) {
+      console.error('Error fetching challans:', error);
+    }
+  };
+
+  const isOutsourcingStage = (stage) => {
+    // Check if stage name includes outsourcing keywords
+    const stageName = typeof stage === 'string' ? stage : stage.stage_name;
+    if (!stageName) return false;
+    
+    const stageNameLower = stageName.toLowerCase();
+    
+    // List of stages that support outsourcing
+    const outsourcingStages = [
+      'embroidery',
+      'printing',
+      'screen_printing', 
+      'screen printing',
+      'washing',
+      'embroidery/printing',
+      'embroidery or printing'
+    ];
+    
+    const nameMatch = outsourcingStages.some(s => stageNameLower.includes(s));
+    
+    // If stage is an object, also check the specific fields
+    if (typeof stage === 'object') {
+      return nameMatch || 
+             stage.is_embroidery === true || 
+             stage.is_printing === true ||
+             (stage.customization_type && stage.customization_type !== 'none') ||
+             (stage.outsource_type && stage.outsource_type !== 'none');
+    }
+    
+    return nameMatch;
+  };
+
+  const isLastStage = () => {
+    return selectedStageIndex === stages.length - 1;
+  };
+
+  const calculateDuration = (startTime, endTime) => {
+    if (!startTime || !endTime) return 'Not calculated';
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffMs = end - start;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return diffHours > 0 ? `${diffHours}h ${diffMinutes}m` : `${diffMinutes}m`;
+  };
+
+  const calculateOverallProgress = () => {
+    if (stages.length === 0) return 0;
+    const completedStages = stages.filter(s => s.status === 'completed').length;
+    return Math.round((completedStages / stages.length) * 100);
+  };
+
+  const getStageIcon = (status) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-5 h-5 text-green-600" />;
+      case 'in_progress':
+        return <Clock className="w-5 h-5 text-blue-600" />;
+      case 'on_hold':
+        return <Pause className="w-5 h-5 text-orange-600" />;
+      case 'pending':
+      default:
+        return <Clock className="w-5 h-5 text-gray-400" />;
+    }
+  };
+
+  const getStageStatusClass = (status, isSelected) => {
+    const baseClass = 'p-4 rounded-lg border-2 mb-3 cursor-pointer transition-all';
+    if (isSelected) {
+      return `${baseClass} border-red-500 bg-red-50`;
+    }
+    switch (status) {
+      case 'completed':
+        return `${baseClass} border-green-300 bg-white hover:bg-green-50`;
+      case 'in_progress':
+        return `${baseClass} border-blue-300 bg-white hover:bg-blue-50`;
+      case 'on_hold':
+        return `${baseClass} border-orange-300 bg-white hover:bg-orange-50`;
+      case 'pending':
+      default:
+        return `${baseClass} border-gray-200 bg-white hover:bg-gray-50`;
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800';
+      case 'on_hold':
+        return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800';
+      case 'pending':
+      default:
+        return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600';
+    }
+  };
+
+  const handleStartStage = async () => {
+    try {
+      const stage = stages[selectedStageIndex];
+      await api.post(`/manufacturing/stages/${stage.id}/start`);
+      toast.success('Stage started successfully');
+      fetchProductionOrder();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to start stage');
+    }
+  };
+
+  const handlePauseStage = async () => {
+    try {
+      const stage = stages[selectedStageIndex];
+      await api.post(`/manufacturing/stages/${stage.id}/pause`);
+      toast.success('Stage paused successfully');
+      fetchProductionOrder();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to pause stage');
+    }
+  };
+
+  const handleCompleteStage = async () => {
+    try {
+      const stage = stages[selectedStageIndex];
+      await api.post(`/manufacturing/stages/${stage.id}/complete`, {
+        notes: formData.notes
+      });
+      toast.success('Stage completed successfully');
+      setEditMode(false);
+      fetchProductionOrder();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to complete stage');
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      const stage = stages[selectedStageIndex];
+      
+      const startDateTime = formData.start_date && formData.start_time 
+        ? `${formData.start_date}T${formData.start_time}:00` 
+        : null;
+      const endDateTime = formData.end_date && formData.end_time 
+        ? `${formData.end_date}T${formData.end_time}:00` 
+        : null;
+
+      await api.put(`/manufacturing/stages/${stage.id}`, {
         status: formData.status,
-        actual_start_time: formData.startDate || null,
-        actual_end_time: formData.endDate || null,
-        notes: formData.notes,
-        quantity_processed: formData.quantity_processed,
-        quantity_approved: formData.quantity_approved,
-        quantity_rejected: formData.quantity_rejected,
-        material_used: formData.material_used
-      };
-
-      // Use dummy response for now instead of API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-
-      // Update the local dummy data
-      setOrderData(prevData => ({
-        ...prevData,
-        stages: prevData.stages.map(s =>
-          s.id === stage.id
-            ? {
-                ...s,
-                status: formData.status,
-                actual_start_time: formData.startDate || s.actual_start_time,
-                actual_end_time: formData.endDate || s.actual_end_time,
-                notes: formData.notes,
-                quantity_processed: formData.quantity_processed,
-                quantity_approved: formData.quantity_approved,
-                quantity_rejected: formData.quantity_rejected,
-                material_used: formData.material_used
-              }
-            : s
-        )
-      }));
-
-      toast.success('Stage updated successfully');
-      setEditingMode(false);
+        actual_start_time: startDateTime,
+        actual_end_time: endDateTime,
+        notes: formData.notes
+      });
+      
+      toast.success('Changes saved successfully');
+      setEditMode(false);
+      fetchProductionOrder();
       if (onUpdate) onUpdate();
     } catch (error) {
-      console.error('Error updating stage:', error);
-      toast.error('Failed to update stage');
-    } finally {
-      setSaving(false);
+      toast.error(error.response?.data?.message || 'Failed to save changes');
     }
   };
 
-  const handleStatusChange = async (newStatus) => {
-    if (!orderData?.stages?.[currentStep]) return;
-
+  const handleHoldStage = async () => {
     try {
-      const stage = orderData.stages[currentStep];
-
-      // Use dummy response for now instead of API call
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
-
-      // Update the local dummy data
-      setOrderData(prevData => ({
-        ...prevData,
-        stages: prevData.stages.map(s =>
-          s.id === stage.id
-            ? {
-                ...s,
-                status: newStatus === 'start' ? 'in_progress' :
-                        newStatus === 'pause' ? 'on_hold' :
-                        newStatus === 'resume' ? 'in_progress' :
-                        newStatus === 'complete' ? 'completed' :
-                        newStatus === 'hold' ? 'on_hold' :
-                        newStatus === 'skip' ? 'skipped' : s.status,
-                actual_start_time: (newStatus === 'start' && !s.actual_start_time) ? new Date().toISOString() : s.actual_start_time,
-                actual_end_time: newStatus === 'complete' ? new Date().toISOString() : s.actual_end_time
-              }
-            : s
-        )
-      }));
-
-      if (newStatus === 'start' && !watch('startDate')) {
-        setValue('startDate', new Date().toISOString().slice(0, 16));
-      }
-
-      if (newStatus === 'complete' && !watch('endDate')) {
-        setValue('endDate', new Date().toISOString().slice(0, 16));
-      }
-
-      toast.success(`Stage ${newStatus} successfully`);
+      const stage = stages[selectedStageIndex];
+      await api.post(`/manufacturing/stages/${stage.id}/hold`);
+      toast.success('Stage put on hold');
+      fetchProductionOrder();
       if (onUpdate) onUpdate();
     } catch (error) {
-      console.error(`Error ${newStatus} stage:`, error);
-      toast.error(`Failed to ${newStatus} stage`);
+      toast.error(error.response?.data?.message || 'Failed to hold stage');
     }
   };
 
-  const canMoveNext = () => {
-    if (!orderData?.stages) return false;
-    const currentStage = orderData.stages[currentStep];
-    return currentStage?.status === 'completed' || currentStage?.status === 'skipped';
-  };
-
-  const canMovePrev = () => {
-    return currentStep > 0;
-  };
-
-  const moveToNext = () => {
-    if (canMoveNext() && currentStep < (orderData?.stages?.length || 0) - 1) {
-      setCurrentStep(currentStep + 1);
-      setEditingMode(false);
+  const handlePreviousStage = () => {
+    if (selectedStageIndex > 0) {
+      setSelectedStageIndex(selectedStageIndex - 1);
+      setEditMode(false);
     }
   };
 
-  const moveToPrev = () => {
-    if (canMovePrev()) {
-      setCurrentStep(currentStep - 1);
-      setEditingMode(false);
+  const handleNextStage = () => {
+    if (selectedStageIndex < stages.length - 1) {
+      setSelectedStageIndex(selectedStageIndex + 1);
+      setEditMode(false);
+    }
+  };
+
+  // Material Reconciliation Functions
+  const openMaterialReconciliation = async () => {
+    try {
+      const response = await api.get(`/manufacturing/orders/${orderId}/materials/reconciliation`);
+      const materialsData = response.data.materials || [];
+      setMaterials(materialsData);
+      
+      // Initialize reconciliation data
+      const initialData = materialsData.map(m => ({
+        allocation_id: m.id,
+        item_name: m.item_name,
+        allocated: m.quantity_allocated,
+        consumed: m.quantity_consumed,
+        wasted: m.quantity_wasted,
+        actual_consumed: m.quantity_consumed,
+        actual_wasted: m.quantity_wasted,
+        leftover_quantity: m.quantity_remaining,
+        notes: ''
+      }));
+      setReconciliationData(initialData);
+      setReconciliationDialog(true);
+    } catch (error) {
+      toast.error('Failed to load material data');
+      console.error(error);
+    }
+  };
+
+  const handleReconciliationSubmit = async () => {
+    try {
+      await api.post(`/manufacturing/orders/${orderId}/materials/reconcile`, {
+        materials: reconciliationData,
+        notes: 'Final stage material reconciliation'
+      });
+      
+      toast.success('Material reconciliation completed! Leftover materials returned to inventory.');
+      setReconciliationDialog(false);
+      fetchProductionOrder();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error('Failed to complete reconciliation');
+      console.error(error);
+    }
+  };
+
+  const updateReconciliationItem = (index, field, value) => {
+    const updated = [...reconciliationData];
+    updated[index][field] = parseFloat(value) || 0;
+    
+    // Recalculate leftover
+    const item = updated[index];
+    item.leftover_quantity = item.allocated - item.actual_consumed - item.actual_wasted;
+    
+    setReconciliationData(updated);
+  };
+
+  // Outsourcing Functions
+  const handleCreateOutwardChallan = async (vendorId, items, expectedDate, notes, transportDetails) => {
+    try {
+      const stage = stages[selectedStageIndex];
+      await api.post(`/manufacturing/stages/${stage.id}/outsource/outward`, {
+        vendor_id: vendorId,
+        items,
+        expected_return_date: expectedDate,
+        notes,
+        transport_details: transportDetails
+      });
+      
+      toast.success('Outward challan created successfully');
+      setOutwardChallanDialog(false);
+      fetchStageChallans(stage.id);
+      fetchProductionOrder();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error('Failed to create outward challan');
+      console.error(error);
+    }
+  };
+
+  const handleCreateInwardChallan = async (outwardChallanId, items, receivedQty, qualityNotes, discrepancies) => {
+    try {
+      const stage = stages[selectedStageIndex];
+      await api.post(`/manufacturing/stages/${stage.id}/outsource/inward`, {
+        outward_challan_id: outwardChallanId,
+        items,
+        received_quantity: receivedQty,
+        quality_notes: qualityNotes,
+        discrepancies
+      });
+      
+      toast.success('Inward challan created successfully');
+      setInwardChallanDialog(false);
+      fetchStageChallans(stage.id);
+      fetchProductionOrder();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error('Failed to create inward challan');
+      console.error(error);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8" onClick={(e) => e.stopPropagation()}>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading production order...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!orderData) {
+  if (!productionOrder) {
     return (
-      <div className="p-6 text-center text-gray-500">
-        Failed to load order data
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        onClick={onClose}
+      >
+        <div className="bg-white rounded-lg p-8" onClick={(e) => e.stopPropagation()}>
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4">Production order not found</p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const currentStage = orderData.stages[currentStep];
-  const progress = Math.round(((orderData.stages.filter(s => s.status === 'completed').length) / orderData.stages.length) * 100);
+  const currentStage = stages[selectedStageIndex];
+  const overallProgress = calculateOverallProgress();
 
   return (
-    <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">
-            Production Tracking Wizard
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Order: {orderData.production_number} - {orderData.product?.name}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+    <>
+      {/* Modal Overlay */}
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Modal Container */}
+        <div 
+          className="bg-white rounded-lg shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
         >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="px-6 py-3 bg-gray-50 border-b">
-        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-          <span>Overall Progress</span>
-          <span>{progress}% Complete</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-primary h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row">
-        {/* Stage Navigation Sidebar */}
-        <div className="md:w-80 border-r border-gray-200 p-4">
-          <h3 className="font-medium text-gray-900 mb-4">Production Stages</h3>
-          <div className="space-y-2 max-h-[calc(90vh-250px)] overflow-y-auto">
-            {orderData.stages.map((stage, index) => (
-              <div
-                key={stage.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  index === currentStep
-                    ? 'border-primary bg-primary/5'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => {
-                  setCurrentStep(index);
-                  setEditingMode(false);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(stage.status)}
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">
-                      Step {index + 1}: {stage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                    </div>
-                    <div className={`text-xs px-2 py-0.5 rounded-full inline-block mt-1 ${getStatusColor(stage.status)}`}>
-                      {getStatusLabel(stage.status)}
-                    </div>
-                  </div>
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {productionOrder.production_number}
+                  </h1>
+                  <p className="text-sm text-gray-600">
+                    {productionOrder.product?.name || 'Unknown Product'} - {productionOrder.quantity} units
+                  </p>
                 </div>
               </div>
-            ))}
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </div>
+
+          {/* Overall Progress */}
+          <div className="bg-white border-b border-gray-200 px-6 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+              <span className="text-sm font-bold text-gray-900">{overallProgress}% Complete</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${overallProgress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* Left Sidebar - Production Stages */}
+            <div className="w-80 bg-gray-50 border-r border-gray-200 p-6 overflow-y-auto">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Production Stages</h2>
+              <div>
+                {stages.map((stage, index) => (
+                  <div
+                    key={stage.id}
+                    className={getStageStatusClass(stage.status, index === selectedStageIndex)}
+                    onClick={() => {
+                      setSelectedStageIndex(index);
+                      setEditMode(false);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {getStageIcon(stage.status)}
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            Step {index + 1}: {stage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          </div>
+                          <div className="mt-1">
+                            <span className={getStatusBadgeClass(stage.status)}>
+                              {stage.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Panel - Stage Details */}
+            <div className="flex-1 p-6 overflow-y-auto">
+              {currentStage && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  {/* Stage Title and Actions */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        {currentStage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </h2>
+                      <div className="mt-2">
+                        <span className={getStatusBadgeClass(currentStage.status)}>
+                          {currentStage.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        </span>
+                      </div>
+                    </div>
+                    {editMode ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveChanges}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                          <Save className="w-4 h-4" />
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setEditMode(false)}
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        >
+                          <X className="w-4 h-4" />
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditMode(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Stage Information */}
+                  <div className="grid grid-cols-2 gap-6 mb-6">
+                    {/* Start Date & Time */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                      {editMode ? (
+                        <input
+                          type="date"
+                          value={formData.start_date}
+                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900">
+                          {formData.start_date || 'Not started'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                      {editMode ? (
+                        <input
+                          type="time"
+                          value={formData.start_time}
+                          onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900">
+                          {formData.start_time || 'Not started'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* End Date & Time */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                      {editMode ? (
+                        <input
+                          type="date"
+                          value={formData.end_date}
+                          onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900">
+                          {formData.end_date || 'Not completed'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                      {editMode ? (
+                        <input
+                          type="time"
+                          value={formData.end_time}
+                          onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <p className="text-gray-900">
+                          {formData.end_time || 'Not completed'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Duration */}
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                      <p className="text-gray-900">
+                        {calculateDuration(
+                          formData.start_date && formData.start_time ? `${formData.start_date}T${formData.start_time}` : null,
+                          formData.end_date && formData.end_time ? `${formData.end_date}T${formData.end_time}` : null
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                    {editMode ? (
+                      <textarea
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Add notes about this stage..."
+                      />
+                    ) : (
+                      <p className="text-gray-900 whitespace-pre-wrap">
+                        {formData.notes || 'No notes added'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Outsourcing Options (for specific stages) */}
+                  {isOutsourcingStage(currentStage) && (
+                    <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-purple-600" />
+                        Outsourcing Options
+                      </h3>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <button
+                          onClick={() => {
+                            setWorkType('in_house');
+                            toast.success('Set to In-House Production');
+                          }}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            workType === 'in_house'
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-300 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          <Home className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                          <p className="font-medium text-center">In-House</p>
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setWorkType('outsourced');
+                            toast.success('Set to Outsourced');
+                          }}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            workType === 'outsourced'
+                              ? 'border-purple-500 bg-purple-50'
+                              : 'border-gray-300 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          <Building2 className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                          <p className="font-medium text-center">Outsourced</p>
+                        </button>
+                      </div>
+
+                      {workType === 'outsourced' && (
+                        <div className="space-y-3">
+                          <button
+                            onClick={() => setOutwardChallanDialog(true)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                          >
+                            <Send className="w-5 h-5" />
+                            Create Outward Challan
+                          </button>
+                          
+                          <button
+                            onClick={() => setInwardChallanDialog(true)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            <Download className="w-5 h-5" />
+                            Create Inward Challan
+                          </button>
+
+                          {/* Display existing challans */}
+                          {challans.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="font-medium text-gray-900 mb-2">Challans</h4>
+                              <div className="space-y-2">
+                                {challans.map((challan) => (
+                                  <div key={challan.id} className="p-3 bg-white border border-gray-200 rounded-lg">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <p className="font-medium">{challan.challan_number}</p>
+                                        <p className="text-sm text-gray-600">
+                                          {challan.type === 'outward' ? 'Outward' : 'Inward'} - {challan.status}
+                                        </p>
+                                      </div>
+                                      <FileText className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Material Reconciliation (for last stage) */}
+                  {isLastStage() && currentStage.status === 'in_progress' && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Calculator className="w-5 h-5 text-amber-600" />
+                        Material Reconciliation
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        This is the final stage. Calculate material usage and return any leftover materials to inventory.
+                      </p>
+                      <button
+                        onClick={openMaterialReconciliation}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                      >
+                        <Package className="w-5 h-5" />
+                        Open Material Reconciliation
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Quick Actions */}
+                  <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <button
+                      onClick={handlePreviousStage}
+                      disabled={selectedStageIndex === 0}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous Stage
+                    </button>
+
+                    <div className="flex gap-2">
+                      {currentStage.status === 'pending' && (
+                        <button
+                          onClick={handleStartStage}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                          <Play className="w-4 h-4" />
+                          Start Stage
+                        </button>
+                      )}
+                      
+                      {currentStage.status === 'in_progress' && (
+                        <>
+                          <button
+                            onClick={handlePauseStage}
+                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                          >
+                            <Pause className="w-4 h-4" />
+                            Pause
+                          </button>
+                          <button
+                            onClick={handleCompleteStage}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Complete Stage
+                          </button>
+                        </>
+                      )}
+                      
+                      {currentStage.status === 'on_hold' && (
+                        <button
+                          onClick={handleStartStage}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                          <Play className="w-4 h-4" />
+                          Resume Stage
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleNextStage}
+                      disabled={selectedStageIndex === stages.length - 1}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next Stage
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Material Reconciliation Dialog */}
+      {reconciliationDialog && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+          onClick={() => setReconciliationDialog(false)}
+        >
+          <div 
+            className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Material Reconciliation</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Review material usage and specify any leftover quantities to return to inventory
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Material</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Allocated</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Consumed</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Wasted</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Leftover</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {reconciliationData.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.item_name}</td>
+                        <td className="px-4 py-3 text-center text-sm text-gray-600">{item.allocated}</td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.actual_consumed}
+                            onChange={(e) => updateReconciliationItem(index, 'actual_consumed', e.target.value)}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded text-center"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.actual_wasted}
+                            onChange={(e) => updateReconciliationItem(index, 'actual_wasted', e.target.value)}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded text-center"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`font-bold ${item.leftover_quantity > 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                            {item.leftover_quantity.toFixed(2)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Leftover materials will be automatically returned to inventory after submission.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setReconciliationDialog(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReconciliationSubmit}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Complete Reconciliation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outward Challan Dialog */}
+      {outwardChallanDialog && (
+        <OutwardChallanDialog
+          onClose={() => setOutwardChallanDialog(false)}
+          onSubmit={handleCreateOutwardChallan}
+          vendors={vendors}
+          productionOrder={productionOrder}
+        />
+      )}
+
+      {/* Inward Challan Dialog */}
+      {inwardChallanDialog && (
+        <InwardChallanDialog
+          onClose={() => setInwardChallanDialog(false)}
+          onSubmit={handleCreateInwardChallan}
+          challans={challans.filter(c => c.type === 'outward' && c.status === 'pending')}
+        />
+      )}
+    </>
+  );
+};
+
+// Outward Challan Dialog Component
+const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) => {
+  const [formData, setFormData] = useState({
+    vendor_id: '',
+    quantity: productionOrder?.quantity || 0,
+    expected_date: '',
+    notes: '',
+    transport_mode: '',
+    vehicle_number: ''
+  });
+
+  const handleSubmit = () => {
+    if (!formData.vendor_id) {
+      toast.error('Please select a vendor');
+      return;
+    }
+
+    const items = [{
+      product_name: productionOrder.product?.name || 'Production Item',
+      quantity: formData.quantity,
+      rate: 0,
+      description: formData.notes
+    }];
+
+    const transportDetails = {
+      mode: formData.transport_mode,
+      vehicle_number: formData.vehicle_number
+    };
+
+    onSubmit(formData.vendor_id, items, formData.expected_date, formData.notes, transportDetails);
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg max-w-2xl w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900">Create Outward Challan</h2>
+          <p className="text-sm text-gray-600 mt-1">Send materials to vendor for outsourced work</p>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Vendor *</label>
+            <select
+              value={formData.vendor_id}
+              onChange={(e) => setFormData({ ...formData, vendor_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Vendor</option>
+              {vendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.id}>
+                  {vendor.company_name || vendor.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+            <input
+              type="number"
+              value={formData.quantity}
+              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Expected Return Date</label>
+            <input
+              type="date"
+              value={formData.expected_date}
+              onChange={(e) => setFormData({ ...formData, expected_date: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Transport Mode</label>
+            <input
+              type="text"
+              value={formData.transport_mode}
+              onChange={(e) => setFormData({ ...formData, transport_mode: e.target.value })}
+              placeholder="e.g., Truck, Courier"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle Number</label>
+            <input
+              type="text"
+              value={formData.vehicle_number}
+              onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+              placeholder="e.g., MH01AB1234"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+              placeholder="Special instructions for vendor..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-          {currentStage && (
-            <div className="space-y-6">
-              {/* Stage Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {currentStage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                  </h3>
-                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${getStatusColor(currentStage.status)}`}>
-                    {getStatusIcon(currentStage.status)}
-                    {getStatusLabel(currentStage.status)}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {!editingMode ? (
-                    <button
-                      onClick={() => setEditingMode(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit Details
-                    </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingMode(false)}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                        disabled={saving}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSubmit(handleSave)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        disabled={saving}
-                      >
-                        {saving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Save className="w-4 h-4" />}
-                        Save Changes
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          >
+            Create Outward Challan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-              {/* Quick Actions */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-3">Quick Actions</h4>
-                <div className="flex flex-wrap gap-2">
-                  {currentStage.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleStatusChange('start')}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <Play className="w-4 h-4" />
-                        Start Stage
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange('hold')}
-                        className="flex items-center gap-2 px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                      >
-                        <Pause className="w-4 h-4" />
-                        Hold
-                      </button>
-                    </>
-                  )}
-                  {currentStage.status === 'in_progress' && (
-                    <>
-                      <button
-                        onClick={() => handleStatusChange('pause')}
-                        className="flex items-center gap-2 px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                      >
-                        <Pause className="w-4 h-4" />
-                        Pause
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange('complete')}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Complete
-                      </button>
-                    </>
-                  )}
-                  {currentStage.status === 'on_hold' && (
-                    <>
-                      <button
-                        onClick={() => handleStatusChange('resume')}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <Play className="w-4 h-4" />
-                        Resume
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange('skip')}
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                      >
-                        <Square className="w-4 h-4" />
-                        Skip
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
+// Inward Challan Dialog Component
+const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
+  const [formData, setFormData] = useState({
+    outward_challan_id: '',
+    received_quantity: 0,
+    quality_notes: '',
+    discrepancies: ''
+  });
 
-              {/* Editable Form */}
-              <form className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    {editingMode ? (
-                      <Controller
-                        name="status"
-                        control={control}
-                        render={({ field }) => (
-                          <select
-                            {...field}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Completed</option>
-                            <option value="on_hold">On Hold</option>
-                            <option value="skipped">Skipped</option>
-                          </select>
-                        )}
-                      />
-                    ) : (
-                      <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg ${getStatusColor(currentStage.status)}`}>
-                        {getStatusIcon(currentStage.status)}
-                        {getStatusLabel(currentStage.status)}
-                      </div>
-                    )}
-                  </div>
+  const handleSubmit = () => {
+    if (!formData.outward_challan_id) {
+      toast.error('Please select an outward challan');
+      return;
+    }
 
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date & Time</label>
-                    {editingMode ? (
-                      <Controller
-                        name="startDate"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            type="datetime-local"
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          />
-                        )}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        {currentStage.actual_start_time ? new Date(currentStage.actual_start_time).toLocaleString() : 'Not started'}
-                      </div>
-                    )}
-                  </div>
+    const selectedChallan = challans.find(c => c.id === parseInt(formData.outward_challan_id));
+    const items = selectedChallan?.items || [];
 
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date & Time</label>
-                    {editingMode ? (
-                      <Controller
-                        name="endDate"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            type="datetime-local"
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          />
-                        )}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        {currentStage.actual_end_time ? new Date(currentStage.actual_end_time).toLocaleString() : 'Not completed'}
-                      </div>
-                    )}
-                  </div>
+    onSubmit(
+      formData.outward_challan_id,
+      items,
+      formData.received_quantity,
+      formData.quality_notes,
+      formData.discrepancies
+    );
+  };
 
-                  {/* Duration */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Timer className="w-4 h-4" />
-                      {currentStage.actual_start_time && currentStage.actual_end_time ? (
-                        `${Math.round((new Date(currentStage.actual_end_time) - new Date(currentStage.actual_start_time)) / (1000 * 60 * 60))} hours`
-                      ) : (
-                        'Not calculated'
-                      )}
-                    </div>
-                  </div>
-                </div>
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg max-w-2xl w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900">Create Inward Challan</h2>
+          <p className="text-sm text-gray-600 mt-1">Receive completed work from vendor</p>
+        </div>
 
-                {/* Quantity Tracking */}
-                {currentStage.status === 'completed' && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">Quantity Tracking</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Processed</label>
-                        {editingMode ? (
-                          <Controller
-                            name="quantity_processed"
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                {...field}
-                                type="number"
-                                min="0"
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                              />
-                            )}
-                          />
-                        ) : (
-                          <div className="text-gray-600">{currentStage.quantity_processed || 0}</div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Approved</label>
-                        {editingMode ? (
-                          <Controller
-                            name="quantity_approved"
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                {...field}
-                                type="number"
-                                min="0"
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                              />
-                            )}
-                          />
-                        ) : (
-                          <div className="text-gray-600">{currentStage.quantity_approved || 0}</div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Rejected</label>
-                        {editingMode ? (
-                          <Controller
-                            name="quantity_rejected"
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                {...field}
-                                type="number"
-                                min="0"
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                              />
-                            )}
-                          />
-                        ) : (
-                          <div className="text-gray-600">{currentStage.quantity_rejected || 0}</div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Material Used</label>
-                        {editingMode ? (
-                          <Controller
-                            name="material_used"
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                {...field}
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                              />
-                            )}
-                          />
-                        ) : (
-                          <div className="text-gray-600">{currentStage.material_used || 0}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Outward Challan *</label>
+            <select
+              value={formData.outward_challan_id}
+              onChange={(e) => setFormData({ ...formData, outward_challan_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Outward Challan</option>
+              {challans.map((challan) => (
+                <option key={challan.id} value={challan.id}>
+                  {challan.challan_number} - {challan.vendor?.company_name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  {editingMode ? (
-                    <Controller
-                      name="notes"
-                      control={control}
-                      render={({ field }) => (
-                        <textarea
-                          {...field}
-                          rows={3}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Add notes about this stage..."
-                        />
-                      )}
-                    />
-                  ) : (
-                    <div className="text-gray-600 bg-gray-50 rounded-lg p-3 min-h-[60px]">
-                      {currentStage.notes || 'No notes added'}
-                    </div>
-                  )}
-                </div>
-              </form>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Received Quantity</label>
+            <input
+              type="number"
+              value={formData.received_quantity}
+              onChange={(e) => setFormData({ ...formData, received_quantity: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-              {/* Navigation */}
-              <div className="flex items-center justify-between pt-4 border-t">
-                <button
-                  onClick={moveToPrev}
-                  disabled={!canMovePrev()}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous Stage
-                </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Quality Notes</label>
+            <textarea
+              value={formData.quality_notes}
+              onChange={(e) => setFormData({ ...formData, quality_notes: e.target.value })}
+              rows={3}
+              placeholder="Quality inspection notes..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-                <div className="text-sm text-gray-600">
-                  Stage {currentStep + 1} of {orderData.stages.length}
-                </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Discrepancies (if any)</label>
+            <textarea
+              value={formData.discrepancies}
+              onChange={(e) => setFormData({ ...formData, discrepancies: e.target.value })}
+              rows={3}
+              placeholder="Any discrepancies or issues..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
 
-                <button
-                  onClick={moveToNext}
-                  disabled={!canMoveNext()}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next Stage
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Create Inward Challan
+          </button>
         </div>
       </div>
     </div>

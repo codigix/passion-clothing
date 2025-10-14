@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
   const localStorageUrl = localStorage.getItem('VITE_API_BASE_URL');
   const viteUrl = import.meta.env.VITE_API_BASE_URL;
   const proxyUrl = import.meta.env.DEV ? '/api' : null;
-  const defaultUrl = 'http://localhost:5000/api';
+  const defaultUrl = import.meta.env.VITE_API_BASE_URL;
 
   return localStorageUrl || viteUrl || proxyUrl || defaultUrl;
 };

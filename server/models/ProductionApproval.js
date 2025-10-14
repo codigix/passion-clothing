@@ -47,6 +47,20 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'Project name for this approval'
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product to be manufactured'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     approval_status: {
       type: DataTypes.ENUM('approved', 'rejected', 'conditional'),
       allowNull: false,
@@ -112,6 +126,7 @@ module.exports = (sequelize) => {
       { fields: ['mrn_request_id'] },
       { fields: ['verification_id'] },
       { fields: ['production_order_id'] },
+      { fields: ['product_id'] },
       { fields: ['project_name'] },
       { fields: ['approval_status'] },
       { fields: ['approved_by'] },

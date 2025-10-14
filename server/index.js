@@ -14,6 +14,7 @@ const challanRoutes = require('./routes/challans');
 const salesRoutes = require('./routes/sales');
 const procurementRoutes = require('./routes/procurement');
 const inventoryRoutes = require('./routes/inventory');
+const inventoryEnhancedRoutes = require('./routes/inventoryEnhanced');
 const manufacturingRoutes = require('./routes/manufacturing');
 const outsourcingRoutes = require('./routes/outsourcing');
 const shipmentRoutes = require('./routes/shipments');
@@ -78,7 +79,13 @@ app.use('/api/challans', challanRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/procurement', procurementRoutes);
 app.use('/api/inventory', inventoryRoutes);
-app.use('/api/manufacturing', manufacturingRoutes);
+app.use('/api/inventory-enhanced', inventoryEnhancedRoutes);
+console.log('manufacturingRoutes type:', typeof manufacturingRoutes);
+console.log('outsourcingRoutes type:', typeof outsourcingRoutes);
+console.log('shipmentRoutes type:', typeof shipmentRoutes);
+console.log('courierPartnerRoutes type:', typeof courierPartnerRoutes);
+
+app.use('/api/manufacturing', manufacturingRoutes);/*  */
 app.use('/api/outsourcing', outsourcingRoutes);
 app.use('/api/shipments', shipmentRoutes);
 app.use('/api/courier-partners', courierPartnerRoutes);

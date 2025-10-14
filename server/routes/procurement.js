@@ -52,10 +52,10 @@ router.put('/sales-orders/:id/accept', authenticateToken, checkDepartment(['proc
 
     // Notify sales department
     await NotificationService.sendToDepartment('sales', {
-      type: 'order_update',
+      type: 'procurement',
       title: `Order Confirmed: ${order.order_number}`,
       message: `Sales Order ${order.order_number} has been confirmed by Procurement Department`,
-      priority: 'normal',
+      priority: 'medium',
       related_order_id: order.id,
       action_url: `/sales/orders/${order.id}`,
       metadata: {
@@ -1735,10 +1735,10 @@ router.post('/pos/:id/approve-and-add-to-inventory', authenticateToken, checkDep
 
     // Send notification to inventory team
     await NotificationService.sendToDepartment('inventory', {
-      type: 'inventory_update',
+      type: 'inventory',
       title: `New Inventory Added: PO ${po.po_number}`,
       message: `${createdInventoryItems.length} items from Purchase Order ${po.po_number} have been added to inventory`,
-      priority: 'normal',
+      priority: 'medium',
       metadata: {
         po_number: po.po_number,
         vendor_name: po.vendor?.name,

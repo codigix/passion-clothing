@@ -28,6 +28,12 @@ const authenticateToken = async (req, res, next) => {
               required: false
             }
           ]
+        },
+        {
+          model: Permission,
+          as: 'userPermissions',
+          where: { status: 'active' },
+          required: false
         }
       ]
     });
@@ -46,11 +52,23 @@ const authenticateToken = async (req, res, next) => {
           allPermissions.push(...role.permissions);
         }
       });
-      user.permissions = allPermissions;
+      
+      // Add user-specific permissions
+      if (user.userPermissions && user.userPermissions.length > 0) {
+        allPermissions.push(...user.userPermissions);
+      }
+      
+      // Remove duplicates based on permission id
+      const uniquePermissions = Array.from(
+        new Map(allPermissions.map(p => [p.id, p])).values()
+      );
+      
+      user.permissions = uniquePermissions;
     } else {
       // Default role if none assigned
       user.role = { level: 1, name: 'user' };
-      user.permissions = [];
+      // Still include user-specific permissions even without a role
+      user.permissions = user.userPermissions || [];
     }
 
     req.user = user;

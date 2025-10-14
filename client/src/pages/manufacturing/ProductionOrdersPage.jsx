@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaSearch, FaEdit, FaTrash, FaEye, FaPlus, FaPlay, FaPause, FaExclamationCircle, FaCheckCircle, FaEllipsisV, FaColumns } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
@@ -104,14 +105,17 @@ function ActionDropdown({ order, onView, onEdit, onStart, onStop, onDelete, perm
 }
 
 const ProductionOrdersPage = () => {
+  const navigate = useNavigate();
   const permissionKeys = {
     createOrder: ['manufacturing', 'create', 'production_order'],
     updateOrder: ['manufacturing', 'update', 'production_order'],
     deleteOrder: ['manufacturing', 'delete', 'production_order'],
   };
   const [orders, setOrders] = useState([]);
+  const [approvedProductions, setApprovedProductions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [approvalsLoading, setApprovalsLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { hasPermission } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -148,6 +152,7 @@ const ProductionOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+    fetchApprovedProductions();
   }, []);
 
   const fetchOrders = async () => {
@@ -200,6 +205,26 @@ const ProductionOrdersPage = () => {
     }
   };
 
+  const fetchApprovedProductions = async () => {
+    try {
+      setApprovalsLoading(true);
+      const response = await api.get('/production-approval/list/approved');
+      setApprovedProductions(response.data.approvals || []);
+      setApprovalsLoading(false);
+    } catch (error) {
+      console.error('Error fetching approved productions:', error);
+      setApprovalsLoading(false);
+    }
+  };
+
+  const handleStartProduction = (approvalId) => {
+    navigate(`/manufacturing/wizard?approvalId=${approvalId}`);
+  };
+
+  const handleViewApprovalDetails = (approvalId) => {
+    navigate(`/manufacturing/approval/${approvalId}`);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'success';
@@ -225,19 +250,8 @@ const ProductionOrdersPage = () => {
   };
 
   const handleCreate = () => {
-    if (!hasPermission(...permissionKeys.createOrder)) {
-      toast.error('You do not have permission to create production orders.');
-      return;
-    }
-    setOrderForm({
-      orderNumber: '',
-      productId: '',
-      quantity: '',
-      startDate: '',
-      endDate: '',
-      priority: 'medium'
-    });
-    setCreateDialogOpen(true);
+    // Redirect to Production Wizard page for creating new production orders
+    navigate('/manufacturing/wizard');
   };
 
   const handleEdit = (order) => {
@@ -356,7 +370,10 @@ const ProductionOrdersPage = () => {
     <div className="p-4 md:p-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Production Orders</h1>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Production Orders</h1>
+          <p className="text-sm text-gray-600 mt-1">Manage approved materials and production orders</p>
+        </div>
         <div className="flex items-center gap-3">
           {/* Column Manager */}
           <div className="column-menu-container relative" ref={columnMenuRef}>
@@ -420,28 +437,154 @@ const ProductionOrdersPage = () => {
             )}
           </div>
 
-          <PermissionGate
-            required={permissionKeys.createOrder}
-            fallback={(
-              <button
-                className="bg-gray-300 text-gray-600 px-4 py-2 rounded flex items-center gap-2 cursor-not-allowed"
-                type="button"
-                onClick={() => toast.error('You do not have permission to create production orders.')}
-              >
-                <FaPlus />
-                Create Order
-              </button>
-            )}
+          <button
+            className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2 shadow hover:bg-primary-dark"
+            onClick={handleCreate}
           >
-            <button
-              className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2 shadow hover:bg-primary-dark"
-              onClick={handleCreate}
-            >
-              <FaPlus />
-              Create Order
-            </button>
-          </PermissionGate>
+            <FaPlus />
+            Create Order
+          </button>
         </div>
+      </div>
+
+      {/* Approved Productions Section */}
+      <div className="mb-6">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <FaCheckCircle className="text-green-600" />
+                Approved Productions Ready to Start
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Materials verified and approved - ready to create production orders
+              </p>
+            </div>
+            {approvedProductions.length > 0 && (
+              <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                {approvedProductions.length} Ready
+              </span>
+            )}
+          </div>
+
+          {approvalsLoading ? (
+            <div className="text-center py-8">
+              <span className="text-gray-600">Loading approved productions...</span>
+            </div>
+          ) : approvedProductions.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+              <FaCheckCircle className="mx-auto text-5xl text-gray-300 mb-3" />
+              <p className="text-gray-600 font-medium">No Approved Productions</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Approved materials will appear here, ready to start production
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Approval #</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Project Name</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">MRN Request</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Materials</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Approved By</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Approved At</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {approvedProductions.map((approval) => {
+                      const materials = approval.verification?.receipt?.received_materials || [];
+                      const displayMaterials = materials.slice(0, 2);
+                      const remainingCount = materials.length - 2;
+
+                      return (
+                        <tr key={approval.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900">
+                                {approval.approval_number}
+                              </span>
+                              <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium">
+                                <FaCheckCircle className="text-xs" />
+                                Approved
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-gray-900">{approval.project_name || 'N/A'}</span>
+                            {approval.mrnRequest?.salesOrder && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                SO: {approval.mrnRequest.salesOrder.order_number}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-sm text-gray-700">
+                              {approval.mrnRequest?.request_number || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="space-y-1">
+                              {displayMaterials.map((mat, idx) => (
+                                <div key={idx} className="text-xs text-gray-600">
+                                  • {mat.material_name} ({mat.quantity_received} {mat.unit})
+                                </div>
+                              ))}
+                              {remainingCount > 0 && (
+                                <div className="text-xs text-primary font-medium">
+                                  +{remainingCount} more
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-gray-700">
+                              {approval.approver?.name || 'Unknown'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-gray-700">
+                              {new Date(approval.approved_at).toLocaleDateString()}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(approval.approved_at).toLocaleTimeString()}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleStartProduction(approval.id)}
+                                className="inline-flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                              >
+                                <FaPlay className="text-xs" />
+                                
+                              </button>
+                              <button
+                                onClick={() => handleViewApprovalDetails(approval.id)}
+                                className="inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                              >
+                                <FaEye className="text-xs" />
+                                
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Existing Production Orders Section */}
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Existing Production Orders</h2>
       </div>
 
       {/* Search */}

@@ -279,6 +279,8 @@ const SalesOrderDetailsPage = () => {
                     <tr>
                       <th className="p-3 text-left">Product</th>
                       <th className="p-3 text-left">Description</th>
+                      <th className="p-3 text-left">Fabric Type</th>
+                      <th className="p-3 text-left">Color</th>
                       <th className="p-3 text-left">Quantity</th>
                       <th className="p-3 text-left">Rate</th>
                       <th className="p-3 text-left">Total</th>
@@ -289,6 +291,13 @@ const SalesOrderDetailsPage = () => {
                       <tr key={index} className="border-b">
                         <td className="p-3">{item.product_id}</td>
                         <td className="p-3">{item.description}</td>
+                        <td className="p-3">{item.fabric_type || 'N/A'}</td>
+                        <td className="p-3">
+                          <span className={item.color ? 'inline-flex items-center gap-2' : ''}>
+                            {item.color && <span className="w-4 h-4 rounded-full border border-gray-300" style={{backgroundColor: item.color.toLowerCase()}}></span>}
+                            {item.color || 'N/A'}
+                          </span>
+                        </td>
                         <td className="p-3">{item.quantity} {item.unit_of_measure}</td>
                         <td className="p-3">₹{item.rate}</td>
                         <td className="p-3">₹{item.total?.toLocaleString()}</td>

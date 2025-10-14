@@ -21,6 +21,20 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    production_approval_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'production_approvals',
+        key: 'id'
+      },
+      comment: 'Link to the production approval that triggered this order'
+    },
+    project_reference: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: 'Project reference (usually sales_order_number) for grouping multiple production orders and MRNs'
+    },
     product_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -47,7 +61,7 @@ module.exports = (sequelize) => {
     },
     status: {
       type: DataTypes.ENUM(
-        'pending', 'material_allocated', 'cutting', 'embroidery', 
+        'pending', 'in_progress', 'material_allocated', 'cutting', 'embroidery', 
         'stitching', 'finishing', 'quality_check', 'completed', 
         'on_hold', 'cancelled'
       ),
@@ -172,6 +186,7 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['production_number'] },
       { fields: ['sales_order_id'] },
+      { fields: ['project_reference'] },
       { fields: ['product_id'] },
       { fields: ['status'] },
       { fields: ['priority'] },

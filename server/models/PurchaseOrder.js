@@ -43,6 +43,20 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product these materials are for'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     po_date: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -213,6 +227,7 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['po_number'] },
       { fields: ['vendor_id'] },
+      { fields: ['product_id'] },
       { fields: ['status'] },
       { fields: ['priority'] },
       { fields: ['po_date'] },

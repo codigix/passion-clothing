@@ -26,6 +26,8 @@ const CreateSalesOrderPage = () => {
     productCode: '', // Auto-generated
     productType: '',
     customProductType: '',
+    fabricType: '', // NEW: Fabric type field
+    color: '', // NEW: Color field
     quantity: '',
     qualitySpecification: '',
     pricePerPiece: '',
@@ -224,6 +226,8 @@ const CreateSalesOrderPage = () => {
           product_name: orderData.productName,
           product_code: orderData.productCode,
           product_type: finalProductType,
+          fabric_type: orderData.fabricType,
+          color: orderData.color,
           quality_specification: orderData.qualitySpecification,
           size_option: orderData.sizeOption,
           size_details: orderData.sizeDetails,
@@ -235,12 +239,15 @@ const CreateSalesOrderPage = () => {
           {
             item_code: orderData.productCode,
             product_id: orderData.productCode,
+            product_type: finalProductType,
+            fabric_type: orderData.fabricType,
+            color: orderData.color,
             description: orderData.productName,
             quantity: parseFloat(orderData.quantity),
             unit_price: parseFloat(orderData.pricePerPiece),
             unit_of_measure: 'pcs',
             size_breakdown: orderData.sizeDetails || null,
-            remarks: `${finalProductType} - ${orderData.qualitySpecification || 'Standard quality'}`
+            remarks: `${finalProductType} - ${orderData.fabricType || 'N/A'} - ${orderData.color || 'N/A'} - ${orderData.qualitySpecification || 'Standard quality'}`
           }
         ]
       };
@@ -573,6 +580,34 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
               )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700" htmlFor="fabricType">
+                  Fabric Type
+                </label>
+                <input
+                  id="fabricType"
+                  type="text"
+                  value={orderData.fabricType}
+                  onChange={(e) => handleInputChange('fabricType', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="e.g., Cotton, Polyester, Cotton Blend"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700" htmlFor="color">
+                  Color
+                </label>
+                <input
+                  id="color"
+                  type="text"
+                  value={orderData.color}
+                  onChange={(e) => handleInputChange('color', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="e.g., Navy Blue, White, Black"
+                />
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700" htmlFor="quantity">

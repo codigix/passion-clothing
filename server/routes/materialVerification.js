@@ -76,19 +76,19 @@ router.post('/create', authenticateToken, checkDepartment(['manufacturing']), as
 
     // Create notification based on result
     const mrnRequest = await db.ProjectMaterialRequest.findByPk(mrn_request_id);
-    const notificationType = overall_result === 'passed' ? 'verification_passed' : 'verification_failed';
+    const notificationType = overall_result === 'passed' ? 'grn_verified' : 'grn_discrepancy';
     const notificationMessage = overall_result === 'passed'
       ? `Material verification passed for MRN ${mrnRequest.request_number}. Verification #: ${verification_number}`
       : `Material verification failed for MRN ${mrnRequest.request_number}. Verification #: ${verification_number}`;
 
     // Notify manufacturing manager
     await db.Notification.create({
-      user_id: mrnRequest.created_by,
+      recipient_user_id: mrnRequest.created_by,
       type: notificationType,
       title: overall_result === 'passed' ? 'Verification Passed' : 'Verification Failed',
       message: notificationMessage,
-      related_type: 'material_verification',
-      related_id: verification.id,
+      related_entity_type: 'material_verification',
+      related_entity_id: verification.id,
       priority: overall_result === 'failed' ? 'high' : 'medium'
     }, { transaction });
 
@@ -128,46 +128,8 @@ router.post('/create', authenticateToken, checkDepartment(['manufacturing']), as
   }
 });
 
-// GET /api/material-verification/:receiptId - Get verification by receipt ID
-router.get('/:receiptId', authenticateToken, async (req, res) => {
-  try {
-    const { receiptId } = req.params;
-
-    const verification = await db.MaterialVerification.findOne({
-      where: { receipt_id: receiptId },
-      include: [
-        {
-          model: db.ProjectMaterialRequest,
-          as: 'mrnRequest'
-        },
-        {
-          model: db.MaterialReceipt,
-          as: 'receipt'
-        },
-        {
-          model: db.User,
-          as: 'verifier',
-          attributes: ['id', 'name', 'email']
-        }
-      ]
-    });
-
-    if (!verification) {
-      return res.status(404).json({ message: 'Verification not found for this receipt' });
-    }
-
-    res.json({ verification });
-
-  } catch (error) {
-    console.error('Error fetching verification:', error);
-    res.status(500).json({ 
-      message: 'Error fetching verification', 
-      error: error.message 
-    });
-  }
-});
-
 // GET /api/material-verification/list/pending-approval - Get pending approvals
+// IMPORTANT: This MUST come BEFORE catch-all routes like /:id
 router.get('/list/pending-approval', authenticateToken, checkDepartment(['manufacturing']), async (req, res) => {
   try {
     const verifications = await db.MaterialVerification.findAll({
@@ -199,6 +161,89 @@ router.get('/list/pending-approval', authenticateToken, checkDepartment(['manufa
     console.error('Error fetching pending verifications:', error);
     res.status(500).json({ 
       message: 'Error fetching pending verifications', 
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/material-verification/by-receipt/:receiptId - Get verification by receipt ID
+router.get('/by-receipt/:receiptId', authenticateToken, async (req, res) => {
+  try {
+    const { receiptId } = req.params;
+
+    const verification = await db.MaterialVerification.findOne({
+      where: { receipt_id: receiptId },
+      include: [
+        {
+          model: db.ProjectMaterialRequest,
+          as: 'mrnRequest'
+        },
+        {
+          model: db.MaterialReceipt,
+          as: 'receipt'
+        },
+        {
+          model: db.User,
+          as: 'verifier',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+
+    if (!verification) {
+      return res.status(404).json({ message: 'Verification not found for this receipt' });
+    }
+
+    res.json({ verification });
+
+  } catch (error) {
+    console.error('Error fetching verification by receipt:', error);
+    res.status(500).json({ 
+      message: 'Error fetching verification', 
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/material-verification/:verificationId - Get verification by verification ID
+router.get('/:verificationId', authenticateToken, async (req, res) => {
+  try {
+    const { verificationId } = req.params;
+
+    const verification = await db.MaterialVerification.findByPk(verificationId, {
+      include: [
+        {
+          model: db.ProjectMaterialRequest,
+          as: 'mrnRequest'
+        },
+        {
+          model: db.MaterialReceipt,
+          as: 'receipt',
+          include: [
+            {
+              model: db.MaterialDispatch,
+              as: 'dispatch'
+            }
+          ]
+        },
+        {
+          model: db.User,
+          as: 'verifier',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+
+    if (!verification) {
+      return res.status(404).json({ message: 'Verification not found' });
+    }
+
+    res.json({ verification });
+
+  } catch (error) {
+    console.error('Error fetching verification:', error);
+    res.status(500).json({ 
+      message: 'Error fetching verification', 
       error: error.message 
     });
   }

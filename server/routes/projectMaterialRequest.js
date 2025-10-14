@@ -1126,26 +1126,27 @@ router.post('/:id/approve-and-dispatch', authenticateToken, checkDepartment(['in
       const materialName = material.material_name || material.name || '';
       const requestedQty = parseFloat(material.quantity_required || material.quantity || 0);
 
-      // Search inventory with flexible matching through Product relationship
+      // Search inventory with flexible matching - BOTH through Product AND Inventory fields
       const inventoryItems = await Inventory.findAll({
         where: {
           quality_status: 'approved',
-          is_active: true
+          is_active: true,
+          [Op.or]: [
+            // Search by Inventory fields directly
+            { product_name: { [Op.like]: `%${materialName}%` } },
+            { category: { [Op.like]: `%${materialName}%` } },
+            { material: { [Op.like]: `%${materialName}%` } },
+            { description: { [Op.like]: `%${materialName}%` } }
+          ]
         },
         include: [{
           model: Product,
           as: 'product',
-          where: {
-            [Op.or]: [
-              { name: { [Op.like]: `%${materialName}%` } },
-              { description: { [Op.like]: `%${materialName}%` } },
-              { product_code: { [Op.like]: `%${materialName}%` } }
-            ]
-          },
-          required: true
+          required: false // Make Product optional - not all inventory has product_id
         }],
-        attributes: ['id', 'available_stock', 'current_stock', 'batch_number', 
-                    'location', 'barcode', 'unit_cost', 'reserved_stock'],
+        attributes: ['id', 'product_name', 'category', 'available_stock', 'current_stock', 
+                    'batch_number', 'location', 'barcode', 'unit_cost', 'reserved_stock', 
+                    'unit_of_measurement'],
         transaction
       });
 
@@ -1174,13 +1175,15 @@ router.post('/:id/approve-and-dispatch', authenticateToken, checkDepartment(['in
         status: isAvailable ? 'available' : (totalAvailable > 0 ? 'partial' : 'unavailable'),
         inventory_items: inventoryItems.map(item => ({
           id: item.id,
-          product_name: item.product?.name || 'Unknown',
+          product_name: item.product_name || item.product?.name || 'Unknown',
           product_code: item.product?.product_code || '',
+          category: item.category,
           available_stock: item.available_stock,
           batch_number: item.batch_number,
           location: item.location,
           barcode: item.barcode,
-          unit_cost: item.unit_cost
+          unit_cost: item.unit_cost,
+          unit: item.unit_of_measurement
         })),
         grn_received: grnCheck.exists ? 
           grnCheck.materials_received.some(grnItem => 

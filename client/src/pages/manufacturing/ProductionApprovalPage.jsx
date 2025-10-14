@@ -70,14 +70,21 @@ const ProductionApprovalPage = () => {
         conditions: approvalStatus === 'conditional' ? conditions : null
       };
 
-      await api.post('/production-approval/create', approvalData);
+      const response = await api.post('/production-approval/create', approvalData);
+      const approvalId = response.data?.approval?.id;
       
-      toast.success(
-        approvalStatus === 'approved' 
-          ? 'Production approved! Materials ready for manufacturing.' 
-          : 'Approval submitted successfully'
-      );
-      navigate('/manufacturing/mrm-list');
+      if (approvalStatus === 'approved') {
+        toast.success('Production approved! Redirecting to Production Wizard...');
+        // Redirect to Production Wizard with approval ID for auto-prefill
+        if (approvalId) {
+          navigate(`/manufacturing/production-wizard?approvalId=${approvalId}`);
+        } else {
+          navigate('/manufacturing/production-wizard');
+        }
+      } else {
+        toast.success('Approval submitted successfully');
+        navigate('/manufacturing/mrm-list');
+      }
     } catch (error) {
       console.error('Error submitting approval:', error);
       toast.error(error.response?.data?.message || 'Failed to submit approval');

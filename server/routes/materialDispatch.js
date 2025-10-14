@@ -121,12 +121,12 @@ router.post('/create', authenticateToken, checkDepartment(['inventory']), async 
 
     // Create notification for manufacturing
     await db.Notification.create({
-      user_id: mrnRequest.created_by,
-      type: 'material_dispatched',
+      recipient_user_id: mrnRequest.created_by,
+      type: 'manufacturing',
       title: 'Materials Dispatched',
       message: `Materials for MRN ${mrnRequest.request_number} have been dispatched. Dispatch #: ${dispatch_number}`,
-      related_type: 'material_dispatch',
-      related_id: dispatch.id,
+      related_entity_type: 'material_dispatch',
+      related_entity_id: dispatch.id,
       priority: 'high'
     }, { transaction });
 

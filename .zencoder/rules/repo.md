@@ -29,6 +29,126 @@
 - **DB**: MySQL via Sequelize; Migrations-based schema management
 
 ## Recent Enhancements
+- **Production Order Flow Restructure - Missing Endpoint Fixed**: Critical fix for missing POST /manufacturing/orders endpoint and project-based tracking implementation (Jan 2025) ⭐ NEW
+  - Fixed missing POST endpoint that prevented production order creation (404 errors)
+  - Added project_reference field for grouping production orders and MRNs
+  - Production orders now reference sales_order_number as project reference
+  - Multiple MRNs can be created for same project (on-demand, not automatic)
+  - Decoupled MRN creation from production order workflow
+  - Complete transaction support with stages, materials, quality checkpoints
+  - Automatic sales order status update to in_production
+  - Database migration included for project_reference field
+  - Full backward compatibility maintained
+  - See: `PRODUCTION_ORDER_FLOW_RESTRUCTURE.md`, `PRODUCTION_ORDER_QUICK_START.md`
+- **Outsourcing Dashboard - Complete Data Integration**: Comprehensive dashboard with stats, orders, and vendor performance (Jan 2025) ⭐ NEW
+  - 4 stat cards: Active Orders (12), Completed (45), Vendors (8), Avg Delivery (6.2 days)
+  - Recent Outsource Orders section with visual progress cards
+  - Top Performing Vendors showcase (Precision 4.8★, Elite 4.6★, Quick Print 4.2★)
+  - 6 quick action buttons: Search, Performance, Quality, Reports, Export
+  - Full orders table with progress tracking and quality ratings
+  - Complete vendor directory with contact details and performance metrics
+  - Quality control dashboard with metrics
+  - Responsive design with hover effects and visual indicators
+  - API integration with fallback to default values
+  - See: `OUTSOURCING_DASHBOARD_ENHANCED.md`, `OUTSOURCING_MOVED_TO_SIDEBAR.md`
+- **Outsourcing Moved to Sidebar**: Relocated from Manufacturing Dashboard tab to dedicated page accessible via Manufacturing sidebar menu (Jan 2025) ⭐ NEW
+  - Full OutsourcingDashboard with Orders and Vendors tabs
+  - Always accessible from sidebar (no need to find the right tab)
+  - Manufacturing Dashboard reduced from 8 tabs to 7 tabs
+  - Truck icon for easy recognition
+  - Consistent with other action-oriented pages (Production Orders, Quality Control)
+  - See: `OUTSOURCING_MOVED_TO_SIDEBAR.md`, `OUTSOURCING_QUICK_REFERENCE.md`
+- **Production Operations View - Simplified with Outsourcing & Material Reconciliation**: Complete redesign with simplified stage management, outsourcing flow (embroidery/printing), and material reconciliation (Jan 2025) ⭐ NEW
+  - Removed complex substages - simple date/time editing only
+  - Work type selector: In-House vs Outsourced (embroidery, printing, washing stages)
+  - Outward challan creation: Send materials to vendors with transport details
+  - Inward challan creation: Receive completed work with quality notes
+  - Material reconciliation in final stage: Calculate usage, track leftovers
+  - Automatic return of leftover materials to inventory
+  - Complete audit trail: All challans and inventory movements recorded
+  - 8 new backend endpoints for outsourcing and reconciliation
+  - Clean, intuitive UI with color-coded stage status
+  - See: `PRODUCTION_OPERATIONS_SIMPLIFIED.md`, `PRODUCTION_OPERATIONS_QUICK_START.md`, `PRODUCTION_OPERATIONS_IMPLEMENTATION_SUMMARY.md`
+- **Production Operations View - Stage-by-Stage Tracking**: Complete visual interface for detailed production stage tracking (Jan 2025) ⭐ DEPRECATED
+  - Left sidebar showing all stages with status indicators (completed, in-progress, on-hold, pending)
+  - Detailed stage information panel with edit mode
+  - Context-sensitive Quick Actions buttons (Start Stage, Pause, Complete, Hold)
+  - Quantity tracking per stage: Processed, Approved, Rejected, Material Used
+  - Date/time tracking with auto-calculated duration
+  - Notes section for stage-specific documentation
+  - Previous/Next stage navigation with stage counter
+  - Overall progress bar showing order completion percentage
+  - Accessible via eye icon in Production Tracking tab
+  - See: `PRODUCTION_OPERATIONS_VIEW_IMPLEMENTATION.md`, `PRODUCTION_OPERATIONS_QUICK_START.md`
+- **Production Order Product Name Support**: Create production orders without product_id requirement (Jan 2025) ⭐ NEW
+  - Backend accepts product_name when product_id is missing or invalid
+  - Auto-creates placeholder "Generic Product (TBD)" to satisfy database constraints
+  - Stores actual product_name in specifications JSON field for tracking
+  - Frontend sends product_name with every production order creation
+  - Non-blocking validation: auto-match attempted but not required
+  - Graceful handling of empty product catalogs
+  - Users can proceed with production even without linked products
+  - Product linking can be done later (placeholder used temporarily)
+  - See: `PRODUCTION_ORDER_PRODUCT_NAME_FIX.md`, `PRODUCT_NAME_FIX_QUICK_START.md`
+- **Production Approval to Production Order Complete Flow**: Seamless workflow from material approval to production order creation (Jan 2025) ⭐ NEW
+  - Material approval auto-redirects to Production Wizard with ?approvalId parameter
+  - Wizard auto-loads ALL data from Sales Order, Purchase Order, and Inventory
+  - Form pre-fills product, quantity, materials, special instructions, and sales order
+  - Production order includes production_approval_id for complete traceability
+  - After creation, approval automatically marked as "production started"
+  - Bidirectional linking: orders ↔ approvals with full audit trail
+  - Non-blocking error handling ensures order creation succeeds
+  - Multi-source data extraction with intelligent fallbacks
+  - See: `PRODUCTION_APPROVAL_TO_ORDER_COMPLETE_FLOW.md`, `PRODUCTION_APPROVAL_QUICK_START.md`
+- **Production Request Duplicate Prevention**: Fixed multiple production requests being created for same sales order (Jan 2025) ⭐ NEW
+  - Added validation to prevent duplicate production requests for same sales order
+  - Returns 409 Conflict with existing request details when duplicate attempted
+  - Ignores cancelled requests allowing recreation if needed
+  - Created cleanup SQL script to mark existing duplicates as cancelled
+  - Optional database UNIQUE constraint for long-term protection
+  - See: `PRODUCTION_REQUEST_DUPLICATE_FIX.md`, `cleanup-duplicate-production-requests.sql`
+- **Manufacturing Product Selection Enhancement**: Fixed product data prefilling in Manufacturing Dashboard (Jan 2025) ⭐ NEW
+  - Enhanced product fetching with status filtering and error handling
+  - Multi-source data extraction for product names, descriptions, and customer info
+  - Visual "No Product Link" badges in incoming orders table
+  - Smart product recommendations with green highlighting for matching products
+  - Empty state with prominent "Create Product Now" button
+  - Console logging for debugging product and order data
+  - Improved product selection dialog with better UX and navigation
+  - See: `MANUFACTURING_PRODUCT_SELECTION_FIX.md`, `MANUFACTURING_PRODUCT_FIX_QUICK_GUIDE.md`
+- **Manufacturing Material Receipt Dashboard**: Complete goods receipt workflow in Manufacturing Dashboard (Jan 2025) ⭐ NEW
+  - New "Material Receipts" tab shows all dispatched materials from inventory
+  - 3-stage workflow: Dispatch → Receipt → Verification → Approval
+  - Color-coded badges (Orange/Blue/Purple) for each stage
+  - "Pending Materials" stat card shows total count
+  - Direct navigation to receipt, verification, and approval pages
+  - Integrates existing MaterialReceiptPage, StockVerificationPage, ProductionApprovalPage
+  - Complete visibility: manufacturing staff can now see and track all incoming materials
+  - See: `MANUFACTURING_MATERIAL_RECEIPT_FLOW.md`, `MATERIAL_RECEIPT_QUICK_GUIDE.md`
+- **MRN Rejection Fix**: Fixed material request rejection despite available stock (Jan 2025) ⭐ NEW
+  - Enhanced inventory search to match by category, material, and description fields
+  - Made Product relationship optional (was blocking items without product_id)
+  - Generic terms like "fabric" now match items with category='fabric'
+  - Search now covers: product_name, category, material, description
+  - See: `MRN_REJECTION_FIX_COMPLETE.md`, `MRN_REJECTION_QUICK_FIX.md`
+- **Procurement Accept Order Fix**: Fixed 500 error when accepting sales orders (Jan 2025) ⭐ NEW
+  - Corrected invalid notification type and priority ENUM values
+  - Fixed NotificationService method calls across multiple routes
+  - Order acceptance now works correctly with proper notifications
+  - See: `PROCUREMENT_ACCEPT_ORDER_ERROR_FIX.md`
+- **UI/UX Improvements**: Enhanced user experience across 4 key workflows (Jan 2025) ⭐ NEW
+  - Challan creation now shows success screen with download/print functionality
+  - Procurement dashboard incoming orders display complete product, quantity, and material requirements
+  - Sales orders table has quick-access view icon for faster navigation
+  - Purchase orders tab shows comprehensive list with all PO details
+  - See: `UI_IMPROVEMENTS_SUMMARY.md`
+- **Sales Order Color & Fabric Fields**: Added fabric type and color fields to sales order creation (Jan 2025) ⭐ NEW
+  - Captures fabric_type (e.g., Cotton, Polyester, Cotton Blend) and color (e.g., Navy Blue, White)
+  - Fields flow through entire system: Sales → Procurement → Manufacturing
+  - Stored in garment_specifications and items JSON fields
+  - Display enhancements in order details with color swatch indicator
+  - Backend already had support - frontend enhancement only
+  - See: `SALES_ORDER_COLOR_FABRIC_ENHANCEMENT.md`
 - **Production Wizard Permission Fix**: Removed page-level permission gate blocking access (Jan 2025) ⭐ NEW
   - Wizard now accessible to all manufacturing users
   - Permission check only on submit button, not entire page

@@ -386,9 +386,31 @@ const ProductionTrackingPage = () => {
               <tbody>
                 {order.stages.map((stage, index) => (
                   <tr key={index} className="border-b">
-                    <td className="px-4 py-2 flex items-center gap-2">
-                      {getStageIcon(stage.status)}
-                      {stage.name}
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStageIcon(stage.status)}
+                        <span>{stage.name}</span>
+                        {stage.is_printing && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
+                            Printing
+                          </span>
+                        )}
+                        {stage.is_embroidery && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-700 font-medium">
+                            Embroidery
+                          </span>
+                        )}
+                        {(stage.is_printing || stage.is_embroidery) && stage.outsourced && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 font-medium">
+                            Outsourced
+                          </span>
+                        )}
+                        {(stage.is_printing || stage.is_embroidery) && !stage.outsourced && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 font-medium">
+                            In-House
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded text-xs border border-${getStageStatusColor(stage.status)}-500 text-${getStageStatusColor(stage.status)}-500`}>{stage.status.replace('_', ' ')}</span>
@@ -407,25 +429,108 @@ const ProductionTrackingPage = () => {
                     <td className="px-4 py-2">{stage.startTime || '-'}</td>
                     <td className="px-4 py-2">{stage.endTime || '-'}</td>
                     <td className="px-4 py-2">
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         {stage.status === 'pending' && (
                           <>
-                            <button className="px-2 py-1 rounded bg-primary text-white text-xs" onClick={() => doAction(stage.id, 'start')}>Start</button>
-                            <button className="px-2 py-1 rounded bg-white0 text-white text-xs" onClick={() => doAction(stage.id, 'hold')}>Hold</button>
-                            <button className="px-2 py-1 rounded bg-gray-400 text-white text-xs" onClick={() => doAction(stage.id, 'skip')}>Skip</button>
+                            {stage.outsourced ? (
+                              <button 
+                                className="px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium transition-colors flex items-center gap-1" 
+                                onClick={() => doAction(stage.id, 'outsource')}
+                                title="Send to vendor (create challan)"
+                              >
+                                <FaMagic className="w-3 h-3" />
+                                Send to Vendor
+                              </button>
+                            ) : (
+                              <button 
+                                className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors flex items-center gap-1" 
+                                onClick={() => doAction(stage.id, 'start')}
+                                title="Start this stage"
+                              >
+                                <FaClock className="w-3 h-3" />
+                                Start
+                              </button>
+                            )}
+                            <button 
+                              className="px-3 py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium transition-colors" 
+                              onClick={() => doAction(stage.id, 'hold')}
+                              title="Put this stage on hold"
+                            >
+                              Hold
+                            </button>
+                            <button 
+                              className="px-3 py-1.5 rounded bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium transition-colors" 
+                              onClick={() => doAction(stage.id, 'skip')}
+                              title="Skip this stage"
+                            >
+                              Skip
+                            </button>
                           </>
                         )}
                         {stage.status === 'in_progress' && (
                           <>
-                            <button className="px-2 py-1 rounded bg-white0 text-white text-xs" onClick={() => doAction(stage.id, 'pause')}>Pause</button>
-                            <button className="px-2 py-1 rounded bg-green-500 text-white text-xs" onClick={() => openCompleteDialog(stage.id)}>Complete</button>
+                            {stage.outsourced ? (
+                              <>
+                                <button 
+                                  className="px-3 py-1.5 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors flex items-center gap-1" 
+                                  onClick={() => doAction(stage.id, 'receive')}
+                                  title="Receive from vendor"
+                                >
+                                  <FaCheckCircle className="w-3 h-3" />
+                                  Receive from Vendor
+                                </button>
+                                <button 
+                                  className="px-3 py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium transition-colors" 
+                                  onClick={() => doAction(stage.id, 'pause')}
+                                  title="Pause this stage"
+                                >
+                                  Pause
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button 
+                                  className="px-3 py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium transition-colors" 
+                                  onClick={() => doAction(stage.id, 'pause')}
+                                  title="Pause this stage"
+                                >
+                                  Pause
+                                </button>
+                                <button 
+                                  className="px-3 py-1.5 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors flex items-center gap-1" 
+                                  onClick={() => openCompleteDialog(stage.id)}
+                                  title="Mark this stage as complete"
+                                >
+                                  <FaCheckCircle className="w-3 h-3" />
+                                  Complete
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
                         {stage.status === 'on_hold' && (
                           <>
-                            <button className="px-2 py-1 rounded bg-primary text-white text-xs" onClick={() => doAction(stage.id, 'resume')}>Resume</button>
-                            <button className="px-2 py-1 rounded bg-gray-400 text-white text-xs" onClick={() => doAction(stage.id, 'skip')}>Skip</button>
+                            <button 
+                              className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors" 
+                              onClick={() => doAction(stage.id, 'resume')}
+                              title="Resume this stage"
+                            >
+                              Resume
+                            </button>
+                            <button 
+                              className="px-3 py-1.5 rounded bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium transition-colors" 
+                              onClick={() => doAction(stage.id, 'skip')}
+                              title="Skip this stage"
+                            >
+                              Skip
+                            </button>
                           </>
+                        )}
+                        {stage.status === 'completed' && (
+                          <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                            <FaCheckCircle className="w-3 h-3" />
+                            Completed
+                          </span>
                         )}
                       </div>
                     </td>

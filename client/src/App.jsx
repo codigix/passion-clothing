@@ -99,6 +99,7 @@ import MRNListPage from './pages/manufacturing/MRMListPage';
 import MaterialReceiptPage from './pages/manufacturing/MaterialReceiptPage';
 import StockVerificationPage from './pages/manufacturing/StockVerificationPage';
 import ProductionApprovalPage from './pages/manufacturing/ProductionApprovalPage';
+import ProductionOperationsViewPage from './pages/manufacturing/ProductionOperationsViewPage';
 
 // Admin Pages
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -151,7 +152,7 @@ function App() {
         <Route path="/challans" element={<ProtectedDashboard department="challans"><ChallanDashboard /></ProtectedDashboard>} />
         <Route path="/inventory" element={<ProtectedDashboard department="inventory"><EnhancedInventoryDashboard /></ProtectedDashboard>} />
         <Route path="/manufacturing" element={<ProtectedDashboard department="manufacturing"><ManufacturingDashboard /></ProtectedDashboard>} />
-        <Route path="/outsourcing" element={<ProtectedDashboard department="outsourcing"><OutsourcingDashboard /></ProtectedDashboard>} />
+        <Route path="/outsourcing" element={<ProtectedDashboard department="manufacturing"><OutsourcingDashboard /></ProtectedDashboard>} />
         <Route path="/samples" element={<ProtectedDashboard department="samples"><SamplesDashboard /></ProtectedDashboard>} />
         <Route path="/shipment" element={<ProtectedDashboard department="shipment"><ShipmentDashboard /></ProtectedDashboard>} />
         <Route path="/store" element={<ProtectedDashboard department="store"><StoreDashboard /></ProtectedDashboard>} />
@@ -164,7 +165,7 @@ function App() {
         <Route path="/challans/dashboard" element={<ProtectedDashboard department="challans"><ChallanDashboard /></ProtectedDashboard>} />
         <Route path="/inventory/dashboard" element={<ProtectedDashboard department="inventory"><EnhancedInventoryDashboard /></ProtectedDashboard>} />
         <Route path="/manufacturing/dashboard" element={<ProtectedDashboard department="manufacturing"><ManufacturingDashboard /></ProtectedDashboard>} />
-        <Route path="/outsourcing/dashboard" element={<ProtectedDashboard department="outsourcing"><OutsourcingDashboard /></ProtectedDashboard>} />
+        <Route path="/outsourcing/dashboard" element={<ProtectedDashboard department="manufacturing"><OutsourcingDashboard /></ProtectedDashboard>} />
         <Route path="/samples/dashboard" element={<ProtectedDashboard department="samples"><SamplesDashboard /></ProtectedDashboard>} />
         <Route path="/shipment/dashboard" element={<ProtectedDashboard department="shipment"><ShipmentDashboard /></ProtectedDashboard>} />
         <Route path="/store/dashboard" element={<ProtectedDashboard department="store"><StoreDashboard /></ProtectedDashboard>} />
@@ -219,6 +220,7 @@ function App() {
 
         {/* Manufacturing Routes */}
         <Route path="/manufacturing/orders" element={<ProductionOrdersPage />} />
+        <Route path="/manufacturing/orders/:id" element={<ProductionOperationsViewPage />} />
         <Route path="/manufacturing/tracking" element={<ProductionTrackingPage />} />
         <Route path="/manufacturing/quality" element={<QualityControlPage />} />
         <Route path="/manufacturing/wizard" element={<ProductionWizardPage />} />

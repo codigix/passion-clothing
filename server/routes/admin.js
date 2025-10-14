@@ -524,7 +524,7 @@ router.post('/pending-approvals/:id/approve', authenticateToken, async (req, res
           type: 'procurement',
           title: `✅ GRN Created: PO ${po.po_number}`,
           message: `GRN ${grnNumber} has been created for Purchase Order ${po.po_number}. Inventory will verify when materials arrive.`,
-          priority: 'normal',
+          priority: 'medium',
           related_entity_id: po.id,
           related_entity_type: 'purchase_order',
           action_url: `/procurement/purchase-orders/${po.id}`,

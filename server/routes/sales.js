@@ -120,6 +120,30 @@ router.post('/orders/:id/request-production', authenticateToken, checkDepartment
       });
     }
 
+    // ✅ CHECK FOR DUPLICATE: Prevent multiple production requests for same sales order
+    const existingRequest = await ProductionRequest.findOne({
+      where: {
+        sales_order_id: id,
+        status: {
+          [Op.notIn]: ['cancelled'] // Ignore cancelled requests
+        }
+      },
+      transaction
+    });
+
+    if (existingRequest) {
+      await transaction.rollback();
+      return res.status(409).json({ 
+        message: 'Production request already exists for this sales order',
+        existingRequest: {
+          id: existingRequest.id,
+          request_number: existingRequest.request_number,
+          status: existingRequest.status,
+          created_at: existingRequest.created_at
+        }
+      });
+    }
+
     // Generate and create production request
     const requestNumber = await generateProductionRequestNumber(transaction);
     const payload = buildProductionRequestPayloadFromOrder(order, requestNumber, req.user.id);

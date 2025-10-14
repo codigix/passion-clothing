@@ -28,6 +28,20 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'Project name for this dispatch'
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product these materials are for'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     dispatched_materials: {
       type: DataTypes.JSON,
       allowNull: false,
@@ -82,6 +96,7 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['dispatch_number'], unique: true },
       { fields: ['mrn_request_id'] },
+      { fields: ['product_id'] },
       { fields: ['project_name'] },
       { fields: ['dispatched_by'] },
       { fields: ['dispatched_at'] },

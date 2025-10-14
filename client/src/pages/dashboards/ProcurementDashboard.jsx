@@ -114,6 +114,22 @@ const ProcurementDashboard = () => {
 
   // Handle accepting incoming order request (Procurement Only)
   const handleAcceptOrder = async (order) => {
+    if (!order) {
+      toast.error('Order details are unavailable. Please refresh and try again.');
+      return;
+    }
+
+    // Ensure the order is in the correct lifecycle state before attempting acceptance
+    const isDraft = order.status === 'draft';
+    const isReady = order.ready_for_procurement === true;
+
+    if (!isDraft || !isReady) {
+      toast.error(
+        `Order ${order.order_number || order.id} cannot be accepted yet. Status: ${order.status || 'unknown'}, Ready for procurement: ${isReady ? 'Yes' : 'No'}.`
+      );
+      return;
+    }
+
     if (!window.confirm(`Confirm order ${order.order_number}?\n\nThis will change the order status to 'Confirmed' and notify the Sales department.`)) {
       return;
     }
@@ -402,23 +418,50 @@ const ProcurementDashboard = () => {
                                   {typeof order.customer === 'object' ? order.customer?.phone : order.customer_phone}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{order.product_name}</div>
-                                <div className="text-sm text-gray-500">{order.garment_specs?.fabric_type}</div>
+                              <td className="px-6 py-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {order.garment_specifications?.product_name || 
+                                   order.product_name || 
+                                   (order.items && order.items[0]?.description) ||
+                                   'N/A'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {order.garment_specifications?.product_type || 
+                                   (order.items && order.items[0]?.product_type) ||
+                                   'N/A'}
+                                </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {order.quantity}
-                              </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {order.garment_specs?.fabric_type && (
-                                    <div>Fabric: {order.garment_specs.fabric_type}</div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {order.total_quantity || 
+                                   (order.items && order.items.reduce((sum, item) => sum + (item.quantity || 0), 0)) ||
+                                   0} pcs
+                                </div>
+                                {order.garment_specifications?.size_details && order.garment_specifications.size_details.length > 0 && (
+                                  <div className="text-xs text-gray-500">
+                                    {order.garment_specifications.size_details.map(sd => `${sd.size}: ${sd.quantity}`).join(', ')}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-900 space-y-1">
+                                  {order.garment_specifications?.fabric_type && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">Fabric:</span> {order.garment_specifications.fabric_type}
+                                    </div>
                                   )}
-                                  {order.garment_specs?.printing_required && (
-                                    <div>Printing: Yes</div>
+                                  {order.garment_specifications?.color && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">Color:</span> {order.garment_specifications.color}
+                                    </div>
                                   )}
-                                  {order.garment_specs?.embroidery_required && (
-                                    <div>Embroidery: Yes</div>
+                                  {order.items && order.items.length > 0 && (
+                                    <div className="text-xs text-blue-600">
+                                      {order.items.length} item(s) to procure
+                                    </div>
+                                  )}
+                                  {(!order.garment_specifications?.fabric_type && !order.items?.length) && (
+                                    <span className="text-gray-400 text-xs">No requirements specified</span>
                                   )}
                                 </div>
                               </td>
@@ -444,6 +487,13 @@ const ProcurementDashboard = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex gap-2">
+                                  <button
+                                    onClick={() => navigate(`/sales/orders/${order.id}`)}
+                                    className="text-gray-600 hover:text-gray-900"
+                                    title="View Full Details"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
                                   <button
                                     onClick={() => {
                                       setSelectedOrder(order);
@@ -606,11 +656,162 @@ const ProcurementDashboard = () => {
         {/* Purchase Orders Tab */}
         {tabValue === 1 && (
           <div className="p-6">
-            <PurchaseOrderForm
-              vendors={vendors}
-              projects={incomingOrders.map(order => ({ id: order.id, name: order.project_title || order.order_number }))}
-              clients={incomingOrders.map(order => ({ id: order.customer_id || order.id, name: order.customer }))}
-            />
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">All Purchase Orders</h2>
+              <button
+                onClick={() => navigate('/procurement/purchase-orders/create')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Create New PO
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading...</p>
+              </div>
+            ) : purchaseOrders.length === 0 ? (
+              <div className="text-center py-8">
+                <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No Purchase Orders Yet
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Create your first purchase order to start tracking procurement
+                </p>
+                <button
+                  onClick={() => navigate('/procurement/purchase-orders/create')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create Purchase Order
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        PO Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Vendor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Items
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total Quantity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        PO Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Expected Delivery
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {purchaseOrders.map((po) => {
+                      const totalQty = po.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                      const itemCount = po.items?.length || 0;
+                      
+                      return (
+                        <tr key={po.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                            >
+                              {po.po_number}
+                            </button>
+                            {po.linked_sales_order_id && (
+                              <div className="text-xs text-gray-500">
+                                From SO #{po.linked_sales_order_id}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {po.vendor?.name || 'N/A'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {po.vendor?.vendor_code || ''}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                            </div>
+                            {po.items && po.items[0] && (
+                              <div className="text-xs text-gray-500">
+                                {po.items[0].item_name || po.items[0].description || 'N/A'}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {totalQty} {po.items?.[0]?.unit || 'pcs'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              ₹{po.total_amount ? parseFloat(po.total_amount).toLocaleString() : '0'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {po.po_date ? new Date(po.po_date).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              po.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                              po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
+                              po.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              po.status === 'sent_to_vendor' ? 'bg-blue-100 text-blue-800' :
+                              po.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {(po.status || 'draft').replace(/_/g, ' ').toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="View PO"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => navigate(`/procurement/purchase-orders/${po.id}/edit`)}
+                                className="text-indigo-600 hover:text-indigo-900"
+                                title="Edit PO"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

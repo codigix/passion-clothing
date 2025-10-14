@@ -38,6 +38,20 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'Project name for this receipt'
     },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'products',
+        key: 'id'
+      },
+      comment: 'Final product these materials are for'
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Product name for quick reference without joins'
+    },
     received_materials: {
       type: DataTypes.JSON,
       allowNull: false,
@@ -98,6 +112,7 @@ module.exports = (sequelize) => {
       { fields: ['receipt_number'], unique: true },
       { fields: ['mrn_request_id'] },
       { fields: ['dispatch_id'] },
+      { fields: ['product_id'] },
       { fields: ['project_name'] },
       { fields: ['received_by'] },
       { fields: ['received_at'] },

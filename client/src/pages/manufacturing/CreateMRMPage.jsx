@@ -10,7 +10,9 @@ import {
   FaCalendar,
   FaClipboardList,
   FaIndustry,
-  FaInfoCircle
+  FaInfoCircle,
+  FaCut,
+  FaTags
 } from 'react-icons/fa';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -23,6 +25,8 @@ const CreateMRMPage  = () => {
   const [availableProducts, setAvailableProducts] = useState([]);
   const [isPrefilledFromRequest, setIsPrefilledFromRequest] = useState(false);
   
+  const [defaultMaterialType, setDefaultMaterialType] = useState('fabric');
+  
   const [formData, setFormData] = useState({
     project_name: '',
     priority: 'medium',
@@ -30,11 +34,25 @@ const CreateMRMPage  = () => {
     notes: '',
     materials: [
       {
-        material_name: '',
-        description: '',
+        material_type: 'fabric',
+        // Common fields
         quantity_required: '',
         unit: 'meters',
-        specifications: ''
+        description: '',
+        // Fabric fields
+        fabric_name: '',
+        fabric_type: '',
+        color: '',
+        gsm: '',
+        width: '',
+        shrinkage: '',
+        finish_type: '',
+        // Accessories fields
+        accessory_type: '',
+        accessory_color: '',
+        size_length: '',
+        quantity_per_unit: '',
+        brand: ''
       }
     ]
   });
@@ -71,11 +89,24 @@ const CreateMRMPage  = () => {
       // If material_requirements exist, map them to material rows
       if (prefilled.material_requirements && Array.isArray(prefilled.material_requirements) && prefilled.material_requirements.length > 0) {
         materialsToAdd = prefilled.material_requirements.map(item => ({
-          material_name: item.product_name || item.item_name || item.name || '',
-          description: item.description || item.specifications || '',
+          material_type: item.material_type || 'fabric',
           quantity_required: item.quantity || item.quantity_required || '',
           unit: item.unit || 'meters',
-          specifications: item.specifications || item.color || item.grade || ''
+          description: item.description || item.specifications || '',
+          // Fabric fields
+          fabric_name: item.product_name || item.item_name || item.name || '',
+          fabric_type: item.fabric_type || '',
+          color: item.color || '',
+          gsm: item.gsm || '',
+          width: item.width || '',
+          shrinkage: item.shrinkage || '',
+          finish_type: item.finish_type || '',
+          // Accessories fields
+          accessory_type: item.accessory_type || '',
+          accessory_color: item.color || '',
+          size_length: item.size || item.length || '',
+          quantity_per_unit: item.quantity_per_unit || '',
+          brand: item.brand || ''
         }));
       }
       
@@ -151,11 +182,25 @@ const CreateMRMPage  = () => {
       materials: [
         ...prev.materials,
         {
-          material_name: '',
-          description: '',
+          material_type: defaultMaterialType,
+          // Common fields
           quantity_required: '',
-          unit: 'meters',
-          specifications: ''
+          unit: defaultMaterialType === 'fabric' ? 'meters' : 'pieces',
+          description: '',
+          // Fabric fields
+          fabric_name: '',
+          fabric_type: '',
+          color: '',
+          gsm: '',
+          width: '',
+          shrinkage: '',
+          finish_type: '',
+          // Accessories fields
+          accessory_type: '',
+          accessory_color: '',
+          size_length: '',
+          quantity_per_unit: '',
+          brand: ''
         }
       ]
     }));
@@ -199,13 +244,30 @@ const CreateMRMPage  = () => {
     for (let i = 0; i < formData.materials.length; i++) {
       const material = formData.materials[i];
       
-      if (!material.material_name.trim()) {
-        toast.error(`Material name is required for item ${i + 1}`);
-        return false;
+      // Check material type specific required fields
+      if (material.material_type === 'fabric') {
+        if (!material.fabric_name.trim()) {
+          toast.error(`Fabric name is required for item ${i + 1}`);
+          return false;
+        }
+        if (!material.fabric_type.trim()) {
+          toast.error(`Fabric type is required for item ${i + 1}`);
+          return false;
+        }
+        if (!material.color.trim()) {
+          toast.error(`Color is required for fabric item ${i + 1}`);
+          return false;
+        }
+      } else if (material.material_type === 'accessories') {
+        if (!material.accessory_type.trim()) {
+          toast.error(`Accessory type is required for item ${i + 1}`);
+          return false;
+        }
       }
       
       if (!material.quantity_required || parseFloat(material.quantity_required) <= 0) {
-        toast.error(`Valid quantity is required for ${material.material_name}`);
+        const itemName = material.material_type === 'fabric' ? material.fabric_name : material.accessory_type;
+        toast.error(`Valid quantity is required for ${itemName || `item ${i + 1}`}`);
         return false;
       }
     }
@@ -224,28 +286,62 @@ const CreateMRMPage  = () => {
 
     try {
       // Prepare materials_requested in the format expected by backend
-      const materials_requested = formData.materials.map(m => ({
-        material_name: m.material_name,
-        description: m.description,
-        quantity_required: parseFloat(m.quantity_required),
-        unit: m.unit,
-        specifications: m.specifications,
-        // Initialize tracking fields
-        available_qty: 0,
-        issued_qty: 0,
-        balance_qty: parseFloat(m.quantity_required),
-        status: 'pending'
-      }));
+      const materials_requested = formData.materials.map(m => {
+        const baseMaterial = {
+          material_type: m.material_type,
+          description: m.description,
+          quantity_required: parseFloat(m.quantity_required),
+          unit: m.unit,
+          // Initialize tracking fields
+          available_qty: 0,
+          issued_qty: 0,
+          balance_qty: parseFloat(m.quantity_required),
+          status: 'pending'
+        };
+
+        // Add type-specific fields
+        if (m.material_type === 'fabric') {
+          return {
+            ...baseMaterial,
+            material_name: m.fabric_name,
+            fabric_name: m.fabric_name,
+            fabric_type: m.fabric_type,
+            color: m.color,
+            gsm: m.gsm,
+            width: m.width,
+            shrinkage: m.shrinkage,
+            finish_type: m.finish_type,
+            specifications: `${m.fabric_type} - ${m.color}${m.gsm ? ` - ${m.gsm} GSM` : ''}${m.width ? ` - ${m.width}` : ''}`
+          };
+        } else {
+          return {
+            ...baseMaterial,
+            material_name: m.accessory_type,
+            accessory_type: m.accessory_type,
+            color: m.accessory_color,
+            size_length: m.size_length,
+            quantity_per_unit: m.quantity_per_unit,
+            brand: m.brand,
+            specifications: `${m.accessory_type}${m.size_length ? ` - ${m.size_length}` : ''}${m.accessory_color ? ` - ${m.accessory_color}` : ''}`
+          };
+        }
+      });
 
       const payload = {
         project_name: formData.project_name,
         priority: formData.priority,
         required_by_date: formData.required_by_date,
-        notes: formData.notes,
-        materials_requested
+        manufacturing_notes: formData.notes, // Use manufacturing_notes instead of notes
+        materials_requested,
+        // Include critical fields from prefilled data
+        sales_order_id: prefilledOrderData?.sales_order_id || null,
+        product_id: prefilledOrderData?.product_id || null,
+        product_name: prefilledOrderData?.product_name || null
       };
 
-      const response = await api.post('/project-material-requests/create', payload);
+      console.log('🔍 Submitting MRN with payload:', payload);
+
+      const response = await api.post('/project-material-requests/MRN/create', payload);
       
       toast.success('Material Request created successfully!');
       toast.success(`MRN Number: ${response.data.request_number}`);
@@ -329,6 +425,42 @@ const CreateMRMPage  = () => {
             <FaClipboardList className="mr-2 text-purple-500" />
             Request Information
           </h2>
+
+          {/* Default Material Type Selector */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg">
+            <label className="block text-sm font-semibold text-gray-800 mb-3">
+              Default Material Type for New Items
+            </label>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setDefaultMaterialType('fabric')}
+                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                  defaultMaterialType === 'fabric'
+                    ? 'bg-purple-500 border-purple-600 text-white shadow-lg'
+                    : 'bg-white border-gray-300 text-gray-700 hover:border-purple-400'
+                }`}
+              >
+                <FaCut className="text-lg" />
+                <span className="font-semibold">Fabric</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDefaultMaterialType('accessories')}
+                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                  defaultMaterialType === 'accessories'
+                    ? 'bg-pink-500 border-pink-600 text-white shadow-lg'
+                    : 'bg-white border-gray-300 text-gray-700 hover:border-pink-400'
+                }`}
+              >
+                <FaTags className="text-lg" />
+                <span className="font-semibold">Accessories</span>
+              </button>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">
+              This sets the default type for new materials. You can override it for each item individually.
+            </p>
+          </div>
           
           {/* Comprehensive Order Details Display */}
           {prefilledOrderData && (
@@ -521,9 +653,19 @@ const CreateMRMPage  = () => {
 
           <div className="space-y-4">
             {formData.materials.map((material, index) => (
-              <div key={index} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <div 
+                key={index} 
+                className={`p-4 border-2 rounded-lg ${
+                  material.material_type === 'fabric' 
+                    ? 'bg-purple-50 border-purple-300' 
+                    : 'bg-pink-50 border-pink-300'
+                }`}
+              >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-gray-700">Material #{index + 1}</h3>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    {material.material_type === 'fabric' ? <FaCut /> : <FaTags />}
+                    Material #{index + 1}
+                  </h3>
                   {formData.materials.length > 1 && (
                     <button
                       type="button"
@@ -535,94 +677,356 @@ const CreateMRMPage  = () => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Material Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Material Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={material.material_name}
-                      onChange={(e) => handleMaterialChange(index, 'material_name', e.target.value)}
-                      list={`products-list-${index}`}
-                      placeholder="e.g., Cotton Fabric, Thread"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      required
-                    />
-                    <datalist id={`products-list-${index}`}>
-                      {availableProducts.map((product) => (
-                        <option key={product.id} value={product.name} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  {/* Quantity */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantity <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={material.quantity_required}
-                      onChange={(e) => handleMaterialChange(index, 'quantity_required', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  {/* Unit */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={material.unit}
-                      onChange={(e) => handleMaterialChange(index, 'unit', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      required
+                {/* Material Type Selector */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Material Type <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleMaterialChange(index, 'material_type', 'fabric')}
+                      className={`flex-1 px-3 py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${
+                        material.material_type === 'fabric'
+                          ? 'bg-purple-500 border-purple-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-700 hover:border-purple-400'
+                      }`}
                     >
-                      <option value="meters">Meters</option>
-                      <option value="kilograms">Kilograms</option>
-                      <option value="pieces">Pieces</option>
-                      <option value="rolls">Rolls</option>
-                      <option value="boxes">Boxes</option>
-                      <option value="liters">Liters</option>
-                      <option value="units">Units</option>
-                    </select>
-                  </div>
-
-                  {/* Description */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <input
-                      type="text"
-                      value={material.description}
-                      onChange={(e) => handleMaterialChange(index, 'description', e.target.value)}
-                      placeholder="Brief description of the material"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Specifications */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specifications
-                    </label>
-                    <input
-                      type="text"
-                      value={material.specifications}
-                      onChange={(e) => handleMaterialChange(index, 'specifications', e.target.value)}
-                      placeholder="e.g., Color, Grade, Size"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
+                      <FaCut />
+                      Fabric
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMaterialChange(index, 'material_type', 'accessories')}
+                      className={`flex-1 px-3 py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${
+                        material.material_type === 'accessories'
+                          ? 'bg-pink-500 border-pink-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-700 hover:border-pink-400'
+                      }`}
+                    >
+                      <FaTags />
+                      Accessories
+                    </button>
                   </div>
                 </div>
+
+                {/* Fabric Fields */}
+                {material.material_type === 'fabric' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Fabric Name */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fabric Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={material.fabric_name}
+                        onChange={(e) => handleMaterialChange(index, 'fabric_name', e.target.value)}
+                        placeholder="e.g., Cotton Plain Fabric"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    {/* Fabric Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fabric Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={material.fabric_type}
+                        onChange={(e) => handleMaterialChange(index, 'fabric_type', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Select Type</option>
+                        <option value="Cotton">Cotton</option>
+                        <option value="Polyester">Polyester</option>
+                        <option value="Cotton Blend">Cotton Blend</option>
+                        <option value="Silk">Silk</option>
+                        <option value="Wool">Wool</option>
+                        <option value="Linen">Linen</option>
+                        <option value="Denim">Denim</option>
+                        <option value="Viscose">Viscose</option>
+                        <option value="Nylon">Nylon</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Color */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Color <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={material.color}
+                        onChange={(e) => handleMaterialChange(index, 'color', e.target.value)}
+                        placeholder="e.g., Navy Blue, White"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    {/* GSM */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        GSM (Grams/m²)
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={material.gsm}
+                        onChange={(e) => handleMaterialChange(index, 'gsm', e.target.value)}
+                        placeholder="e.g., 180"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Width */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Width
+                      </label>
+                      <input
+                        type="text"
+                        value={material.width}
+                        onChange={(e) => handleMaterialChange(index, 'width', e.target.value)}
+                        placeholder="e.g., 60 inches, 150 cm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Shrinkage */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Shrinkage %
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={material.shrinkage}
+                        onChange={(e) => handleMaterialChange(index, 'shrinkage', e.target.value)}
+                        placeholder="e.g., 3"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Finish Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Finish Type
+                      </label>
+                      <select
+                        value={material.finish_type}
+                        onChange={(e) => handleMaterialChange(index, 'finish_type', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Select Finish</option>
+                        <option value="Plain">Plain</option>
+                        <option value="Mercerized">Mercerized</option>
+                        <option value="Sanforized">Sanforized</option>
+                        <option value="Brushed">Brushed</option>
+                        <option value="Calendered">Calendered</option>
+                        <option value="Water Repellent">Water Repellent</option>
+                        <option value="Wrinkle Free">Wrinkle Free</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Quantity */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quantity <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={material.quantity_required}
+                        onChange={(e) => handleMaterialChange(index, 'quantity_required', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    {/* Unit */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={material.unit}
+                        onChange={(e) => handleMaterialChange(index, 'unit', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="meters">Meters</option>
+                        <option value="yards">Yards</option>
+                        <option value="kilograms">Kilograms</option>
+                        <option value="rolls">Rolls</option>
+                      </select>
+                    </div>
+
+                    {/* Description */}
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Additional Notes
+                      </label>
+                      <textarea
+                        value={material.description}
+                        onChange={(e) => handleMaterialChange(index, 'description', e.target.value)}
+                        placeholder="Any additional notes or special requirements..."
+                        rows="2"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Accessories Fields */}
+                {material.material_type === 'accessories' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Accessory Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Accessory Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={material.accessory_type}
+                        onChange={(e) => handleMaterialChange(index, 'accessory_type', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Select Type</option>
+                        <option value="Button">Button</option>
+                        <option value="Zipper">Zipper</option>
+                        <option value="Thread">Thread</option>
+                        <option value="Label">Label</option>
+                        <option value="Elastic">Elastic</option>
+                        <option value="Hook & Eye">Hook & Eye</option>
+                        <option value="Velcro">Velcro</option>
+                        <option value="Lining">Lining</option>
+                        <option value="Interlining">Interlining</option>
+                        <option value="Tape">Tape</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Color */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Color
+                      </label>
+                      <input
+                        type="text"
+                        value={material.accessory_color}
+                        onChange={(e) => handleMaterialChange(index, 'accessory_color', e.target.value)}
+                        placeholder="e.g., Black, White, Gold"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Size/Length */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Size / Length
+                      </label>
+                      <input
+                        type="text"
+                        value={material.size_length}
+                        onChange={(e) => handleMaterialChange(index, 'size_length', e.target.value)}
+                        placeholder="e.g., 12mm, 20 inches"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Quantity Per Unit */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quantity Per Unit
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        value={material.quantity_per_unit}
+                        onChange={(e) => handleMaterialChange(index, 'quantity_per_unit', e.target.value)}
+                        placeholder="e.g., 4 (buttons per garment)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Brand */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Brand
+                      </label>
+                      <input
+                        type="text"
+                        value={material.brand}
+                        onChange={(e) => handleMaterialChange(index, 'brand', e.target.value)}
+                        placeholder="e.g., YKK, Coats"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Quantity */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quantity <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        value={material.quantity_required}
+                        onChange={(e) => handleMaterialChange(index, 'quantity_required', e.target.value)}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    {/* Unit */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={material.unit}
+                        onChange={(e) => handleMaterialChange(index, 'unit', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="pieces">Pieces</option>
+                        <option value="units">Units</option>
+                        <option value="meters">Meters</option>
+                        <option value="boxes">Boxes</option>
+                        <option value="dozens">Dozens</option>
+                        <option value="gross">Gross (144)</option>
+                      </select>
+                    </div>
+
+                    {/* Description */}
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Additional Notes
+                      </label>
+                      <textarea
+                        value={material.description}
+                        onChange={(e) => handleMaterialChange(index, 'description', e.target.value)}
+                        placeholder="Any additional notes or special requirements..."
+                        rows="2"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
