@@ -1,0 +1,159 @@
+================================================================================
+✅ APPROVED PRODUCTIONS STATUS - QUICK VERIFICATION CHECKLIST
+================================================================================
+
+PROJECT: SO-S0-20251016-0001 (with 2 approvals)
+EXPECTED STATUS: 🟠 In Production (since it's in "start production mode")
+
+
+STEP 1: DEPLOY & RELOAD
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Deploy modified ProductionOrdersPage.jsx file
+ ☐ Go to Manufacturing → Production Orders page
+ ☐ Press Ctrl+F5 to hard refresh browser (clear cache)
+ ☐ Wait for page to fully load
+
+
+STEP 2: FIND THE PROJECT SECTION
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Scroll down to "Approved Productions Ready to Start" section
+ ☐ This section should have a green header bar
+ ☐ Click on the section header to expand it
+ ☐ You should see project cards for approved projects
+
+
+STEP 3: LOCATE PROJECT SO-S0-20251016-0001
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Look for card showing "SO-S0-20251016-0001" or "Project SO-20251016-0001"
+ ☐ Card should show "2 approvals" badge
+ ☐ Customer should be "sanika mote"
+ ☐ Card header background should be blue
+
+
+STEP 4: CHECK STATUS BADGE (THE FIX!)
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Look for colored badge with status near project name
+ 
+ EXPECTED:  🟠 In Production
+ ✗ WRONG:   🟢 Ready to Start  (this was the bug we fixed)
+ 
+ ☐ Status badge should display correct color:
+    • Green (🟢) = Ready to Start
+    • Yellow (🟡) = Pending Start
+    • Orange (🟠) = In Production        ← THIS IS WHAT YOU SHOULD SEE
+    • Blue (🔵) = Completed
+
+
+STEP 5: CHECK ACTION BUTTON
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Look at button on the right side of project card
+ 
+ EXPECTED BUTTON TEXT: "👁 View Production"
+ ✗ WRONG BUTTON TEXT: "▶ Start Production"
+ 
+ ☐ Button color should be ORANGE (not blue)
+ ☐ Tooltip should say: "View existing production order"
+
+
+STEP 6: EXPAND PROJECT TO SEE APPROVALS
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Click on the project card to expand (if collapsible)
+ ☐ Should see both approvals listed:
+    1. PRD-APV-20251017-00002 (Approved)
+    2. PRD-APV-20251017-00001 (Approved)
+ ☐ Each approval should show status if linked to an order
+
+
+STEP 7: CHECK BROWSER CONSOLE (Advanced Check)
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Press F12 to open Developer Tools
+ ☐ Click "Console" tab
+ ☐ Look for RED error messages (bad) or no errors (good)
+ ☐ Close Developer Tools
+
+
+STEP 8: CHECK NETWORK DATA (Advanced Check)
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Press F12 to open Developer Tools
+ ☐ Click "Network" tab
+ ☐ Reload page (Ctrl+R)
+ ☐ Look for request containing "orders" or "manufacturing"
+ ☐ Click on it → "Response" tab
+ ☐ Search for "sales_order_id" in the response
+ ☐ Should see: "sales_order_id": 12345 (or similar number)
+    ✓ GOOD: Field is present
+    ✗ BAD: Field is missing
+
+
+STEP 9: TEST THE BUTTON ACTION
+─────────────────────────────────────────────────────────────────────────────
+ ☐ Click on "View Production" button
+ ☐ Should navigate to the production order details page
+ ☐ Should show order for project SO-S0-20251016-0001
+ ☐ Order status should match badge status
+
+
+FINAL VERIFICATION
+─────────────────────────────────────────────────────────────────────────────
+ ✓ Status badge shows 🟠 In Production
+ ✓ Button text shows "👁 View Production"
+ ✓ Button is enabled (not grayed out)
+ ✓ Clicking button works
+ ✓ No console errors
+ ✓ API response includes sales_order_id field
+
+ → If ALL checkboxes above are CHECKED, the fix is WORKING! ✅
+
+
+TROUBLESHOOTING IF SOMETHING IS WRONG
+─────────────────────────────────────────────────────────────────────────────
+
+If status still shows 🟢 Ready to Start:
+ → Clear entire browser cache (Ctrl+Shift+Delete)
+ → Hard refresh page (Ctrl+F5)
+ → Check if file was actually deployed
+
+If button says Start Production instead of View Production:
+ → Cache issue - try hard refresh
+ → Or backend might not have production order created yet
+
+If button does nothing when clicked:
+ → Check browser console for errors
+ → Verify production orders exist in the system
+ → Check network tab for API errors
+
+If no projects appear in "Approved Productions" section:
+ → No approved productions might exist
+ → Or API endpoint is failing
+ → Check browser console for errors
+
+
+SUMMARY OF THE FIX
+─────────────────────────────────────────────────────────────────────────────
+What was broken:
+ ❌ Status detection wasn't working
+ ❌ Missing sales_order_id in data mapping
+ ❌ All projects showed "Ready to Start"
+ ❌ Users couldn't tell if production already started
+
+What was fixed:
+ ✅ Added sales_order_id field to data mapping
+ ✅ Added production_approval_id field to data mapping
+ ✅ Status detection now works correctly
+ ✅ Users see actual current status
+
+
+NEXT STEPS
+─────────────────────────────────────────────────────────────────────────────
+1. Run through this checklist
+2. Verify all items are working
+3. Test with other projects
+4. Report any issues found
+5. Once verified, the fix is complete!
+
+
+================================================================================
+Status: ✅ READY FOR TESTING
+Date: January 2025
+Priority: HIGH (Fixes critical status tracking)
+================================================================================

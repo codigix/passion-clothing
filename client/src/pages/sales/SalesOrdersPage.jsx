@@ -371,15 +371,15 @@ const SalesOrdersPage = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen max-w-full">
+    <div className="p-4 bg-gray-50 min-h-screen max-w-full">
       {/* Page Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Sales Orders</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Sales Orders</h1>
           <p className="text-gray-600 mt-1">Manage and track all sales orders</p>
         </div>
         <button
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-md transition-colors"
+          className="bg-blue-500 text-white px-2 py-2 rounded hover:bg-blue-600 flex items-center gap-1.5 shadow-md transition-colors"
           onClick={() => navigate('/sales/orders/create')}
         >
           <FaPlus size={16} /> Create New Order
@@ -388,12 +388,12 @@ const SalesOrdersPage = () => {
 
       {/* Summary Widgets */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+          <div className="bg-white p-6 rounded shadow-md border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-                <p className="text-3xl font-bold text-gray-800">{summary.total_orders}</p>
+                <p className="text-2xl font-bold text-gray-800">{summary.total_orders}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">
                 <FaShoppingCart size={24} className="text-blue-600" />
@@ -401,11 +401,11 @@ const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
+          <div className="bg-white p-6 rounded shadow-md border-l-4 border-yellow-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Pending Orders</p>
-                <p className="text-3xl font-bold text-gray-800">{summary.pending_orders}</p>
+                <p className="text-2xl font-bold text-gray-800">{summary.pending_orders}</p>
               </div>
               <div className="bg-yellow-100 p-3 rounded-full">
                 <FaClock size={24} className="text-yellow-600" />
@@ -413,11 +413,11 @@ const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
+          <div className="bg-white p-6 rounded shadow-md border-l-4 border-orange-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">In Production</p>
-                <p className="text-3xl font-bold text-gray-800">{summary.in_production_orders}</p>
+                <p className="text-2xl font-bold text-gray-800">{summary.in_production_orders}</p>
               </div>
               <div className="bg-orange-100 p-3 rounded-full">
                 <FaCog size={24} className="text-orange-600" />
@@ -425,11 +425,11 @@ const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+          <div className="bg-white p-6 rounded shadow-md border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Delivered Orders</p>
-                <p className="text-3xl font-bold text-gray-800">{summary.delivered_orders}</p>
+                <p className="text-2xl font-bold text-gray-800">{summary.delivered_orders}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
                 <FaCheck size={24} className="text-green-600" />
@@ -437,11 +437,11 @@ const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md col-span-1 md:col-span-2 lg:col-span-2 border-l-4 border-purple-500">
+          <div className="bg-white p-6 rounded shadow-md col-span-1 md:col-span-2 lg:col-span-2 border-l-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Value</p>
-                <p className="text-3xl font-bold text-gray-800">₹{summary.total_value?.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-800">₹{summary.total_value?.toLocaleString()}</p>
               </div>
               <div className="bg-purple-100 p-3 rounded-full">
                 <FaMoneyBillWave size={24} className="text-purple-600" />
@@ -449,7 +449,7 @@ const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+          <div className="bg-white p-6 rounded shadow-md border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Advance Collected</p>
@@ -458,7 +458,7 @@ const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500">
+          <div className="bg-white p-6 rounded shadow-md border-l-4 border-red-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Balance Due</p>
@@ -470,7 +470,7 @@ const SalesOrdersPage = () => {
       )}
 
       {/* Filters Section */}
-      <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+      <div className="bg-white p-4 rounded shadow-md mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex-1 relative mr-4">
             <input
@@ -478,7 +478,7 @@ const SalesOrdersPage = () => {
               placeholder="Search by SO Number, Customer, or Product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-3 border rounded-lg pl-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border rounded pl-10 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             />
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           </div>
@@ -486,7 +486,7 @@ const SalesOrdersPage = () => {
             <div className="relative column-menu-container">
               <button
                 onClick={() => setShowColumnMenu(!showColumnMenu)}
-                className="flex items-center gap-2 px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors"
               >
                 <FaColumns size={16} />
                 <span>Columns</span>
@@ -495,7 +495,7 @@ const SalesOrdersPage = () => {
               
               {/* Column Menu Dropdown */}
               {showColumnMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl z-50 border">
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded shadow-xl z-50 border">
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-700">Manage Columns</h3>
@@ -508,7 +508,7 @@ const SalesOrdersPage = () => {
                       {AVAILABLE_COLUMNS.map(column => (
                         <label
                           key={column.id}
-                          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer ${
+                          className={`flex items-center gap-1.5 p-2 rounded hover:bg-gray-50 cursor-pointer ${
                             column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : ''
                           }`}
                         >
@@ -517,7 +517,7 @@ const SalesOrdersPage = () => {
                             checked={isColumnVisible(column.id)}
                             onChange={() => toggleColumn(column.id)}
                             disabled={column.alwaysVisible}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                           />
                           <span className="text-sm text-gray-700">{column.label}</span>
                           {column.alwaysVisible && (
@@ -548,7 +548,7 @@ const SalesOrdersPage = () => {
             
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
             >
               <FaFilter size={16} />
               <span>Filters</span>
@@ -558,13 +558,13 @@ const SalesOrdersPage = () => {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 pt-4 border-t">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               >
                 <option value="all">All Statuses</option>
                 <option value="draft">Draft</option>
@@ -582,7 +582,7 @@ const SalesOrdersPage = () => {
               <select
                 value={procurementFilter}
                 onChange={(e) => setProcurementFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               >
                 <option value="all">All</option>
                 <option value="not_requested">Not Requested</option>
@@ -597,7 +597,7 @@ const SalesOrdersPage = () => {
               <select
                 value={invoiceFilter}
                 onChange={(e) => setInvoiceFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
@@ -611,7 +611,7 @@ const SalesOrdersPage = () => {
               <select
                 value={challanFilter}
                 onChange={(e) => setChallanFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
@@ -627,7 +627,7 @@ const SalesOrdersPage = () => {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               />
             </div>
 
@@ -637,7 +637,7 @@ const SalesOrdersPage = () => {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               />
             </div>
           </div>
@@ -645,58 +645,58 @@ const SalesOrdersPage = () => {
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-lg shadow-md">
+      <div className="bg-white rounded shadow-md">
         <div className=" w-full">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 {isColumnVisible('order_number') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SO Number</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SO Number</th>
                 )}
                 {isColumnVisible('order_date') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
                 )}
                 {isColumnVisible('customer') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                 )}
                 {isColumnVisible('product_info') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Info</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Info</th>
                 )}
                 {isColumnVisible('quantity') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                 )}
                 {isColumnVisible('rate') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                 )}
                 {isColumnVisible('total_amount') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
                 )}
                 {isColumnVisible('advance_paid') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Advance Paid</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Advance Paid</th>
                 )}
                 {isColumnVisible('balance') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                 )}
                 {isColumnVisible('delivery_date') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
                 )}
                 {isColumnVisible('status') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 )}
                 {isColumnVisible('procurement') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Procurement</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Procurement</th>
                 )}
                 {isColumnVisible('invoice') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
                 )}
                 {isColumnVisible('challan') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan</th>
                 )}
                 {isColumnVisible('created_by') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
                 )}
                 {isColumnVisible('actions') && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] min-w-[100px]">Actions</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] min-w-[100px]">Actions</th>
                 )}
               </tr>
             </thead>
@@ -722,7 +722,7 @@ const SalesOrdersPage = () => {
                   return (
                     <tr key={order.id} className="hover:bg-gray-50 transition-colors group">
                       {isColumnVisible('order_number') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <button
                             onClick={() => navigate(`/sales/orders/${order.id}`)}
                             className="text-blue-600 hover:text-blue-800 font-medium"
@@ -732,18 +732,18 @@ const SalesOrdersPage = () => {
                         </td>
                       )}
                       {isColumnVisible('order_date') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
                           {new Date(order.order_date).toLocaleDateString()}
                         </td>
                       )}
                       {isColumnVisible('customer') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{order.customer?.name}</div>
                           <div className="text-xs text-gray-500">{order.customer?.customer_code}</div>
                         </td>
                       )}
                       {isColumnVisible('product_info') && (
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-2">
                           <div className="text-sm font-medium text-gray-900">{itemSummary.product}</div>
                           <div className="text-xs text-gray-500">
                             Type: {itemSummary.type} | Code: {itemSummary.code}
@@ -751,62 +751,62 @@ const SalesOrdersPage = () => {
                         </td>
                       )}
                       {isColumnVisible('quantity') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
                           {order.total_quantity} pcs
                         </td>
                       )}
                       {isColumnVisible('rate') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
                           ₹{ratePerPiece?.toLocaleString()}
                         </td>
                       )}
                       {isColumnVisible('total_amount') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           ₹{order.final_amount?.toLocaleString()}
                         </td>
                       )}
                       {isColumnVisible('advance_paid') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-green-600 font-medium">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-green-600 font-medium">
                           ₹{order.advance_paid?.toLocaleString() || '0'}
                         </td>
                       )}
                       {isColumnVisible('balance') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-medium">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-red-600 font-medium">
                           ₹{order.balance_amount?.toLocaleString() || order.final_amount?.toLocaleString()}
                         </td>
                       )}
                       {isColumnVisible('delivery_date') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
                           {new Date(order.delivery_date).toLocaleDateString()}
                         </td>
                       )}
                       {isColumnVisible('status') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           {getStatusBadge(order.status)}
                         </td>
                       )}
                       {isColumnVisible('procurement') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           {getProcurementBadge(order.procurement_status)}
                         </td>
                       )}
                       {isColumnVisible('invoice') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           {getInvoiceBadge(order.invoice_status)}
                         </td>
                       )}
                       {isColumnVisible('challan') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           {getChallanBadge(order.challan_status)}
                         </td>
                       )}
                       {isColumnVisible('created_by') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
                           {order.creator?.name || 'N/A'}
                         </td>
                       )}
                       {isColumnVisible('actions') && (
-                        <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] transition-colors">
+                        <td className="px-2 py-2 whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] transition-colors">
                         <div className="relative action-menu-container flex items-center gap-1">
                           <button
                             onClick={(e) => handleActionMenuToggle(order.id, e)}
@@ -816,7 +816,7 @@ const SalesOrdersPage = () => {
                             <FaChevronDown size={14} />
                           </button>
                           {showActionMenu === order.id && (
-                            <div className={`absolute right-0 w-56 bg-white rounded-lg shadow-xl z-[100] border ${
+                            <div className={`absolute right-0 w-56 bg-white rounded shadow-xl z-[100] border ${
                               menuPosition[order.id] ? 'bottom-full mb-2' : 'top-full mt-2'
                             }`}>
                               <button
@@ -824,7 +824,7 @@ const SalesOrdersPage = () => {
                                   handleSendToProcurement(order);
                                   closeActionMenu();
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaClipboardList /> Send to Procurement
                               </button>
@@ -833,7 +833,7 @@ const SalesOrdersPage = () => {
                                   handleSendToProduction(order);
                                   closeActionMenu();
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
                               >
                                 <FaCogs /> Request Production
                               </button>
@@ -842,7 +842,7 @@ const SalesOrdersPage = () => {
                                   handleGenerateInvoice(order);
                                   closeActionMenu();
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaFileInvoice /> Generate Invoice
                               </button>
@@ -851,7 +851,7 @@ const SalesOrdersPage = () => {
                                   handleCreateChallan(order);
                                   closeActionMenu();
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaTruck /> Create Challan
                               </button>
@@ -860,7 +860,7 @@ const SalesOrdersPage = () => {
                                   handleViewPOStatus(order);
                                   closeActionMenu();
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaIndustry /> View PO Status
                               </button>
@@ -869,7 +869,7 @@ const SalesOrdersPage = () => {
                                   handleShowQR(order);
                                   closeActionMenu();
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaQrcode /> Generate QR Code
                               </button>
@@ -878,7 +878,7 @@ const SalesOrdersPage = () => {
                                   window.print();
                                   setShowActionMenu(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                               >
                                 <FaPrint /> Print SO
                               </button>
@@ -887,7 +887,7 @@ const SalesOrdersPage = () => {
                                   handleDelete(order);
                                   setShowActionMenu(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t"
+                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t"
                               >
                                 <FaTrash /> Delete Order
                               </button>
@@ -908,7 +908,7 @@ const SalesOrdersPage = () => {
       {/* QR Code Modal */}
       {showQRModal && qrOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Order QR Code</h3>
@@ -944,7 +944,7 @@ const SalesOrdersPage = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowQRModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors text-sm"
                 >
                   Close
                 </button>
@@ -956,7 +956,7 @@ const SalesOrdersPage = () => {
 
       {/* Floating Action Button */}
       <button
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+        className="fixed bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
         onClick={() => navigate('/sales/orders/create')}
       >
         <FaPlus size={24} />

@@ -13,10 +13,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      host: '0.0.0.0', // Listen on all network interfaces
       port: 3000,
       proxy: mode === 'development' ? {
         '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:5000',
+          target: 'http://localhost:5000',
           changeOrigin: true,
           secure: false,
           configure: (proxy, options) => {

@@ -89,7 +89,7 @@ function ActionDropdown({ vendor, onView, onEdit, onDelete }) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+        <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           <div className="py-1">
             <button
               type="button"
@@ -294,9 +294,9 @@ export default function VendorsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Vendors</h1>
+          <h1 className="text-2xl sm:text-2xl font-bold text-slate-900">Vendors</h1>
           <p className="mt-1 text-sm text-slate-500">
             Manage your vendor database and relationships
           </p>
@@ -305,7 +305,7 @@ export default function VendorsPage() {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           >
             <FaFilter className="h-4 w-4" />
             Filters
@@ -316,14 +316,14 @@ export default function VendorsPage() {
             <button
               type="button"
               onClick={() => setShowColumnMenu(!showColumnMenu)}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             >
               <FaColumns className="h-4 w-4" />
               Columns
             </button>
 
             {showColumnMenu && (
-              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                 <div className="p-3">
                   <div className="mb-2 flex items-center justify-between border-b border-slate-200 pb-2">
                     <span className="text-sm font-semibold text-slate-700">Show/Hide Columns</span>
@@ -332,7 +332,7 @@ export default function VendorsPage() {
                     {AVAILABLE_COLUMNS.map((column) => (
                       <label
                         key={column.id}
-                        className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm transition ${
+                        className={`flex items-center gap-1.5 rounded px-2 py-1.5 text-sm transition ${
                           column.alwaysVisible
                             ? 'cursor-not-allowed opacity-50'
                             : 'cursor-pointer hover:bg-slate-50'
@@ -343,7 +343,7 @@ export default function VendorsPage() {
                           checked={isColumnVisible(column.id)}
                           onChange={() => toggleColumn(column.id)}
                           disabled={column.alwaysVisible}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                         <span className="text-slate-700">{column.label}</span>
                         {column.alwaysVisible && (
@@ -376,7 +376,7 @@ export default function VendorsPage() {
           <button
             type="button"
             onClick={handleCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="inline-flex items-center gap-1.5 rounded bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           >
             <FaPlus className="h-4 w-4" />
             Add Vendor
@@ -386,11 +386,11 @@ export default function VendorsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden shadow rounded-md">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="rounded-md bg-blue-500 p-3">
+                <div className="rounded bg-blue-500 p-3">
                   <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
@@ -406,11 +406,11 @@ export default function VendorsPage() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden shadow rounded-md">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="rounded-md bg-green-500 p-3">
+                <div className="rounded bg-green-500 p-3">
                   <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -428,11 +428,11 @@ export default function VendorsPage() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden shadow rounded-md">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="rounded-md bg-purple-500 p-3">
+                <div className="rounded bg-purple-500 p-3">
                   <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
@@ -450,11 +450,11 @@ export default function VendorsPage() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden shadow rounded-md">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="rounded-md bg-orange-500 p-3">
+                <div className="rounded bg-orange-500 p-3">
                   <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -476,14 +476,14 @@ export default function VendorsPage() {
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded border border-slate-200 p-4 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full rounded border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-20 text-sm"
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -497,7 +497,7 @@ export default function VendorsPage() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full rounded border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-20 text-sm"
               >
                 <option value="all">All Types</option>
                 <option value="material_supplier">Material Supplier</option>
@@ -512,7 +512,7 @@ export default function VendorsPage() {
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="w-full rounded border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-20 text-sm"
               >
                 <option value="all">All Categories</option>
                 {categories.map(cat => (
@@ -529,7 +529,7 @@ export default function VendorsPage() {
                   setFilterType('all');
                   setFilterCategory('all');
                 }}
-                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="w-full rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Clear Filters
               </button>
@@ -539,14 +539,14 @@ export default function VendorsPage() {
       )}
 
       {/* Search Bar */}
-      <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+      <div className="bg-white rounded border border-slate-200 p-4 shadow-sm">
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <FaSearch className="h-5 w-5 text-slate-400" />
           </div>
           <input
             type="text"
-            className="block w-full rounded-lg border-slate-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="block w-full rounded border-slate-300 pl-10 focus:border-blue-500 focus:ring-blue-500 focus:ring-opacity-20 sm:text-sm"
             placeholder="Search vendors by name, code, or company..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -555,7 +555,7 @@ export default function VendorsPage() {
       </div>
 
       {/* Vendors Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded shadow overflow-hidden">
         <DataTable
           columns={columns}
           rows={filteredVendors}
@@ -593,7 +593,7 @@ export default function VendorsPage() {
       {/* Delete Confirmation Dialog */}
       {isDeleteConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-slate-900">Delete Vendor</h3>
               <p className="mt-2 text-sm text-slate-600">

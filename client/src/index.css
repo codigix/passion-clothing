@@ -15,35 +15,35 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium text-body-2 transition-colors transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:shadow-soft disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-opacity-20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-300;
+    @apply bg-blue-500 text-white hover:bg-blue-600 focus-visible:ring-blue-300;
   }
 
   .btn-secondary {
-    @apply bg-secondary-500 text-white hover:bg-secondary-600 focus-visible:ring-secondary-200;
+    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus-visible:ring-gray-200;
   }
 
   .btn-danger {
-    @apply bg-error-500 text-white hover:bg-error-600 focus-visible:ring-error-200;
+    @apply bg-red-500 text-white hover:bg-red-600 focus-visible:ring-red-200;
   }
 
   .btn-outline {
-    @apply border border-border text-dark-700 hover:bg-background-muted hover:border-border-strong focus-visible:ring-dark-200;
+    @apply border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus-visible:ring-gray-200;
   }
 
   .card {
-    @apply bg-background-surface border border-border rounded-xl shadow-card;
+    @apply bg-white border border-gray-200 rounded;
   }
 
   .card-header {
-    @apply flex items-start justify-between text-display-6 text-dark-800 font-semibold mb-4;
+    @apply flex items-start justify-between text-base text-gray-900 font-semibold mb-4;
   }
 
   .card-body {
-    @apply text-body-1 text-dark-600 space-y-4;
+    @apply text-sm text-gray-600 space-y-4;
   }
 }
 

@@ -3,7 +3,8 @@ import { User, Users, Settings, ShieldCheck, Plus, Search, Eye, Edit, Ban, Check
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-
+import MinimalStatCard from '../../components/common/MinimalStatCard';
+import '../../styles/compactDashboard.css';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminDashboard = () => {
@@ -135,40 +136,19 @@ const AdminDashboard = () => {
 
   const getDeptColor = (dept) => {
     const colors = {
-      sales: 'bg-blue-600',
-      inventory: 'bg-green-600',
+      sales: 'bg-blue-500',
+      inventory: 'bg-green-500',
       manufacturing: 'bg-orange-600',
       procurement: 'bg-purple-600',
       outsourcing: 'bg-pink-600',
       shipment: 'bg-indigo-600',
       store: 'bg-teal-600',
-      finance: 'bg-red-600',
+      finance: 'bg-red-500',
       admin: 'bg-gray-600',
       samples: 'bg-yellow-600'
     };
     return colors[dept] || 'bg-gray-600';
   };
-
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle, trend }) => (
-    <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="text-xs font-semibold uppercase text-gray-500 mb-1 tracking-wide">{title}</div>
-          <div className="text-lg font-bold text-gray-900 mb-1">{value}</div>
-          {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
-          {trend && (
-            <div className="flex items-center mt-2">
-              <LineChart className="text-green-600 w-4 h-4 mr-1" />
-              <span className="text-xs text-green-600 font-semibold">+{trend}% from last month</span>
-            </div>
-          )}
-        </div>
-        <div className={`rounded-xl p-3 flex items-center justify-center w-14 h-14 ${color === 'primary' ? 'bg-blue-100' : color === 'success' ? 'bg-green-100' : color === 'info' ? 'bg-cyan-100' : color === 'warning' ? 'bg-yellow-100' : color === 'secondary' ? 'bg-purple-100' : 'bg-blue-100'}`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
 
   const TabPanel = ({ children, value, index }) => (
     <div className={value !== index ? 'hidden' : ''}>
@@ -232,10 +212,10 @@ const AdminDashboard = () => {
   const UserDialog = () => (
     userDialogOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-        <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl">
+        <div className="bg-white rounded shadow-lg w-full max-w-2xl">
           <div className="px-6 py-4 border-b font-bold text-lg">Add New User</div>
           <div className="px-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <input className="w-full border rounded px-3 py-2" name="name" placeholder="Full Name" value={newUser.name} onChange={handleUserInput} />
               <input className="w-full border rounded px-3 py-2" name="email" placeholder="Email Address" type="email" value={newUser.email} onChange={handleUserInput} />
               <input className="w-full border rounded px-3 py-2" name="phone" placeholder="Phone Number" value={newUser.phone} onChange={handleUserInput} />
@@ -269,7 +249,7 @@ const AdminDashboard = () => {
           </div>
           <div className="px-6 py-4 border-t flex justify-end gap-2">
             <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => setUserDialogOpen(false)} disabled={userDialogLoading}>Cancel</button>
-            <button className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onClick={handleCreateUser} disabled={userDialogLoading}>{userDialogLoading ? 'Creating...' : 'Create User'}</button>
+            <button className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-500" onClick={handleCreateUser} disabled={userDialogLoading}>{userDialogLoading ? 'Creating...' : 'Create User'}</button>
           </div>
         </div>
       </div>
@@ -472,10 +452,10 @@ const AdminDashboard = () => {
   const RoleDialog = () => (
     roleDialogOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-        <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl">
+        <div className="bg-white rounded shadow-lg w-full max-w-2xl">
           <div className="px-6 py-4 border-b font-bold text-lg">Create New Role</div>
           <div className="px-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <input className="w-full border rounded px-3 py-2" name="name" placeholder="Role Name" value={newRole.name} onChange={handleRoleInput} />
               <input className="w-full border rounded px-3 py-2" name="display_name" placeholder="Display Name" value={newRole.display_name} onChange={handleRoleInput} />
               <select className="w-full border rounded px-3 py-2" name="department" value={newRole.department} onChange={handleRoleInput}>
@@ -502,7 +482,7 @@ const AdminDashboard = () => {
           </div>
           <div className="px-6 py-4 border-t flex justify-end gap-2">
             <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => setRoleDialogOpen(false)} disabled={roleDialogLoading}>Cancel</button>
-            <button className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onClick={handleCreateRole} disabled={roleDialogLoading}>{roleDialogLoading ? 'Creating...' : 'Create Role'}</button>
+            <button className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-500" onClick={handleCreateRole} disabled={roleDialogLoading}>{roleDialogLoading ? 'Creating...' : 'Create Role'}</button>
           </div>
         </div>
       </div>
@@ -523,18 +503,18 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="compact-dashboard-container">
       {/* Header Section */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">Admin Dashboard</h1>
-        <div className="text-xs text-gray-500 mb-4">Comprehensive overview of all departments, users, stock, and system activities</div>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Admin Dashboard</h1>
+        <div className="text-[10px] text-gray-500 mb-3">Comprehensive overview of all departments, users, stock, and system activities</div>
         <div className="flex justify-between items-center">
-          <div className="flex gap-3">
-            <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100 flex items-center gap-2" onClick={() => navigate('/admin/settings')}>
-              <Cog className="text-lg" /> System Settings
+          <div className="flex gap-2">
+            <button className="compact-btn compact-btn-secondary" onClick={() => navigate('/admin/settings')}>
+              <Cog size={16} /> System Settings
             </button>
             <button
-              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100 flex items-center gap-2"
+              className="compact-btn compact-btn-secondary"
               onClick={async () => {
                 try {
                   const res = await api.get('/admin/export', { responseType: 'blob' });
@@ -550,70 +530,70 @@ const AdminDashboard = () => {
                 }
               }}
             >
-              <Download className="text-lg" /> Export Data
+              <Download size={16} /> Export Data
             </button>
           </div>
-          <button className="px-4 py-1 text-sm font-medium text-white bg-primary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center" onClick={() => setUserDialogOpen(true)}>
-            <Users className="text-lg" /> Add New User
+          <button className="compact-btn compact-btn-primary" onClick={() => setUserDialogOpen(true)}>
+            <Users size={16} /> Add New User
           </button>
         </div>
       </div>
 
       {/* System Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
-        <StatCard
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+        <MinimalStatCard
           title="Total Users"
           value={systemStats.totalUsers}
-          icon={<Users className="text-blue-600 text-2xl" />}
-          color="primary"
+          icon={Users}
+          color="blue"
           subtitle={`${systemStats.activeUsers} active`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Pending Approvals"
           value={pendingPOStats.total}
-          icon={<ClipboardList className="text-red-600 text-2xl" />}
-          color="bg-red-100"
-          subtitle={`${formatCurrency(pendingPOStats.totalValue)}`}
+          icon={ClipboardList}
+          color="red"
+          subtitle={`₹${(pendingPOStats.totalValue/1000).toFixed(0)}K`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Sales Orders"
           value={dashboardStats?.sales.totalOrders || 0}
-          icon={<ShoppingCart className="text-green-600 text-2xl" />}
-          color="success"
+          icon={ShoppingCart}
+          color="green"
           subtitle={`${dashboardStats?.sales.pendingOrders || 0} pending`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Inventory Value"
-          value={`₹${(dashboardStats?.inventory.totalValue || 0).toLocaleString()}`}
-          icon={<Box className="text-orange-600 text-2xl" />}
-          color="warning"
-          subtitle={`${dashboardStats?.inventory.lowStockItems || 0} low stock items`}
+          value={`₹${((dashboardStats?.inventory.totalValue || 0)/1000).toFixed(0)}K`}
+          icon={Box}
+          color="yellow"
+          subtitle={`${dashboardStats?.inventory.lowStockItems || 0} low stock`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Production Orders"
           value={dashboardStats?.production.totalOrders || 0}
-          icon={<Factory className="text-purple-600 text-2xl" />}
-          color="secondary"
-          subtitle={`${dashboardStats?.production.completedOrders || 0} completed`}
+          icon={Factory}
+          color="purple"
+          subtitle={`${dashboardStats?.production.completedOrders || 0} done`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Store Stock"
           value={dashboardStats?.store.totalStock || 0}
-          icon={<Store className="text-cyan-600 text-2xl" />}
-          color="info"
-          subtitle={`₹${(dashboardStats?.store.totalValue || 0).toLocaleString()}`}
+          icon={Store}
+          color="indigo"
+          subtitle={`₹${((dashboardStats?.store.totalValue || 0)/1000).toFixed(0)}K`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Notifications"
           value={notificationStats?.unread || 0}
-          icon={<Bell className="text-yellow-600 text-2xl" />}
-          color="warning"
+          icon={Bell}
+          color="yellow"
           subtitle={`${notificationStats?.total || 0} total`}
         />
       </div>
 
       {/* Department Overview */}
-      <div className="bg-white rounded-xl shadow border border-gray-200 mb-6">
+      <div className="bg-white rounded shadow border border-gray-200 mb-4">
         <div className="p-4 border-b">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">Department Overview - User Distribution</h3>
@@ -628,10 +608,10 @@ const AdminDashboard = () => {
             Object.keys(departmentOverview).length > 0 ? (
               <div className="space-y-6">
                 {/* Department Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   {Object.entries(departmentOverview).map(([dept, stats]) => (
-                  <div key={dept} className="bg-gray-50 rounded-lg p-4 border">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div key={dept} className="bg-gray-50 rounded p-4 border">
+                    <div className="flex items-center gap-1.5 mb-3">
                       <div className={`w-3 h-3 rounded-full ${getDeptColor(dept)}`}></div>
                       <div className="font-semibold text-gray-900 capitalize">{dept}</div>
                     </div>
@@ -670,13 +650,13 @@ const AdminDashboard = () => {
                 {/* Department-wise User Details */}
                 <div className="border-t pt-6">
                   <h4 className="text-md font-semibold text-gray-900 mb-4">Department-wise User Breakdown</h4>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {Object.entries(departmentOverview).map(([dept, stats]) => {
                       // Filter users by department
                       const deptUsers = users.filter(user => user.department === dept);
                       return (
-                        <div key={`${dept}-users`} className="border rounded-lg p-4">
-                          <div className="flex items-center gap-2 mb-3">
+                        <div key={`${dept}-users`} className="border rounded p-4">
+                          <div className="flex items-center gap-1.5 mb-3">
                             <div className={`w-3 h-3 rounded-full ${getDeptColor(dept)}`}></div>
                             <h5 className="font-semibold text-gray-900 capitalize">{dept} Department</h5>
                             <span className="text-sm text-gray-500">({deptUsers.length} users)</span>
@@ -685,8 +665,8 @@ const AdminDashboard = () => {
                             <div className="space-y-2">
                               {deptUsers.slice(0, 5).map((user) => (
                                 <div key={user.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
-                                  <div className="flex items-center gap-2">
-                                    <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
                                       {user.name.charAt(0)}
                                     </div>
                                     <div>
@@ -719,23 +699,23 @@ const AdminDashboard = () => {
                 {/* System-wide User Summary */}
                 <div className="border-t pt-6">
                   <h4 className="text-md font-semibold text-gray-900 mb-4">System-wide User Summary</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <div className="bg-blue-50 p-4 rounded border border-blue-200">
                       <div className="text-blue-600 text-2xl font-bold">{users.filter(u => u.status === 'active').length}</div>
                       <div className="text-blue-800 font-medium">Active Users</div>
                       <div className="text-blue-600 text-sm">Across all departments</div>
                     </div>
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
                       <div className="text-yellow-600 text-2xl font-bold">{users.filter(u => u.status === 'inactive').length}</div>
                       <div className="text-yellow-800 font-medium">Inactive Users</div>
                       <div className="text-yellow-600 text-sm">Deactivated accounts</div>
                     </div>
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="bg-green-50 p-4 rounded border border-green-200">
                       <div className="text-green-600 text-2xl font-bold">{users.filter(u => u.status === 'pending').length}</div>
                       <div className="text-green-800 font-medium">Pending Users</div>
                       <div className="text-green-600 text-sm">Awaiting activation</div>
                     </div>
-                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div className="bg-purple-50 p-4 rounded border border-purple-200">
                       <div className="text-purple-600 text-2xl font-bold">{roles.length}</div>
                       <div className="text-purple-800 font-medium">Total Roles</div>
                       <div className="text-purple-600 text-sm">System roles defined</div>
@@ -759,7 +739,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Notifications Section */}
-      <div className="bg-white rounded-xl shadow border border-gray-200 mb-6">
+      <div className="bg-white rounded shadow border border-gray-200 mb-4">
         <div className="p-4 border-b">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">Recent Notifications</h3>
@@ -772,7 +752,7 @@ const AdminDashboard = () => {
           {notifications.length > 0 ? (
             <div className="space-y-3">
               {notifications.slice(0, 5).map((notification) => (
-                <div key={notification.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <div key={notification.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded hover:bg-gray-50">
                   <div className={`rounded-full p-2 ${
                     notification.priority === 'high' ? 'bg-red-100' :
                     notification.priority === 'medium' ? 'bg-yellow-100' :
@@ -809,9 +789,9 @@ const AdminDashboard = () => {
       </div>
 
       {/* Stock Overview & Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
         {/* Stock Overview */}
-        <div className="bg-white rounded-xl shadow border border-gray-200">
+        <div className="bg-white rounded shadow border border-gray-200">
           <div className="p-4 border-b">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Stock Alerts</h3>
@@ -824,7 +804,7 @@ const AdminDashboard = () => {
           <div >
             {stockOverview && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-red-50 rounded-md">
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="text-red-600" />
                     <div>
@@ -855,7 +835,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Recent Activities */}
-        <div className="bg-white rounded-xl shadow border border-gray-200">
+        <div className="bg-white rounded shadow border border-gray-200">
           <div className="p-4 border-b">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Recent Activities</h3>
@@ -897,14 +877,14 @@ const AdminDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+      <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
         <div >
           <div className="font-semibold text-lg text-gray-900 mb-3">Quick Actions</div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
             <div className="col-span-2">
               <div className="relative">
                 <input className="w-full border rounded px-3 py-2 pl-9 bg-gray-50" placeholder="Search users, roles, logs..." />
-                <Search className="absolute left-3 top-3 text-gray-400" />
+                <Search className="absolute left-2.5 top-2.5 text-gray-400" />
               </div>
             </div>
             <button
@@ -942,13 +922,13 @@ const AdminDashboard = () => {
                 }
               }}
             >System Reports</button>
-            <button className="px-4 py-1 text-sm font-medium text-white bg-green-600 border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-green-600 hover:text-success hover:bg-transparent flex gap-2 items-center w-fit"><Download /> Export Data</button>
+            <button className="px-4 py-1 text-sm font-medium text-white bg-green-500 border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-green-600 hover:text-success hover:bg-transparent flex gap-2 items-center w-fit"><Download /> Export Data</button>
           </div>
         </div>
       </div>
 
       {/* Main Content Tabs */}
-      <div className="bg-white rounded-xl shadow border border-gray-200">
+      <div className="bg-white rounded shadow border border-gray-200">
         <div className="border-b bg-gray-50">
           <div className="flex gap-2 overflow-x-auto">
             {['Pending Approvals', 'User Management', 'Role & Permissions', 'Department Analytics', 'Stock Management', 'System Configuration', 'Audit Logs', 'Reports'].map((tab, idx) => (
@@ -959,7 +939,7 @@ const AdminDashboard = () => {
               >
                 {tab}
                 {tab === 'Pending Approvals' && pendingPOStats.total > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
+                  <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
                     {pendingPOStats.total}
                   </span>
                 )}
@@ -970,52 +950,52 @@ const AdminDashboard = () => {
 
         <TabPanel value={tabValue} index={0}>
           <div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">Purchase Orders - Pending Approval</h2>
                 <p className="text-sm text-gray-600">Review and approve purchase orders submitted by the Procurement team</p>
               </div>
               <button
                 onClick={() => navigate('/procurement/purchase-orders')}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium"
+                className="px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 text-sm font-medium"
               >
                 View All POs
               </button>
             </div>
 
             {/* Stats Cards for Pending Approvals */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
+              <div className="r from-blue-50 to-blue-100 rounded shadow-sm border border-blue-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-blue-700 mb-1 font-medium">Pending Orders</p>
-                    <p className="text-3xl font-bold text-blue-900">{pendingPOStats.total}</p>
+                    <p className="text-2xl font-bold text-blue-900">{pendingPOStats.total}</p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-blue-200 rounded flex items-center justify-center">
                     <ClipboardList className="w-6 h-6 text-blue-700" />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-4">
+              <div className="r from-green-50 to-green-100 rounded shadow-sm border border-green-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-700 mb-1 font-medium">Total Value</p>
                     <p className="text-2xl font-bold text-green-900">{formatCurrency(pendingPOStats.totalValue)}</p>
                   </div>
-                  <div className="w-12 h-12 bg-green-200 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-green-200 rounded flex items-center justify-center">
                     <DollarSign className="w-6 h-6 text-green-700" />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-4">
+              <div className="r from-red-50 to-red-100 rounded shadow-sm border border-red-200 p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-red-700 mb-1 font-medium">Urgent Priority</p>
-                    <p className="text-3xl font-bold text-red-900">{pendingPOStats.urgent}</p>
+                    <p className="text-2xl font-bold text-red-900">{pendingPOStats.urgent}</p>
                   </div>
-                  <div className="w-12 h-12 bg-red-200 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-red-200 rounded flex items-center justify-center">
                     <AlertTriangle className="w-6 h-6 text-red-700" />
                   </div>
                 </div>
@@ -1024,7 +1004,7 @@ const AdminDashboard = () => {
 
             {/* Pending POs List */}
             {pendingPOs.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+              <div className="bg-white rounded shadow-sm border border-gray-200 p-12 text-center">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="w-8 h-8 text-green-600" />
                 </div>
@@ -1034,7 +1014,7 @@ const AdminDashboard = () => {
             ) : (
               <div className="space-y-4">
                 {pendingPOs.map((po) => (
-                  <div key={po.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                  <div key={po.id} className="bg-white rounded shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
@@ -1050,22 +1030,22 @@ const AdminDashboard = () => {
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <Building className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{po.vendor?.name || 'Unknown Vendor'}</span>
                           </div>
 
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <User className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{po.customer?.name || po.client_name || 'N/A'}</span>
                           </div>
 
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <Calendar className="w-4 h-4 flex-shrink-0" />
                             <span>Expected: {formatDate(po.expected_delivery_date)}</span>
                           </div>
 
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <Package className="w-4 h-4 flex-shrink-0" />
                             <span>{po.items?.length || 0} items</span>
                           </div>
@@ -1090,25 +1070,25 @@ const AdminDashboard = () => {
                     <div className="flex items-center gap-3 pt-4 mt-4 border-t border-gray-200">
                       <button
                         onClick={() => handleViewPODetails(po.id)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye size={14} />
                         View Details
                       </button>
 
                       <button
                         onClick={() => handleApprovePO(po)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors"
                       >
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle size={14} />
                         Approve Order
                       </button>
 
                       <button
                         onClick={() => handleRejectPO(po)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
                       >
-                        <XCircle className="w-4 h-4" />
+                        <XCircle size={14} />
                         Reject
                       </button>
                     </div>
@@ -1143,8 +1123,8 @@ const AdminDashboard = () => {
                   {users.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 border-b">
                       <td className="p-2">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-base">{user.name.charAt(0)}</div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-base">{user.name.charAt(0)}</div>
                           <span className="font-semibold text-gray-900">{user.name}</span>
                         </div>
                       </td>
@@ -1186,9 +1166,9 @@ const AdminDashboard = () => {
               <div className="font-semibold text-lg text-gray-900">Roles & Permissions ({roles.length})</div>
               <button className="px-4 py-1 text-sm font-medium text-white bg-primary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center" onClick={() => setRoleDialogOpen(true)}><Plus /> Create Role</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {roles.map((role) => (
-                <div key={role.id} className="border rounded-xl bg-white shadow p-4 flex flex-col h-full">
+                <div key={role.id} className="border rounded bg-white shadow p-4 flex flex-col h-full">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <div className="font-semibold text-lg text-gray-900">{role.name}</div>
@@ -1216,7 +1196,7 @@ const AdminDashboard = () => {
                       onClick={() => handleRoleViewDetails(role.id)}
                     >View Details</button>
                     <button
-                      className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 w-full"
+                      className="px-2 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 w-full"
                       onClick={() => handleRoleEdit(role.id)}
                     >Edit Role</button>
                   </div>
@@ -1248,13 +1228,13 @@ const AdminDashboard = () => {
                 }}
               >Export Report</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Department Performance */}
-              <div className="bg-gray-50 rounded-lg p-6">
+              <div className="bg-gray-50 rounded p-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Department Performance</h4>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                  {departmentOverview && Object.entries(departmentOverview).map(([dept, stats]) => (
-                   <div key={dept} className="bg-white rounded-lg p-4 border">
+                   <div key={dept} className="bg-white rounded p-4 border">
                      <div className="flex items-center justify-between mb-2">
                        <div className="flex items-center gap-3">
                          <div className={`w-4 h-4 rounded ${getDeptColor(dept)}`}></div>
@@ -1265,7 +1245,7 @@ const AdminDashboard = () => {
                          <div className="text-xs text-gray-500">{stats.userCount} total users</div>
                        </div>
                      </div>
-                     <div className="grid grid-cols-2 gap-4 text-sm">
+                     <div className="grid grid-cols-2 gap-2 text-sm">
                        {dept === 'sales' && (
                          <>
                            <div>Total Orders: <span className="font-semibold">{stats.totalOrders || 0}</span></div>
@@ -1341,7 +1321,7 @@ const AdminDashboard = () => {
              </div>
 
               {/* Department Metrics */}
-              <div className="bg-gray-50 rounded-lg p-6">
+              <div className="bg-gray-50 rounded p-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Key Metrics</h4>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -1375,10 +1355,10 @@ const AdminDashboard = () => {
                onClick={handleViewFullInventory}
              >View Full Inventory</button>
            </div>
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
              {/* Inventory Summary */}
              <div className="space-y-4">
-               <div className="bg-white border rounded-lg p-4">
+               <div className="bg-white border rounded p-4">
                  <h4 className="font-semibold text-gray-900 mb-3">Inventory Summary</h4>
                  <div className="space-y-2">
                    <div className="flex justify-between">
@@ -1401,7 +1381,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Store Stock Summary */}
-               <div className="bg-white border rounded-lg p-4">
+               <div className="bg-white border rounded p-4">
                  <h4 className="font-semibold text-gray-900 mb-3">Store Locations</h4>
                  <div className="space-y-2">
                    {stockOverview?.storeSummary.map((store) => (
@@ -1420,7 +1400,7 @@ const AdminDashboard = () => {
              {/* Stock Alerts and Top Items */}
              <div className="space-y-4">
                {/* Low Stock Alerts */}
-               <div className="bg-white border rounded-lg p-4">
+               <div className="bg-white border rounded p-4">
                  <h4 className="font-semibold text-gray-900 mb-3">Low Stock Alerts</h4>
                  <div className="space-y-2">
                    {stockOverview?.lowStockItems.slice(0, 5).map((item) => (
@@ -1442,7 +1422,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Top Value Items */}
-               <div className="bg-white border rounded-lg p-4">
+               <div className="bg-white border rounded p-4">
                  <h4 className="font-semibold text-gray-900 mb-3">Top Value Items</h4>
                  <div className="space-y-2">
                    {stockOverview?.topValueItems.slice(0, 5).map((item) => (
@@ -1495,9 +1475,9 @@ const AdminDashboard = () => {
              >Save Changes</button>
            </div>
            <div className="space-y-6">
-             <div className="bg-gray-50 rounded-lg p-4">
+             <div className="bg-gray-50 rounded p-4">
                <h4 className="font-semibold text-gray-900 mb-3">System Settings</h4>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                  <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">System Name</label>
                    <input type="text" className="w-full border rounded px-3 py-2" defaultValue="Passion Inventory System" />
@@ -1524,9 +1504,9 @@ const AdminDashboard = () => {
                </div>
              </div>
 
-             <div className="bg-gray-50 rounded-lg p-4">
+             <div className="bg-gray-50 rounded p-4">
                <h4 className="font-semibold text-gray-900 mb-3">Backup Settings</h4>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                  <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">Auto Backup Frequency</label>
                    <select className="w-full border rounded px-3 py-2">
@@ -1620,7 +1600,7 @@ const AdminDashboard = () => {
                }}
              >Generate Report</button>
            </div>
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
              {[
                { title: 'Sales Report', icon: <LineChart className="text-green-600 text-2xl mx-auto mb-2" />, desc: 'Monthly sales performance and trends', action: 'Generate Sales Report' },
                { title: 'Inventory Report', icon: <Box className="text-blue-600 text-2xl mx-auto mb-2" />, desc: 'Stock levels, valuation, and turnover', action: 'Generate Inventory Report' },
@@ -1629,7 +1609,7 @@ const AdminDashboard = () => {
                { title: 'User Activity Report', icon: <Users className="text-indigo-600 text-2xl mx-auto mb-2" />, desc: 'User engagement and department activity', action: 'Generate Activity Report' },
                { title: 'Custom Report', icon: <ClipboardList className="text-gray-600 text-2xl mx-auto mb-2" />, desc: 'Build custom reports with filters', action: 'Create Custom Report' }
              ].map((report) => (
-               <div key={report.title} className="border rounded-xl bg-white shadow p-4 text-center cursor-pointer hover:shadow-lg transition-all">
+               <div key={report.title} className="border rounded bg-white shadow p-4 text-center cursor-pointer hover:shadow-lg transition-all">
                  {report.icon}
                  <div className="font-semibold text-lg text-gray-900 mb-1">{report.title}</div>
                  <div className="text-xs text-gray-500 mb-3">{report.desc}</div>
@@ -1640,7 +1620,7 @@ const AdminDashboard = () => {
                </div>
              ))}
            </div>
-           <div className="mt-6 bg-gray-50 rounded-lg p-4">
+           <div className="mt-6 bg-gray-50 rounded p-4">
              <h4 className="font-semibold text-gray-900 mb-3">Recent Reports</h4>
              <div className="space-y-2">
                {[

@@ -180,7 +180,7 @@ const MRNListPage = () => {
           </div>
           <button
             onClick={handleCreateNew}
-            className="flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors shadow-lg"
+            className="flex items-center px-2 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors shadow-lg"
           >
             <FaPlus className="mr-2" />
             Create New MRN
@@ -190,30 +190,30 @@ const MRNListPage = () => {
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-blue-500">
           <div className="text-sm text-gray-600">Total Requests</div>
           <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-yellow-500">
           <div className="text-sm text-gray-600">Pending Review</div>
           <div className="text-2xl font-bold text-gray-800">{stats.pending}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-green-500">
           <div className="text-sm text-gray-600">Issued</div>
           <div className="text-2xl font-bold text-gray-800">{stats.issued}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-purple-500">
           <div className="text-sm text-gray-600">Completed</div>
           <div className="text-2xl font-bold text-gray-800">{stats.completed}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-red-500">
           <div className="text-sm text-gray-600">Urgent Priority</div>
           <div className="text-2xl font-bold text-gray-800">{stats.urgent}</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div className="bg-white rounded shadow-md p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div className="relative">
@@ -223,7 +223,7 @@ const MRNListPage = () => {
               placeholder="Search requests..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
             />
           </div>
 
@@ -233,7 +233,7 @@ const MRNListPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500 appearance-none"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -253,7 +253,7 @@ const MRNListPage = () => {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500 appearance-none"
             >
               <option value="">All Priorities</option>
               <option value="low">Low</option>
@@ -269,7 +269,7 @@ const MRNListPage = () => {
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500 appearance-none"
             >
               <option value="">All Projects</option>
               {uniqueProjects.map(project => (
@@ -284,7 +284,7 @@ const MRNListPage = () => {
           <div className="mt-4 flex justify-end">
             <button
               onClick={resetFilters}
-              className="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
             >
               <FaTimes className="mr-2" />
               Reset Filters
@@ -295,7 +295,7 @@ const MRNListPage = () => {
 
       {/* Requests List */}
       {filteredRequests.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+        <div className="bg-white rounded shadow-md p-12 text-center">
           <FaBox className="mx-auto text-6xl text-gray-300 mb-4" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">
             {materialRequests.length === 0 ? 'No Material Requests Yet' : 'No Matching Requests'}
@@ -308,7 +308,7 @@ const MRNListPage = () => {
           {materialRequests.length === 0 && (
             <button
               onClick={handleCreateNew}
-              className="inline-flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+              className="inline-flex items-center px-2 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
             >
               <FaPlus className="mr-2" />
               Create Material Request
@@ -334,7 +334,7 @@ const MRNListPage = () => {
             return (
               <div
                 key={request.id}
-                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200"
+                className="bg-white rounded shadow-md hover:shadow-lg transition-shadow border border-gray-200"
               >
                 {/* Card Header */}
                 <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
@@ -404,7 +404,7 @@ const MRNListPage = () => {
                       request.status === 'reviewed') && (
                       <button
                         onClick={() => navigate(`/inventory/dispatch/${request.id}`)}
-                        className="flex-1 flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                        className="flex-1 flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
                       >
                         <FaWarehouse className="mr-2" />
                         Dispatch
@@ -412,7 +412,7 @@ const MRNListPage = () => {
                     )}
                     <button
                       onClick={() => handleViewDetails(request)}
-                      className={`${(request.status === 'pending' || request.status === 'pending_inventory_review' || request.status === 'reviewed') ? 'flex-1' : 'w-full'} flex items-center justify-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors`}
+                      className={`${(request.status === 'pending' || request.status === 'pending_inventory_review' || request.status === 'reviewed') ? 'flex-1' : 'w-full'} flex items-center justify-center px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors`}
                     >
                       <FaEye className="mr-2" />
                       Details
@@ -428,7 +428,7 @@ const MRNListPage = () => {
       {/* Details Modal */}
       {detailsModalOpen && selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white sticky top-0">
               <div className="flex items-center justify-between">
@@ -491,7 +491,7 @@ const MRNListPage = () => {
               {selectedRequest.notes && (
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-800 mb-2">Notes</h3>
-                  <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
+                  <div className="bg-blue-50 p-3 rounded text-sm text-gray-700">
                     {selectedRequest.notes}
                   </div>
                 </div>
@@ -512,7 +512,7 @@ const MRNListPage = () => {
                     }
 
                     return materials.map((material, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div key={index} className="border border-gray-200 rounded p-4 bg-gray-50">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <h4 className="font-semibold text-gray-800">{material.material_name}</h4>
@@ -574,7 +574,7 @@ const MRNListPage = () => {
                       setDetailsModalOpen(false);
                       navigate(`/inventory/dispatch/${selectedRequest.id}`);
                     }}
-                    className="flex-1 flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                    className="flex-1 flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
                   >
                     <FaWarehouse className="mr-2" />
                     Accept & Release Material
@@ -582,7 +582,7 @@ const MRNListPage = () => {
                 )}
                 <button
                   onClick={() => setDetailsModalOpen(false)}
-                  className={`${selectedRequest.status === 'pending' || selectedRequest.status === 'pending_inventory_review' || selectedRequest.status === 'reviewed' ? 'flex-1' : 'w-full'} px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors`}
+                  className={`${selectedRequest.status === 'pending' || selectedRequest.status === 'pending_inventory_review' || selectedRequest.status === 'reviewed' ? 'flex-1' : 'w-full'} px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors`}
                 >
                   Close
                 </button>

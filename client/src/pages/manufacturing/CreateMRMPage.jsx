@@ -420,14 +420,14 @@ const CreateMRMPage  = () => {
 
       <form onSubmit={handleSubmit}>
         {/* Basic Information */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white rounded shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <FaClipboardList className="mr-2 text-purple-500" />
             Request Information
           </h2>
 
           {/* Default Material Type Selector */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg">
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded">
             <label className="block text-sm font-semibold text-gray-800 mb-3">
               Default Material Type for New Items
             </label>
@@ -435,7 +435,7 @@ const CreateMRMPage  = () => {
               <button
                 type="button"
                 onClick={() => setDefaultMaterialType('fabric')}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-3 rounded border-2 transition-all flex items-center justify-center gap-2 ${
                   defaultMaterialType === 'fabric'
                     ? 'bg-purple-500 border-purple-600 text-white shadow-lg'
                     : 'bg-white border-gray-300 text-gray-700 hover:border-purple-400'
@@ -447,7 +447,7 @@ const CreateMRMPage  = () => {
               <button
                 type="button"
                 onClick={() => setDefaultMaterialType('accessories')}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-4 py-3 rounded border-2 transition-all flex items-center justify-center gap-2 ${
                   defaultMaterialType === 'accessories'
                     ? 'bg-pink-500 border-pink-600 text-white shadow-lg'
                     : 'bg-white border-gray-300 text-gray-700 hover:border-pink-400'
@@ -464,7 +464,7 @@ const CreateMRMPage  = () => {
           
           {/* Comprehensive Order Details Display */}
           {prefilledOrderData && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+            <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded">
               <h3 className="font-semibold text-purple-800 mb-3 text-lg">📋 Production Order Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 
@@ -569,7 +569,7 @@ const CreateMRMPage  = () => {
                 onChange={handleInputChange}
                 list="projects-list"
                 placeholder="Enter or select project name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                 required
               />
               <datalist id="projects-list">
@@ -588,7 +588,7 @@ const CreateMRMPage  = () => {
                 name="priority"
                 value={formData.priority}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                 required
               >
                 <option value="low">Low</option>
@@ -611,7 +611,7 @@ const CreateMRMPage  = () => {
                   value={formData.required_by_date}
                   onChange={handleInputChange}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -628,14 +628,14 @@ const CreateMRMPage  = () => {
                 onChange={handleInputChange}
                 rows="3"
                 placeholder="Any special instructions or notes for inventory team..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
               />
             </div>
           </div>
         </div>
 
         {/* Materials List */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white rounded shadow-md p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800 flex items-center">
               <FaBox className="mr-2 text-purple-500" />
@@ -644,7 +644,7 @@ const CreateMRMPage  = () => {
             <button
               type="button"
               onClick={addMaterialRow}
-              className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+              className="flex items-center px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
             >
               <FaPlus className="mr-2" />
               Add Material
@@ -655,7 +655,7 @@ const CreateMRMPage  = () => {
             {formData.materials.map((material, index) => (
               <div 
                 key={index} 
-                className={`p-4 border-2 rounded-lg ${
+                className={`p-4 border-2 rounded ${
                   material.material_type === 'fabric' 
                     ? 'bg-purple-50 border-purple-300' 
                     : 'bg-pink-50 border-pink-300'
@@ -686,7 +686,7 @@ const CreateMRMPage  = () => {
                     <button
                       type="button"
                       onClick={() => handleMaterialChange(index, 'material_type', 'fabric')}
-                      className={`flex-1 px-3 py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${
+                      className={`flex-1 px-3 py-2 rounded border transition-all flex items-center justify-center gap-2 ${
                         material.material_type === 'fabric'
                           ? 'bg-purple-500 border-purple-600 text-white'
                           : 'bg-white border-gray-300 text-gray-700 hover:border-purple-400'
@@ -698,7 +698,7 @@ const CreateMRMPage  = () => {
                     <button
                       type="button"
                       onClick={() => handleMaterialChange(index, 'material_type', 'accessories')}
-                      className={`flex-1 px-3 py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${
+                      className={`flex-1 px-3 py-2 rounded border transition-all flex items-center justify-center gap-2 ${
                         material.material_type === 'accessories'
                           ? 'bg-pink-500 border-pink-600 text-white'
                           : 'bg-white border-gray-300 text-gray-700 hover:border-pink-400'
@@ -723,7 +723,7 @@ const CreateMRMPage  = () => {
                         value={material.fabric_name}
                         onChange={(e) => handleMaterialChange(index, 'fabric_name', e.target.value)}
                         placeholder="e.g., Cotton Plain Fabric"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                         required
                       />
                     </div>
@@ -736,7 +736,7 @@ const CreateMRMPage  = () => {
                       <select
                         value={material.fabric_type}
                         onChange={(e) => handleMaterialChange(index, 'fabric_type', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                         required
                       >
                         <option value="">Select Type</option>
@@ -763,7 +763,7 @@ const CreateMRMPage  = () => {
                         value={material.color}
                         onChange={(e) => handleMaterialChange(index, 'color', e.target.value)}
                         placeholder="e.g., Navy Blue, White"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                         required
                       />
                     </div>
@@ -780,7 +780,7 @@ const CreateMRMPage  = () => {
                         value={material.gsm}
                         onChange={(e) => handleMaterialChange(index, 'gsm', e.target.value)}
                         placeholder="e.g., 180"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -794,7 +794,7 @@ const CreateMRMPage  = () => {
                         value={material.width}
                         onChange={(e) => handleMaterialChange(index, 'width', e.target.value)}
                         placeholder="e.g., 60 inches, 150 cm"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -811,7 +811,7 @@ const CreateMRMPage  = () => {
                         value={material.shrinkage}
                         onChange={(e) => handleMaterialChange(index, 'shrinkage', e.target.value)}
                         placeholder="e.g., 3"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -823,7 +823,7 @@ const CreateMRMPage  = () => {
                       <select
                         value={material.finish_type}
                         onChange={(e) => handleMaterialChange(index, 'finish_type', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                       >
                         <option value="">Select Finish</option>
                         <option value="Plain">Plain</option>
@@ -849,7 +849,7 @@ const CreateMRMPage  = () => {
                         value={material.quantity_required}
                         onChange={(e) => handleMaterialChange(index, 'quantity_required', e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                         required
                       />
                     </div>
@@ -862,7 +862,7 @@ const CreateMRMPage  = () => {
                       <select
                         value={material.unit}
                         onChange={(e) => handleMaterialChange(index, 'unit', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                         required
                       >
                         <option value="meters">Meters</option>
@@ -882,7 +882,7 @@ const CreateMRMPage  = () => {
                         onChange={(e) => handleMaterialChange(index, 'description', e.target.value)}
                         placeholder="Any additional notes or special requirements..."
                         rows="2"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -899,7 +899,7 @@ const CreateMRMPage  = () => {
                       <select
                         value={material.accessory_type}
                         onChange={(e) => handleMaterialChange(index, 'accessory_type', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                         required
                       >
                         <option value="">Select Type</option>
@@ -927,7 +927,7 @@ const CreateMRMPage  = () => {
                         value={material.accessory_color}
                         onChange={(e) => handleMaterialChange(index, 'accessory_color', e.target.value)}
                         placeholder="e.g., Black, White, Gold"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -941,7 +941,7 @@ const CreateMRMPage  = () => {
                         value={material.size_length}
                         onChange={(e) => handleMaterialChange(index, 'size_length', e.target.value)}
                         placeholder="e.g., 12mm, 20 inches"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -957,7 +957,7 @@ const CreateMRMPage  = () => {
                         value={material.quantity_per_unit}
                         onChange={(e) => handleMaterialChange(index, 'quantity_per_unit', e.target.value)}
                         placeholder="e.g., 4 (buttons per garment)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -971,7 +971,7 @@ const CreateMRMPage  = () => {
                         value={material.brand}
                         onChange={(e) => handleMaterialChange(index, 'brand', e.target.value)}
                         placeholder="e.g., YKK, Coats"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -987,7 +987,7 @@ const CreateMRMPage  = () => {
                         value={material.quantity_required}
                         onChange={(e) => handleMaterialChange(index, 'quantity_required', e.target.value)}
                         placeholder="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                         required
                       />
                     </div>
@@ -1000,7 +1000,7 @@ const CreateMRMPage  = () => {
                       <select
                         value={material.unit}
                         onChange={(e) => handleMaterialChange(index, 'unit', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                         required
                       >
                         <option value="pieces">Pieces</option>
@@ -1022,7 +1022,7 @@ const CreateMRMPage  = () => {
                         onChange={(e) => handleMaterialChange(index, 'description', e.target.value)}
                         placeholder="Any additional notes or special requirements..."
                         rows="2"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -1037,7 +1037,7 @@ const CreateMRMPage  = () => {
           <button
             type="button"
             onClick={handleCancel}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
             disabled={loading}
           >
             Cancel
@@ -1045,7 +1045,7 @@ const CreateMRMPage  = () => {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center px-6 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>

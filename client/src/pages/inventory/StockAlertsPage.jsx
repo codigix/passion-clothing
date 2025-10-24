@@ -168,7 +168,7 @@ const StockAlertsPage = () => {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Stock Alerts</h1>
           <p className="text-sm text-gray-500">
@@ -178,28 +178,28 @@ const StockAlertsPage = () => {
         <button
           type="button"
           onClick={fetchAlerts}
-          className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+          className="inline-flex items-center justify-center rounded border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
         >
           <span className="mr-2 text-lg" aria-hidden>🔄</span>
           Refresh
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {summaryConfigs.map(({ key, title, description, bgClass, textClass }) =>
           counts[key] ? (
-            <div key={key} className={`rounded-lg p-4 ${bgClass}`}>
+            <div key={key} className={`rounded p-4 ${bgClass}`}>
               <h2 className={`text-sm font-semibold uppercase ${textClass}`}>
                 {title}
               </h2>
               <p className="mt-1 text-sm text-gray-600">{description}</p>
-              <p className="mt-4 text-3xl font-bold text-gray-900">{counts[key]}</p>
+              <p className="mt-4 text-2xl font-bold text-gray-900">{counts[key]}</p>
             </div>
           ) : null,
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded border border-gray-200 bg-white">
         <div className="flex flex-wrap border-b border-gray-200">
           {alertTabs.map((tab) => {
             const isActive = tabValue === tab.key;
@@ -227,31 +227,31 @@ const StockAlertsPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Alert
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Item Name
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Category
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Current Stock
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Min/Max Stock
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Location
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Severity
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Last Updated
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Actions
                 </th>
               </tr>
@@ -259,8 +259,8 @@ const StockAlertsPage = () => {
             <tbody className="divide-y divide-gray-200 bg-white">
               {getFilteredAlerts().map((alert) => (
                 <tr key={alert.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="px-2 py-2">
+                    <div className="flex items-center gap-1.5">
                       <span className="text-lg" aria-hidden>
                         {alertIcon[alert.alertType] || "⚠️"}
                       </span>
@@ -273,11 +273,11 @@ const StockAlertsPage = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-2 py-2 text-sm font-medium text-gray-900">
                     {alert.itemName}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{alert.category}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
+                  <td className="px-2 py-2 text-sm text-gray-500">{alert.category}</td>
+                  <td className="px-2 py-2 text-sm text-gray-900">
                     <span
                       className={
                         alert.currentStock === 0
@@ -288,12 +288,12 @@ const StockAlertsPage = () => {
                       {alert.currentStock}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
+                  <td className="px-2 py-2 text-sm text-gray-500">
                     {alert.minStock}
                     {alert.maxStock ? ` / ${alert.maxStock}` : ""}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{alert.location}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-2 text-sm text-gray-500">{alert.location}</td>
+                  <td className="px-2 py-2">
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
                         severityStyles[alert.severity] || severityStyles.default
@@ -302,11 +302,11 @@ const StockAlertsPage = () => {
                       {alert.severity.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{alert.lastUpdated}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-2 py-2 text-sm text-gray-500">{alert.lastUpdated}</td>
+                  <td className="px-2 py-2 text-sm">
                     <button
                       type="button"
-                      className="inline-flex items-center rounded-md border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 transition hover:border-blue-200 hover:bg-blue-100"
+                      className="inline-flex items-center rounded border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 transition hover:border-blue-200 hover:bg-blue-100"
                     >
                       <span className="mr-2 text-base" aria-hidden>
                         🛒
@@ -322,7 +322,7 @@ const StockAlertsPage = () => {
       </div>
 
       {getFilteredAlerts().length === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
+        <div className="rounded border border-dashed border-gray-300 bg-white p-10 text-center">
           <h2 className="text-lg font-semibold text-gray-900">No alerts found</h2>
           <p className="mt-2 text-sm text-gray-500">
             All stock levels are currently within normal ranges.

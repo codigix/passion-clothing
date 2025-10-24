@@ -243,13 +243,18 @@ router.get('/scan/:barcode', authenticateToken, checkDepartment(['inventory', 'p
     const { barcode } = req.params;
     const { Inventory } = require('../config/database');
 
-    // Find product by barcode
+    // Find product by barcode OR product_code (supports both scanning methods)
     const product = await Product.findOne({
-      where: { barcode, status: 'active' }
+      where: { 
+        [Op.or]: [
+          { barcode, status: 'active' },
+          { product_code: barcode, status: 'active' }
+        ]
+      }
     });
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found with this barcode' });
+      return res.status(404).json({ message: 'Product not found with this code or barcode' });
     }
 
     // Get inventory details for this product

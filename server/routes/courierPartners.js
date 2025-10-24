@@ -31,7 +31,14 @@ router.get('/', authenticateToken, checkDepartment(['shipment', 'admin']), async
         {
           model: Shipment,
           as: 'shipments',
-          attributes: ['id', 'status'],
+          attributes: [
+            'id',
+            'status',
+            'shipping_cost',
+            'shipment_date',
+            'expected_delivery_date',
+            'actual_delivery_date'
+          ],
           required: false
         }
       ],
@@ -41,14 +48,43 @@ router.get('/', authenticateToken, checkDepartment(['shipment', 'admin']), async
     // Calculate active shipments and performance metrics for each partner
     const partnersWithStats = courierPartners.map(partner => {
       const shipments = partner.shipments || [];
-      const activeShipments = shipments.filter(s => 
+      const activeShipments = shipments.filter(s =>
         ['preparing', 'packed', 'ready_to_ship', 'shipped', 'in_transit', 'out_for_delivery'].includes(s.status)
       ).length;
+
+      const deliveredShipments = shipments.filter(s => s.status === 'delivered');
+      const onTimeDeliveries = deliveredShipments.filter(s =>
+        s.actual_delivery_date && s.expected_delivery_date && new Date(s.actual_delivery_date) <= new Date(s.expected_delivery_date)
+      ).length;
+
+      const onTimeRate = deliveredShipments.length > 0
+        ? parseFloat(((onTimeDeliveries / deliveredShipments.length) * 100).toFixed(1))
+        : 0;
+
+      let totalDeliveryDays = 0;
+      deliveredShipments.forEach((shipment) => {
+        if (shipment.actual_delivery_date) {
+          const shipDate = new Date(shipment.shipment_date || shipment.expected_delivery_date);
+          const deliveryDate = new Date(shipment.actual_delivery_date);
+          const diffTime = Math.abs(deliveryDate - shipDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          totalDeliveryDays += diffDays;
+        }
+      });
+
+      const avgDeliveryTime = deliveredShipments.length > 0
+        ? parseFloat((totalDeliveryDays / deliveredShipments.length).toFixed(1))
+        : 0;
+
+      const totalShippingCost = shipments.reduce((sum, shipment) => sum + parseFloat(shipment.shipping_cost || 0), 0);
 
       return {
         ...partner.toJSON(),
         activeShipments,
-        totalShipments: shipments.length
+        totalShipments: shipments.length,
+        onTimeDeliveryRate: onTimeRate,
+        averageDeliveryTime: avgDeliveryTime,
+        totalShippingCost: parseFloat(totalShippingCost.toFixed(2))
       };
     });
 

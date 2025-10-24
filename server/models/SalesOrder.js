@@ -101,7 +101,7 @@ module.exports = (sequelize) => {
       defaultValue: 0.00
     },
     status: {
-      type: DataTypes.ENUM('draft', 'confirmed', 'bom_generated', 'procurement_created', 'materials_received', 'in_production', 'cutting_completed', 'printing_completed', 'stitching_completed', 'finishing_completed', 'qc_passed', 'ready_to_ship', 'shipped', 'delivered', 'completed', 'cancelled'),
+      type: DataTypes.ENUM('draft', 'confirmed', 'bom_generated', 'procurement_created', 'materials_received', 'in_production', 'on_hold', 'cutting_completed', 'printing_completed', 'stitching_completed', 'finishing_completed', 'qc_passed', 'ready_to_ship', 'shipped', 'delivered', 'completed', 'cancelled'),
       defaultValue: 'draft'
     },
     priority: {

@@ -44,14 +44,14 @@ const DevToolsPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
         <h2 className="text-lg font-semibold text-yellow-800 mb-2">⚠️ Development Tools</h2>
         <p className="text-yellow-700 text-sm">
           This page is for development and debugging purposes only. Changes made here affect the API configuration.
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
         <h3 className="text-xl font-semibold mb-4">API Configuration</h3>
 
         <div className="space-y-4">
@@ -64,18 +64,18 @@ const DevToolsPage = () => {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 placeholder="Enter API base URL"
               />
               <button
                 onClick={handleSaveUrl}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
                 Save
               </button>
               <button
                 onClick={handleResetUrl}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
                 Reset
               </button>
@@ -91,7 +91,7 @@ const DevToolsPage = () => {
                 <button
                   key={preset.value}
                   onClick={() => setApiUrl(preset.value)}
-                  className="px-3 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
+                  className="px-3 py-2 text-left border border-gray-300 rounded hover:bg-gray-50 text-sm"
                 >
                   {preset.label}: <code className="text-blue-600">{preset.value}</code>
                 </button>
@@ -101,20 +101,20 @@ const DevToolsPage = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
         <h3 className="text-xl font-semibold mb-4">Connection Test</h3>
 
         <div className="space-y-4">
           <button
             onClick={handleTestConnection}
             disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
           >
             {loading ? 'Testing...' : 'Test API Connection'}
           </button>
 
           {testResult && (
-            <div className={`p-4 rounded-md ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+            <div className={`p-4 rounded ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
               <h4 className={`font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
                 {testResult.success ? '✅ Connection Successful' : '❌ Connection Failed'}
               </h4>
@@ -133,7 +133,7 @@ const DevToolsPage = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
         <h3 className="text-xl font-semibold mb-4">Usage Instructions</h3>
 
         <div className="space-y-3 text-sm text-gray-600">

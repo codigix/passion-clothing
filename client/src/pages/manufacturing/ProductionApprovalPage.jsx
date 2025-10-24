@@ -77,9 +77,9 @@ const ProductionApprovalPage = () => {
         toast.success('Production approved! Redirecting to Production Wizard...');
         // Redirect to Production Wizard with approval ID for auto-prefill
         if (approvalId) {
-          navigate(`/manufacturing/production-wizard?approvalId=${approvalId}`);
+          navigate(`/manufacturing/wizard?approvalId=${approvalId}`);
         } else {
-          navigate('/manufacturing/production-wizard');
+          navigate('/manufacturing/wizard');
         }
       } else {
         toast.success('Approval submitted successfully');
@@ -104,7 +104,7 @@ const ProductionApprovalPage = () => {
   if (!verification) {
     return (
       <div className="p-6">
-        <div className="bg-error-50 border border-error-200 text-error-800 rounded-lg p-4">
+        <div className="bg-error-50 border border-error-200 text-error-800 rounded p-4">
           Verification record not found
         </div>
       </div>
@@ -114,10 +114,10 @@ const ProductionApprovalPage = () => {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg mr-4"
+          className="p-2 hover:bg-gray-100 rounded mr-4"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
@@ -127,7 +127,7 @@ const ProductionApprovalPage = () => {
       </div>
 
       {verification.overall_result === 'failed' && (
-        <div className="bg-warning-50 border border-warning-200 text-warning-800 rounded-lg p-4 mb-6">
+        <div className="bg-warning-50 border border-warning-200 text-warning-800 rounded p-4 mb-4">
           <p className="font-bold text-body-2">Verification Failed</p>
           <p className="text-body-2">
             Materials failed quality verification. Review the verification report before deciding.
@@ -140,7 +140,7 @@ const ProductionApprovalPage = () => {
         <div className="card p-6">
           <h2 className="text-display-6 font-semibold mb-4">Verification Summary</h2>
           <hr className="border-border mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             <div>
               <p className="text-body-2 text-text-secondary mb-1">Verification Number</p>
               <p className="text-body-1 font-medium">{verification.verification_number}</p>
@@ -161,9 +161,9 @@ const ProductionApprovalPage = () => {
                   : 'bg-error-100 text-error-700'
               }`}>
                 {verification.overall_result === 'passed' ? (
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle size={14} />
                 ) : (
-                  <XCircle className="w-4 h-4" />
+                  <XCircle size={14} />
                 )}
                 {verification.overall_result.toUpperCase()}
               </span>
@@ -176,11 +176,11 @@ const ProductionApprovalPage = () => {
           <h2 className="text-display-6 font-semibold mb-4">Materials Verification</h2>
           <hr className="border-border mb-4" />
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {verification.verification_checklist.map((item, index) => (
               <div
                 key={index}
-                className={`p-4 border-2 rounded-lg ${
+                className={`p-4 border-2 rounded ${
                   item.inspection_result === 'pass' 
                     ? 'border-success-300 bg-success-50' 
                     : 'border-error-300 bg-error-50'
@@ -188,7 +188,7 @@ const ProductionApprovalPage = () => {
               >
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-body-2 font-bold">{item.material_name}</p>
-                  <span className={`inline-flex px-2 py-1 rounded-full text-sm ${
+                  <span className={`inline-flex px-1.5 py-0.5 rounded-full text-sm ${
                     item.inspection_result === 'pass' 
                       ? 'bg-success-100 text-success-700' 
                       : 'bg-error-100 text-error-700'
@@ -241,10 +241,10 @@ const ProductionApprovalPage = () => {
           <h2 className="text-display-6 font-semibold mb-4">Manager Approval Decision</h2>
           <hr className="border-border mb-4" />
           
-          <div className="space-y-4 mb-6">
+          <div className="space-y-4 mb-4">
             <p className="text-sm font-medium text-gray-700 mb-3">Approval Status</p>
             
-            <label className="flex items-center p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <label className="flex items-center p-4 border-2 border-gray-300 rounded cursor-pointer hover:bg-gray-50 transition-colors">
               <input
                 type="radio"
                 name="approval_status"
@@ -256,7 +256,7 @@ const ProductionApprovalPage = () => {
               <span className="ml-3 text-body-1">✅ Approve - Ready for Production</span>
             </label>
 
-            <label className="flex items-center p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <label className="flex items-center p-4 border-2 border-gray-300 rounded cursor-pointer hover:bg-gray-50 transition-colors">
               <input
                 type="radio"
                 name="approval_status"
@@ -268,7 +268,7 @@ const ProductionApprovalPage = () => {
               <span className="ml-3 text-body-1">⚠️ Conditional Approval - With Conditions</span>
             </label>
 
-            <label className="flex items-center p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <label className="flex items-center p-4 border-2 border-gray-300 rounded cursor-pointer hover:bg-gray-50 transition-colors">
               <input
                 type="radio"
                 name="approval_status"
@@ -285,19 +285,19 @@ const ProductionApprovalPage = () => {
           {approvalStatus === 'approved' && (
             <div className="space-y-4 mt-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   <Calendar className="w-4 h-4 inline mr-2" />
                   Production Start Date
                 </label>
                 <input
                   type="date"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   value={productionStartDate}
                   onChange={(e) => setProductionStartDate(e.target.value)}
                 />
               </div>
               
-              <div className="bg-success-50 border border-success-200 text-success-800 rounded-lg p-4">
+              <div className="bg-success-50 border border-success-200 text-success-800 rounded p-4">
                 <p className="text-body-2">
                   Materials will be marked as <strong>READY FOR PRODUCTION</strong> and available for manufacturing operations.
                 </p>
@@ -309,11 +309,11 @@ const ProductionApprovalPage = () => {
           {approvalStatus === 'conditional' && (
             <div className="space-y-4 mt-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Conditions
                 </label>
                 <textarea
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   rows="4"
                   value={conditions}
                   onChange={(e) => setConditions(e.target.value)}
@@ -322,19 +322,19 @@ const ProductionApprovalPage = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   <Calendar className="w-4 h-4 inline mr-2" />
                   Production Start Date
                 </label>
                 <input
                   type="date"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                   value={productionStartDate}
                   onChange={(e) => setProductionStartDate(e.target.value)}
                 />
               </div>
 
-              <div className="bg-warning-50 border border-warning-200 text-warning-800 rounded-lg p-4">
+              <div className="bg-warning-50 border border-warning-200 text-warning-800 rounded p-4">
                 <p className="text-body-2">
                   Materials will be approved with conditions. Manufacturing team must comply with specified conditions.
                 </p>
@@ -346,11 +346,11 @@ const ProductionApprovalPage = () => {
           {approvalStatus === 'rejected' && (
             <div className="space-y-4 mt-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Rejection Reason *
                 </label>
                 <textarea
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                  className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 ${
                     !rejectionReason.trim() ? 'border-error-500' : 'border-gray-300'
                   }`}
                   rows="4"
@@ -364,7 +364,7 @@ const ProductionApprovalPage = () => {
                 )}
               </div>
 
-              <div className="bg-error-50 border border-error-200 text-error-800 rounded-lg p-4">
+              <div className="bg-error-50 border border-error-200 text-error-800 rounded p-4">
                 <p className="text-body-2">
                   MRN request will be marked as <strong>REJECTED</strong>. Materials will NOT be available for production.
                 </p>
@@ -379,7 +379,7 @@ const ProductionApprovalPage = () => {
           <hr className="border-border mb-4" />
           
           <textarea
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
             rows="4"
             value={approvalNotes}
             onChange={(e) => setApprovalNotes(e.target.value)}
@@ -388,7 +388,7 @@ const ProductionApprovalPage = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-2">
           <button
             className="btn btn-outline"
             onClick={() => navigate(-1)}
@@ -397,7 +397,7 @@ const ProductionApprovalPage = () => {
             Cancel
           </button>
           <button
-            className={`px-6 py-3 rounded-lg text-white font-medium transition-colors ${
+            className={`px-2 py-2 rounded text-white font-medium transition-colors ${
               approvalStatus === 'approved' 
                 ? 'bg-success-600 hover:bg-success-700' 
                 : approvalStatus === 'rejected' 

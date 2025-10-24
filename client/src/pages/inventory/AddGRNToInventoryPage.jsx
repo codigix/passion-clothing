@@ -69,7 +69,7 @@ const AddGRNToInventoryPage = () => {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="bg-red-50 border border-red-200 rounded p-6">
             <h2 className="text-lg font-semibold text-red-800 mb-2">GRN Not Found</h2>
             <p className="text-red-700">The requested GRN could not be found.</p>
           </div>
@@ -82,14 +82,14 @@ const AddGRNToInventoryPage = () => {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-6">
             <h2 className="text-lg font-semibold text-yellow-800 mb-2">GRN Not Ready</h2>
             <p className="text-yellow-700 mb-4">
               This GRN has not been verified yet. Current status: <strong>{grn.verification_status}</strong>
             </p>
             <button
               onClick={() => navigate(`/inventory/grn/${id}/verify`)}
-              className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700"
+              className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
             >
               Go to Verification
             </button>
@@ -103,14 +103,14 @@ const AddGRNToInventoryPage = () => {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+          <div className="bg-green-50 border border-green-200 rounded p-6">
             <h2 className="text-lg font-semibold text-green-800 mb-2">Already Added to Inventory</h2>
             <p className="text-green-700 mb-4">
               This GRN has already been added to inventory on {new Date(grn.inventory_added_date).toLocaleString()}.
             </p>
             <button
               onClick={() => navigate('/inventory/stock')}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
             >
               View Inventory
             </button>
@@ -144,7 +144,7 @@ const AddGRNToInventoryPage = () => {
         </div>
 
         {/* Success Banner */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+        <div className="bg-green-50 border border-green-200 rounded p-6 mb-6">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
             <div>
@@ -162,7 +162,7 @@ const AddGRNToInventoryPage = () => {
         </div>
 
         {/* GRN Info */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded shadow-sm border p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">GRN Information</h2>
           <div className="grid grid-cols-4 gap-4">
             <div>
@@ -185,7 +185,7 @@ const AddGRNToInventoryPage = () => {
         </div>
 
         {/* Items to Add */}
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-6">
+        <div className="bg-white rounded shadow-sm border overflow-hidden mb-6">
           <div className="px-6 py-4 border-b bg-gray-50">
             <h2 className="text-lg font-semibold">Items to Add to Inventory</h2>
           </div>
@@ -242,7 +242,7 @@ const AddGRNToInventoryPage = () => {
         </div>
 
         {/* Location Selection */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded shadow-sm border p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <MapPin className="w-5 h-5 text-blue-600" />
             Select Warehouse Location
@@ -255,7 +255,7 @@ const AddGRNToInventoryPage = () => {
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               >
                 <option value="Main Warehouse">Main Warehouse</option>
                 <option value="Warehouse A">Warehouse A</option>
@@ -279,7 +279,7 @@ const AddGRNToInventoryPage = () => {
         <div className="flex justify-end gap-3">
           <button
             onClick={() => navigate('/inventory/grn')}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-6 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
             disabled={submitting}
           >
             Cancel
@@ -288,7 +288,7 @@ const AddGRNToInventoryPage = () => {
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 disabled:opacity-50"
           >
             {submitting ? (
               <>
@@ -305,7 +305,7 @@ const AddGRNToInventoryPage = () => {
         </div>
 
         {/* Help Text */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded p-4">
           <h3 className="text-sm font-semibold text-blue-900 mb-2">📦 What Will Happen</h3>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
             <li>Each item will get a unique barcode (e.g., INV-20250117-00001)</li>

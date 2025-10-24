@@ -92,11 +92,11 @@ const POInventoryTrackingPage = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/procurement/purchase-orders')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900"
           >
             <FaArrowLeft /> Back to Purchase Orders
           </button>
@@ -112,7 +112,7 @@ const POInventoryTrackingPage = () => {
         <div className="flex gap-2">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
           >
             <FaPrint /> Print
           </button>
@@ -121,8 +121,8 @@ const POInventoryTrackingPage = () => {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
+          <div className="bg-white rounded shadow p-4 border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Items</p>
@@ -132,7 +132,7 @@ const POInventoryTrackingPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+          <div className="bg-white rounded shadow p-4 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Initial Quantity</p>
@@ -142,7 +142,7 @@ const POInventoryTrackingPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+          <div className="bg-white rounded shadow p-4 border-l-4 border-yellow-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Current Stock</p>
@@ -152,7 +152,7 @@ const POInventoryTrackingPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+          <div className="bg-white rounded shadow p-4 border-l-4 border-red-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Consumed</p>
@@ -165,7 +165,7 @@ const POInventoryTrackingPage = () => {
       )}
 
       {/* Inventory Items Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded shadow overflow-hidden">
         <div className="px-6 py-4 border-b bg-gray-50">
           <h2 className="text-lg font-semibold text-gray-900">Inventory Items with Barcode Tracking</h2>
         </div>
@@ -174,14 +174,14 @@ const POInventoryTrackingPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barcode</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Details</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Initial Qty</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consumed</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usage %</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Barcode</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item Details</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Initial Qty</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Consumed</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Usage %</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -190,7 +190,7 @@ const POInventoryTrackingPage = () => {
                 return (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <FaBarcode className="text-gray-400" />
                         <div>
                           <div className="text-sm font-medium text-gray-900">{item.barcode}</div>
@@ -218,7 +218,7 @@ const POInventoryTrackingPage = () => {
                       {parseFloat(item.current_stock || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <div className="w-16 bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${getUsageColor(usagePercentage)}`}
@@ -270,9 +270,9 @@ const POInventoryTrackingPage = () => {
       {/* Consume Stock Modal */}
       {showConsumeModal && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b bg-gradient-to-r from-orange-50 to-red-50">
-              <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-1.5">
                 <FaMinus className="text-orange-600" />
                 Consume Stock
               </h2>
@@ -290,7 +290,7 @@ const POInventoryTrackingPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Quantity to Consume
                 </label>
                 <input
@@ -300,20 +300,20 @@ const POInventoryTrackingPage = () => {
                   max={selectedItem.current_stock}
                   min="0"
                   step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
                   placeholder="Enter quantity"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Notes (Optional)
                 </label>
                 <textarea
                   value={consumeNotes}
                   onChange={(e) => setConsumeNotes(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
                   placeholder="Reason for consumption..."
                 />
               </div>
@@ -326,13 +326,13 @@ const POInventoryTrackingPage = () => {
                     setConsumeQuantity('');
                     setConsumeNotes('');
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium"
+                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConsumeStock}
-                  className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+                  className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-medium"
                 >
                   Confirm Consumption
                 </button>
@@ -345,9 +345,9 @@ const POInventoryTrackingPage = () => {
       {/* QR Code Modal */}
       {showQRModal && selectedQRItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-semibold text-gray-800">Item QR Code</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Item QR Code</h2>
             </div>
 
             <div className="p-6">
@@ -372,7 +372,7 @@ const POInventoryTrackingPage = () => {
 
               <button
                 onClick={() => setShowQRModal(false)}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                className="w-full px-3 py-1.5 bg-blue-500 text-sm hover:bg-blue-600 text-white rounded-md"
               >
                 Close
               </button>

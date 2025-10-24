@@ -133,7 +133,7 @@ const Sidebar = ({ open, onToggle }) => {
         { text: 'Production Tracking', icon: <Clock size={18} />, path: '/manufacturing/tracking' },
         { text: 'Material Requests (MRN)', icon: <Send size={18} />, path: '/manufacturing/material-requests' },
         { text: 'Quality Control', icon: <Microscope size={18} />, path: '/manufacturing/quality' },
-        { text: 'Outsourcing', icon: <Truck size={18} />, path: '/outsourcing' },
+        { text: 'Outsource Management', icon: <Truck size={18} />, path: '/manufacturing/outsource' },
         { text: 'Reports', icon: <FileText size={18} />, path: '/manufacturing/reports' },
       ],
       outsourcing: [
@@ -203,66 +203,57 @@ const Sidebar = ({ open, onToggle }) => {
 
   return (
     <div
-      className={`fixed left-0 top-0 h-full bg-primary-600 text-white transition-all duration-300 ease-in-out z-40 ${
-        open ? 'w-60' : 'w-16'
+      className={`fixed left-0 top-0 h-full bg-white text-gray-800 transition-all duration-300 ease-in-out z-40 border-r border-gray-200 ${
+        open ? 'w-64' : 'w-20'
       }`}
+      style={{
+        boxShadow: '2px 0 8px rgba(0, 0, 0, 0.05)',
+      }}
     >
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full relative">
         {/* Header */}
         <div
           className={`flex items-center ${
-            open ? 'justify-between px-4' : 'justify-center px-2'
-          } py-4 bg-primary-700`}
+            open ? 'justify-between px-5' : 'justify-center px-3'
+          } px-6 py-4 border-b border-gray-200`}
         >
           {open && (
-            <h1 className="text-lg font-semibold truncate">
-              Passion ERP
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold text-gray-800">
+                Passion ERP
+              </h1>
+              <p className="text-[10px] text-gray-500 tracking-wider uppercase">Management System</p>
+            </div>
           )}
-          <button
-            onClick={onToggle}
-            className="text-white hover:bg-primary-800 rounded-md p-1 transition-colors"
-          >
-            <Menu size={20} />
-          </button>
+          
         </div>
 
         {/* User Profile */}
-        <div
-          className={`px-4 py-6 flex flex-col items-center gap-2 ${
-            open ? 'items-start' : 'items-center'
-          }`}
-        >
-          <div className="w-10 h-10 bg-secondary-500 rounded-full flex items-center justify-center font-semibold">
-            {user.name?.[0] || user.email?.[0] || '?'}
-          </div>
-          {open && (
-            <>
-              <h2 className="text-sm font-medium truncate">
-                {user.name}
-              </h2>
-              <p className="text-xs text-white/70 truncate">
-                {user.role?.name}
-              </p>
-            </>
-          )}
-        </div>
-
-        <hr className="border-white/20" />
+        
 
         {/* Scrollable Menu Container */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {/* Department Menu */}
-          <nav className={`${open ? 'px-2' : 'px-0'} py-2`}>
+          <nav className={`${open ? 'px-3' : 'px-2'} py-4 space-y-1`}>
+            {open && (
+              <div className="px-3 py-2 mb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Main Menu</p>
+              </div>
+            )}
             {departmentMenuItems.map((item) => (
               <button
                 key={item.text}
                 onClick={() => handleNavigation(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
-                  isActive(item.path) ? 'bg-white/20' : ''
-                } relative`}
+                className={`group w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 relative ${
+                  isActive(item.path) 
+                    ? 'bg-blue-50 text-blue-600 font-medium' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
               >
-                <span className="text-white flex-shrink-0">
+                {isActive(item.path) && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full"></div>
+                )}
+                <span className="flex-shrink-0">
                   {item.icon}
                 </span>
                 {open && (
@@ -271,7 +262,7 @@ const Sidebar = ({ open, onToggle }) => {
                   </span>
                 )}
                 {item.badge > 0 && (
-                  <span className={`${open ? 'relative' : 'absolute top-1 right-1'} bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5`}>
+                  <span className={`${open ? 'relative' : 'absolute top-1.5 right-1.5'} bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5`}>
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
@@ -279,19 +270,26 @@ const Sidebar = ({ open, onToggle }) => {
             ))}
           </nav>
 
-          <hr className="border-white/20" />
+          <div className="mx-4 my-3 h-px bg-gray-200"></div>
 
           {/* Common Menu */}
-          <nav className={`${open ? 'px-2' : 'px-0'} py-2`}>
+          <nav className={`${open ? 'px-3' : 'px-2'} py-2 space-y-1`}>
+            {open && (
+              <div className="px-3 py-2 mb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Access</p>
+              </div>
+            )}
             {commonMenuItems.map((item) => (
               <button
                 key={item.text}
                 onClick={() => handleNavigation(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2 mb-1 rounded-lg transition-colors hover:bg-white/10 ${
-                  isActive(item.path) ? 'bg-white/20' : ''
+                className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                  isActive(item.path)
+                    ? 'bg-blue-50 text-blue-600 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <span className="text-white flex-shrink-0">
+                <span className="flex-shrink-0">
                   {item.icon}
                 </span>
                 {open && (
@@ -304,17 +302,17 @@ const Sidebar = ({ open, onToggle }) => {
           </nav>
         </div>
 
-        <hr className="border-white/20" />
+        <div className="mx-4 my-2 h-px bg-gray-200"></div>
 
         {/* Logout */}
-        <div className={`${open ? 'px-2' : 'px-0'} py-4`}>
+        <div className={`${open ? 'px-3' : 'px-2'} py-4 bg-gray-50`}>
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-white/10"
+            className="group w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 text-red-600 hover:bg-red-50 border border-transparent"
           >
-            <LogOut size={18} className="text-white flex-shrink-0" />
+            <LogOut size={18} className="flex-shrink-0" />
             {open && (
-              <span className="text-sm">Logout</span>
+              <span className="text-sm font-medium">Logout</span>
             )}
           </button>
         </div>

@@ -106,19 +106,19 @@ const FinanceDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Finance Dashboard</h1>
         <div className="flex gap-3">
           <button
             type="button"
-            className="flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+            className="flex items-center gap-1.5 rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
             onClick={() => navigate("/finance/payments")}
           >
             <CreditCard className="h-4 w-4" /> Record Payment
           </button>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+            className="flex items-center gap-1.5 rounded bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
             onClick={() => navigate("/finance/create-invoice")}
           >
             <Plus className="h-4 w-4" /> Create Invoice
@@ -126,7 +126,7 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {financeKPIs.map((kpi) => {
           const IconComponent = getIcon(kpi.icon);
           const trendDirection = getTrendIndicator(kpi.trend);
@@ -159,7 +159,7 @@ const FinanceDashboard = () => {
           return (
             <div
               key={kpi.id}
-              className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+              className="rounded border border-gray-200 bg-white p-5 shadow-sm"
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -173,7 +173,7 @@ const FinanceDashboard = () => {
                     <p className="mt-1 text-sm text-gray-500">{kpi.subtitle}</p>
                   )}
                   {kpi.trend !== undefined && (
-                    <div className="mt-3 inline-flex items-center gap-2 text-sm">
+                    <div className="mt-3 inline-flex items-center gap-1.5 text-sm">
                       {trendIcon}
                       <span className={trendColor}>{formatPercentage(kpi.trend)}</span>
                       <span className="text-gray-400">vs last month</span>
@@ -195,8 +195,8 @@ const FinanceDashboard = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
               Outstanding Receivables
@@ -205,7 +205,7 @@ const FinanceDashboard = () => {
               <TrendingUp className="h-4 w-4" /> 4.2%
             </span>
           </div>
-          <p className="text-3xl font-bold text-emerald-600">
+          <p className="text-2xl font-bold text-emerald-600">
             {formatShortCurrency(financeStats.outstandingReceivables)}
           </p>
           <p className="text-sm text-gray-600">
@@ -215,7 +215,7 @@ const FinanceDashboard = () => {
             {invoiceSummary.map((item) => (
               <div key={item.id} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">{item.label}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="text-sm font-semibold text-gray-900">
                     {item.value}
                   </span>
@@ -232,7 +232,7 @@ const FinanceDashboard = () => {
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
               Outstanding Payables
@@ -241,7 +241,7 @@ const FinanceDashboard = () => {
               <TrendingDown className="h-4 w-4" /> 2.1%
             </span>
           </div>
-          <p className="text-3xl font-bold text-rose-600">
+          <p className="text-2xl font-bold text-rose-600">
             {formatShortCurrency(financeStats.outstandingPayables)}
           </p>
           <p className="text-sm text-gray-600">Amount to be paid to vendors</p>
@@ -279,7 +279,7 @@ const FinanceDashboard = () => {
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
               Compliance Checklist
@@ -309,7 +309,7 @@ const FinanceDashboard = () => {
           </ul>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">
               Expense Breakdown
@@ -327,7 +327,7 @@ const FinanceDashboard = () => {
                 </div>
                 <div className="h-2 w-full rounded-full bg-gray-100">
                   <div
-                    className="h-2 rounded-full bg-primary-500"
+                    className="h-1.5 rounded-full bg-primary-500"
                     style={{ width: `${item.percentage}%` }}
                   />
                 </div>
@@ -340,24 +340,24 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900">
           Quick Search &amp; Filters
         </h3>
-        <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-12">
+        <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-12">
           <div className="md:col-span-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by invoice no, customer, vendor..."
-                className="w-full rounded-md border border-gray-200 px-4 py-2.5 pl-9 text-sm text-gray-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                className="w-full rounded border border-gray-200 px-4 py-2.5 pl-9 text-sm text-gray-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
           </div>
           <div className="md:col-span-3">
             <select
-              className="w-full rounded-md border border-gray-200 px-4 py-2.5 text-sm text-gray-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              className="w-full rounded border border-gray-200 px-4 py-2.5 text-sm text-gray-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
               value={filterType}
               onChange={(event) => setFilterType(event.target.value)}
             >
@@ -369,7 +369,7 @@ const FinanceDashboard = () => {
           <div className="md:col-span-2">
             <button
               type="button"
-              className="w-full rounded-md border border-gray-200 px-4 py-2.5 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
+              className="w-full rounded border border-gray-200 px-4 py-2.5 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
               onClick={() => navigate("/finance/reports")}
             >
               Financial Reports
@@ -378,7 +378,7 @@ const FinanceDashboard = () => {
           <div className="md:col-span-3">
             <button
               type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700"
+              className="flex w-full items-center justify-center gap-1.5 rounded bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700"
             >
               <Download className="h-4 w-4" /> Export Data
             </button>
@@ -386,7 +386,7 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="rounded border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 px-6">
           <div className="flex flex-wrap">
             {financeTabs.map((tab) => (
@@ -415,14 +415,14 @@ const FinanceDashboard = () => {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
+                  className="rounded border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
                   onClick={() => navigate("/finance/invoices")}
                 >
                   View All Invoices
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                  className="inline-flex items-center gap-1.5 rounded bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                   onClick={() => navigate("/finance/create-invoice")}
                 >
                   <Plus className="h-4 w-4" /> New Invoice
@@ -430,29 +430,29 @@ const FinanceDashboard = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <div className="overflow-x-auto rounded border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Invoice No.
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Type
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Customer / Vendor
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Amount
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Due Date
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Actions
                     </th>
                   </tr>
@@ -460,10 +460,10 @@ const FinanceDashboard = () => {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredInvoices.map((invoice) => (
                     <tr key={invoice.id} className="transition hover:bg-gray-50">
-                      <td className="px-4 py-3 font-semibold text-gray-900">
+                      <td className="px-2 py-2 font-semibold text-gray-900">
                         {invoice.invoiceNo}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
                             getBadgeClass(
@@ -476,16 +476,16 @@ const FinanceDashboard = () => {
                           {invoice.type.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
+                      <td className="px-2 py-2 text-gray-600">
                         {invoice.customerVendor}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">
+                      <td className="px-2 py-2 font-semibold text-gray-900">
                         {formatCurrency(invoice.amount)}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{invoice.dueDate}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2 text-gray-600">{invoice.dueDate}</td>
+                      <td className="px-2 py-2">
                         <span
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase ${
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase ${
                             getBadgeClass(
                               invoiceStatusStyles,
                               invoice.status,
@@ -497,7 +497,7 @@ const FinanceDashboard = () => {
                           {invoice.status.replace("_", " ").toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-2 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
@@ -521,8 +521,8 @@ const FinanceDashboard = () => {
               </table>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Total Invoices
                 </div>
@@ -530,7 +530,7 @@ const FinanceDashboard = () => {
                   {invoiceTotals.count}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Total Value
                 </div>
@@ -538,11 +538,11 @@ const FinanceDashboard = () => {
                   {formatShortCurrency(invoiceTotals.value)}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Collection Rate
                 </div>
-                <div className="mt-2 flex items-center gap-2 text-emerald-600">
+                <div className="mt-2 flex items-center gap-1.5 text-emerald-600">
                   <CheckCircle className="h-5 w-5" /> 92%
                 </div>
               </div>
@@ -559,14 +559,14 @@ const FinanceDashboard = () => {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
+                  className="rounded border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
                   onClick={() => navigate("/finance/payments")}
                 >
                   View All Payments
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                  className="inline-flex items-center gap-1.5 rounded bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                   onClick={() => navigate("/finance/payments")}
                 >
                   <CreditCard className="h-4 w-4" /> Record Payment
@@ -574,32 +574,32 @@ const FinanceDashboard = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <div className="overflow-x-auto rounded border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Payment No.
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Type
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Party
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Amount
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Payment Mode
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Payment Date
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Reference
                     </th>
                   </tr>
@@ -607,10 +607,10 @@ const FinanceDashboard = () => {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {financePayments.map((payment) => (
                     <tr key={payment.id} className="transition hover:bg-gray-50">
-                      <td className="px-4 py-3 font-semibold text-gray-900">
+                      <td className="px-2 py-2 font-semibold text-gray-900">
                         {payment.paymentNo}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
                             getBadgeClass(
@@ -623,11 +623,11 @@ const FinanceDashboard = () => {
                           {payment.type.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{payment.party}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">
+                      <td className="px-2 py-2 text-gray-600">{payment.party}</td>
+                      <td className="px-2 py-2 font-semibold text-gray-900">
                         {formatCurrency(payment.amount)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <span
                           className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold uppercase ${
                             getBadgeClass(
@@ -640,10 +640,10 @@ const FinanceDashboard = () => {
                           {payment.paymentMode.replace("_", " ").toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{payment.paymentDate}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2 text-gray-600">{payment.paymentDate}</td>
+                      <td className="px-2 py-2">
                         <span
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase ${
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase ${
                             getBadgeClass(
                               paymentStatusStyles,
                               payment.status,
@@ -655,7 +655,7 @@ const FinanceDashboard = () => {
                           {payment.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
+                      <td className="px-2 py-2 text-gray-600">
                         {payment.reference || "—"}
                       </td>
                     </tr>
@@ -664,8 +664,8 @@ const FinanceDashboard = () => {
               </table>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Total Payments
                 </div>
@@ -673,7 +673,7 @@ const FinanceDashboard = () => {
                   {paymentTotals.count}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Total Value
                 </div>
@@ -681,11 +681,11 @@ const FinanceDashboard = () => {
                   {formatShortCurrency(paymentTotals.value)}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Cleared Ratio
                 </div>
-                <div className="mt-2 flex items-center gap-2 text-emerald-600">
+                <div className="mt-2 flex items-center gap-1.5 text-emerald-600">
                   <CheckCircle className="h-5 w-5" /> 78%
                 </div>
               </div>
@@ -702,24 +702,24 @@ const FinanceDashboard = () => {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
+                  className="rounded border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
                 >
                   View Cash Flow Statement
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                  className="inline-flex items-center gap-1.5 rounded bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                 >
                   <Download className="h-4 w-4" /> Export Summary
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               {cashFlowEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                  className="rounded border border-gray-200 bg-white p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -753,11 +753,11 @@ const FinanceDashboard = () => {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {financialHighlights.map((highlight) => (
                 <div
                   key={highlight.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
+                  className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-4"
                 >
                   <div>
                     <p className="text-sm font-semibold text-gray-900">
@@ -797,25 +797,25 @@ const FinanceDashboard = () => {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
+                  className="rounded border border-gray-200 px-4 py-2 text-sm text-gray-700 transition hover:border-primary-200 hover:bg-primary-50"
                   onClick={() => navigate("/finance/reports")}
                 >
                   View Detailed Reports
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                  className="inline-flex items-center gap-1.5 rounded bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                 >
                   <Download className="h-4 w-4" /> Export Reports
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               {financeKPIs.map((kpi) => (
                 <div
                   key={`${kpi.id}-report`}
-                  className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                  className="rounded border border-gray-200 bg-white p-4 shadow-sm"
                 >
                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                     {kpi.title}
@@ -831,13 +831,13 @@ const FinanceDashboard = () => {
               ))}
             </div>
 
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
               <p className="text-sm text-gray-600">
                 Integrate your accounting software (Tally, Zoho Books, QuickBooks) to sync live finance data.
               </p>
               <button
                 type="button"
-                className="mt-3 inline-flex items-center gap-2 rounded-md border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-600 transition hover:bg-primary-50"
+                className="mt-3 inline-flex items-center gap-1.5 rounded border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-600 transition hover:bg-primary-50"
               >
                 <FileText className="h-4 w-4" /> Connect Integration
               </button>

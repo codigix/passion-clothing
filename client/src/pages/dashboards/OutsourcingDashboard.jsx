@@ -17,6 +17,8 @@ import {
   MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import MinimalStatCard from '../../components/common/MinimalStatCard';
+import '../../styles/compactDashboard.css';
 
 const OutsourcingDashboard = () => {
   const navigate = useNavigate();
@@ -162,99 +164,62 @@ const OutsourcingDashboard = () => {
     return colors[status] || 'default';
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle, unit }) => {
-    const colorClasses = {
-      primary: 'bg-blue-100',
-      success: 'bg-green-100',
-      info: 'bg-cyan-100',
-      warning: 'bg-yellow-100',
-      secondary: 'bg-purple-100'
-    };
-
-    return (
-      <div className="bg-white p-6 rounded-lg shadow h-full">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="text-xs font-semibold uppercase text-gray-500 mb-1 tracking-wide">
-              {title}
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {value}{unit && <span className="text-sm text-gray-500">{unit}</span>}
-            </div>
-            {subtitle && (
-              <div className="text-sm text-gray-500 mt-1">
-                {subtitle}
-              </div>
-            )}
-          </div>
-          <div className={`rounded-full p-3 flex items-center justify-center ${colorClasses[color] || 'bg-blue-100'}`}>
-            {icon}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-900">
           Outsourcing Dashboard
         </h1>
         <div className="flex gap-2">
           <button
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="compact-btn compact-btn-secondary"
             onClick={() => navigate('/outsourcing/vendors')}
           >
-            <Building className="w-4 h-4" />
+            <Building size={16} />
             Manage Vendors
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="compact-btn compact-btn-primary"
             onClick={() => navigate('/outsourcing/create-order')}
           >
-            <Plus className="w-4 h-4" />
+            <Plus size={16} />
             Create Outsource Order
           </button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <StatCard
-          title="Active Outsource Orders"
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <MinimalStatCard
+          title="Active Orders"
           value={stats.activeOrders}
-          subtitle="Currently with vendors"
-          icon={<FileText className="w-6 h-6 text-blue-600" />}
-          color="primary"
+          subtitle="With vendors"
+          icon={FileText}
         />
-        <StatCard
+        <MinimalStatCard
           title="Completed Orders"
           value={stats.completedOrders}
-          subtitle="Successfully completed"
-          icon={<CheckCircle className="w-6 h-6 text-green-600" />}
-          color="success"
+          subtitle="Done"
+          icon={CheckCircle}
         />
-        <StatCard
+        <MinimalStatCard
           title="Total Vendors"
           value={stats.totalVendors}
-          subtitle="Active partnerships"
-          icon={<Building className="w-6 h-6 text-cyan-600" />}
-          color="info"
+          subtitle="Partnerships"
+          icon={Building}
         />
-        <StatCard
-          title="Avg Delivery Time"
-          value={stats.avgDeliveryTime}
-          subtitle="Days from vendor"
-          icon={<Calendar className="w-6 h-6 text-yellow-600" />}
-          color="warning"
+        <MinimalStatCard
+          title="Avg Delivery"
+          value={`${stats.avgDeliveryTime}d`}
+          subtitle="From vendor"
+          icon={Calendar}
         />
       </div>
 
       {/* Recent Outsource Orders - Quick Preview */}
-      <div className="bg-white rounded-lg shadow mb-6 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Outsource Orders</h2>
+      <div className="compact-card mb-4">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="compact-section-title">Recent Outsource Orders</h2>
           <button
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             onClick={() => setTabValue(0)}
@@ -262,9 +227,9 @@ const OutsourcingDashboard = () => {
             View All →
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {outsourceOrders.slice(0, 3).map((order) => (
-            <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={order.id} className="border border-gray-200 rounded p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <div className="text-sm font-semibold text-gray-900">{order.orderNo}</div>
@@ -280,13 +245,13 @@ const OutsourcingDashboard = () => {
                 </span>
               </div>
               <div className="text-sm text-gray-700 mb-3">{order.productName}</div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full ${
-                      order.status === 'completed' ? 'bg-green-600' :
-                      order.status === 'delayed' ? 'bg-red-600' :
-                      'bg-blue-600'
+                      order.status === 'completed' ? 'bg-green-500' :
+                      order.status === 'delayed' ? 'bg-red-500' :
+                      'bg-blue-500'
                     }`}
                     style={{ width: `${order.progress}%` }}
                   ></div>
@@ -299,7 +264,7 @@ const OutsourcingDashboard = () => {
       </div>
 
       {/* Top Performing Vendors */}
-      <div className="bg-white rounded-lg shadow mb-6 p-6">
+      <div className="bg-white rounded shadow mb-4 p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Top Performing Vendors</h2>
           <button
@@ -309,9 +274,9 @@ const OutsourcingDashboard = () => {
             View All →
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {vendors.slice(0, 3).map((vendor) => (
-            <div key={vendor.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={vendor.id} className="border border-gray-200 rounded p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="font-semibold text-gray-900 mb-1">{vendor.name}</div>
@@ -335,24 +300,24 @@ const OutsourcingDashboard = () => {
       </div>
 
       {/* Outsourcing Actions */}
-      <div className="bg-white rounded-lg shadow mb-6 p-6">
+      <div className="bg-white rounded shadow mb-4 p-6">
         <h2 className="text-lg font-semibold mb-4">
           Outsourcing Actions
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-center">
           <div className="md:col-span-2">
             <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by order no, vendor name..."
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               />
             </div>
           </div>
           <div>
             <button
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50"
               onClick={() => navigate('/outsourcing/performance')}
             >
               Vendor Performance
@@ -360,7 +325,7 @@ const OutsourcingDashboard = () => {
           </div>
           <div>
             <button
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50"
               onClick={() => navigate('/outsourcing/quality')}
             >
               Quality Reports
@@ -368,7 +333,7 @@ const OutsourcingDashboard = () => {
           </div>
           <div>
             <button
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50"
               onClick={() => navigate('/outsourcing/reports')}
             >
               Outsource Reports
@@ -376,10 +341,10 @@ const OutsourcingDashboard = () => {
           </div>
           <div>
             <button
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+              className="w-full px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 flex items-center justify-center gap-2"
               onClick={() => navigate('/outsourcing/reports/export')}
             >
-              <Download className="w-4 h-4" />
+              <Download size={14} />
               Export Data
             </button>
           </div>
@@ -387,7 +352,7 @@ const OutsourcingDashboard = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded shadow">
         <div className="border-b border-gray-200">
           <div className="flex">
             {[
@@ -398,7 +363,7 @@ const OutsourcingDashboard = () => {
             ].map((tab) => (
               <button
                 key={tab.index}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-2 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tabValue === tab.index
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -421,26 +386,26 @@ const OutsourcingDashboard = () => {
                       Outsource Orders ({outsourceOrders.length})
                     </h2>
                     <button
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      className="px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50"
                       onClick={() => navigate('/outsourcing/orders')}
                     >
                       View All Orders
                     </button>
                   </div>
 
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="border border-gray-200 rounded overflow-hidden">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order No.</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product/Service</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Return</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quality Rating</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order No.</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product/Service</th>
+                          <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Return</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                          <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quality Rating</th>
+                          <th className="px-2 py-2 text-xs text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -461,10 +426,10 @@ const OutsourcingDashboard = () => {
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <div className="w-16 bg-gray-200 rounded-full h-2">
                                   <div
-                                    className="bg-blue-600 h-2 rounded-full"
+                                    className="bg-blue-500 h-2 rounded-full"
                                     style={{ width: `${order.progress}%` }}
                                   ></div>
                                 </div>
@@ -491,13 +456,13 @@ const OutsourcingDashboard = () => {
                                   className="text-blue-600 hover:text-blue-800 p-1"
                                   onClick={() => navigate(`/outsourcing/orders/${order.id}`)}
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Eye size={14} />
                                 </button>
                                 <button
                                   className="text-gray-600 hover:text-gray-800 p-1"
                                   onClick={() => navigate(`/outsourcing/orders/edit/${order.id}`)}
                                 >
-                                  <Edit className="w-4 h-4" />
+                                  <Edit size={14} />
                                 </button>
                               </div>
                             </td>
@@ -514,19 +479,19 @@ const OutsourcingDashboard = () => {
                       Vendor Directory
                     </h2>
                     <button
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
                       onClick={() => navigate('/outsourcing/add-vendor')}
                     >
-                      <Building className="w-4 h-4" />
+                      <Building size={14} />
                       Add Vendor
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {vendors.map((vendor) => (
-                      <div key={vendor.id} className="bg-white border border-gray-200 rounded-lg p-6 h-full">
+                      <div key={vendor.id} className="bg-white border border-gray-200 rounded p-6 h-full">
                         <div className="flex items-center mb-4">
-                          <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3">
+                          <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-3">
                             {vendor.name.charAt(0)}
                           </div>
                           <div className="flex-1">
@@ -554,7 +519,7 @@ const OutsourcingDashboard = () => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-2 gap-2 mb-4">
                           <div className="text-center">
                             <div className="text-lg font-semibold text-blue-600">
                               {vendor.activeOrders}
@@ -599,7 +564,7 @@ const OutsourcingDashboard = () => {
                             View Details
                           </button>
                           <button
-                            className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                            className="flex-1 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-500"
                             onClick={() => navigate(`/outsourcing/create-order?vendor=${vendor.id}`)}
                           >
                             Create Order
@@ -614,8 +579,8 @@ const OutsourcingDashboard = () => {
                   <h2 className="text-lg font-semibold mb-4">
                     Quality Control Metrics
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-white border border-gray-200 rounded p-6 text-center">
                       <CheckCircle className="w-10 h-10 text-green-600 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-green-600">
                         {stats.qualityScore + '/5'}
@@ -624,7 +589,7 @@ const OutsourcingDashboard = () => {
                         Average Quality Score
                       </div>
                     </div>
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+                    <div className="bg-white border border-gray-200 rounded p-6 text-center">
                       <AlertTriangle className="w-10 h-10 text-yellow-600 mx-auto mb-2" />
                       <div className="text-2xl font-bold">
                         3
@@ -633,7 +598,7 @@ const OutsourcingDashboard = () => {
                         Quality Issues This Month
                       </div>
                     </div>
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+                    <div className="bg-white border border-gray-200 rounded p-6 text-center">
                       <TrendingUp className="w-10 h-10 text-blue-600 mx-auto mb-2" />
                       <div className="text-2xl font-bold">
                         95%

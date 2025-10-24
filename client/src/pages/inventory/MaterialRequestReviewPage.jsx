@@ -175,15 +175,15 @@ const MaterialRequestReviewPage = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex justify-between items-start mb-4">
         <div>
           <button
             onClick={() => navigate('/inventory')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-3 transition"
+            className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 mb-3 transition"
           >
             <FaArrowLeft /> Back to Inventory Dashboard
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <FaClipboardCheck className="text-blue-600" />
             Review Material Request
           </h1>
@@ -191,14 +191,14 @@ const MaterialRequestReviewPage = () => {
         </div>
         <div className="flex flex-col items-end gap-2">
           {getStatusBadge(request.status)}
-          <span className={`px-4 py-2 rounded-lg border-2 text-sm font-bold ${getPriorityColor(request.priority)}`}>
+          <span className={`px-4 py-2 rounded border-2 text-sm font-bold ${getPriorityColor(request.priority)}`}>
             {request.priority?.toUpperCase()} PRIORITY
           </span>
           {/* Quick Dispatch Button */}
           {(request.status === 'pending' || request.status === 'pending_inventory_review' || request.status === 'reviewed') && (
             <button
               onClick={() => navigate(`/inventory/dispatch/${request.id}`)}
-              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-2 font-semibold shadow-md"
+              className="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-600 transition-colors flex items-center gap-1.5 font-semibold shadow-md"
               title="Go to Manual Dispatch Page"
             >
               <FaTruck />
@@ -209,48 +209,48 @@ const MaterialRequestReviewPage = () => {
       </div>
 
       {/* Request Details Card */}
-      <div className="bg-gradient-to-r from-blue-50 to-white rounded-xl shadow-lg border-2 border-blue-100 p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <div className="bg-gradient-to-r from-blue-50 to-white rounded shadow-lg border-2 border-blue-100 p-6 mb-4">
+        <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-1.5">
           <FaIndustry className="text-blue-600" />
           Request Information
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-white rounded p-4 border border-gray-200">
             <label className="text-xs text-gray-500 uppercase font-semibold">Project Name</label>
             <p className="font-bold text-gray-900 text-lg mt-1">{request.project_name}</p>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white rounded p-4 border border-gray-200">
             <label className="text-xs text-gray-500 uppercase font-semibold">Requesting Department</label>
-            <p className="font-bold text-gray-900 text-lg mt-1 flex items-center gap-2">
+            <p className="font-bold text-gray-900 text-lg mt-1 flex items-center gap-1.5">
               <FaIndustry className="text-blue-600" />
               {request.requesting_department?.toUpperCase() || 'MANUFACTURING'}
             </p>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white rounded p-4 border border-gray-200">
             <label className="text-xs text-gray-500 uppercase font-semibold">Request Date</label>
             <p className="font-bold text-gray-900 text-lg mt-1">
               {request.request_date ? new Date(request.request_date).toLocaleDateString() : 'N/A'}
             </p>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white rounded p-4 border border-gray-200">
             <label className="text-xs text-gray-500 uppercase font-semibold">Required By Date</label>
             <p className="font-bold text-gray-900 text-lg mt-1">
               {request.required_by_date ? new Date(request.required_by_date).toLocaleDateString() : 'N/A'}
             </p>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white rounded p-4 border border-gray-200">
             <label className="text-xs text-gray-500 uppercase font-semibold">Total Items</label>
             <p className="font-bold text-gray-900 text-lg mt-1">{request.total_items || materials.length}</p>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white rounded p-4 border border-gray-200">
             <label className="text-xs text-gray-500 uppercase font-semibold">Created By</label>
             <p className="font-bold text-gray-900 text-lg mt-1">{request.creator?.name || 'N/A'}</p>
           </div>
         </div>
         
         {request.manufacturing_notes && (
-          <div className="mt-4 p-4 bg-blue-100 rounded-lg border-2 border-blue-300">
-            <label className="text-sm font-bold text-blue-900 flex items-center gap-2">
+          <div className="mt-4 p-4 bg-blue-100 rounded border-2 border-blue-300">
+            <label className="text-sm font-bold text-blue-900 flex items-center gap-1.5">
               <FaBox /> Manufacturing Notes
             </label>
             <p className="text-sm text-blue-800 mt-2">{request.manufacturing_notes}</p>
@@ -258,8 +258,8 @@ const MaterialRequestReviewPage = () => {
         )}
 
         {request.purchase_order_id && (
-          <div className="mt-4 p-4 bg-green-100 rounded-lg border-2 border-green-300">
-            <label className="text-sm font-bold text-green-900 flex items-center gap-2">
+          <div className="mt-4 p-4 bg-green-100 rounded border-2 border-green-300">
+            <label className="text-sm font-bold text-green-900 flex items-center gap-1.5">
               <FaShoppingCart /> Linked Purchase Order
             </label>
             <p className="text-sm text-green-800 mt-2">
@@ -270,8 +270,8 @@ const MaterialRequestReviewPage = () => {
       </div>
 
       {/* Materials List */}
-      <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded shadow-lg border-2 border-gray-200 p-6 mb-4">
+        <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-1.5">
           <FaBox className="text-purple-600" />
           Materials Requested ({materials.length})
         </h2>
@@ -304,10 +304,10 @@ const MaterialRequestReviewPage = () => {
       </div>
 
       {/* Inventory Notes */}
-      <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Inventory / Dispatch Notes</h2>
+      <div className="bg-white rounded shadow-lg border-2 border-gray-200 p-6 mb-4">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Inventory / Dispatch Notes</h2>
         <textarea
-          className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full border-2 border-gray-300 rounded px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
           rows="4"
           placeholder="Add notes about stock availability, dispatch details, alternative materials, etc."
           value={inventoryNotes}
@@ -316,19 +316,19 @@ const MaterialRequestReviewPage = () => {
       </div>
 
       {/* 🚀 INTEGRATED ACTION BUTTONS - NEW WORKFLOW */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl shadow-xl border-2 border-green-200 p-6 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow-xl border-2 border-green-200 p-6 mb-4">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-1.5">
           <FaTruck className="text-green-600" />
           Integrated Approval & Dispatch Workflow
         </h2>
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-gray-600 mb-4">
           Single-click workflow: Checks GRN, verifies stock across entire inventory, auto-approves, creates dispatch, deducts stock, and notifies manufacturing!
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {/* Auto Approve & Dispatch */}
           <button
-            className="px-6 py-4 rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-4 rounded bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleIntegratedApprovalAndDispatch(false)}
             disabled={processing || request.status === 'materials_dispatched'}
           >
@@ -341,7 +341,7 @@ const MaterialRequestReviewPage = () => {
 
           {/* Force Dispatch (Partial) */}
           <button
-            className="px-6 py-4 rounded-lg bg-gradient-to-r from-orange-600 to-orange-700 text-white hover:from-orange-700 hover:to-orange-800 font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-4 rounded bg-gradient-to-r from-orange-600 to-orange-700 text-white hover:from-orange-700 hover:to-orange-800 font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleIntegratedApprovalAndDispatch(true)}
             disabled={processing || request.status === 'materials_dispatched'}
           >
@@ -354,7 +354,7 @@ const MaterialRequestReviewPage = () => {
 
           {/* Forward to Procurement */}
           <button
-            className="px-6 py-4 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-4 rounded bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleForwardToProcurement}
             disabled={processing}
           >
@@ -376,14 +376,14 @@ const MaterialRequestReviewPage = () => {
 
       {/* 📊 RESULTS DISPLAY */}
       {showResults && approvalResult && (
-        <div className="bg-white rounded-xl shadow-2xl border-2 border-blue-300 p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+        <div className="bg-white rounded shadow-2xl border-2 border-blue-300 p-6 mb-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
             <FaClipboardCheck className="text-blue-600" />
             Approval & Dispatch Results
           </h2>
 
           {/* Approval Status */}
-          <div className={`p-4 rounded-lg mb-6 ${
+          <div className={`p-4 rounded mb-4 ${
             approvalResult.approval_status === 'approved' ? 'bg-green-100 border-2 border-green-400' :
             approvalResult.approval_status === 'partial' ? 'bg-orange-100 border-2 border-orange-400' :
             'bg-red-100 border-2 border-red-400'
@@ -393,7 +393,7 @@ const MaterialRequestReviewPage = () => {
                approvalResult.approval_status === 'partial' ? <FaExclamationTriangle className="text-orange-600 text-3xl" /> :
                <FaTimesCircle className="text-red-600 text-3xl" />}
               <div>
-                <h3 className="text-xl font-bold">
+                <h3 className="text-lg font-bold">
                   {approvalResult.approval_status === 'approved' ? '✅ Approved & Dispatched' :
                    approvalResult.approval_status === 'partial' ? '⚠️ Partial Stock Available' :
                    '❌ Stock Unavailable'}
@@ -405,11 +405,11 @@ const MaterialRequestReviewPage = () => {
 
           {/* GRN Check Results */}
           {approvalResult.grn_check && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-              <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <div className="mb-4 p-4 bg-blue-50 rounded border-2 border-blue-200">
+              <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-1.5">
                 <FaBox /> GRN Verification Results
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-sm text-gray-600">GRN Received:</span>
                   <p className="font-bold">
@@ -438,8 +438,8 @@ const MaterialRequestReviewPage = () => {
 
           {/* Stock Check Results */}
           {approvalResult.stock_check && approvalResult.stock_check.length > 0 && (
-            <div className="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
-              <h3 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
+            <div className="mb-4 p-4 bg-purple-50 rounded border-2 border-purple-200">
+              <h3 className="font-bold text-purple-900 mb-3 flex items-center gap-1.5">
                 <FaBoxOpen /> Stock Availability Details
               </h3>
               <div className="overflow-x-auto">
@@ -501,7 +501,7 @@ const MaterialRequestReviewPage = () => {
                         <p className="font-semibold text-gray-800 mb-2">{stockItem.material_name}:</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                           {stockItem.inventory_items.map((invItem, invIndex) => (
-                            <div key={invIndex} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <div key={invIndex} className="flex items-center gap-1.5 p-2 bg-gray-50 rounded">
                               <FaMapMarkerAlt className="text-blue-500" />
                               <span className="font-semibold">{invItem.location || 'N/A'}</span>
                               <FaLayerGroup className="text-green-500" />
@@ -522,11 +522,11 @@ const MaterialRequestReviewPage = () => {
 
           {/* Dispatch Details */}
           {approvalResult.dispatch && (
-            <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300">
-              <h3 className="font-bold text-green-900 mb-3 flex items-center gap-2">
+            <div className="p-4 bg-green-50 rounded border-2 border-green-300">
+              <h3 className="font-bold text-green-900 mb-3 flex items-center gap-1.5">
                 <FaTruck /> Dispatch Created Successfully
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div>
                   <span className="text-sm text-gray-600">Dispatch Number:</span>
                   <p className="font-bold text-lg text-green-600">{approvalResult.dispatch.dispatch_number}</p>

@@ -257,7 +257,7 @@ const SalesReportsPage = () => {
   };
 
   const MetricCard = ({ title, value, icon, color = 'primary' }) => (
-    <div className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+    <div className="bg-white rounded shadow p-4 flex items-center justify-between">
       <div>
         <div className="text-xs text-gray-500 uppercase font-semibold mb-1">{title}</div>
         <div className="text-2xl font-bold text-gray-900">{value}</div>
@@ -269,7 +269,7 @@ const SalesReportsPage = () => {
   const renderReportContent = () => {
     if (loading) {
       return (
-        <div className="bg-white rounded-lg shadow p-12">
+        <div className="bg-white rounded shadow p-12">
           <div className="flex flex-col items-center justify-center">
             <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
             <p className="text-gray-600">Loading report data...</p>
@@ -283,37 +283,37 @@ const SalesReportsPage = () => {
         return (
           <div className="space-y-6">
             {/* Extended Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="bg-white rounded shadow p-4 border-l-4 border-yellow-500">
                 <div className="text-sm text-gray-600 mb-1">Pending Orders</div>
                 <div className="text-2xl font-bold text-gray-900">{salesMetrics.pendingOrders}</div>
               </div>
-              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+              <div className="bg-white rounded shadow p-4 border-l-4 border-orange-500">
                 <div className="text-sm text-gray-600 mb-1">In Production</div>
                 <div className="text-2xl font-bold text-gray-900">{salesMetrics.inProductionOrders}</div>
               </div>
-              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+              <div className="bg-white rounded shadow p-4 border-l-4 border-green-500">
                 <div className="text-sm text-gray-600 mb-1">Delivered</div>
                 <div className="text-2xl font-bold text-gray-900">{salesMetrics.deliveredOrders}</div>
               </div>
-              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+              <div className="bg-white rounded shadow p-4 border-l-4 border-blue-500">
                 <div className="text-sm text-gray-600 mb-1">Advance Collected</div>
                 <div className="text-2xl font-bold text-gray-900">₹{salesMetrics.advanceCollected.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
               </div>
-              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+              <div className="bg-white rounded shadow p-4 border-l-4 border-red-500">
                 <div className="text-sm text-gray-600 mb-1">Balance Due</div>
                 <div className="text-2xl font-bold text-gray-900">₹{salesMetrics.balanceDue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
               </div>
-              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+              <div className="bg-white rounded shadow p-4 border-l-4 border-purple-500">
                 <div className="text-sm text-gray-600 mb-1">Invoices Generated</div>
                 <div className="text-2xl font-bold text-gray-900">{salesMetrics.invoicesGenerated}</div>
               </div>
             </div>
 
             {/* Procurement & Invoice Status */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white rounded shadow p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-1.5">
                   <ShoppingCart className="w-5 h-5 text-blue-500" />
                   Procurement Status
                 </h3>
@@ -329,8 +329,8 @@ const SalesReportsPage = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <div className="bg-white rounded shadow p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-1.5">
                   <FileText className="w-5 h-5 text-purple-500" />
                   Invoice Status
                 </h3>
@@ -351,20 +351,20 @@ const SalesReportsPage = () => {
 
       case 'detailed':
         return (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Number</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Advance</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Number</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Advance</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -377,11 +377,11 @@ const SalesReportsPage = () => {
                   ) : (
                     detailedReport.map((order) => (
                       <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-blue-600">{order.order_number}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{order.customer?.name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{new Date(order.order_date).toLocaleDateString('en-IN')}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{new Date(order.delivery_date).toLocaleDateString('en-IN')}</td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-2 py-2 text-sm font-medium text-blue-600">{order.order_number}</td>
+                        <td className="px-2 py-2 text-sm text-gray-900">{order.customer?.name || 'N/A'}</td>
+                        <td className="px-2 py-2 text-sm text-gray-600">{new Date(order.order_date).toLocaleDateString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-gray-600">{new Date(order.delivery_date).toLocaleDateString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
                             order.status === 'delivered' ? 'bg-green-100 text-green-700' :
                             order.status === 'in_production' ? 'bg-orange-100 text-orange-700' :
@@ -391,10 +391,10 @@ const SalesReportsPage = () => {
                             {order.status?.replace('_', ' ').toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">{order.total_quantity || 0}</td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">₹{parseFloat(order.final_amount || 0).toLocaleString('en-IN')}</td>
-                        <td className="px-4 py-3 text-sm text-right text-green-600">₹{parseFloat(order.advance_paid || 0).toLocaleString('en-IN')}</td>
-                        <td className="px-4 py-3 text-sm text-right text-red-600">₹{parseFloat(order.balance_amount || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{order.total_quantity || 0}</td>
+                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{parseFloat(order.final_amount || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-right text-green-600">₹{parseFloat(order.advance_paid || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-right text-red-600">₹{parseFloat(order.balance_amount || 0).toLocaleString('en-IN')}</td>
                       </tr>
                     ))
                   )}
@@ -406,16 +406,16 @@ const SalesReportsPage = () => {
 
       case 'customer':
         return (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Order Value</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Amount</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Order Value</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -428,11 +428,11 @@ const SalesReportsPage = () => {
                   ) : (
                     customerReport.map((customer, index) => (
                       <tr key={customer.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{customer.name}</td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">{customer.totalOrders}</td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">₹{customer.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-4 py-3 text-sm text-right text-red-600">₹{customer.pendingAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-4 py-3 text-sm text-right text-blue-600">₹{(customer.totalAmount / customer.totalOrders).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 py-2 text-sm font-medium text-gray-900">{customer.name}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{customer.totalOrders}</td>
+                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{customer.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-red-600">₹{customer.pendingAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-blue-600">₹{(customer.totalAmount / customer.totalOrders).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                       </tr>
                     ))
                   )}
@@ -444,16 +444,16 @@ const SalesReportsPage = () => {
 
       case 'product':
         return (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quantity</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Price/Unit</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quantity</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Price/Unit</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -466,11 +466,11 @@ const SalesReportsPage = () => {
                   ) : (
                     productReport.map((product, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{product.product}</td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">{product.totalQuantity.toLocaleString('en-IN')}</td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">{product.totalOrders}</td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">₹{product.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-4 py-3 text-sm text-right text-blue-600">₹{(product.totalAmount / product.totalQuantity).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm font-medium text-gray-900">{product.product}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{product.totalQuantity.toLocaleString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{product.totalOrders}</td>
+                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{product.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-blue-600">₹{(product.totalAmount / product.totalQuantity).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   )}
@@ -482,7 +482,7 @@ const SalesReportsPage = () => {
 
       default:
         return (
-          <div className="bg-white rounded-lg shadow p-12">
+          <div className="bg-white rounded shadow p-12">
             <div className="text-center text-gray-500">
               <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p>Select a report type to view data</p>
@@ -493,48 +493,48 @@ const SalesReportsPage = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen">
       {/* Page Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Sales Reports</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Sales Reports</h1>
           <p className="text-gray-600 mt-1">Generate comprehensive sales reports and analytics</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-sm text-white rounded hover:bg-green-600"
           >
-            <Download className="w-4 h-4" />
+            <Download size={14} />
             Export CSV
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600"
           >
-            <Printer className="w-4 h-4" />
+            <Printer size={14} />
             Print
           </button>
         </div>
       </div>
 
       {/* Filters Section */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="bg-white rounded shadow p-6 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
             <select
               value={dateRange}
               onChange={e => setDateRange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             >
               <option value="today">Today</option>
               <option value="thisWeek">This Week</option>
@@ -550,7 +550,7 @@ const SalesReportsPage = () => {
             <select
               value={reportType}
               onChange={e => setReportType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             >
               <option value="summary">Summary Report</option>
               <option value="detailed">Detailed Orders</option>
@@ -559,7 +559,7 @@ const SalesReportsPage = () => {
             </select>
           </div>
           <div className="flex items-end">
-            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg w-full">
+            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded w-full">
               <div className="font-semibold text-blue-700">
                 {reportType === 'summary' ? 'Summary View' :
                  reportType === 'detailed' ? `${detailedReport.length} Orders` :
@@ -571,14 +571,14 @@ const SalesReportsPage = () => {
         </div>
         
         {dateRange === 'custom' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-4 border-t border-gray-200">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
               <input 
                 type="date" 
                 value={customDateFrom}
                 onChange={e => setCustomDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500" 
               />
             </div>
             <div>
@@ -587,7 +587,7 @@ const SalesReportsPage = () => {
                 type="date" 
                 value={customDateTo}
                 onChange={e => setCustomDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500" 
               />
             </div>
           </div>
@@ -595,7 +595,7 @@ const SalesReportsPage = () => {
       </div>
 
       {/* Main Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-4">
         <MetricCard
           title="Total Sales"
           value={`₹${salesMetrics.totalSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}

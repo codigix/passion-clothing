@@ -160,12 +160,12 @@ const GRNVerificationPage = () => {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="bg-red-50 border border-red-200 rounded p-6">
             <h2 className="text-lg font-semibold text-red-800 mb-2">GRN Not Found</h2>
             <p className="text-red-700 mb-4">The requested GRN could not be found.</p>
             <button
               onClick={() => navigate('/inventory/grn')}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
             >
               Go to GRN List
             </button>
@@ -223,7 +223,7 @@ const GRNVerificationPage = () => {
         </div>
 
         {/* GRN Info Card */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded shadow-sm border p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">GRN Information</h2>
           <div className="grid grid-cols-4 gap-4">
             <div>
@@ -263,7 +263,7 @@ const GRNVerificationPage = () => {
 
         {/* Warning if discrepancies detected */}
         {hasAnyDiscrepancy && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-yellow-600" />
               <h3 className="font-semibold text-yellow-900">Quantity Variance Detected</h3>
@@ -275,7 +275,7 @@ const GRNVerificationPage = () => {
         )}
 
         {/* Items Table */}
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-6">
+        <div className="bg-white rounded shadow-sm border overflow-hidden mb-6">
           <div className="px-6 py-4 border-b bg-gray-50">
             <h2 className="text-lg font-semibold">Received Items - Quality Check</h2>
           </div>
@@ -350,7 +350,7 @@ const GRNVerificationPage = () => {
         </div>
 
         {/* Verification Form */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded shadow-sm border p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Verification Decision</h2>
           
           {/* Discrepancy Checkboxes */}
@@ -364,7 +364,7 @@ const GRNVerificationPage = () => {
                   type="checkbox"
                   checked={verificationForm.discrepancy_details.qty_mismatch}
                   onChange={(e) => handleDiscrepancyChange('qty_mismatch', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20"
                 />
                 <span className="ml-2 text-sm text-gray-700">Quantity Mismatch</span>
               </label>
@@ -373,7 +373,7 @@ const GRNVerificationPage = () => {
                   type="checkbox"
                   checked={verificationForm.discrepancy_details.weight_mismatch}
                   onChange={(e) => handleDiscrepancyChange('weight_mismatch', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20"
                 />
                 <span className="ml-2 text-sm text-gray-700">Weight Mismatch</span>
               </label>
@@ -382,7 +382,7 @@ const GRNVerificationPage = () => {
                   type="checkbox"
                   checked={verificationForm.discrepancy_details.quality_issue}
                   onChange={(e) => handleDiscrepancyChange('quality_issue', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20"
                 />
                 <span className="ml-2 text-sm text-gray-700">Quality Issue (Color, GSM, Condition)</span>
               </label>
@@ -402,7 +402,7 @@ const GRNVerificationPage = () => {
                 onChange={(e) => handleDiscrepancyChange('details', e.target.value)}
                 rows="3"
                 placeholder="Describe the issue in detail..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
           )}
@@ -417,7 +417,7 @@ const GRNVerificationPage = () => {
               onChange={(e) => handleVerificationChange('verification_notes', e.target.value)}
               rows="3"
               placeholder="Additional notes about verification..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             />
           </div>
         </div>
@@ -429,7 +429,7 @@ const GRNVerificationPage = () => {
               <button
                 onClick={() => setShowVendorRevertModal(true)}
                 disabled={submitting}
-                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-2 disabled:opacity-50"
               >
                 <AlertTriangle className="w-4 h-4" />
                 Request Vendor Revert (Shortage Detected)
@@ -440,7 +440,7 @@ const GRNVerificationPage = () => {
           <div className="flex gap-3">
             <button
               onClick={() => navigate('/inventory/grn')}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-6 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
               disabled={submitting}
             >
               Cancel
@@ -452,7 +452,7 @@ const GRNVerificationPage = () => {
               <button
                 onClick={() => handleSubmit('discrepancy')}
                 disabled={submitting}
-                className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-2 disabled:opacity-50"
               >
                 {submitting ? (
                   <>
@@ -471,7 +471,7 @@ const GRNVerificationPage = () => {
             <button
               onClick={() => handleSubmit('verified')}
               disabled={submitting}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 disabled:opacity-50"
             >
               {submitting ? (
                 <>
@@ -489,7 +489,7 @@ const GRNVerificationPage = () => {
         </div>
 
         {/* Help Text */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded p-4">
           <h3 className="text-sm font-semibold text-blue-900 mb-2">🔍 Verification Guidelines</h3>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
             <li><strong>Verified:</strong> All items match expected quality and quantity. Ready to add to inventory.</li>
@@ -503,7 +503,7 @@ const GRNVerificationPage = () => {
         {/* Vendor Revert Modal */}
         {showVendorRevertModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-4 border-b bg-orange-50">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                   <AlertTriangle className="w-6 h-6 text-orange-600" />
@@ -516,7 +516,7 @@ const GRNVerificationPage = () => {
 
               <div className="px-6 py-4">
                 {/* Shortage Items Summary */}
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="mb-6 bg-red-50 border border-red-200 rounded p-4">
                   <h3 className="font-semibold text-red-900 mb-3">Items with Shortage:</h3>
                   <div className="space-y-2">
                     {grn.items_received?.filter(item => {
@@ -557,7 +557,7 @@ const GRNVerificationPage = () => {
                     <select
                       value={vendorRevertForm.reason}
                       onChange={(e) => setVendorRevertForm(prev => ({ ...prev, reason: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
                     >
                       <option value="">Select reason...</option>
                       <option value="shortage_in_delivery">Shortage in Delivery</option>
@@ -576,11 +576,11 @@ const GRNVerificationPage = () => {
                       onChange={(e) => setVendorRevertForm(prev => ({ ...prev, notes: e.target.value }))}
                       rows="3"
                       placeholder="Provide any additional details about the shortage or expected delivery..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
                     />
                   </div>
 
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                     <p className="text-sm text-yellow-800">
                       <strong>Note:</strong> This will notify the procurement team to contact vendor 
                       <strong> {grn.supplier_name}</strong> regarding the pending items. The GRN will be marked 
@@ -596,7 +596,7 @@ const GRNVerificationPage = () => {
                     setShowVendorRevertModal(false);
                     setVendorRevertForm({ reason: '', notes: '' });
                   }}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-white"
+                  className="px-6 py-2 border border-gray-300 rounded text-gray-700 hover:bg-white"
                   disabled={submitting}
                 >
                   Cancel
@@ -604,7 +604,7 @@ const GRNVerificationPage = () => {
                 <button
                   onClick={handleVendorRevert}
                   disabled={submitting || !vendorRevertForm.reason}
-                  className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? (
                     <>

@@ -100,13 +100,13 @@ const BillOfMaterialsPage = () => {
         <h1 className="text-2xl font-bold">Bill of Materials</h1>
         <div className="flex gap-2">
           <button
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2"
             onClick={() => navigate('/procurement/bom/generate')}
           >
             <FaPlus size={16} /> Generate BOM
           </button>
           <button
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center gap-2"
             onClick={() => navigate('/procurement/purchase-orders')}
           >
             <FaShoppingCart size={16} /> Purchase Orders

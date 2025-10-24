@@ -453,72 +453,99 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
       >
         {/* Modal Container */}
         <div 
-          className="bg-white rounded-lg shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col"
+          className="bg-white rounded-lg shadow-2xl w-full max-w-7xl h-[92vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
+          {/* Sticky Header with Gradient */}
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded-t-lg shadow-md">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
+                  <h1 className="text-base font-bold">
                     {productionOrder.production_number}
                   </h1>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs font-medium opacity-90">
                     {productionOrder.product?.name || 'Unknown Product'} - {productionOrder.quantity} units
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20">
+                  {overallProgress}% Complete
+                </span>
+                <button
+                  onClick={onClose}
+                  className="p-1 hover:bg-blue-500 rounded transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Overall Progress */}
-          <div className="bg-white border-b border-gray-200 px-6 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-              <span className="text-sm font-bold text-gray-900">{overallProgress}% Complete</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-red-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${overallProgress}%` }}
-              ></div>
+          {/* Sticky Summary Bar */}
+          <div className="sticky top-9 z-10 bg-gray-50 border-b border-gray-200 px-3 py-2 shadow-sm">
+            <div className="grid grid-cols-6 gap-2 text-center">
+              <div className="p-1">
+                <p className="text-xs text-gray-600">Qty</p>
+                <p className="text-sm font-bold text-gray-900">{productionOrder.quantity}</p>
+              </div>
+              <div className="p-1">
+                <p className="text-xs text-gray-600">Stages</p>
+                <p className="text-sm font-bold text-blue-600">{stages.length}</p>
+              </div>
+              <div className="p-1">
+                <p className="text-xs text-gray-600">Completed</p>
+                <p className="text-sm font-bold text-green-600">{stages.filter(s => s.status === 'completed').length}</p>
+              </div>
+              <div className="p-1">
+                <p className="text-xs text-gray-600">In Progress</p>
+                <p className="text-sm font-bold text-blue-600">{stages.filter(s => s.status === 'in_progress').length}</p>
+              </div>
+              <div className="p-1">
+                <p className="text-xs text-gray-600">On Hold</p>
+                <p className="text-sm font-bold text-yellow-600">{stages.filter(s => s.status === 'on_hold').length}</p>
+              </div>
+              <div className="p-1">
+                <p className="text-xs text-gray-600">Pending</p>
+                <p className="text-sm font-bold text-gray-600">{stages.filter(s => s.status === 'pending').length}</p>
+              </div>
             </div>
           </div>
 
           {/* Main Content */}
           <div className="flex flex-1 overflow-hidden">
             {/* Left Sidebar - Production Stages */}
-            <div className="w-80 bg-gray-50 border-r border-gray-200 p-6 overflow-y-auto">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Production Stages</h2>
-              <div>
+            <div className="w-72 bg-gray-50 border-r border-gray-200 p-2.5 overflow-y-auto">
+              <h2 className="text-sm font-semibold text-gray-900 mb-2 px-1">Production Stages</h2>
+              <div className="space-y-1">
                 {stages.map((stage, index) => (
                   <div
                     key={stage.id}
-                    className={getStageStatusClass(stage.status, index === selectedStageIndex)}
+                    className={`p-2 rounded border-l-4 cursor-pointer transition-all text-xs ${
+                      index === selectedStageIndex
+                        ? 'border-l-red-500 bg-red-50'
+                        : stage.status === 'completed'
+                        ? 'border-l-green-400 bg-white hover:bg-green-50'
+                        : stage.status === 'in_progress'
+                        ? 'border-l-blue-400 bg-white hover:bg-blue-50'
+                        : stage.status === 'on_hold'
+                        ? 'border-l-yellow-400 bg-white hover:bg-yellow-50'
+                        : 'border-l-gray-300 bg-white hover:bg-gray-50'
+                    }`}
                     onClick={() => {
                       setSelectedStageIndex(index);
                       setEditMode(false);
                     }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getStageIcon(stage.status)}
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            Step {index + 1}: {stage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                          </div>
-                          <div className="mt-1">
-                            <span className={getStatusBadgeClass(stage.status)}>
-                              {stage.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                            </span>
-                          </div>
+                    <div className="flex items-center gap-2">
+                      {getStageIcon(stage.status)}
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">
+                          Step {index + 1}
+                        </div>
+                        <div className="text-xs text-gray-600 truncate">
+                          {stage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </div>
                       </div>
                     </div>
@@ -528,221 +555,215 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
             </div>
 
             {/* Right Panel - Stage Details */}
-            <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex-1 p-2.5 overflow-y-auto">
               {currentStage && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5">
                   {/* Stage Title and Actions */}
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-2">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
+                      <h2 className="text-base font-bold text-gray-900">
                         {currentStage.stage_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </h2>
-                      <div className="mt-2">
-                        <span className={getStatusBadgeClass(currentStage.status)}>
-                          {currentStage.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                        </span>
-                      </div>
+                      <span className={`text-xs font-semibold inline-block mt-0.5 px-2 py-0.5 rounded-full ${
+                        currentStage.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        currentStage.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                        currentStage.status === 'on_hold' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {currentStage.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </span>
                     </div>
                     {editMode ? (
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <button
                           onClick={handleSaveChanges}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                          className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                         >
-                          <Save className="w-4 h-4" />
-                          Save Changes
+                          <Save style={{fontSize: '10px'}} className="w-3 h-3" />
+                          Save
                         </button>
                         <button
                           onClick={() => setEditMode(false)}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                          className="flex items-center gap-1 px-2 py-1 bg-gray-300 text-gray-700 rounded text-xs hover:bg-gray-400"
                         >
-                          <X className="w-4 h-4" />
+                          <X style={{fontSize: '10px'}} className="w-3 h-3" />
                           Cancel
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setEditMode(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit style={{fontSize: '10px'}} className="w-3 h-3" />
                         Edit
                       </button>
                     )}
                   </div>
 
-                  {/* Stage Information */}
-                  <div className="grid grid-cols-2 gap-6 mb-6">
+                  {/* Stage Information - Compact Grid */}
+                  <div className="grid grid-cols-4 gap-2 mb-2 p-2 bg-gray-50 rounded border border-gray-200">
                     {/* Start Date & Time */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Start</label>
                       {editMode ? (
-                        <input
-                          type="date"
-                          value={formData.start_date}
-                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div className="flex gap-1">
+                          <input
+                            type="date"
+                            value={formData.start_date}
+                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                            className="flex-1 px-1.5 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
                       ) : (
-                        <p className="text-gray-900">
-                          {formData.start_date || 'Not started'}
+                        <p className="text-xs text-gray-900 font-semibold">
+                          {formData.start_date ? new Date(formData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                         </p>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                      {editMode ? (
+                      {editMode && formData.start_date && (
                         <input
                           type="time"
                           value={formData.start_time}
                           onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-1.5 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 mt-0.5"
                         />
-                      ) : (
-                        <p className="text-gray-900">
-                          {formData.start_time || 'Not started'}
-                        </p>
+                      )}
+                      {!editMode && formData.start_time && (
+                        <p className="text-xs text-gray-600">{formData.start_time}</p>
                       )}
                     </div>
 
                     {/* End Date & Time */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">End</label>
                       {editMode ? (
-                        <input
-                          type="date"
-                          value={formData.end_date}
-                          onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div className="flex gap-1">
+                          <input
+                            type="date"
+                            value={formData.end_date}
+                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                            className="flex-1 px-1.5 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
                       ) : (
-                        <p className="text-gray-900">
-                          {formData.end_date || 'Not completed'}
+                        <p className="text-xs text-gray-900 font-semibold">
+                          {formData.end_date ? new Date(formData.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                         </p>
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
-                      {editMode ? (
+                      {editMode && formData.end_date && (
                         <input
                           type="time"
                           value={formData.end_time}
                           onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-1.5 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 mt-0.5"
                         />
-                      ) : (
-                        <p className="text-gray-900">
-                          {formData.end_time || 'Not completed'}
-                        </p>
+                      )}
+                      {!editMode && formData.end_time && (
+                        <p className="text-xs text-gray-600">{formData.end_time}</p>
                       )}
                     </div>
 
                     {/* Duration */}
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
-                      <p className="text-gray-900">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Duration</label>
+                      <p className="text-xs text-gray-900 font-semibold">
                         {calculateDuration(
                           formData.start_date && formData.start_time ? `${formData.start_date}T${formData.start_time}` : null,
                           formData.end_date && formData.end_time ? `${formData.end_date}T${formData.end_time}` : null
                         )}
                       </p>
                     </div>
+
+                    {/* Notes Preview */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                      <p className="text-xs text-gray-600 italic truncate" title={formData.notes}>
+                        {formData.notes ? formData.notes.substring(0, 40) + (formData.notes.length > 40 ? '...' : '') : '—'}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Notes */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                    {editMode ? (
+                  {/* Full Notes Editor */}
+                  {editMode && (
+                    <div className="mb-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Full Notes</label>
                       <textarea
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={2}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                         placeholder="Add notes about this stage..."
                       />
-                    ) : (
-                      <p className="text-gray-900 whitespace-pre-wrap">
-                        {formData.notes || 'No notes added'}
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Outsourcing Options (for specific stages) */}
                   {isOutsourcingStage(currentStage) && (
-                    <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-purple-600" />
-                        Outsourcing Options
+                    <div className="mb-2 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+                      <h3 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+                        <Building2 style={{fontSize: '12px'}} className="w-3 h-3 text-purple-600" />
+                        Outsourcing
                       </h3>
                       
-                      <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="grid grid-cols-2 gap-2 mb-2">
                         <button
                           onClick={() => {
                             setWorkType('in_house');
-                            toast.success('Set to In-House Production');
+                            toast.success('In-House');
                           }}
-                          className={`p-4 rounded-lg border-2 transition-all ${
+                          className={`p-1.5 rounded border transition-all text-xs font-semibold ${
                             workType === 'in_house'
-                              ? 'border-green-500 bg-green-50'
-                              : 'border-gray-300 bg-white hover:bg-gray-50'
+                              ? 'border-green-500 bg-green-100 text-green-700'
+                              : 'border-gray-300 bg-white text-gray-600 hover:bg-green-50'
                           }`}
                         >
-                          <Home className="w-8 h-8 mx-auto mb-2 text-green-600" />
-                          <p className="font-medium text-center">In-House</p>
+                          <Home style={{fontSize: '12px'}} className="w-3 h-3 mx-auto mb-0.5" />
+                          In-House
                         </button>
                         
                         <button
                           onClick={() => {
                             setWorkType('outsourced');
-                            toast.success('Set to Outsourced');
+                            toast.success('Outsourced');
                           }}
-                          className={`p-4 rounded-lg border-2 transition-all ${
+                          className={`p-1.5 rounded border transition-all text-xs font-semibold ${
                             workType === 'outsourced'
-                              ? 'border-purple-500 bg-purple-50'
-                              : 'border-gray-300 bg-white hover:bg-gray-50'
+                              ? 'border-purple-500 bg-purple-100 text-purple-700'
+                              : 'border-gray-300 bg-white text-gray-600 hover:bg-purple-50'
                           }`}
                         >
-                          <Building2 className="w-8 h-8 mx-auto mb-2 text-purple-600" />
-                          <p className="font-medium text-center">Outsourced</p>
+                          <Building2 style={{fontSize: '12px'}} className="w-3 h-3 mx-auto mb-0.5" />
+                          Outsourced
                         </button>
                       </div>
 
                       {workType === 'outsourced' && (
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           <button
                             onClick={() => setOutwardChallanDialog(true)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                            className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-orange-600 text-white rounded text-xs font-semibold hover:bg-orange-700"
                           >
-                            <Send className="w-5 h-5" />
-                            Create Outward Challan
+                            <Send style={{fontSize: '10px'}} className="w-3 h-3" />
+                            Outward
                           </button>
                           
                           <button
                             onClick={() => setInwardChallanDialog(true)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700"
                           >
-                            <Download className="w-5 h-5" />
-                            Create Inward Challan
+                            <Download style={{fontSize: '10px'}} className="w-3 h-3" />
+                            Inward
                           </button>
 
                           {/* Display existing challans */}
                           {challans.length > 0 && (
-                            <div className="mt-4">
-                              <h4 className="font-medium text-gray-900 mb-2">Challans</h4>
-                              <div className="space-y-2">
+                            <div className="mt-2 p-1.5 bg-white rounded border border-gray-200">
+                              <h4 className="text-xs font-semibold text-gray-900 mb-1">Challans ({challans.length})</h4>
+                              <div className="space-y-1">
                                 {challans.map((challan) => (
-                                  <div key={challan.id} className="p-3 bg-white border border-gray-200 rounded-lg">
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <p className="font-medium">{challan.challan_number}</p>
-                                        <p className="text-sm text-gray-600">
-                                          {challan.type === 'outward' ? 'Outward' : 'Inward'} - {challan.status}
-                                        </p>
-                                      </div>
-                                      <FileText className="w-5 h-5 text-gray-400" />
-                                    </div>
+                                  <div key={challan.id} className="p-1 bg-gray-50 rounded border border-gray-200 text-xs">
+                                    <p className="font-semibold text-gray-900">{challan.challan_number}</p>
+                                    <p className="text-gray-600">{challan.type === 'outward' ? '↗' : '↙'} {challan.status}</p>
                                   </div>
                                 ))}
                               </div>
@@ -755,43 +776,43 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
 
                   {/* Material Reconciliation (for last stage) */}
                   {isLastStage() && currentStage.status === 'in_progress' && (
-                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <Calculator className="w-5 h-5 text-amber-600" />
+                    <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <h3 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+                        <Calculator style={{fontSize: '12px'}} className="w-3 h-3 text-amber-600" />
                         Material Reconciliation
                       </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        This is the final stage. Calculate material usage and return any leftover materials to inventory.
+                      <p className="text-xs text-gray-600 mb-2">
+                        Final stage: Calculate material usage and return leftovers to inventory.
                       </p>
                       <button
                         onClick={openMaterialReconciliation}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                        className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700"
                       >
-                        <Package className="w-5 h-5" />
-                        Open Material Reconciliation
+                        <Package style={{fontSize: '10px'}} className="w-3 h-3" />
+                        Open Reconciliation
                       </button>
                     </div>
                   )}
 
-                  {/* Quick Actions */}
-                  <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                  {/* Quick Actions - Sticky Footer */}
+                  <div className="sticky bottom-0 flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-gray-200 bg-white rounded-b">
                     <button
                       onClick={handlePreviousStage}
                       disabled={selectedStageIndex === 0}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-semibold hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <ChevronLeft className="w-4 h-4" />
-                      Previous Stage
+                      <ChevronLeft style={{fontSize: '10px'}} className="w-3 h-3" />
+                      Prev
                     </button>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       {currentStage.status === 'pending' && (
                         <button
                           onClick={handleStartStage}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                          className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
                         >
-                          <Play className="w-4 h-4" />
-                          Start Stage
+                          <Play style={{fontSize: '10px'}} className="w-3 h-3" />
+                          Start
                         </button>
                       )}
                       
@@ -799,17 +820,17 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
                         <>
                           <button
                             onClick={handlePauseStage}
-                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                            className="flex items-center gap-1 px-2 py-1 bg-yellow-500 text-white rounded text-xs font-semibold hover:bg-yellow-600"
                           >
-                            <Pause className="w-4 h-4" />
+                            <Pause style={{fontSize: '10px'}} className="w-3 h-3" />
                             Pause
                           </button>
                           <button
                             onClick={handleCompleteStage}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
                           >
-                            <CheckCircle className="w-4 h-4" />
-                            Complete Stage
+                            <CheckCircle style={{fontSize: '10px'}} className="w-3 h-3" />
+                            Done
                           </button>
                         </>
                       )}
@@ -817,10 +838,10 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
                       {currentStage.status === 'on_hold' && (
                         <button
                           onClick={handleStartStage}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                          className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
                         >
-                          <Play className="w-4 h-4" />
-                          Resume Stage
+                          <Play style={{fontSize: '10px'}} className="w-3 h-3" />
+                          Resume
                         </button>
                       )}
                     </div>
@@ -828,10 +849,10 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
                     <button
                       onClick={handleNextStage}
                       disabled={selectedStageIndex === stages.length - 1}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-semibold hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Next Stage
-                      <ChevronRight className="w-4 h-4" />
+                      Next
+                      <ChevronRight style={{fontSize: '10px'}} className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -848,53 +869,53 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
           onClick={() => setReconciliationDialog(false)}
         >
           <div 
-            className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg max-w-4xl w-full max-h-[88vh] overflow-y-auto shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Material Reconciliation</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Review material usage and specify any leftover quantities to return to inventory
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2">
+              <h2 className="text-base font-bold">Material Reconciliation</h2>
+              <p className="text-xs font-medium opacity-90">
+                Review material usage and return leftovers to inventory
               </p>
             </div>
 
-            <div className="p-6">
+            <div className="p-2.5">
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 border-b border-gray-300">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Material</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Allocated</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Consumed</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Wasted</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Leftover</th>
+                      <th className="px-2 py-1.5 text-left font-semibold text-gray-700">Material</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">Allocated</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">Consumed</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">Wasted</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">Leftover</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {reconciliationData.map((item, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.item_name}</td>
-                        <td className="px-4 py-3 text-center text-sm text-gray-600">{item.allocated}</td>
-                        <td className="px-4 py-3 text-center">
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-2 py-1.5 font-medium text-gray-900">{item.item_name}</td>
+                        <td className="px-2 py-1.5 text-center text-gray-600">{item.allocated}</td>
+                        <td className="px-2 py-1.5 text-center">
                           <input
                             type="number"
                             step="0.01"
                             value={item.actual_consumed}
                             onChange={(e) => updateReconciliationItem(index, 'actual_consumed', e.target.value)}
-                            className="w-24 px-2 py-1 border border-gray-300 rounded text-center"
+                            className="w-20 px-1.5 py-0.5 border border-gray-300 rounded text-center text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-2 py-1.5 text-center">
                           <input
                             type="number"
                             step="0.01"
                             value={item.actual_wasted}
                             onChange={(e) => updateReconciliationItem(index, 'actual_wasted', e.target.value)}
-                            className="w-24 px-2 py-1 border border-gray-300 rounded text-center"
+                            className="w-20 px-1.5 py-0.5 border border-gray-300 rounded text-center text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-bold ${item.leftover_quantity > 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                        <td className="px-2 py-1.5 text-center">
+                          <span className={`font-bold text-xs ${item.leftover_quantity > 0 ? 'text-green-600' : 'text-gray-600'}`}>
                             {item.leftover_quantity.toFixed(2)}
                           </span>
                         </td>
@@ -904,25 +925,23 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
                 </table>
               </div>
 
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Leftover materials will be automatically returned to inventory after submission.
-                </p>
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                <strong>Note:</strong> Leftovers are automatically returned to inventory after submission.
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="sticky bottom-0 z-10 p-2 border-t border-gray-200 bg-white flex justify-end gap-2">
               <button
                 onClick={() => setReconciliationDialog(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="px-2.5 py-1.5 bg-gray-300 text-gray-700 rounded text-xs font-semibold hover:bg-gray-400"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReconciliationSubmit}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="px-2.5 py-1.5 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
               >
-                Complete Reconciliation
+                Complete
               </button>
             </div>
           </div>
@@ -989,21 +1008,21 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-lg max-w-2xl w-full"
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[88vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Create Outward Challan</h2>
-          <p className="text-sm text-gray-600 mt-1">Send materials to vendor for outsourced work</p>
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-600 to-orange-700 text-white px-3 py-2">
+          <h2 className="text-base font-bold">Create Outward Challan</h2>
+          <p className="text-xs font-medium opacity-90">Send materials to vendor for outsourced work</p>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-2.5 space-y-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Vendor *</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Vendor *</label>
             <select
               value={formData.vendor_id}
               onChange={(e) => setFormData({ ...formData, vendor_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
             >
               <option value="">Select Vendor</option>
               {vendors.map((vendor) => (
@@ -1014,72 +1033,76 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-            <input
-              type="number"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Qty</label>
+              <input
+                type="number"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Return Date</label>
+              <input
+                type="date"
+                value={formData.expected_date}
+                onChange={(e) => setFormData({ ...formData, expected_date: e.target.value })}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Transport</label>
+              <input
+                type="text"
+                value={formData.transport_mode}
+                onChange={(e) => setFormData({ ...formData, transport_mode: e.target.value })}
+                placeholder="Truck, Courier..."
+                className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Vehicle #</label>
+              <input
+                type="text"
+                value={formData.vehicle_number}
+                onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+                placeholder="e.g., MH01AB1234"
+                className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Expected Return Date</label>
-            <input
-              type="date"
-              value={formData.expected_date}
-              onChange={(e) => setFormData({ ...formData, expected_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Transport Mode</label>
-            <input
-              type="text"
-              value={formData.transport_mode}
-              onChange={(e) => setFormData({ ...formData, transport_mode: e.target.value })}
-              placeholder="e.g., Truck, Courier"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle Number</label>
-            <input
-              type="text"
-              value={formData.vehicle_number}
-              onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
-              placeholder="e.g., MH01AB1234"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={3}
-              placeholder="Special instructions for vendor..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={2}
+              placeholder="Special instructions..."
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
             />
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+        <div className="sticky bottom-0 z-10 p-2 border-t border-gray-200 bg-white flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            className="px-2.5 py-1.5 bg-gray-300 text-gray-700 rounded text-xs font-semibold hover:bg-gray-400"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            className="px-2.5 py-1.5 bg-orange-600 text-white rounded text-xs font-semibold hover:bg-orange-700"
           >
-            Create Outward Challan
+            Create
           </button>
         </div>
       </div>
@@ -1120,21 +1143,21 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-lg max-w-2xl w-full"
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[88vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Create Inward Challan</h2>
-          <p className="text-sm text-gray-600 mt-1">Receive completed work from vendor</p>
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2">
+          <h2 className="text-base font-bold">Create Inward Challan</h2>
+          <p className="text-xs font-medium opacity-90">Receive completed work from vendor</p>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-2.5 space-y-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Outward Challan *</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Outward Challan *</label>
             <select
               value={formData.outward_challan_id}
               onChange={(e) => setFormData({ ...formData, outward_challan_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Select Outward Challan</option>
               {challans.map((challan) => (
@@ -1146,50 +1169,50 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Received Quantity</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Received Qty</label>
             <input
               type="number"
               value={formData.received_quantity}
               onChange={(e) => setFormData({ ...formData, received_quantity: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Quality Notes</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Quality Notes</label>
             <textarea
               value={formData.quality_notes}
               onChange={(e) => setFormData({ ...formData, quality_notes: e.target.value })}
-              rows={3}
+              rows={2}
               placeholder="Quality inspection notes..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Discrepancies (if any)</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Discrepancies</label>
             <textarea
               value={formData.discrepancies}
               onChange={(e) => setFormData({ ...formData, discrepancies: e.target.value })}
-              rows={3}
-              placeholder="Any discrepancies or issues..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={2}
+              placeholder="Any issues or discrepancies..."
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+        <div className="sticky bottom-0 z-10 p-2 border-t border-gray-200 bg-white flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            className="px-2.5 py-1.5 bg-gray-300 text-gray-700 rounded text-xs font-semibold hover:bg-gray-400"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-2.5 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700"
           >
-            Create Inward Challan
+            Create
           </button>
         </div>
       </div>

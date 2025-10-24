@@ -115,10 +115,17 @@ const MaterialReceiptPage = () => {
         receipt_photos: receiptPhotos
       };
 
-      await api.post('/material-receipt/create', receiptData);
+      const response = await api.post('/material-receipt/create', receiptData);
+      const receiptId = response.data?.receipt?.id;
       
-      toast.success('Materials received successfully!');
-      navigate('/manufacturing/mrm-list');
+      toast.success('Materials received successfully! Redirecting to QC Verification...');
+      
+      // Navigate to Stock Verification for QC checks (NOT back to list)
+      if (receiptId) {
+        navigate(`/manufacturing/stock-verification/${receiptId}`);
+      } else {
+        navigate('/manufacturing/mrm-list');
+      }
     } catch (error) {
       console.error('Error creating receipt:', error);
       toast.error(error.response?.data?.message || 'Failed to create receipt');
@@ -138,7 +145,7 @@ const MaterialReceiptPage = () => {
   if (!dispatch) {
     return (
       <div className="p-6">
-        <div className="bg-error-50 border border-error-200 text-error-800 rounded-lg p-4">
+        <div className="bg-error-50 border border-error-200 text-error-800 rounded p-4">
           Dispatch record not found
         </div>
       </div>
@@ -147,24 +154,27 @@ const MaterialReceiptPage = () => {
 
   return (
     <>
-      <div className="p-6">
+      <div className="px-6 py-8 bg-slate-50 min-h-screen">
         {/* Header */}
-        <div className="flex items-center mb-6">
+        <div className="flex items-center mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-gray-100 rounded-lg mr-4"
+            className="p-2 hover:bg-slate-100 rounded-lg mr-4 transition-colors duration-200"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-6 h-6 text-slate-600" />
           </button>
-          <h1 className="text-display-4 font-bold text-dark-800">
-            Receive Materials
-          </h1>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              Receive Materials
+            </h1>
+            <p className="text-sm text-slate-600 mt-2">Record received materials and verify quantities</p>
+          </div>
         </div>
 
         {hasDiscrepancy && (
-          <div className="bg-warning-50 border border-warning-200 text-warning-800 rounded-lg p-4 mb-6">
-            <p className="font-bold text-body-2">Discrepancy Detected</p>
-            <p className="text-body-2">
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4 mb-6">
+            <p className="font-bold text-sm">Discrepancy Detected</p>
+            <p className="text-sm mt-1">
               One or more materials have quantity mismatches or issues.
             </p>
           </div>
@@ -172,9 +182,9 @@ const MaterialReceiptPage = () => {
 
         <div className="space-y-6">
           {/* Dispatch Details */}
-          <div className="card p-6">
-            <h2 className="text-display-6 font-semibold mb-4">Dispatch Details</h2>
-            <hr className="border-border mb-4" />
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Dispatch Details</h2>
+            <hr className="border-slate-200 mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-body-2 text-text-secondary mb-1">Dispatch Number</p>
@@ -198,37 +208,37 @@ const MaterialReceiptPage = () => {
           </div>
 
           {/* Materials Receipt Table */}
-          <div className="card p-6">
-            <h2 className="text-display-6 font-semibold mb-4">Receive Materials</h2>
-            <hr className="border-border mb-4" />
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Receive Materials</h2>
+            <hr className="border-slate-200 mb-4" />
             
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Material Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Code</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Dispatched</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Received</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Condition</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Barcode</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Remarks</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Material Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Code</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-900">Dispatched</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-900">Received</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Condition</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Barcode</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Remarks</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-200">
                   {receivedMaterials.map((material, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{material.material_name}</td>
-                      <td className="px-4 py-3 text-sm">{material.material_code}</td>
-                      <td className="px-4 py-3 text-sm text-right">
+                    <tr key={index} className="hover:bg-slate-50 transition-colors duration-150">
+                      <td className="px-2 py-2 text-sm">{material.material_name}</td>
+                      <td className="px-2 py-2 text-sm">{material.material_code}</td>
+                      <td className="px-2 py-2 text-sm text-right">
                         {material.quantity_dispatched} {material.uom}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <input
                             type="number"
-                            className="w-24 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="w-24 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                             value={material.quantity_received}
                             onChange={(e) => handleMaterialChange(index, 'quantity_received', e.target.value)}
                             min="0"
@@ -238,9 +248,9 @@ const MaterialReceiptPage = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <select
-                          className="w-32 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-32 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                           value={material.condition}
                           onChange={(e) => handleMaterialChange(index, 'condition', e.target.value)}
                         >
@@ -249,32 +259,32 @@ const MaterialReceiptPage = () => {
                           <option value="defective">Defective</option>
                         </select>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <div className="flex items-center gap-1">
                           <input
                             type="text"
-                            className="flex-1 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="flex-1 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                             value={material.barcode_scanned}
                             onChange={(e) => handleMaterialChange(index, 'barcode_scanned', e.target.value)}
                             placeholder="Scan"
                           />
                           <button className="p-1 hover:bg-gray-100 rounded">
-                            <QrCode className="w-4 h-4" />
+                            <QrCode size={14} />
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <input
                           type="text"
-                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                           value={material.remarks}
                           onChange={(e) => handleMaterialChange(index, 'remarks', e.target.value)}
                           placeholder="Notes"
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <button
-                          className="px-3 py-1 border border-warning-500 text-warning-700 rounded-lg hover:bg-warning-50 text-sm"
+                          className="px-3 py-1 border border-warning-500 text-warning-700 rounded hover:bg-warning-50 text-sm"
                           onClick={() => handleAddDiscrepancy(index)}
                         >
                           Report Issue
@@ -293,16 +303,16 @@ const MaterialReceiptPage = () => {
             <hr className="border-border mb-4" />
             
             <textarea
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent mb-4"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 mb-4"
               rows="4"
               value={receiptNotes}
               onChange={(e) => setReceiptNotes(e.target.value)}
               placeholder="Any observations or notes about received materials..."
             />
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <label className="btn btn-outline cursor-pointer">
-                <Camera className="w-4 h-4" />
+                <Camera size={14} />
                 Add Photos
                 <input
                   type="file"
@@ -321,7 +331,7 @@ const MaterialReceiptPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-4">
+          <div className="flex justify-end gap-2">
             <button
               className="btn btn-outline"
               onClick={() => navigate(-1)}
@@ -341,7 +351,7 @@ const MaterialReceiptPage = () => {
                 </>
               ) : (
                 <>
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle size={14} />
                   Confirm Receipt
                 </>
               )}
@@ -353,14 +363,14 @@ const MaterialReceiptPage = () => {
       {/* Discrepancy Modal */}
       {discrepancyModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded shadow-xl max-w-md w-full">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-display-6 font-semibold">Report Discrepancy</h3>
               <button
                 onClick={() => setDiscrepancyModalOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg"
+                className="p-1 hover:bg-gray-100 rounded-md"
               >
-                <X className="w-5 h-5" />
+                <X size={16} />
               </button>
             </div>
             
@@ -383,7 +393,7 @@ const MaterialReceiptPage = () => {
                     Issue Type
                   </label>
                   <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                     value={currentDiscrepancy.issue_type}
                     onChange={(e) => setCurrentDiscrepancy({...currentDiscrepancy, issue_type: e.target.value})}
                   >
@@ -399,7 +409,7 @@ const MaterialReceiptPage = () => {
                     Description
                   </label>
                   <textarea
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                     rows="4"
                     value={currentDiscrepancy.description}
                     onChange={(e) => setCurrentDiscrepancy({...currentDiscrepancy, description: e.target.value})}
@@ -417,7 +427,7 @@ const MaterialReceiptPage = () => {
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-warning-500 text-white rounded-lg hover:bg-warning-600 focus:ring-2 focus:ring-warning-300 transition-colors"
+                className="px-4 py-2 bg-warning-500 text-white rounded hover:bg-warning-600 focus:ring-2 focus:ring-warning-300 transition-colors"
                 onClick={handleSaveDiscrepancy}
               >
                 Save Discrepancy

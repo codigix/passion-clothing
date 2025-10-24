@@ -1463,7 +1463,8 @@ router.get('/pos/export', authenticateToken, checkDepartment(['procurement', 'ad
  * Each PO item becomes an inventory entry with barcode
  */
 // NEW WORKFLOW: Just approve PO (doesn't add to inventory)
-router.post('/pos/:id/approve', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
+// PERMISSION: ADMIN ONLY - Procurement cannot approve POs
+router.post('/pos/:id/approve', authenticateToken, checkDepartment(['admin']), async (req, res) => {
   const transaction = await require('../config/database').sequelize.transaction();
   
   try {

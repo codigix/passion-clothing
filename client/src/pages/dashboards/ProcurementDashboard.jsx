@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import QRCodeScanner from '../../components/manufacturing/QRCodeScanner';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
 import PurchaseOrderForm from '../../components/procurement/PurchaseOrderForm';
+import MinimalStatCard from '../../components/common/MinimalStatCard';
+import Tooltip from '../../components/common/Tooltip';
+import '../../styles/compactDashboard.css';
 
 const ProcurementDashboard = () => {
   const navigate = useNavigate();
@@ -197,21 +200,6 @@ const ProcurementDashboard = () => {
     return colors[status] || 'default';
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
-    <div className="bg-white rounded-lg shadow p-4 flex flex-col justify-between h-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-gray-500 uppercase font-semibold mb-1">{title}</div>
-          <div className="text-2xl font-bold text-gray-900">{value}</div>
-          {subtitle && <div className="text-sm text-gray-400">{subtitle}</div>}
-        </div>
-        <div className={`rounded-full p-2 bg-${color}-100 flex items-center justify-center`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-
   const TabPanel = ({ children, value, index }) => (
     <div className={value !== index ? 'hidden' : 'pt-3'}>
       {value === index && children}
@@ -223,33 +211,33 @@ const ProcurementDashboard = () => {
     : purchaseOrders.filter(po => po.status === filterStatus);
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-gray-900">Procurement Dashboard</h1>
+    <div className="compact-dashboard-container">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-3">
+        <h1 className="text-2xl font-bold text-gray-900">Procurement Dashboard</h1>
         <div className="flex gap-2">
-          <button className="btn btn-outline flex items-center gap-2" onClick={() => navigate('/procurement/vendor-management')}>
-            <Building className="w-5 h-5" /> Vendor Management
+          <button className="btn btn-outline flex items-center gap-1.5" onClick={() => navigate('/procurement/vendor-management')}>
+            <Building size={16} /> Vendor Management
           </button>
-          <button className="btn btn-primary flex items-center gap-2" onClick={() => navigate('/procurement/purchase-orders')}>
-            <Plus className="w-5 h-5" /> Create Purchase Order
+          <button className="btn btn-primary flex items-center gap-1.5" onClick={() => navigate('/procurement/purchase-orders')}>
+            <Plus size={16} /> Create Purchase Order
           </button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Purchase Orders" value={stats.totalPOs} icon={<ShoppingBag className="w-8 h-8 text-blue-500" />} color="blue" />
-        <StatCard title="Pending Approval" value={stats.pendingPOs} icon={<Calendar className="w-8 h-8 text-yellow-500" />} color="yellow" />
-        <StatCard title="Completed Orders" value={stats.completedPOs} icon={<CheckCircle className="w-8 h-8 text-green-500" />} color="green" />
-        <StatCard title="Total Spend" value={`₹${(stats.totalSpend / 100000).toFixed(1)}L`} icon={<DollarSign className="w-8 h-8 text-cyan-500" />} color="cyan" subtitle="This month" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <MinimalStatCard title="Total Purchase Orders" value={stats.totalPOs} icon={ShoppingBag} />
+        <MinimalStatCard title="Pending Approval" value={stats.pendingPOs} icon={Calendar} />
+        <MinimalStatCard title="Completed Orders" value={stats.completedPOs} icon={CheckCircle} />
+        <MinimalStatCard title="Total Spend" value={`₹${(stats.totalSpend / 100000).toFixed(1)}L`} icon={DollarSign} subtitle="This month" />
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-4 mb-6">
+      <div className="flex flex-wrap gap-2 mb-4">
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
         >
           <option value="all">All Orders</option>
           <option value="pending_approval">Pending Approval</option>
@@ -259,24 +247,24 @@ const ProcurementDashboard = () => {
         </select>
         <button
           onClick={() => navigate('/procurement/reports')}
-          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50"
         >
           View Reports
         </button>
         <button
           onClick={() => navigate('/procurement/reports')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 flex items-center gap-1.5"
         >
-          <Download className="w-4 h-4" /> Export Data
+          <Download size={14} /> Export Data
         </button>
       </div>
 
       {/* Main Content Tabs */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded shadow">
         <div className="border-b border-gray-200">
           <div className="flex">
             <button
-              className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`px-2 py-2 text-sm font-medium border-b-2 ${
                 tabValue === 0
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -286,7 +274,7 @@ const ProcurementDashboard = () => {
               Incoming Orders ({incomingOrders.length + incomingPurchaseOrders.length})
             </button>
             <button
-              className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`px-2 py-2 text-sm font-medium border-b-2 ${
                 tabValue === 1
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -296,7 +284,7 @@ const ProcurementDashboard = () => {
               Purchase Orders
             </button>
             <button
-              className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`px-2 py-2 text-sm font-medium border-b-2 ${
                 tabValue === 2
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -306,7 +294,7 @@ const ProcurementDashboard = () => {
               Vendor Management
             </button>
             <button
-              className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`px-2 py-2 text-sm font-medium border-b-2 ${
                 tabValue === 3
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -316,7 +304,7 @@ const ProcurementDashboard = () => {
               Goods Receipt
             </button>
             <button
-              className={`px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`px-2 py-2 text-sm font-medium border-b-2 ${
                 tabValue === 4
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -331,23 +319,23 @@ const ProcurementDashboard = () => {
         {/* Tab Content */}
         {tabValue === 0 && (
           <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
                 Incoming Orders (Sales Orders & Purchase Orders)
               </h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setQrScannerOpen(true)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  className="px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 flex items-center gap-1.5"
                 >
-                  <QrCode className="w-4 h-4" /> Scan QR Code
+                  <QrCode size={14} /> Scan QR Code
                 </button>
                 <button
                   onClick={fetchDashboardData}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw size={14} />}
                   {loading ? 'Loading...' : 'Refresh'}
                 </button>
               </div>
@@ -368,33 +356,33 @@ const ProcurementDashboard = () => {
                 {/* Sales Orders Section */}
                 {incomingOrders.length > 0 && (
                   <div className="mb-8">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-1.5">
+                      <ShoppingCart size={16} />
                       Sales Orders Requiring Material Procurement ({incomingOrders.length})
                     </h3>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Product
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Quantity
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Material Requirements
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Status
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Actions
                             </th>
                           </tr>
@@ -487,34 +475,36 @@ const ProcurementDashboard = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex gap-2">
-                                  <button
-                                    onClick={() => navigate(`/sales/orders/${order.id}`)}
-                                    className="text-gray-600 hover:text-gray-900"
-                                    title="View Full Details"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedOrder(order);
-                                      setQrDialogOpen(true);
-                                    }}
-                                    className="text-blue-600 hover:text-blue-900"
-                                    title="View QR Code"
-                                  >
-                                    <QrCode className="w-4 h-4" />
-                                  </button>
+                                  <Tooltip text="View Details" position="top">
+                                    <button
+                                      onClick={() => navigate(`/sales/orders/${order.id}`)}
+                                      className="p-2 rounded text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                                    >
+                                      <Eye size={14} />
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip text="View QR Code" position="top">
+                                    <button
+                                      onClick={() => {
+                                        setSelectedOrder(order);
+                                        setQrDialogOpen(true);
+                                      }}
+                                      className="p-2 rounded text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-colors"
+                                    >
+                                      <QrCode size={14} />
+                                    </button>
+                                  </Tooltip>
                                   
                                   {/* Show Accept button only for DRAFT orders (pending approval) */}
                                   {order.status === 'draft' && (
-                                    <button
-                                      onClick={() => handleAcceptOrder(order)}
-                                      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 flex items-center gap-1"
-                                      title="Accept Order Request"
-                                    >
-                                      <CheckCircle className="w-3 h-3" />
-                                      Accept
-                                    </button>
+                                    <Tooltip text="Accept Order" position="top">
+                                      <button
+                                        onClick={() => handleAcceptOrder(order)}
+                                        className="inline-flex items-center justify-center p-2 bg-green-500 text-white rounded hover:bg-green-500 transition-colors"
+                                      >
+                                        <CheckCircle size={14} />
+                                      </button>
+                                    </Tooltip>
                                   )}
                                   
                                   {/* Show Create PO button OR PO Created status for CONFIRMED orders */}
@@ -522,24 +512,25 @@ const ProcurementDashboard = () => {
                                     <>
                                       {order.linkedPurchaseOrder ? (
                                         // PO already created - show success status and allow navigation
-                                        <button
-                                          onClick={() => navigate(`/procurement/purchase-orders/${order.linkedPurchaseOrder.id}`)}
-                                          className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded border border-green-300 hover:bg-green-200 flex items-center gap-1"
-                                          title={`View Purchase Order: ${order.linkedPurchaseOrder.po_number}`}
-                                        >
-                                          <CheckCircle className="w-3 h-3" />
-                                          PO Created ✓
-                                        </button>
+                                        <Tooltip text={`View PO: ${order.linkedPurchaseOrder.po_number}`} position="top">
+                                          <button
+                                            onClick={() => navigate(`/procurement/purchase-orders/${order.linkedPurchaseOrder.id}`)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 text-xs rounded border border-green-300 hover:bg-green-200 transition-colors"
+                                          >
+                                            <CheckCircle className="w-3 h-3" />
+                                            PO Created ✓
+                                          </button>
+                                        </Tooltip>
                                       ) : (
                                         // No PO created yet - show create button
-                                        <button
-                                          onClick={() => handleCreatePO(order)}
-                                          className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 flex items-center gap-1"
-                                          title="Create Purchase Order from this Sales Order"
-                                        >
-                                          <Plus className="w-3 h-3" />
-                                          Create PO
-                                        </button>
+                                        <Tooltip text="Create Purchase Order" position="top">
+                                          <button
+                                            onClick={() => handleCreatePO(order)}
+                                            className="inline-flex items-center justify-center p-2 bg-blue-500 text-white rounded hover:bg-blue-500 transition-colors"
+                                          >
+                                            <Plus size={14} />
+                                          </button>
+                                        </Tooltip>
                                       )}
                                     </>
                                   )}
@@ -556,33 +547,33 @@ const ProcurementDashboard = () => {
                 {/* Purchase Orders Section */}
                 {incomingPurchaseOrders.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <Receipt className="w-5 h-5" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-1.5">
+                      <Receipt size={16} />
                       Incoming Purchase Orders ({incomingPurchaseOrders.length})
                     </h3>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               PO Number
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Vendor
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               PO Date
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Expected Delivery
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Total Amount
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Status
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Actions
                             </th>
                           </tr>
@@ -625,20 +616,22 @@ const ProcurementDashboard = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex gap-2">
-                                  <button
-                                    onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
-                                    className="text-blue-600 hover:text-blue-900"
-                                    title="View PO"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
-                                    className="text-indigo-600 hover:text-indigo-900"
-                                    title="Edit PO"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
+                                  <Tooltip text="View Purchase Order" position="top">
+                                    <button
+                                      onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                                      className="p-2 rounded text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-colors"
+                                    >
+                                      <Eye size={14} />
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip text="Edit Purchase Order" position="top">
+                                    <button
+                                      onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                                      className="p-2 rounded text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 transition-colors"
+                                    >
+                                      <Edit size={14} />
+                                    </button>
+                                  </Tooltip>
                                 </div>
                               </td>
                             </tr>
@@ -656,13 +649,13 @@ const ProcurementDashboard = () => {
         {/* Purchase Orders Tab */}
         {tabValue === 1 && (
           <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">All Purchase Orders</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">All Purchase Orders</h2>
               <button
                 onClick={() => navigate('/procurement/purchase-orders/create')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 flex items-center gap-1.5"
               >
-                <Plus className="w-4 h-4" /> Create New PO
+                <Plus size={14} /> Create New PO
               </button>
             </div>
 
@@ -682,7 +675,7 @@ const ProcurementDashboard = () => {
                 </p>
                 <button
                   onClick={() => navigate('/procurement/purchase-orders/create')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
                 >
                   Create Purchase Order
                 </button>
@@ -692,31 +685,31 @@ const ProcurementDashboard = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         PO Number
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Vendor
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Items
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Total Quantity
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Total Amount
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         PO Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Expected Delivery
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -794,14 +787,14 @@ const ProcurementDashboard = () => {
                                 className="text-blue-600 hover:text-blue-900"
                                 title="View PO"
                               >
-                                <Eye className="w-4 h-4" />
+                                <Eye size={14} />
                               </button>
                               <button
                                 onClick={() => navigate(`/procurement/purchase-orders/${po.id}/edit`)}
                                 className="text-indigo-600 hover:text-indigo-900"
                                 title="Edit PO"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit size={14} />
                               </button>
                             </div>
                           </td>
@@ -828,7 +821,7 @@ const ProcurementDashboard = () => {
               </p>
               <button
                 onClick={() => navigate('/procurement/vendors')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
               >
                 Go to Vendor Management
               </button>
@@ -849,7 +842,7 @@ const ProcurementDashboard = () => {
               </p>
               <button
                 onClick={() => navigate('/procurement/goods-receipt')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
               >
                 Go to Goods Receipt
               </button>
@@ -870,7 +863,7 @@ const ProcurementDashboard = () => {
               </p>
               <button
                 onClick={() => navigate('/procurement/vendor-performance')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
               >
                 Go to Vendor Performance
               </button>
@@ -882,7 +875,7 @@ const ProcurementDashboard = () => {
       {/* QR Code Dialog */}
       {qrDialogOpen && selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Order QR Code</h3>
               <button

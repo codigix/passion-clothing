@@ -138,7 +138,7 @@ const PurchaseOrderForm = () => {
       </div>
       {/* Actions */}
       <div className="mt-6 flex gap-4">
-        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded">Save PO</button>
+        <button type="submit" className="px-4 py-2 bg-green-500 text-white rounded">Save PO</button>
         <button type="button" onClick={handlePrint} className="px-4 py-2 bg-gray-500 text-white rounded">Print PO</button>
       </div>
     </form>

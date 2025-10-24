@@ -7,6 +7,7 @@ const {
   ProductionStage,
   Rejection,
   SalesOrder,
+  SalesOrderHistory,
   Product,
   User,
   Challan,
@@ -44,6 +45,110 @@ const STAGE_INCLUDE = [
     attributes: ['id', 'name', 'contact_person', 'phone', 'mobile', 'email']
   }
 ];
+
+const PRODUCTION_STATUS_TRANSITIONS = {
+  pending: new Set(['in_progress', 'on_hold', 'cancelled']),
+  in_progress: new Set(['on_hold', 'completed', 'cancelled']),
+  on_hold: new Set(['in_progress', 'cancelled']),
+  completed: new Set([]),
+  cancelled: new Set([])
+};
+
+const PRODUCTION_STATUS_SAFETY_RULES = {
+  completed: 'This order has already been completed.',
+  cancelled: 'This order has already been cancelled.'
+};
+
+const getNextProductionStatus = (currentStatus, action) => {
+  const normalized = (action || '').toLowerCase();
+  switch (normalized) {
+    case 'start':
+    case 'resume':
+      return 'in_progress';
+    case 'pause':
+      return 'on_hold';
+    case 'stop':
+    case 'cancel':
+      return 'cancelled';
+    default:
+      return currentStatus;
+  }
+};
+
+const canTransition = (currentStatus, nextStatus) => {
+  if (!nextStatus || currentStatus === nextStatus) {
+    return true;
+  }
+  const allowed = PRODUCTION_STATUS_TRANSITIONS[currentStatus] || new Set();
+  return allowed.has(nextStatus);
+};
+
+const validateOrderNotFinalized = (order) => {
+  if (!order) {
+    return;
+  }
+
+  if (order.status === 'completed' || order.status === 'cancelled') {
+    const reason = PRODUCTION_STATUS_SAFETY_RULES[order.status] || 'This order cannot be updated.';
+    const error = new Error(reason);
+    error.statusCode = 409;
+    throw error;
+  }
+};
+
+const recordSalesOrderHistory = async (salesOrder, statusFrom, statusTo, userId, transaction) => {
+  if (!salesOrder) return;
+
+  await SalesOrderHistory.create({
+    sales_order_id: salesOrder.id,
+    status_from: statusFrom,
+    status_to: statusTo,
+    note: `Status updated from ${statusFrom || 'unknown'} to ${statusTo}`,
+    performed_by: userId
+  }, { transaction });
+};
+
+const updateLinkedSalesOrder = async (productionOrder, newStatus, userId, transaction) => {
+  if (!productionOrder?.sales_order_id) {
+    return;
+  }
+
+  const salesOrder = await SalesOrder.findByPk(productionOrder.sales_order_id, { transaction });
+  if (!salesOrder) {
+    return;
+  }
+
+  const oldStatus = salesOrder.status;
+  const derivedStatus = newStatus === 'cancelled' ? 'cancelled' : deriveOrderStatusFromStage(null, newStatus);
+  await salesOrder.update({ status: derivedStatus }, { transaction });
+  await updateOrderQRCode(salesOrder.id, derivedStatus, transaction);
+  await recordSalesOrderHistory(salesOrder, oldStatus, derivedStatus, userId, transaction);
+};
+
+const respondWithProductionOrder = async (productionOrderId, res) => {
+  const order = await ProductionOrder.findByPk(productionOrderId, {
+    include: [
+      {
+        model: Product,
+        as: 'product'
+      },
+      {
+        model: SalesOrder,
+        as: 'salesOrder'
+      },
+      {
+        model: ProductionStage,
+        as: 'stages',
+        include: STAGE_INCLUDE
+      }
+    ]
+  });
+
+  res.json({
+    message: 'Production order updated successfully',
+    order
+  });
+};
 
 // Get production order detail
 router.get(
@@ -262,6 +367,25 @@ const generateProductionNumber = async () => {
   return `PRD-${dateStr}-${sequence.toString().padStart(4, '0')}`;
 };
 
+// Helper function to generate material ID (sequential within production order)
+const generateMaterialId = (index) => {
+  return `M-${(index + 1).toString().padStart(3, '0')}`;
+};
+
+// Helper function to generate material IDs (M-001, M-002, etc.)
+const generateMaterialIdForOrder = (orderMaterials) => {
+  // Count existing materials for this production order to determine next ID
+  const existingIds = orderMaterials
+    .map(m => {
+      const match = m.material_id?.match(/^M-(\d+)$/);
+      return match ? parseInt(match[1]) : 0;
+    })
+    .filter(id => id > 0);
+  
+  const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+  return `M-${(maxId + 1).toString().padStart(3, '0')}`;
+};
+
 // POST /api/manufacturing/orders - Create new production order
 router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
   const transaction = await ProductionOrder.sequelize.transaction();
@@ -285,16 +409,42 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
       supervisor_id,
       assigned_user_id,
       qa_lead_id,
-      stages
+      stages,
+      project_reference
     } = req.body;
 
     // Validate required fields
-    if (!product_id || !quantity || !planned_start_date || !planned_end_date) {
+    // NEW: project-based orders don't need product_id
+    // Can have either: (product_id + quantity) OR (project_reference + materials_required)
+    const hasProductInfo = product_id && quantity;
+    const hasProjectInfo = project_reference || sales_order_id;
+    const hasMaterials = materials_required && Array.isArray(materials_required) && materials_required.length > 0;
+
+    if (!planned_start_date || !planned_end_date) {
       await transaction.rollback();
       return res.status(400).json({ 
-        message: 'Missing required fields: product_id, quantity, planned_start_date, planned_end_date' 
+        message: 'Missing required fields: planned_start_date, planned_end_date' 
       });
     }
+
+    // Must have either (product_id + quantity) or (project with materials)
+    if (!hasProductInfo && (!hasProjectInfo || !hasMaterials)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        message: 'Production order requires either: (1) product_id + quantity, OR (2) project_reference/sales_order_id + materials_required'
+      });
+    }
+
+    console.log('📦 Production order request:', {
+      hasProductInfo,
+      hasProjectInfo,
+      hasMaterials,
+      product_id,
+      quantity,
+      project_reference,
+      sales_order_id,
+      materials_count: materials_required?.length || 0
+    });
 
     // Validate and sanitize user IDs (must be integers or null)
     const sanitizeUserId = (value) => {
@@ -308,14 +458,26 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
     const validatedQaLeadId = sanitizeUserId(qa_lead_id);
 
     // Fetch sales order to get project reference
-    let projectReference = null;
+    let projectReference = project_reference || null;
     let salesOrder = null;
     if (sales_order_id) {
       salesOrder = await SalesOrder.findByPk(sales_order_id);
       if (salesOrder) {
-        // Use sales order number as project reference
-        projectReference = salesOrder.order_number;
+        // Use sales order number as project reference if not already provided
+        if (!projectReference) {
+          projectReference = salesOrder.order_number;
+        }
       }
+    }
+
+    // Calculate quantity from materials if not provided
+    let finalQuantity = quantity || null;
+    if (!finalQuantity && materials_required && Array.isArray(materials_required)) {
+      // Sum up the quantities from all materials
+      finalQuantity = materials_required.reduce((sum, mat) => {
+        return sum + (parseFloat(mat.required_quantity) || 0);
+      }, 0);
+      console.log(`📊 Calculated quantity from materials: ${finalQuantity}`);
     }
 
     // Generate production number
@@ -327,11 +489,13 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
       sales_order_id: sales_order_id || null,
       production_approval_id: production_approval_id || null,
       project_reference: projectReference,
-      product_id,
-      quantity,
+      product_id: product_id || null,
+      quantity: finalQuantity,
       production_type: production_type || 'in_house',
       priority: priority || 'medium',
       status: 'pending',
+      status_notes: null,
+      status_updated_at: new Date(),
       planned_start_date,
       planned_end_date,
       estimated_hours: estimated_hours || null,
@@ -343,7 +507,8 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
       supervisor_id: validatedSupervisorId,
       qa_lead_id: validatedQaLeadId,
       specifications: {
-        created_from: production_approval_id ? 'approval' : 'direct'
+        created_from: production_approval_id ? 'approval' : 'direct',
+        project_based: !product_id && projectReference ? true : false
       }
     }, { transaction });
 
@@ -375,10 +540,14 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
     // Create material requirements if provided
     let createdMaterialReqs = [];
     if (materials_required && Array.isArray(materials_required) && materials_required.length > 0) {
-      for (const material of materials_required) {
+      for (let materialIndex = 0; materialIndex < materials_required.length; materialIndex++) {
+        const material = materials_required[materialIndex];
+        // Auto-generate material ID if not provided
+        const materialId = material.material_id || generateMaterialId(materialIndex);
+        
         const materialReq = await MaterialRequirement.create({
           production_order_id: productionOrder.id,
-          material_id: material.material_id || null,
+          material_id: materialId,
           description: material.description,
           required_quantity: material.required_quantity,
           unit: material.unit || 'pieces',
@@ -386,8 +555,9 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
         }, { transaction });
         
         createdMaterialReqs.push(materialReq);
+        console.log(`✅ Material ${materialId}: ${material.description} (${material.required_quantity} ${material.unit})`);
       }
-      console.log(`✅ Created ${createdMaterialReqs.length} material requirements`);
+      console.log(`✅ Created ${createdMaterialReqs.length} material requirements with auto-generated IDs`);
     }
 
     // Create quality checkpoints if provided
@@ -437,7 +607,7 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
 
     // Update production order status
     await productionOrder.update({
-      status: firstStage.stage_name || 'in_production',
+      status: 'in_progress',
       actual_start_date: new Date()
     }, { transaction });
 
@@ -449,11 +619,9 @@ router.post('/orders', authenticateToken, checkDepartment(['manufacturing', 'adm
       }, { transaction });
       
       console.log(`✅ Updated sales order ${salesOrder.order_number} to in_production`);
-    }
-
-    // Update QR code if linked to sales order
-    if (sales_order_id) {
-      await updateOrderQRCode(sales_order_id, firstStage.stage_name || 'in_production');
+      
+      // Update QR code within the same transaction to avoid lock timeout
+      await updateOrderQRCode(sales_order_id, firstStage.stage_name || 'in_production', transaction);
     }
 
     // Send notifications for creation and start events
@@ -1322,7 +1490,14 @@ router.get('/orders', authenticateToken, checkDepartment(['manufacturing', 'admi
         {
           model: SalesOrder,
           as: 'salesOrder',
-          attributes: ['id', 'order_number', 'customer_id', 'status']
+          attributes: ['id', 'order_number', 'customer_id', 'status', 'project_reference'],
+          include: [
+            {
+              model: Customer,
+              as: 'customer',
+              attributes: ['id', 'name']
+            }
+          ]
         },
         {
           model: User,
@@ -1333,9 +1508,34 @@ router.get('/orders', authenticateToken, checkDepartment(['manufacturing', 'admi
           model: User,
           as: 'assignedUser',
           attributes: ['id', 'name', 'employee_id']
+        },
+        {
+          model: ProductionStage,
+          as: 'stages',
+          attributes: [
+            'id',
+            'stage_name',
+            'stage_order',
+            'status',
+            'planned_start_time',
+            'planned_end_time',
+            'actual_start_time',
+            'actual_end_time',
+            'quantity_processed',
+            'quantity_approved',
+            'quantity_rejected',
+            'notes',
+            'outsourced',
+            'outsource_type',
+            'vendor_id'
+          ],
+          include: STAGE_INCLUDE
         }
       ],
-      order: [['created_at', 'DESC']],
+      order: [
+        ['created_at', 'DESC'],
+        [{ model: ProductionStage, as: 'stages' }, 'stage_order', 'ASC']
+      ],
       limit: parseInt(limit),
       offset,
       distinct: true
@@ -1356,28 +1556,206 @@ router.get('/orders', authenticateToken, checkDepartment(['manufacturing', 'admi
   }
 });
 
-// Update production order status
-router.patch('/orders/:id/status', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+// Production order lifecycle endpoints
+router.post('/orders/:id/start', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
   try {
-    const { status, reason } = req.body;
-
-    const order = await ProductionOrder.findByPk(req.params.id);
+    const { notes } = req.body;
+    const order = await ProductionOrder.findByPk(req.params.id, { transaction });
 
     if (!order) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Production order not found' });
     }
 
-    await order.update({ status });
+    validateOrderNotFinalized(order);
 
-    if (status === 'on_hold' && reason) {
-      order.status_notes = reason;
-      await order.save();
+    const nextStatus = getNextProductionStatus(order.status, 'start');
+    if (!canTransition(order.status, nextStatus)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: `Cannot start order from status '${order.status}'` });
     }
 
-    res.json({ message: 'Order status updated successfully', order });
+    await order.update({
+      status: nextStatus,
+      status_notes: notes || null,
+      status_updated_at: new Date(),
+      actual_start_date: order.actual_start_date || new Date()
+    }, { transaction });
+
+    await updateLinkedSalesOrder(order, nextStatus, req.user.id, transaction);
+    await NotificationService.notifyManufacturingUpdate(order, 'production', 'started', req.user.id, transaction);
+
+    await transaction.commit();
+    await respondWithProductionOrder(order.id, res);
   } catch (error) {
+    await transaction.rollback();
+    console.error('Production order start error:', error);
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Failed to start production order'
+    });
+  }
+});
+
+router.post('/orders/:id/pause', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
+  try {
+    const { reason, notes } = req.body;
+    const order = await ProductionOrder.findByPk(req.params.id, { transaction });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    validateOrderNotFinalized(order);
+
+    const nextStatus = getNextProductionStatus(order.status, 'pause');
+    if (!canTransition(order.status, nextStatus)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: `Cannot pause order from status '${order.status}'` });
+    }
+
+    await order.update({
+      status: nextStatus,
+      status_notes: reason || notes || null,
+      status_updated_at: new Date()
+    }, { transaction });
+
+    await updateLinkedSalesOrder(order, nextStatus, req.user.id, transaction);
+    await NotificationService.notifyManufacturingUpdate(order, 'production', 'paused', req.user.id, transaction);
+
+    await transaction.commit();
+    await respondWithProductionOrder(order.id, res);
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Production order pause error:', error);
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Failed to pause production order'
+    });
+  }
+});
+
+router.post('/orders/:id/resume', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
+  try {
+    const { notes } = req.body;
+    const order = await ProductionOrder.findByPk(req.params.id, { transaction });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    validateOrderNotFinalized(order);
+
+    const nextStatus = getNextProductionStatus(order.status, 'resume');
+    if (!canTransition(order.status, nextStatus)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: `Cannot resume order from status '${order.status}'` });
+    }
+
+    await order.update({
+      status: nextStatus,
+      status_notes: notes || null,
+      status_updated_at: new Date()
+    }, { transaction });
+
+    await updateLinkedSalesOrder(order, nextStatus, req.user.id, transaction);
+    await NotificationService.notifyManufacturingUpdate(order, 'production', 'resumed', req.user.id, transaction);
+
+    await transaction.commit();
+    await respondWithProductionOrder(order.id, res);
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Production order resume error:', error);
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Failed to resume production order'
+    });
+  }
+});
+
+router.post('/orders/:id/stop', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
+  try {
+    const { reason, notes } = req.body;
+    const order = await ProductionOrder.findByPk(req.params.id, { transaction });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    validateOrderNotFinalized(order);
+
+    const nextStatus = getNextProductionStatus(order.status, 'stop');
+    if (!canTransition(order.status, nextStatus)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: `Cannot stop order from status '${order.status}'` });
+    }
+
+    await order.update({
+      status: nextStatus,
+      status_notes: reason || notes || null,
+      status_updated_at: new Date(),
+      actual_end_date: new Date()
+    }, { transaction });
+
+    await updateLinkedSalesOrder(order, nextStatus, req.user.id, transaction);
+    await NotificationService.notifyManufacturingUpdate(order, 'production', 'stopped', req.user.id, transaction);
+
+    await transaction.commit();
+    await respondWithProductionOrder(order.id, res);
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Production order stop error:', error);
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Failed to stop production order'
+    });
+  }
+});
+
+// Update production order status
+router.patch('/orders/:id/status', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
+  try {
+    const { status, reason, notes } = req.body;
+    const order = await ProductionOrder.findByPk(req.params.id, { transaction });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    validateOrderNotFinalized(order);
+
+    if (!canTransition(order.status, status)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: `Cannot update order from status '${order.status}' to '${status}'` });
+    }
+
+    await order.update({
+      status,
+      status_notes: reason || notes || null,
+      status_updated_at: new Date()
+    }, { transaction });
+
+    await updateLinkedSalesOrder(order, status, req.user.id, transaction);
+    await NotificationService.notifyManufacturingUpdate(order, 'production', 'status_updated', req.user.id, transaction);
+
+    await transaction.commit();
+    await respondWithProductionOrder(order.id, res);
+  } catch (error) {
+    await transaction.rollback();
     console.error('Update order status error:', error);
-    res.status(500).json({ message: 'Failed to update order status' });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Failed to update order status'
+    });
   }
 });
 
@@ -2006,6 +2384,459 @@ router.post('/orders/:orderId/materials/reconcile', authenticateToken, checkDepa
       message: 'Failed to complete material reconciliation',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+});
+
+// ============================================================
+// GET: Fetch MRN materials for a specific project
+// Used by Production Wizard to auto-populate materials
+// ============================================================
+router.get(
+  '/project/:projectName/mrn-materials',
+  authenticateToken,
+  checkDepartment(['manufacturing', 'admin']),
+  async (req, res) => {
+    try {
+      const { projectName } = req.params;
+
+      if (!projectName) {
+        return res.status(400).json({ 
+          message: 'Project name is required' 
+        });
+      }
+
+      const { ProjectMaterialRequest, Inventory } = require('../config/database');
+
+      // ✅ FIXED: Fetch ALL MRNs for this project (not just 1)
+      const mrns = await ProjectMaterialRequest.findAll({
+        where: { 
+          project_name: {
+            [Op.like]: `%${projectName}%`
+          },
+          status: {
+            [Op.in]: ['approved', 'forwarded', 'in_process']
+          }
+        },
+        attributes: [
+          'id',
+          'request_number',
+          'project_name',
+          'materials_requested',
+          'status',
+          'created_at'
+        ],
+        order: [['created_at', 'DESC']]
+        // ✅ Removed limit: 1 - now fetches ALL MRNs
+      });
+
+      if (!mrns || mrns.length === 0) {
+        return res.status(404).json({ 
+          message: `No Material Request Note found for project: ${projectName}`,
+          materials: []
+        });
+      }
+
+      // ✅ FIXED: Merge materials from ALL MRNs
+      let materialsRequested = [];
+      const mergedMaterialMap = new Map(); // Use map to avoid duplicates
+      
+      mrns.forEach((mrn) => {
+        try {
+          const parsedMaterials = typeof mrn.materials_requested === 'string'
+            ? JSON.parse(mrn.materials_requested)
+            : mrn.materials_requested || [];
+          
+          // Merge materials (avoid duplicates by material_code/inventory_id)
+          parsedMaterials.forEach((material) => {
+            const key = material.inventory_id || material.material_code || material.material_name;
+            if (!mergedMaterialMap.has(key)) {
+              mergedMaterialMap.set(key, material);
+            }
+          });
+        } catch (e) {
+          console.warn(`Failed to parse materials_requested for MRN ${mrn.id}:`, e);
+        }
+      });
+      
+      materialsRequested = Array.from(mergedMaterialMap.values());
+      console.log(`✅ Merged ${mrns.length} MRNs -> ${materialsRequested.length} unique materials for project: ${projectName}`);
+
+      // Enrich materials with inventory details
+      const enrichedMaterials = await Promise.all(
+        materialsRequested.map(async (material) => {
+          try {
+            // Try to find matching inventory item
+            let inventoryItem = null;
+            
+            if (material.inventory_id) {
+              inventoryItem = await Inventory.findByPk(material.inventory_id, {
+                attributes: [
+                  'id',
+                  'barcode',
+                  'item_code',
+                  'item_name',
+                  'category',
+                  'material_type',
+                  'color',
+                  'batch_number',
+                  'warehouse_location',
+                  'rack_number',
+                  'quantity_available',
+                  'unit'
+                ]
+              });
+            }
+
+            // If not found by ID, try searching by name/code
+            if (!inventoryItem && (material.material_name || material.material_code)) {
+              inventoryItem = await Inventory.findOne({
+                where: {
+                  [Op.or]: [
+                    { item_name: { [Op.like]: `%${material.material_name || ''}%` } },
+                    { item_code: { [Op.like]: `%${material.material_code || ''}%` } },
+                    { barcode: material.barcode_scanned }
+                  ]
+                },
+                attributes: [
+                  'id',
+                  'barcode',
+                  'item_code',
+                  'item_name',
+                  'category',
+                  'material_type',
+                  'color',
+                  'batch_number',
+                  'warehouse_location',
+                  'rack_number',
+                  'quantity_available',
+                  'unit'
+                ],
+                limit: 1
+              });
+            }
+
+            return {
+              ...material,
+              // Inventory details
+              inventory_id: inventoryItem?.id || material.inventory_id,
+              inventory_item_name: inventoryItem?.item_name || material.material_name,
+              inventory_code: inventoryItem?.item_code || material.material_code,
+              inventory_barcode: inventoryItem?.barcode || material.barcode_scanned,
+              batch_number: inventoryItem?.batch_number || material.batch_number || '',
+              warehouse_location: inventoryItem?.warehouse_location || material.warehouse_location || '',
+              rack_number: inventoryItem?.rack_number || material.rack_number || '',
+              category: inventoryItem?.category || material.category || '',
+              material_type: inventoryItem?.material_type || material.material_type || '',
+              color: inventoryItem?.color || material.color || '',
+              quantity_available: inventoryItem?.quantity_available || 0,
+              stock_unit: inventoryItem?.unit || material.unit || 'pieces'
+            };
+          } catch (e) {
+            console.warn(`Failed to enrich material ${material.material_name}:`, e);
+            return material;
+          }
+        })
+      );
+
+      res.json({
+        success: true,
+        mrn: {
+          id: mrn.id,
+          request_number: mrn.request_number,
+          project_name: mrn.project_name,
+          status: mrn.status,
+          created_at: mrn.created_at
+        },
+        materials: enrichedMaterials,
+        count: enrichedMaterials.length
+      });
+    } catch (error) {
+      console.error('[ERROR] Failed to fetch MRN materials:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch MRN materials',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
+// Mark production order as ready for shipment
+router.post('/orders/:id/ready-for-shipment', authenticateToken, checkDepartment(['manufacturing', 'admin']), async (req, res) => {
+  const transaction = await ProductionOrder.sequelize.transaction();
+  try {
+    const { notes, special_instructions } = req.body;
+    const order = await ProductionOrder.findByPk(req.params.id, {
+      include: [
+        { model: SalesOrder, as: 'salesOrder', include: [{ model: Customer, as: 'customer' }] },
+        { model: Product, as: 'product' }
+      ],
+      transaction
+    });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Production order not found' });
+    }
+
+    // Check if order is completed
+    if (order.status !== 'completed') {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        message: `Cannot mark as ready for shipment. Order status is '${order.status}', must be 'completed'` 
+      });
+    }
+
+    // Check if shipment already exists
+    const existingShipment = await Shipment.findOne({
+      where: { 
+        sales_order_id: order.sales_order_id,
+        status: { [Op.notIn]: ['returned', 'cancelled', 'failed_delivery'] }
+      }
+    });
+
+    if (existingShipment) {
+      await transaction.rollback();
+      return res.status(409).json({ 
+        message: 'A shipment already exists for this sales order',
+        shipment_id: existingShipment.id,
+        shipment_number: existingShipment.shipment_number
+      });
+    }
+
+    // Prepare shipment items
+    const shipmentItems = [];
+    if (order.salesOrder?.items) {
+      try {
+        const items = typeof order.salesOrder.items === 'string' 
+          ? JSON.parse(order.salesOrder.items) 
+          : order.salesOrder.items;
+        
+        if (Array.isArray(items)) {
+          shipmentItems.push(...items.map(item => ({
+            product_id: item.product_id || order.product_id,
+            product_name: item.product_name || order.product?.name || 'Unknown',
+            quantity: item.quantity || order.quantity,
+            unit: item.unit || 'pieces',
+            description: item.description || order.product?.description || ''
+          })));
+        }
+      } catch (e) {
+        console.warn('Failed to parse sales order items:', e);
+        shipmentItems.push({
+          product_id: order.product_id,
+          product_name: order.product?.name || 'Unknown Product',
+          quantity: order.quantity,
+          unit: 'pieces',
+          description: order.product?.description || ''
+        });
+      }
+    }
+
+    // Generate shipment number
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    const lastShipment = await Shipment.findOne({
+      where: {
+        shipment_number: { [Op.like]: `SHP-${dateStr}-%` }
+      },
+      order: [['shipment_number', 'DESC']],
+      transaction
+    });
+
+    let sequence = 1;
+    if (lastShipment) {
+      const lastSequence = parseInt(lastShipment.shipment_number.split('-')[2]);
+      sequence = lastSequence + 1;
+    }
+    const shipment_number = `SHP-${dateStr}-${sequence.toString().padStart(4, '0')}`;
+
+    // Get shipping address from customer or sales order
+    const shippingAddress = order.salesOrder?.shipping_address || 
+                           order.salesOrder?.customer?.address || 
+                           'Address not provided';
+
+    // Create shipment
+    const shipment = await Shipment.create({
+      shipment_number,
+      sales_order_id: order.sales_order_id,
+      items: shipmentItems,
+      total_quantity: order.quantity || shipmentItems.reduce((sum, item) => sum + item.quantity, 0),
+      total_weight: 0, // Can be updated later
+      total_volume: 0, // Can be updated later
+      shipping_address: shippingAddress,
+      recipient_name: order.salesOrder?.customer?.name || 'Customer',
+      recipient_phone: order.salesOrder?.customer?.phone || '',
+      special_instructions: special_instructions || notes || '',
+      delivery_notes: notes || '',
+      status: 'preparing',
+      shipping_method: 'standard',
+      payment_mode: 'prepaid',
+      created_by: req.user.id
+    }, { transaction });
+
+    // Create initial tracking entry
+    await ShipmentTracking.create({
+      shipment_id: shipment.id,
+      status: 'preparing',
+      description: 'Shipment created from production order completion',
+      timestamp: new Date(),
+      created_by: req.user.id
+    }, { transaction });
+
+    // Update production order with shipment reference
+    await order.update({
+      shipment_id: shipment.id,
+      status: 'completed', // Keep status, but now linked to shipment
+      status_notes: `Ready for shipment - Shipment ${shipment_number} created`
+    }, { transaction });
+
+    // Send notifications
+    await NotificationService.create({
+      user_id: req.user.id,
+      title: 'Production Ready for Shipment',
+      message: `Production order ${order.production_number} is ready for shipment. Shipment ${shipment_number} created.`,
+      type: 'production_completed',
+      priority: 'high',
+      department: 'shipment',
+      related_id: shipment.id,
+      related_type: 'shipment'
+    }, { transaction });
+
+    await transaction.commit();
+
+    // Return complete shipment details
+    const completeShipment = await Shipment.findByPk(shipment.id, {
+      include: [
+        { model: SalesOrder, as: 'salesOrder', include: [{ model: Customer, as: 'customer' }] },
+        { model: User, as: 'creator', attributes: ['id', 'name', 'email'] }
+      ]
+    });
+
+    res.status(201).json({
+      message: 'Production order marked as ready for shipment',
+      production_order_id: order.id,
+      production_number: order.production_number,
+      shipment: completeShipment,
+      next_steps: [
+        'QC Final Check will verify quality',
+        'Warehouse will pack and label',
+        'Courier will pick up shipment',
+        'Customer will receive tracking updates'
+      ]
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Ready for shipment error:', error);
+    res.status(500).json({ 
+      message: 'Failed to mark order as ready for shipment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Get shipment statistics for manufacturing dashboard
+router.get('/shipments/dashboard/stats', authenticateToken, checkDepartment(['manufacturing', 'shipment', 'admin']), async (req, res) => {
+  try {
+    const shipmentStats = await Shipment.findAll({
+      attributes: [
+        'status',
+        [Shipment.sequelize.fn('COUNT', '*'), 'count']
+      ],
+      group: ['status'],
+      raw: true
+    });
+
+    const stats = {
+      ready_for_qc: 0,
+      qc_approved: 0,
+      ready_for_packing: 0,
+      packed: 0,
+      labeled: 0,
+      picked_up: 0,
+      in_transit: 0,
+      out_for_delivery: 0,
+      delivered: 0,
+      failed_delivery: 0,
+      total: 0
+    };
+
+    shipmentStats.forEach(stat => {
+      const statusMap = {
+        'preparing': 'ready_for_qc',
+        'ready_to_ship': 'ready_for_packing',
+        'shipped': 'picked_up',
+        'in_transit': 'in_transit',
+        'out_for_delivery': 'out_for_delivery',
+        'delivered': 'delivered',
+        'failed_delivery': 'failed_delivery',
+        'packed': 'packed'
+      };
+      
+      const mappedStatus = statusMap[stat.status] || stat.status;
+      if (stats[mappedStatus] !== undefined) {
+        stats[mappedStatus] = parseInt(stat.count);
+        stats.total += parseInt(stat.count);
+      }
+    });
+
+    res.json({
+      stats,
+      active_shipments: stats.picked_up + stats.in_transit + stats.out_for_delivery,
+      completed_shipments: stats.delivered,
+      pending_shipments: stats.ready_for_qc + stats.qc_approved + stats.ready_for_packing + stats.packed + stats.labeled
+    });
+
+  } catch (error) {
+    console.error('Shipment dashboard stats error:', error);
+    res.status(500).json({ message: 'Failed to fetch shipment statistics' });
+  }
+});
+
+// Get production orders ready for shipment
+router.get('/orders/ready-for-shipment', authenticateToken, checkDepartment(['manufacturing', 'shipment', 'admin']), async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+
+    const orders = await ProductionOrder.findAll({
+      where: {
+        status: 'completed',
+        shipment_id: { [Op.is]: null }
+      },
+      include: [
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
+          include: [{ model: Customer, as: 'customer' }]
+        },
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name', 'product_code', 'description']
+        }
+      ],
+      order: [['updated_at', 'DESC']],
+      limit: parseInt(limit, 10)
+    });
+
+    res.json({
+      count: orders.length,
+      orders: orders.map(order => ({
+        id: order.id,
+        production_number: order.production_number,
+        product_name: order.product?.name || 'Unknown',
+        quantity: order.quantity,
+        sales_order_number: order.salesOrder?.order_number,
+        customer_name: order.salesOrder?.customer?.name,
+        completed_at: order.actual_end_date,
+        priority: order.priority
+      }))
+    });
+
+  } catch (error) {
+    console.error('Ready for shipment orders fetch error:', error);
+    res.status(500).json({ message: 'Failed to fetch ready for shipment orders' });
   }
 });
 

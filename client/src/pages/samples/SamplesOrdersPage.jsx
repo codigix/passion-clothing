@@ -67,14 +67,14 @@ const SamplesOrdersPage = () => {
           <button
             type="button"
             onClick={() => navigate("/samples/create-request")}
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+            className="inline-flex items-center justify-center rounded bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600"
           >
             Create Sample Request
           </button>
           <button
             type="button"
             onClick={() => navigate("/samples/orders/export")}
-            className="inline-flex items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+            className="inline-flex items-center justify-center rounded border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
           >
             <Download className="mr-2 h-4 w-4" aria-hidden /> Export Orders
           </button>
@@ -82,7 +82,7 @@ const SamplesOrdersPage = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             Total Requests
           </p>
@@ -90,7 +90,7 @@ const SamplesOrdersPage = () => {
             {sampleOrders.length}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             Pending Approvals
           </p>
@@ -98,7 +98,7 @@ const SamplesOrdersPage = () => {
             {stats.pendingSamples}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             Conversion Rate
           </p>
@@ -108,7 +108,7 @@ const SamplesOrdersPage = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-64">
@@ -118,7 +118,7 @@ const SamplesOrdersPage = () => {
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search by sample no, customer, product..."
-                className="w-full rounded-md border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               />
             </div>
             <div className="relative w-full sm:w-48">
@@ -126,7 +126,7 @@ const SamplesOrdersPage = () => {
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
-                className="w-full appearance-none rounded-md border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full appearance-none rounded border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               >
                 {statusFilters.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -251,14 +251,14 @@ const SamplesOrdersPage = () => {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-200 text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700"
                         aria-label="View details"
                       >
                         <Eye className="h-4 w-4" aria-hidden />
                       </button>
                       <button
                         type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-200 text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700"
                         aria-label="Edit order"
                       >
                         <Pencil className="h-4 w-4" aria-hidden />
@@ -278,7 +278,7 @@ const SamplesOrdersPage = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">
           Recent Conversion Insights
         </h2>
@@ -286,7 +286,7 @@ const SamplesOrdersPage = () => {
           {conversionInsights.map((insight) => (
             <div
               key={insight.id}
-              className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4"
+              className="flex flex-col gap-3 rounded border border-gray-200 bg-gray-50 p-4"
             >
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">Sample No.</span>

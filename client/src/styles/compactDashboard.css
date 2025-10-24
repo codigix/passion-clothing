@@ -1,0 +1,245 @@
+/* Compact Dashboard Styles - Space-Optimized UX */
+
+/* Compact Table Styles */
+.compact-table {
+  @apply w-full text-xs;
+}
+
+.compact-table thead th {
+  @apply px-3 py-2 text-left text-[10px] font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b border-gray-200;
+}
+
+.compact-table tbody td {
+  @apply px-3 py-2.5 text-xs text-gray-900 border-b border-gray-100;
+}
+
+.compact-table tbody tr {
+  @apply hover:bg-gray-50 transition-colors duration-150;
+}
+
+.compact-table tbody tr:last-child td {
+  @apply border-b-0;
+}
+
+/* Compact Badge Styles */
+.compact-badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium;
+}
+
+.compact-badge-green {
+  @apply compact-badge bg-green-100 text-green-800;
+}
+
+.compact-badge-blue {
+  @apply compact-badge bg-blue-100 text-blue-800;
+}
+
+.compact-badge-yellow {
+  @apply compact-badge bg-yellow-100 text-yellow-800;
+}
+
+.compact-badge-red {
+  @apply compact-badge bg-red-100 text-red-800;
+}
+
+.compact-badge-gray {
+  @apply compact-badge bg-gray-100 text-gray-800;
+}
+
+.compact-badge-purple {
+  @apply compact-badge bg-purple-100 text-purple-800;
+}
+
+.compact-badge-indigo {
+  @apply compact-badge bg-indigo-100 text-indigo-800;
+}
+
+/* Compact Action Buttons */
+.compact-btn {
+  @apply inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200;
+}
+
+.compact-btn-primary {
+  @apply compact-btn bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500;
+}
+
+.compact-btn-secondary {
+  @apply compact-btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500;
+}
+
+.compact-btn-success {
+  @apply compact-btn bg-green-600 text-white hover:bg-green-700 focus:ring-2 focus:ring-offset-1 focus:ring-green-500;
+}
+
+.compact-btn-danger {
+  @apply compact-btn bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-offset-1 focus:ring-red-500;
+}
+
+/* Compact Icon Buttons */
+.compact-icon-btn {
+  @apply inline-flex items-center justify-center p-1.5 rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200;
+}
+
+/* Compact Card Container */
+.compact-card {
+  @apply bg-white rounded-lg border border-gray-200 shadow-sm p-4;
+}
+
+.compact-card-header {
+  @apply flex items-center justify-between mb-3 pb-2 border-b border-gray-100;
+}
+
+.compact-card-title {
+  @apply text-sm font-semibold text-gray-900;
+}
+
+.compact-card-body {
+  @apply space-y-3;
+}
+
+/* Compact Tabs */
+.compact-tabs {
+  @apply flex space-x-1 border-b border-gray-200 mb-4;
+}
+
+.compact-tab {
+  @apply px-3 py-2 text-xs font-medium text-gray-600 border-b-2 border-transparent hover:text-gray-900 hover:border-gray-300 transition-all duration-200 cursor-pointer;
+}
+
+.compact-tab-active {
+  @apply text-indigo-600 border-indigo-600 hover:text-indigo-700 hover:border-indigo-700;
+}
+
+/* Compact Grid Layouts */
+.compact-grid-2 {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-3;
+}
+
+.compact-grid-3 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3;
+}
+
+.compact-grid-4 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3;
+}
+
+.compact-grid-5 {
+  @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3;
+}
+
+/* Compact Input Fields */
+.compact-input {
+  @apply w-full px-3 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500;
+}
+
+.compact-select {
+  @apply w-full px-3 py-1.5 text-xs border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500;
+}
+
+/* Compact Search Bar */
+.compact-search-container {
+  @apply relative flex items-center;
+}
+
+.compact-search-input {
+  @apply compact-input pl-9;
+}
+
+.compact-search-icon {
+  @apply absolute left-3 w-4 h-4 text-gray-400;
+}
+
+/* Compact Stats Grid */
+.compact-stats-grid {
+  @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4;
+}
+
+/* Compact Section Header */
+.compact-section-header {
+  @apply flex items-center justify-between mb-3;
+}
+
+.compact-section-title {
+  @apply text-base font-semibold text-gray-900;
+}
+
+/* Compact Loading State */
+.compact-loading {
+  @apply flex items-center justify-center py-8;
+}
+
+.compact-loading-spinner {
+  @apply animate-spin h-8 w-8 text-indigo-600;
+}
+
+/* Compact Empty State */
+.compact-empty-state {
+  @apply text-center py-8;
+}
+
+.compact-empty-state-icon {
+  @apply mx-auto h-10 w-10 text-gray-400;
+}
+
+.compact-empty-state-title {
+  @apply mt-2 text-sm font-medium text-gray-900;
+}
+
+.compact-empty-state-description {
+  @apply mt-1 text-xs text-gray-500;
+}
+
+/* Responsive spacing adjustments */
+@media (max-width: 640px) {
+  .compact-card {
+    @apply p-3;
+  }
+  
+  .compact-stats-grid {
+    @apply grid-cols-1 gap-2;
+  }
+}
+
+/* Reduce overall page padding */
+.compact-dashboard-container {
+  @apply p-4 max-w-screen-2xl mx-auto;
+}
+
+/* Compact Status Dots */
+.compact-status-dot {
+  @apply inline-block w-2 h-2 rounded-full mr-1.5;
+}
+
+.compact-status-dot-green {
+  @apply compact-status-dot bg-green-500;
+}
+
+.compact-status-dot-blue {
+  @apply compact-status-dot bg-blue-500;
+}
+
+.compact-status-dot-yellow {
+  @apply compact-status-dot bg-yellow-500;
+}
+
+.compact-status-dot-red {
+  @apply compact-status-dot bg-red-500;
+}
+
+.compact-status-dot-gray {
+  @apply compact-status-dot bg-gray-400;
+}
+
+/* Hover effects for cards */
+.compact-card-hover {
+  @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer;
+}
+
+/* Compact progress bar */
+.compact-progress-bar {
+  @apply w-full bg-gray-200 rounded-full h-1.5 overflow-hidden;
+}
+
+.compact-progress-fill {
+  @apply h-full transition-all duration-300 rounded-full;
+}

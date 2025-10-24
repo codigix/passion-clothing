@@ -292,7 +292,7 @@ const CreateChallanPage = () => {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="bg-white rounded shadow-lg p-8 text-center">
             <div className="flex justify-center mb-4">
               <FaCheckCircle className="text-green-500 text-6xl" />
             </div>
@@ -301,7 +301,7 @@ const CreateChallanPage = () => {
               Challan Number: <strong className="text-blue-600">{createdChallan.challan_number}</strong>
             </p>
             
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 text-left">
+            <div className="bg-gray-50 rounded p-6 mb-6 text-left">
               <h3 className="font-semibold text-gray-800 mb-3">Challan Details:</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -338,13 +338,13 @@ const CreateChallanPage = () => {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={handleDownloadPDF}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center justify-center gap-2 px-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
               >
                 <FaDownload /> Download / Print Challan
               </button>
               <button
                 onClick={() => navigate(`/challans/register`)}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center justify-center gap-2 px-2 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
               >
                 <FaBoxOpen /> View All Challans
               </button>
@@ -377,7 +377,7 @@ const CreateChallanPage = () => {
                     remarks: ''
                   }]);
                 }}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="flex items-center justify-center gap-2 px-2 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
               >
                 <FaPlus /> Create Another Challan
               </button>
@@ -406,7 +406,7 @@ const CreateChallanPage = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/challans/register')}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-200 rounded transition-colors"
           >
             <FaArrowLeft className="text-xl text-gray-600" />
           </button>
@@ -416,7 +416,7 @@ const CreateChallanPage = () => {
           </div>
         </div>
         {salesOrder && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded">
             <FaShoppingCart className="text-blue-600" />
             <span className="text-sm font-medium text-blue-700">
               From SO: {salesOrder.order_number}
@@ -442,7 +442,7 @@ const CreateChallanPage = () => {
 
       <form onSubmit={handleSubmit}>
         {/* Challan Information */}
-        <div className="bg-white rounded-lg shadow mb-6 p-6">
+        <div className="bg-white rounded shadow mb-6 p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <FaBoxOpen className="text-blue-600" />
             Challan Information
@@ -457,7 +457,7 @@ const CreateChallanPage = () => {
                 onChange={(e) => handleInputChange('type', e.target.value)}
                 disabled={!!orderId}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 disabled:bg-gray-100"
               >
                 <option value="inward">Inward</option>
                 <option value="outward">Outward</option>
@@ -478,7 +478,7 @@ const CreateChallanPage = () => {
                 value={challanData.sub_type}
                 onChange={(e) => handleInputChange('sub_type', e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               >
                 <option value="sales">Sales</option>
                 <option value="purchase">Purchase</option>
@@ -502,7 +502,7 @@ const CreateChallanPage = () => {
                 onChange={(e) => handleInputChange('partyName', e.target.value)}
                 required
                 readOnly={!!salesOrder}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent read-only:bg-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 read-only:bg-gray-100"
               />
             </div>
 
@@ -515,7 +515,7 @@ const CreateChallanPage = () => {
                 value={challanData.challanDate}
                 onChange={(e) => handleInputChange('challanDate', e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
 
@@ -528,14 +528,14 @@ const CreateChallanPage = () => {
                 onChange={(e) => handleInputChange('partyAddress', e.target.value)}
                 rows="2"
                 readOnly={!!salesOrder}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent read-only:bg-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 read-only:bg-gray-100"
               />
             </div>
           </div>
         </div>
 
         {/* Shipment Details */}
-        <div className="bg-white rounded-lg shadow mb-6 p-6">
+        <div className="bg-white rounded shadow mb-6 p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <FaTruck className="text-blue-600" />
             Shipment Details
@@ -550,7 +550,7 @@ const CreateChallanPage = () => {
                 value={challanData.location_from}
                 onChange={(e) => handleInputChange('location_from', e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
 
@@ -563,7 +563,7 @@ const CreateChallanPage = () => {
                 value={challanData.location_to}
                 onChange={(e) => handleInputChange('location_to', e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
 
@@ -575,7 +575,7 @@ const CreateChallanPage = () => {
                 type="date"
                 value={challanData.expected_date}
                 onChange={(e) => handleInputChange('expected_date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
 
@@ -588,14 +588,14 @@ const CreateChallanPage = () => {
                 value={challanData.transport_details}
                 onChange={(e) => handleInputChange('transport_details', e.target.value)}
                 placeholder="e.g., Truck No., Driver Name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
           </div>
         </div>
 
         {/* Items Table */}
-        <div className="bg-white rounded-lg shadow mb-6 p-6">
+        <div className="bg-white rounded shadow mb-6 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
               <FaBoxOpen className="text-blue-600" />
@@ -605,7 +605,7 @@ const CreateChallanPage = () => {
               type="button"
               onClick={addItem}
               disabled={!!salesOrder}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <FaPlus />
               Add Item
@@ -636,7 +636,7 @@ const CreateChallanPage = () => {
                         onChange={(e) => handleItemChange(index, 'product_type', e.target.value)}
                         placeholder="Product type"
                         readOnly={!!salesOrder}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm read-only:bg-gray-100"
+                        className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-sm read-only:bg-gray-100"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -646,7 +646,7 @@ const CreateChallanPage = () => {
                         onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                         placeholder="Item description"
                         readOnly={!!salesOrder}
-                        className="w-48 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm read-only:bg-gray-100"
+                        className="w-48 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-sm read-only:bg-gray-100"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -654,14 +654,14 @@ const CreateChallanPage = () => {
                         type="number"
                         value={item.quantity}
                         onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                        className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-sm"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <select
                         value={item.unit}
                         onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                        className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-sm"
                       >
                         <option value="pcs">Pcs</option>
                         <option value="kg">Kg</option>
@@ -677,7 +677,7 @@ const CreateChallanPage = () => {
                         value={item.rate}
                         onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
                         readOnly={!!salesOrder}
-                        className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm read-only:bg-gray-100"
+                        className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-sm read-only:bg-gray-100"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -691,7 +691,7 @@ const CreateChallanPage = () => {
                         value={item.remarks}
                         onChange={(e) => handleItemChange(index, 'remarks', e.target.value)}
                         placeholder="Remarks"
-                        className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-sm"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -724,7 +724,7 @@ const CreateChallanPage = () => {
         </div>
 
         {/* Notes */}
-        <div className="bg-white rounded-lg shadow mb-6 p-6">
+        <div className="bg-white rounded shadow mb-6 p-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Notes
           </label>
@@ -733,7 +733,7 @@ const CreateChallanPage = () => {
             onChange={(e) => handleInputChange('notes', e.target.value)}
             rows="4"
             placeholder="Additional notes or instructions..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
           />
         </div>
 
@@ -743,7 +743,7 @@ const CreateChallanPage = () => {
             type="button"
             onClick={() => navigate('/challans/register')}
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-2 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <FaTimes />
             Cancel
@@ -751,7 +751,7 @@ const CreateChallanPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>

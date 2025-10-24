@@ -51,13 +51,26 @@
   - Responsive design with hover effects and visual indicators
   - API integration with fallback to default values
   - See: `OUTSOURCING_DASHBOARD_ENHANCED.md`, `OUTSOURCING_MOVED_TO_SIDEBAR.md`
-- **Outsourcing Moved to Sidebar**: Relocated from Manufacturing Dashboard tab to dedicated page accessible via Manufacturing sidebar menu (Jan 2025) ⭐ NEW
-  - Full OutsourcingDashboard with Orders and Vendors tabs
-  - Always accessible from sidebar (no need to find the right tab)
+- **Outsourcing Moved to Sidebar - Enhanced with Challans Integration**: Relocated from Manufacturing Dashboard tab to dedicated page with complete data integration and challans tracking (Jan 2025) ⭐ ENHANCED
+  - Full 5-tab OutsourceManagementPage: Orders, Vendors, Quality, Inward/Outward Challans, Performance
+  - All OutsourcingDashboard data integrated: 6 KPI stats, vendor directory, quality metrics
+  - Always accessible from Manufacturing → Outsource Management sidebar menu
+  - Enhanced statistics: Active, Completed, Delayed, Total Cost, Quality Score, On-time %
+  - Search, filter, and manage all outsourcing from single page
+  - Create dialog with 8-step wizard for full/partial outsource
+  - Vendor directory with contact details and management
+  - Quality control dashboard integrated
+  - **NEW**: Inward/Outward Challans tab showing all material flow transactions
+    - Separate sections for outward (materials sent) and inward (materials returned) challans
+    - Visual challan cards with vendor details, addresses, and status
+    - Color-coded type badges and status indicators
+    - Real-time challan count in tab navigation
+  - Real-time metrics from production orders and vendor performance data
   - Manufacturing Dashboard reduced from 8 tabs to 7 tabs
   - Truck icon for easy recognition
+  - Route: `/manufacturing/outsource`
   - Consistent with other action-oriented pages (Production Orders, Quality Control)
-  - See: `OUTSOURCING_MOVED_TO_SIDEBAR.md`, `OUTSOURCING_QUICK_REFERENCE.md`
+  - See: `OUTSOURCE_MANAGEMENT_MERGED_ENHANCEMENT.md`, `OUTSOURCING_MOVED_TO_SIDEBAR.md`, `OUTSOURCING_QUICK_REFERENCE.md`, `OUTSOURCE_CHALLANS_TAB_IMPLEMENTATION.md`
 - **Production Operations View - Simplified with Outsourcing & Material Reconciliation**: Complete redesign with simplified stage management, outsourcing flow (embroidery/printing), and material reconciliation (Jan 2025) ⭐ NEW
   - Removed complex substages - simple date/time editing only
   - Work type selector: In-House vs Outsourced (embroidery, printing, washing stages)

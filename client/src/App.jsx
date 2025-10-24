@@ -100,6 +100,7 @@ import MaterialReceiptPage from './pages/manufacturing/MaterialReceiptPage';
 import StockVerificationPage from './pages/manufacturing/StockVerificationPage';
 import ProductionApprovalPage from './pages/manufacturing/ProductionApprovalPage';
 import ProductionOperationsViewPage from './pages/manufacturing/ProductionOperationsViewPage';
+import OutsourceManagementPage from './pages/manufacturing/OutsourceManagementPage';
 
 // Admin Pages
 import UserManagementPage from './pages/admin/UserManagementPage';
@@ -173,28 +174,28 @@ function App() {
         <Route path="/admin/dashboard" element={<ProtectedDashboard department="admin"><AdminDashboard /></ProtectedDashboard>} />
 
         {/* Sales Routes */}
-        <Route path="/sales/orders" element={<SalesOrdersPage />} />
-        <Route path="/sales/orders/create" element={<CreateSalesOrderPage />} />
-        <Route path="/sales/orders/:id" element={<SalesOrderDetailsPage />} />
-        <Route path="/sales/reports" element={<SalesReportsPage />} />
+        <Route path="/sales/orders" element={<ProtectedDashboard department="sales"><SalesOrdersPage /></ProtectedDashboard>} />
+        <Route path="/sales/orders/create" element={<ProtectedDashboard department="sales"><CreateSalesOrderPage /></ProtectedDashboard>} />
+        <Route path="/sales/orders/:id" element={<ProtectedDashboard department="sales"><SalesOrderDetailsPage /></ProtectedDashboard>} />
+        <Route path="/sales/reports" element={<ProtectedDashboard department="sales"><SalesReportsPage /></ProtectedDashboard>} />
 
         {/* Procurement Routes */}
-        <Route path="/procurement/pending-approvals" element={<PendingApprovalsPage />} />
-        <Route path="/procurement/purchase-orders" element={<PurchaseOrdersPage />} />
-        <Route path="/procurement/purchase-orders/create" element={<CreatePurchaseOrderPage />} />
-        <Route path="/procurement/purchase-orders/:id" element={<PurchaseOrderDetailsPage />} />
-        <Route path="/procurement/vendors" element={<VendorsPage />} />
-        <Route path="/procurement/vendor-management" element={<VendorManagementPage />} />
-        <Route path="/procurement/bill-of-materials" element={<BillOfMaterialsPage />} />
-        <Route path="/procurement/goods-receipt" element={<GoodsReceiptPage />} />
-        <Route path="/procurement/vendor-performance" element={<VendorPerformancePage />} />
-        <Route path="/procurement/material-requests" element={<MaterialRequestsPage />} />
-        <Route path="/procurement/production-requests" element={<ProductionRequestsPage />} />
-        <Route path="/procurement/reports" element={<ProcurementReportsPage />} />
+        <Route path="/procurement/pending-approvals" element={<ProtectedDashboard department="procurement"><PendingApprovalsPage /></ProtectedDashboard>} />
+        <Route path="/procurement/purchase-orders" element={<ProtectedDashboard department="procurement"><PurchaseOrdersPage /></ProtectedDashboard>} />
+        <Route path="/procurement/purchase-orders/create" element={<ProtectedDashboard department="procurement"><CreatePurchaseOrderPage /></ProtectedDashboard>} />
+        <Route path="/procurement/purchase-orders/:id" element={<ProtectedDashboard department="procurement"><PurchaseOrderDetailsPage /></ProtectedDashboard>} />
+        <Route path="/procurement/vendors" element={<ProtectedDashboard department="procurement"><VendorsPage /></ProtectedDashboard>} />
+        <Route path="/procurement/vendor-management" element={<ProtectedDashboard department="procurement"><VendorManagementPage /></ProtectedDashboard>} />
+        <Route path="/procurement/bill-of-materials" element={<ProtectedDashboard department="procurement"><BillOfMaterialsPage /></ProtectedDashboard>} />
+        <Route path="/procurement/goods-receipt" element={<ProtectedDashboard department="procurement"><GoodsReceiptPage /></ProtectedDashboard>} />
+        <Route path="/procurement/vendor-performance" element={<ProtectedDashboard department="procurement"><VendorPerformancePage /></ProtectedDashboard>} />
+        <Route path="/procurement/material-requests" element={<ProtectedDashboard department="procurement"><MaterialRequestsPage /></ProtectedDashboard>} />
+        <Route path="/procurement/production-requests" element={<ProtectedDashboard department="procurement"><ProductionRequestsPage /></ProtectedDashboard>} />
+        <Route path="/procurement/reports" element={<ProtectedDashboard department="procurement"><ProcurementReportsPage /></ProtectedDashboard>} />
 
         {/* Challan Routes */}
-        <Route path="/challans/register" element={<ChallanRegisterPage />} />
-        <Route path="/challans/create" element={<CreateChallanPage />} />
+        <Route path="/challans/register" element={<ProtectedDashboard department="challans"><ChallanRegisterPage /></ProtectedDashboard>} />
+        <Route path="/challans/create" element={<ProtectedDashboard department="challans"><CreateChallanPage /></ProtectedDashboard>} />
 
         {/* Inventory Routes */}
         {/* Products merged into Inventory - old routes removed */}
@@ -219,53 +220,55 @@ function App() {
         <Route path="/inventory/reports" element={<ProtectedDashboard department="inventory"><InventoryReportsPage /></ProtectedDashboard>} />
 
         {/* Manufacturing Routes */}
-        <Route path="/manufacturing/orders" element={<ProductionOrdersPage />} />
-        <Route path="/manufacturing/orders/:id" element={<ProductionOperationsViewPage />} />
-        <Route path="/manufacturing/tracking" element={<ProductionTrackingPage />} />
-        <Route path="/manufacturing/quality" element={<QualityControlPage />} />
-        <Route path="/manufacturing/wizard" element={<ProductionWizardPage />} />
-        <Route path="/manufacturing/dashboard" element={<ProductionDashboardPage />} />
-        <Route path="/manufacturing/production-requests" element={<ManufacturingProductionRequestsPage />} />
-        <Route path="/manufacturing/material-requirements" element={<MaterialRequirementsPage />} />
-        <Route path="/manufacturing/material-requests" element={<MRNListPage />} />
-        <Route path="/manufacturing/material-requests/create" element={<CreateMRMPage />} />
-        <Route path="/manufacturing/material-receipt/:dispatchId" element={<MaterialReceiptPage />} />
-        <Route path="/manufacturing/stock-verification/:receiptId" element={<StockVerificationPage />} />
-        <Route path="/manufacturing/production-approval/:verificationId" element={<ProductionApprovalPage />} />
-        <Route path="/manufacturing/reports" element={<ManufacturingReportsPage />} />
+        <Route path="/manufacturing/orders" element={<ProtectedDashboard department="manufacturing"><ProductionOrdersPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/orders/:id" element={<ProtectedDashboard department="manufacturing"><ProductionOperationsViewPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/tracking" element={<ProtectedDashboard department="manufacturing"><ProductionTrackingPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/quality" element={<ProtectedDashboard department="manufacturing"><QualityControlPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/wizard" element={<ProtectedDashboard department="manufacturing"><ProductionWizardPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/dashboard" element={<ProtectedDashboard department="manufacturing"><ProductionDashboardPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/production-requests" element={<ProtectedDashboard department="manufacturing"><ManufacturingProductionRequestsPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/material-requirements" element={<ProtectedDashboard department="manufacturing"><MaterialRequirementsPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/material-requests" element={<ProtectedDashboard department="manufacturing"><MRNListPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/material-requests/create" element={<ProtectedDashboard department="manufacturing"><CreateMRMPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/material-receipt/:dispatchId" element={<ProtectedDashboard department="manufacturing"><MaterialReceiptPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/stock-verification/:receiptId" element={<ProtectedDashboard department="manufacturing"><StockVerificationPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/production-approval/:verificationId" element={<ProtectedDashboard department="manufacturing"><ProductionApprovalPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/operations/:id" element={<ProtectedDashboard department="manufacturing"><ProductionOperationsViewPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/outsource" element={<ProtectedDashboard department="manufacturing"><OutsourceManagementPage /></ProtectedDashboard>} />
+        <Route path="/manufacturing/reports" element={<ProtectedDashboard department="manufacturing"><ManufacturingReportsPage /></ProtectedDashboard>} />
 
         {/* Outsourcing Routes */}
-        <Route path="/outsourcing/outward" element={<div>Outward Challans Page</div>} />
-        <Route path="/outsourcing/inward" element={<div>Inward Challans Page</div>} />
-        <Route path="/outsourcing/tracking" element={<div>Vendor Tracking Page</div>} />
+        <Route path="/outsourcing/outward" element={<ProtectedDashboard department="manufacturing"><div>Outward Challans Page</div></ProtectedDashboard>} />
+        <Route path="/outsourcing/inward" element={<ProtectedDashboard department="manufacturing"><div>Inward Challans Page</div></ProtectedDashboard>} />
+        <Route path="/outsourcing/tracking" element={<ProtectedDashboard department="manufacturing"><div>Vendor Tracking Page</div></ProtectedDashboard>} />
 
         {/* Samples Routes */}
-        <Route path="/samples/orders" element={<SamplesOrdersPage />} />
-        <Route path="/samples/tracking" element={<SamplesTrackingPage />} />
-        <Route path="/samples/reports" element={<SamplesReportsPage />} />
-        <Route path="/samples/conversion" element={<SamplesConversionPage />} />
-        <Route path="/samples/create" element={<SamplesCreateRequestPage />} />
+        <Route path="/samples/orders" element={<ProtectedDashboard department="samples"><SamplesOrdersPage /></ProtectedDashboard>} />
+        <Route path="/samples/tracking" element={<ProtectedDashboard department="samples"><SamplesTrackingPage /></ProtectedDashboard>} />
+        <Route path="/samples/reports" element={<ProtectedDashboard department="samples"><SamplesReportsPage /></ProtectedDashboard>} />
+        <Route path="/samples/conversion" element={<ProtectedDashboard department="samples"><SamplesConversionPage /></ProtectedDashboard>} />
+        <Route path="/samples/create" element={<ProtectedDashboard department="samples"><SamplesCreateRequestPage /></ProtectedDashboard>} />
 
         {/* Shipment Routes */}
-        <Route path="/shipment/dispatch" element={<ShipmentDispatchPage />} />
-        <Route path="/shipment/tracking" element={<ShipmentTrackingPage />} />
-        <Route path="/shipment/reports" element={<ShipmentReportsPage />} />
+        <Route path="/shipment/dispatch" element={<ProtectedDashboard department="shipment"><ShipmentDispatchPage /></ProtectedDashboard>} />
+        <Route path="/shipment/tracking" element={<ProtectedDashboard department="shipment"><ShipmentTrackingPage /></ProtectedDashboard>} />
+        <Route path="/shipment/reports" element={<ProtectedDashboard department="shipment"><ShipmentReportsPage /></ProtectedDashboard>} />
 
         {/* Store Routes */}
-        <Route path="/store/stock" element={<StoreStockManagementPage />} />
-        <Route path="/store/sales" element={<div>Store Sales Page</div>} />
-        <Route path="/store/returns" element={<StoreReturnsPage />} />
-        <Route path="/store/reports" element={<div>Store Reports Page</div>} />
+        <Route path="/store/stock" element={<ProtectedDashboard department="store"><StoreStockManagementPage /></ProtectedDashboard>} />
+        <Route path="/store/sales" element={<ProtectedDashboard department="store"><div>Store Sales Page</div></ProtectedDashboard>} />
+        <Route path="/store/returns" element={<ProtectedDashboard department="store"><StoreReturnsPage /></ProtectedDashboard>} />
+        <Route path="/store/reports" element={<ProtectedDashboard department="store"><div>Store Reports Page</div></ProtectedDashboard>} />
 
         {/* Finance Routes */}
-        <Route path="/finance/invoices" element={<FinanceInvoicesPage />} />
-        <Route path="/finance/payments" element={<FinancePaymentsPage />} />
-        <Route path="/finance/reports" element={<FinanceReportsPage />} />
+        <Route path="/finance/invoices" element={<ProtectedDashboard department="finance"><FinanceInvoicesPage /></ProtectedDashboard>} />
+        <Route path="/finance/payments" element={<ProtectedDashboard department="finance"><FinancePaymentsPage /></ProtectedDashboard>} />
+        <Route path="/finance/reports" element={<ProtectedDashboard department="finance"><FinanceReportsPage /></ProtectedDashboard>} />
 
         {/* Admin Routes */}
-        <Route path="/admin/users" element={<UserManagementPage />} />
-        <Route path="/admin/roles" element={<RoleManagementPage />} />
-        <Route path="/admin/config" element={<SystemConfigPage />} />
+        <Route path="/admin/users" element={<ProtectedDashboard department="admin"><UserManagementPage /></ProtectedDashboard>} />
+        <Route path="/admin/roles" element={<ProtectedDashboard department="admin"><RoleManagementPage /></ProtectedDashboard>} />
+        <Route path="/admin/config" element={<ProtectedDashboard department="admin"><SystemConfigPage /></ProtectedDashboard>} />
 
         {/* Common Routes */}
         <Route path="/profile" element={<ProfilePage />} />

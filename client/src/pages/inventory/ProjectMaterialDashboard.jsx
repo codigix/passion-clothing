@@ -75,7 +75,7 @@ const ProjectMaterialDashboard = () => {
   if (!project) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
           Project not found
         </div>
       </div>
@@ -85,10 +85,10 @@ const ProjectMaterialDashboard = () => {
   const { salesOrder, summary, materials, dispatches } = project;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/inventory')}
             className="text-gray-600 hover:text-gray-800"
@@ -96,68 +96,68 @@ const ProjectMaterialDashboard = () => {
             <FaArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Project Materials</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Project Materials</h1>
             <p className="text-gray-600">{salesOrder.order_number} - {salesOrder.customer?.company_name}</p>
           </div>
         </div>
         <button
           onClick={handleAddMaterial}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
         >
           <FaPlus /> Add Material
         </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-6 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
+        <div className="bg-white p-6 rounded shadow">
           <p className="text-gray-500 text-sm mb-1">Total Materials</p>
           <p className="text-2xl font-bold text-gray-800">{summary.totalMaterials}</p>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <p className="text-gray-500 text-sm mb-1">Total Received</p>
           <p className="text-2xl font-bold text-blue-600">{summary.totalReceived.toFixed(2)}</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <p className="text-gray-500 text-sm mb-1">Sent to Manufacturing</p>
           <p className="text-2xl font-bold text-orange-600">{summary.sentToManufacturing.toFixed(2)}</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <p className="text-gray-500 text-sm mb-1">Remaining Balance</p>
           <p className="text-2xl font-bold text-green-600">{summary.currentStock.toFixed(2)}</p>
         </div>
       </div>
 
       {/* Materials Table */}
-      <div className="bg-white rounded-lg shadow mb-6">
+      <div className="bg-white rounded shadow mb-4">
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Materials</h2>
+          <h2 className="text-lg font-semibold mb-4">Materials</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Material Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Barcode
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Total Received
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Current Stock
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Sent to Mfg
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Last Updated
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase">
                     Actions
                   </th>
                 </tr>
@@ -241,15 +241,15 @@ const ProjectMaterialDashboard = () => {
       </div>
 
       {/* Dispatch History */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded shadow">
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Dispatch History</h2>
+          <h2 className="text-lg font-semibold mb-4">Dispatch History</h2>
           <div className="space-y-3">
             {dispatches.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No dispatch history available</p>
             ) : (
               dispatches.map((dispatch) => (
-                <div key={dispatch.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={dispatch.id} className="border border-gray-200 rounded p-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium text-gray-800">
@@ -284,7 +284,7 @@ const ProjectMaterialDashboard = () => {
       {/* Barcode Modal */}
       {showBarcodeModal && selectedMaterial && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <div className="bg-white rounded p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Material Barcode</h3>
             <div className="text-center mb-4">
               <p className="font-medium text-gray-800 mb-2">{selectedMaterial.product_name}</p>
@@ -295,7 +295,7 @@ const ProjectMaterialDashboard = () => {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
                 <FaPrint /> Print
               </button>
@@ -313,7 +313,7 @@ const ProjectMaterialDashboard = () => {
       {/* Send to Manufacturing Modal */}
       {showSendModal && selectedMaterial && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <div className="bg-white rounded p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Send to Manufacturing</h3>
             <div className="mb-4">
               <p className="font-medium text-gray-800">{selectedMaterial.product_name}</p>
@@ -322,7 +322,7 @@ const ProjectMaterialDashboard = () => {
               </p>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Quantity to Send *
               </label>
               <input
@@ -330,18 +330,18 @@ const ProjectMaterialDashboard = () => {
                 value={sendQty}
                 onChange={(e) => setSendQty(e.target.value)}
                 max={selectedMaterial.available_stock}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 placeholder="Enter quantity"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Notes (Optional)
               </label>
               <textarea
                 value={sendNotes}
                 onChange={(e) => setSendNotes(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 rows="3"
                 placeholder="Add notes..."
               />
@@ -349,7 +349,7 @@ const ProjectMaterialDashboard = () => {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleSendToManufacturing}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
               >
                 Send
               </button>

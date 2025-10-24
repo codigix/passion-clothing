@@ -59,14 +59,14 @@ const RegistrationPage = () => {
     <div className="min-h-screen bg-gray-100 flex items-center py-8">
       <div className="max-w-2xl w-full mx-auto">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-blue-600 flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-blue-500 flex items-center justify-center">
             <span className="text-white text-4xl font-bold">P</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">PASHION ERP</h1>
           <h2 className="text-xl text-gray-600 font-medium mb-1">Create New Account</h2>
           <p className="text-gray-500">Join our clothing factory management system</p>
         </div>
-        <div className="bg-white shadow rounded-lg border border-gray-200 p-8">
+        <div className="bg-white shadow rounded border border-gray-200 p-8">
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -79,7 +79,7 @@ const RegistrationPage = () => {
                   value={form.employee_id}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 />
               </div>
               {/* Full Name */}
@@ -91,7 +91,7 @@ const RegistrationPage = () => {
                   value={form.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 />
               </div>
               {/* Email */}
@@ -103,7 +103,7 @@ const RegistrationPage = () => {
                   value={form.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 />
               </div>
               {/* Password */}
@@ -115,7 +115,7 @@ const RegistrationPage = () => {
                   value={form.password}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 />
               </div>
               {/* Phone */}
@@ -126,7 +126,7 @@ const RegistrationPage = () => {
                   name="phone"
                   value={form.phone}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 />
               </div>
               {/* Department */}
@@ -137,7 +137,7 @@ const RegistrationPage = () => {
                   value={form.department}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 >
                   <option value="">Select Department</option>
                   {departments.map(dept => (

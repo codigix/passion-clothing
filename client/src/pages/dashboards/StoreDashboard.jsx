@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SELF_REGISTER_ALLOWED_DEPARTMENTS, DEPARTMENT_DISPLAY_MAP } from '../../config/rolePolicies';
+import MinimalStatCard from '../../components/common/MinimalStatCard';
+import '../../styles/compactDashboard.css';
 
 const StoreDashboard = () => {
   const navigate = useNavigate();
@@ -220,42 +222,6 @@ const StoreDashboard = () => {
 
   const getMovementColor = (type) => (type === 'outward' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700');
 
-  const StatCard = ({ title, value, icon, colorClasses = 'bg-blue-100 text-blue-600', subtitle, unit, trend }) => (
-    <div className="bg-white  shadow-sm border border-gray-200 p-4 h-full">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-            {title}
-          </p>
-          <p className="text-2xl font-bold text-gray-900">
-            {value}
-            {unit && <span className="text-sm font-semibold text-gray-600">{unit}</span>}
-          </p>
-          {subtitle && (
-            <p className="text-sm text-gray-600 mt-1">
-              {subtitle}
-            </p>
-          )}
-          {typeof trend === 'number' && (
-            <div className="flex items-center gap-1 mt-2">
-              {trend >= 0 ? (
-                <TrendingUp className="text-emerald-500 w-4 h-4" />
-              ) : (
-                <TrendingDown className="text-rose-500 w-4 h-4" />
-              )}
-              <span className={`text-xs font-medium ${trend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {Math.abs(trend)}% from last month
-              </span>
-            </div>
-          )}
-        </div>
-        <div className={`rounded-full p-3 flex items-center justify-center ${colorClasses}`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-
   const TabPanel = ({ children, value, index }) => {
     if (value !== index) {
       return null;
@@ -264,94 +230,84 @@ const StoreDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">
+    <div className="compact-dashboard-container">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">
           School Store Dashboard
         </h1>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="compact-btn compact-btn-secondary"
             onClick={() => navigate('/store/stock-request')}
           >
-            <Package size={18} />
+            <Package size={16} />
             Request Stock
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="compact-btn compact-btn-primary"
             onClick={() => navigate('/store/add-location')}
           >
-            <Plus size={18} />
+            <Plus size={16} />
             Add Store Location
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        <MinimalStatCard
           title="Total Products"
           value={stats.totalProducts}
-          icon={<Store className="w-6 h-6" />}
-          colorClasses="bg-blue-100 text-blue-600"
+          icon={Store}
         />
-        <StatCard
+        <MinimalStatCard
           title="Total Stock"
           value={stats.totalStock}
-          icon={<Package className="w-6 h-6" />}
-          subtitle="Items across all stores"
-          colorClasses="bg-sky-100 text-sky-600"
+          icon={Package}
+          subtitle="All stores"
         />
-        <StatCard
+        <MinimalStatCard
           title="Total Sales"
           value={`₹${(stats.totalSales / 1000).toFixed(0)}K`}
-          icon={<DollarSign className="w-6 h-6" />}
+          icon={DollarSign}
           subtitle="This month"
-          colorClasses="bg-emerald-100 text-emerald-600"
-          trend={12.5}
         />
-        <StatCard
+        <MinimalStatCard
           title="Returns"
           value={`₹${(stats.totalReturns / 1000).toFixed(0)}K`}
-          icon={<RotateCcw className="w-6 h-6" />}
+          icon={RotateCcw}
           subtitle="This month"
-          colorClasses="bg-amber-100 text-amber-600"
         />
-        <StatCard
+        <MinimalStatCard
           title="Profit Margin"
-          value={stats.profitMargin}
-          unit="%"
-          icon={<TrendingUp className="w-6 h-6" />}
-          colorClasses="bg-emerald-100 text-emerald-600"
-          trend={2.3}
+          value={`${stats.profitMargin}%`}
+          icon={TrendingUp}
         />
-        <StatCard
+        <MinimalStatCard
           title="Stock Turnover"
-          value={stats.stockTurnover}
-          unit="x"
-          icon={<FileText className="w-6 h-6" />}
-          subtitle="Times per year"
-          colorClasses="bg-indigo-100 text-indigo-600"
+          value={`${stats.stockTurnover}x`}
+          icon={FileText}
+          subtitle="Per year"
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
-        <h3 className="text-xl font-semibold">
+      <div className="compact-card mb-4">
+        <h3 className="compact-section-title mb-3">
           Quick Search &amp; Actions
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
           <div className="md:col-span-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search by store name, location, manager..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
               onClick={() => navigate('/store/stock-management')}
             >
               Stock Management
@@ -359,7 +315,7 @@ const StoreDashboard = () => {
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
               onClick={() => navigate('/store/sales-reports')}
             >
               Sales Reports
@@ -367,7 +323,7 @@ const StoreDashboard = () => {
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
               onClick={() => navigate('/store/profitability')}
             >
               Profitability
@@ -375,7 +331,7 @@ const StoreDashboard = () => {
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 transition-colors"
               onClick={handleExportData}
             >
               <Download size={18} />
@@ -384,7 +340,7 @@ const StoreDashboard = () => {
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 transition-colors"
               onClick={() => navigate('/store/stock-management')}
             >
               Stock Management
@@ -393,13 +349,13 @@ const StoreDashboard = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white rounded shadow-sm border border-gray-200">
         <div className="border-b border-gray-200 px-6">
           <div className="flex flex-wrap">
             {['Store Locations', 'Stock Movements', 'Sales Performance', 'Returns & Exchanges'].map((label, index) => (
               <button
                 key={label}
-                className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+                className={`px-2 py-2 font-medium text-sm border-b-2 transition-colors ${
                   tabValue === index
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -419,51 +375,51 @@ const StoreDashboard = () => {
                 Store Locations Overview
               </h2>
               <button
-                className="self-start md:self-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="self-start md:self-auto px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 transition-colors"
                 onClick={() => navigate('/store/locations')}
               >
                 View All Locations
               </button>
             </div>
 
-            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <div className="overflow-x-auto border border-gray-200 rounded-md">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Issued</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Sold</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Returns</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profit Margin</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Issued</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Sold</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Returns</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profit Margin</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-2 py-2 text-xs text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {storeLocations.map((store) => (
                     <tr key={store.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-semibold text-gray-900">{store.storeName}</td>
-                      <td className="px-4 py-3 text-gray-600">{store.location}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2 font-semibold text-gray-900">{store.storeName}</td>
+                      <td className="px-2 py-2 text-gray-600">{store.location}</td>
+                      <td className="px-2 py-2">
                         <div className="flex flex-col text-sm text-gray-600">
                           <span>{store.manager}</span>
                           <span className="text-xs text-gray-400">{store.contact}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">{store.stockIssued}</td>
-                      <td className="px-4 py-3">{store.stockSold}</td>
-                      <td className="px-4 py-3">{store.stockReturned}</td>
-                      <td className="px-4 py-3">₹{store.revenue.toLocaleString()}</td>
-                      <td className="px-4 py-3">{store.profitMargin}%</td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">{store.stockIssued}</td>
+                      <td className="px-2 py-2">{store.stockSold}</td>
+                      <td className="px-2 py-2">{store.stockReturned}</td>
+                      <td className="px-2 py-2">₹{store.revenue.toLocaleString()}</td>
+                      <td className="px-2 py-2">{store.profitMargin}%</td>
+                      <td className="px-2 py-2">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(store.status)}`}>
                           {store.status.replace('_', ' ').toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-2 text-center">
                         <div className="flex justify-center gap-2">
                           <button
                             className="text-blue-600 hover:text-blue-800"
@@ -496,49 +452,49 @@ const StoreDashboard = () => {
                 Recent Stock Movements
               </h2>
               <button
-                className="self-start md:self-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="self-start md:self-auto px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 transition-colors"
                 onClick={() => navigate('/store/stock-movements')}
               >
                 View All Movements
               </button>
             </div>
 
-            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <div className="overflow-x-auto border border-gray-200 rounded-md">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan No.</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan No.</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                    <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-2 py-2 text-xs text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {stockMovements.map((movement) => (
                     <tr key={movement.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{movement.challanNo}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${getMovementColor(movement.type)}`}>
+                      <td className="px-2 py-2 font-medium text-gray-900">{movement.challanNo}</td>
+                      <td className="px-2 py-2">
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold ${getMovementColor(movement.type)}`}>
                           {movement.type === 'outward' ? <Truck size={14} /> : <ShoppingCart size={14} />}
                           {movement.type.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{movement.storeName}</td>
-                      <td className="px-4 py-3 text-gray-600">{movement.items}</td>
-                      <td className="px-4 py-3 text-right">{movement.quantity}</td>
-                      <td className="px-4 py-3">₹{movement.value.toLocaleString()}</td>
-                      <td className="px-4 py-3">{movement.date}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">{movement.storeName}</td>
+                      <td className="px-2 py-2 text-gray-600">{movement.items}</td>
+                      <td className="px-2 py-2 text-right">{movement.quantity}</td>
+                      <td className="px-2 py-2">₹{movement.value.toLocaleString()}</td>
+                      <td className="px-2 py-2">{movement.date}</td>
+                      <td className="px-2 py-2">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(movement.status)}`}>
                           {movement.status.replace('_', ' ').toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-2 text-center">
                         <button
                           className="text-blue-600 hover:text-blue-800"
                           aria-label="View movement"
@@ -562,16 +518,16 @@ const StoreDashboard = () => {
                 Sales Performance
               </h2>
               <button
-                className="self-start md:self-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="self-start md:self-auto px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 transition-colors"
                 onClick={() => navigate('/store/sales')}
               >
                 View Detailed Sales
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {salesData.map((record) => (
-                <div key={record.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 space-y-3">
+                <div key={record.id} className="bg-white border border-gray-200 rounded shadow-sm p-6 space-y-3">
                   <div className="flex items-center gap-3">
                     <GraduationCap className="w-10 h-10 text-blue-500" />
                     <div>
@@ -579,7 +535,7 @@ const StoreDashboard = () => {
                       <p className="text-xs text-gray-500">{record.productCategory}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wide">Quantity Sold</p>
                       <p className="text-lg font-semibold text-gray-900">{record.quantitySold}</p>
@@ -598,7 +554,7 @@ const StoreDashboard = () => {
                     </div>
                   </div>
                   <button
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-2.5 py-1.5 border border-gray text-xs-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => navigate(`/store/sales-reports/${record.id}`)}
                   >
                     View Report
@@ -616,20 +572,20 @@ const StoreDashboard = () => {
                 Returns &amp; Exchanges
               </h2>
               <button
-                className="self-start md:self-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="self-start md:self-auto px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 transition-colors"
                 onClick={() => navigate('/store/returns')}
               >
                 Manage Returns
               </button>
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <div className="bg-amber-50 border border-amber-200 rounded p-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm text-amber-600 font-semibold uppercase tracking-wide">Monthly Returns</p>
                   <p className="text-2xl font-bold text-amber-700">₹{(stats.totalReturns / 1000).toFixed(0)}K</p>
                 </div>
                 <button
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
                   onClick={() => navigate('/store/exchange-order')}
                 >
                   Create Exchange Order

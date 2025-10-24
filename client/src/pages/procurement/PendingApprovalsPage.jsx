@@ -11,12 +11,15 @@ import {
   FileText,
   User,
   Building2,
-  TrendingUp
+  TrendingUp,
+  ShieldAlert
 } from 'lucide-react';
 import api from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PendingApprovalsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [pendingPOs, setPendingPOs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPO, setSelectedPO] = useState(null);
@@ -26,6 +29,9 @@ const PendingApprovalsPage = () => {
     totalValue: 0,
     urgent: 0
   });
+
+  // Check if user is admin
+  const isAdmin = user?.department === 'admin' || user?.role === 'admin';
 
   useEffect(() => {
     fetchPendingApprovals();
@@ -123,43 +129,56 @@ const PendingApprovalsPage = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Pending Approvals</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Pending Approvals</h1>
         <p className="text-gray-600">Review and approve purchase orders waiting for authorization</p>
+        
+        {/* Admin-Only Notice */}
+        {!isAdmin && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">View Only Access</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                PO approval is restricted to Admin department only. You can view pending approvals but cannot approve or reject them.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+        <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Pending Orders</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center">
               <FileText className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Value</p>
               <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue)}</p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-green-100 rounded flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Urgent Priority</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.urgent}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.urgent}</p>
             </div>
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-red-100 rounded flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-red-600" />
             </div>
           </div>
@@ -168,7 +187,7 @@ const PendingApprovalsPage = () => {
 
       {/* PO List */}
       {pendingPOs.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <div className="bg-white rounded shadow-sm border border-gray-200 p-12 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
@@ -178,7 +197,7 @@ const PendingApprovalsPage = () => {
       ) : (
         <div className="space-y-4">
           {pendingPOs.map((po) => (
-            <div key={po.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div key={po.id} className="bg-white rounded shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
@@ -191,23 +210,23 @@ const PendingApprovalsPage = () => {
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 mb-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Building2 className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <Building2 size={14} />
                       <span className="truncate">{po.vendor?.name || 'Unknown Vendor'}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <User className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <User size={14} />
                       <span className="truncate">{po.customer?.name || po.client_name || 'N/A'}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <Calendar size={14} />
                       <span>Expected: {formatDate(po.expected_delivery_date)}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Package className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <Package size={14} />
                       <span>{po.items?.length || 0} items</span>
                     </div>
                   </div>
@@ -231,27 +250,36 @@ const PendingApprovalsPage = () => {
               <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => handleViewDetails(po.id)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                 >
-                  <Eye className="w-4 h-4" />
+                  <Eye size={14} />
                   View Details
                 </button>
 
-                <button
-                  onClick={() => handleApprove(po)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Approve Order
-                </button>
+                {isAdmin ? (
+                  <>
+                    <button
+                      onClick={() => handleApprove(po)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors"
+                    >
+                      <CheckCircle size={14} />
+                      Approve Order
+                    </button>
 
-                <button
-                  onClick={() => handleReject(po.id)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Reject
-                </button>
+                    <button
+                      onClick={() => handleReject(po.id)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
+                    >
+                      <XCircle size={14} />
+                      Reject
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500 bg-gray-50 rounded border border-gray-200">
+                    <ShieldAlert size={12} />
+                    <span>Admin approval required</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -306,10 +334,10 @@ const ApprovalModal = ({ po, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-green-50 to-blue-50 px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Approve Purchase Order</h2>
+          <h2 className="text-lg font-bold text-gray-900">Approve Purchase Order</h2>
           <p className="text-sm text-gray-600 mt-1">
             PO: {po.po_number || `PO-${po.id}`} • {po.vendor?.name}
           </p>
@@ -318,9 +346,9 @@ const ApprovalModal = ({ po, onClose, onSuccess }) => {
         {/* Content */}
         <div className="p-6">
           {/* Items Preview */}
-          <div className="mb-6">
+          <div className="mb-4">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Order Items</h3>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto">
+            <div className="bg-gray-50 rounded p-4 space-y-2 max-h-60 overflow-y-auto">
               {po.items?.map((item, index) => (
                 <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
                   <div className="flex-1">
@@ -344,8 +372,8 @@ const ApprovalModal = ({ po, onClose, onSuccess }) => {
           </div>
 
           {/* Notes Input */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Approval Notes (Optional)
             </label>
             <textarea
@@ -353,12 +381,12 @@ const ApprovalModal = ({ po, onClose, onSuccess }) => {
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any notes about this approval..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             />
           </div>
 
           {/* Summary - Automated workflow */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border-l-4 border-blue-600">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded p-4 mb-4 border-l-4 border-blue-600">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-blue-900">
@@ -381,14 +409,14 @@ const ApprovalModal = ({ po, onClose, onSuccess }) => {
             <button
               onClick={onClose}
               disabled={submitting}
-              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={handleApprove}
               disabled={submitting}
-              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
@@ -397,7 +425,7 @@ const ApprovalModal = ({ po, onClose, onSuccess }) => {
                 </>
               ) : (
                 <>
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle size={14} />
                   Approve Purchase Order
                 </>
               )}

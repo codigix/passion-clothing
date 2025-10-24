@@ -73,7 +73,7 @@ const ShippingDashboardPage = () => {
   };
 
   const OrderCard = ({ order }) => (
-    <div className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded shadow-sm border p-6 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{order.order_number}</h3>
@@ -101,7 +101,7 @@ const ShippingDashboardPage = () => {
             setSelectedOrder(order);
             setShowCreateShipment(true);
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
         >
           <FaTruck /> Create Shipment
         </button>
@@ -110,7 +110,7 @@ const ShippingDashboardPage = () => {
   );
 
   const ShipmentCard = ({ shipment }) => (
-    <div className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded shadow-sm border p-6 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{shipment.shipment_number}</h3>
@@ -145,10 +145,10 @@ const ShippingDashboardPage = () => {
           Quantity: {shipment.total_quantity}
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+          <button className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
             Track
           </button>
-          <button className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+          <button className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">
             Update
           </button>
         </div>
@@ -167,7 +167,7 @@ const ShippingDashboardPage = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white p-6 rounded shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Ready to Ship</p>
@@ -177,7 +177,7 @@ const ShippingDashboardPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white p-6 rounded shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Shipments</p>
@@ -189,7 +189,7 @@ const ShippingDashboardPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white p-6 rounded shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Delivered Today</p>
@@ -204,7 +204,7 @@ const ShippingDashboardPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white p-6 rounded shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">On-Time Delivery</p>
@@ -254,7 +254,7 @@ const ShippingDashboardPage = () => {
         {/* Create Shipment Modal */}
         {showCreateShipment && selectedOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="bg-white rounded w-full max-w-md">
               <div className="p-6 border-b">
                 <h2 className="text-xl font-bold">Create Shipment</h2>
                 <p className="text-gray-600">Order: {selectedOrder.order_number}</p>
@@ -317,7 +317,7 @@ const ShippingDashboardPage = () => {
                 <button
                   onClick={handleCreateShipment}
                   disabled={creatingShipment}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                 >
                   {creatingShipment ? 'Creating...' : 'Create Shipment'}
                 </button>

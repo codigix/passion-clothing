@@ -119,10 +119,10 @@ const ProductionRequestsPage = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <div className="flex items-center gap-3 mb-2">
           <FaIndustry className="text-3xl text-orange-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Production Requests</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Production Requests</h1>
         </div>
         <p className="text-gray-600">
           Track production requests sent to Manufacturing department
@@ -130,13 +130,13 @@ const ProductionRequestsPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="bg-white rounded shadow-md p-4 mb-4">
+        <div className="flex items-center gap-1.5 mb-4">
           <FaFilter className="text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
@@ -147,7 +147,7 @@ const ProductionRequestsPage = () => {
                 value={filters.search}
                 onChange={(e) => setFilters({...filters, search: e.target.value})}
                 placeholder="Request #, Product, Project..."
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -158,7 +158,7 @@ const ProductionRequestsPage = () => {
             <select
               value={filters.status}
               onChange={(e) => setFilters({...filters, status: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -180,7 +180,7 @@ const ProductionRequestsPage = () => {
             <select
               value={filters.priority}
               onChange={(e) => setFilters({...filters, priority: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
             >
               <option value="">All Priorities</option>
               <option value="low">Low</option>
@@ -196,7 +196,7 @@ const ProductionRequestsPage = () => {
             <select
               value={filters.project_name}
               onChange={(e) => setFilters({...filters, project_name: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
             >
               <option value="">All Projects</option>
               {uniqueProjects.map(project => (
@@ -210,7 +210,7 @@ const ProductionRequestsPage = () => {
         <div className="mt-4 flex justify-end">
           <button
             onClick={resetFilters}
-            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
           >
             Reset Filters
           </button>
@@ -219,14 +219,14 @@ const ProductionRequestsPage = () => {
 
       {/* Requests List */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded shadow-md p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading production requests...</p>
         </div>
       ) : requests.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded shadow-md p-8 text-center">
           <FaIndustry className="text-6xl text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Production Requests Found</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">No Production Requests Found</h3>
           <p className="text-gray-500">
             {Object.values(filters).some(f => f) 
               ? 'Try adjusting your filters to see more results.'
@@ -236,10 +236,10 @@ const ProductionRequestsPage = () => {
       ) : (
         <div className="space-y-4">
           {requests.map((request) => (
-            <div key={request.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
+            <div key={request.id} className="bg-white rounded shadow-md hover:shadow-lg transition-shadow">
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-2">
                     <div className="mt-1">
                       {getStatusIcon(request.status)}
                     </div>
@@ -251,7 +251,7 @@ const ProductionRequestsPage = () => {
                         {getStatusBadge(request.status)}
                         {getPriorityBadge(request.priority)}
                       </div>
-                      <p className="text-xl font-semibold text-orange-600 mb-1">
+                      <p className="text-lg font-semibold text-orange-600 mb-1">
                         {request.product_name}
                       </p>
                       <p className="text-sm text-gray-600">
@@ -268,7 +268,7 @@ const ProductionRequestsPage = () => {
                 </div>
 
                 {/* Product Details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4 p-4 bg-gray-50 rounded-md">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Quantity</p>
                     <p className="font-semibold text-gray-900">
@@ -305,13 +305,13 @@ const ProductionRequestsPage = () => {
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => handleViewDetails(request.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm font-medium"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors text-sm font-medium"
                   >
                     <FaEye /> View Details
                   </button>
                   <button
                     onClick={() => handleViewPO(request.po_id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-sm hover:bg-blue-600 text-white rounded transition-colors text-sm font-medium"
                   >
                     View Purchase Order
                   </button>
@@ -324,8 +324,8 @@ const ProductionRequestsPage = () => {
 
       {/* Summary Stats */}
       {!loading && requests.length > 0 && (
-        <div className="mt-6 bg-white rounded-lg shadow-md p-4">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+        <div className="mt-6 bg-white rounded shadow-md p-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
             <div>
               <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
               <p className="text-sm text-gray-600">Total Requests</p>

@@ -116,10 +116,21 @@ const StockVerificationPage = () => {
         verification_photos: verificationPhotos
       };
 
-      await api.post('/material-verification/create', verificationData);
+      const response = await api.post('/material-verification/create', verificationData);
+      const verificationId = response.data?.verification?.id;
       
-      toast.success('Verification completed successfully!');
-      navigate('/manufacturing/mrm-list');
+      if (overallResult === 'passed') {
+        toast.success('Verification completed! Redirecting to Production Approval...');
+        // Navigate to Production Approval page when verification PASSED
+        if (verificationId) {
+          navigate(`/manufacturing/production-approval/${verificationId}`);
+        } else {
+          navigate('/manufacturing/mrm-list');
+        }
+      } else {
+        toast.warning('Verification failed. Materials need to be rejected or addressed.');
+        navigate('/manufacturing/mrm-list');
+      }
     } catch (error) {
       console.error('Error submitting verification:', error);
       toast.error(error.response?.data?.message || 'Failed to submit verification');
@@ -139,7 +150,7 @@ const StockVerificationPage = () => {
   if (!receipt) {
     return (
       <div className="p-6">
-        <div className="bg-error-50 border border-error-200 text-error-800 rounded-lg p-4">
+        <div className="bg-error-50 border border-error-200 text-error-800 rounded p-4">
           Receipt record not found
         </div>
       </div>
@@ -149,10 +160,10 @@ const StockVerificationPage = () => {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg mr-4"
+          className="p-2 hover:bg-gray-100 rounded mr-4"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
@@ -162,7 +173,7 @@ const StockVerificationPage = () => {
       </div>
 
       {overallResult === 'failed' && (
-        <div className="bg-error-50 border border-error-200 text-error-800 rounded-lg p-4 mb-6">
+        <div className="bg-error-50 border border-error-200 text-error-800 rounded p-4 mb-4">
           <p className="font-bold text-body-2">Verification Failed</p>
           <p className="text-body-2">
             One or more materials failed quality checks. Please review issues below.
@@ -175,7 +186,7 @@ const StockVerificationPage = () => {
         <div className="card p-6">
           <h2 className="text-display-6 font-semibold mb-4">Receipt Details</h2>
           <hr className="border-border mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             <div>
               <p className="text-body-2 text-text-secondary mb-1">Receipt Number</p>
               <p className="text-body-1 font-medium">{receipt.receipt_number}</p>
@@ -210,24 +221,24 @@ const StockVerificationPage = () => {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Material</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Qty OK?</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Quality OK?</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Specs Match?</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">No Damage?</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Barcode OK?</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Result</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Remarks</th>
+                  <th className="px-2 py-2 text-xs text-left font-semibold text-gray-700">Material</th>
+                  <th className="px-2 py-2 text-xs text-center font-semibold text-gray-700">Qty OK?</th>
+                  <th className="px-2 py-2 text-xs text-center font-semibold text-gray-700">Quality OK?</th>
+                  <th className="px-2 py-2 text-xs text-center font-semibold text-gray-700">Specs Match?</th>
+                  <th className="px-2 py-2 text-xs text-center font-semibold text-gray-700">No Damage?</th>
+                  <th className="px-2 py-2 text-xs text-center font-semibold text-gray-700">Barcode OK?</th>
+                  <th className="px-2 py-2 text-xs text-center font-semibold text-gray-700">Result</th>
+                  <th className="px-2 py-2 text-xs text-left font-semibold text-gray-700">Remarks</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {verificationChecklist.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <p className="font-medium">{item.material_name}</p>
                       <p className="text-caption text-text-secondary">{item.material_code}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-3">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -253,7 +264,7 @@ const StockVerificationPage = () => {
                         </label>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-3">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -279,7 +290,7 @@ const StockVerificationPage = () => {
                         </label>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-3">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -305,7 +316,7 @@ const StockVerificationPage = () => {
                         </label>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-3">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -331,7 +342,7 @@ const StockVerificationPage = () => {
                         </label>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <div className="flex items-center justify-center gap-3">
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -357,24 +368,24 @@ const StockVerificationPage = () => {
                         </label>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-2 py-2 text-center">
                       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
                         item.inspection_result === 'pass' 
                           ? 'bg-success-100 text-success-700' 
                           : 'bg-error-100 text-error-700'
                       }`}>
                         {item.inspection_result === 'pass' ? (
-                          <CheckCircle className="w-4 h-4" />
+                          <CheckCircle size={14} />
                         ) : (
-                          <XCircle className="w-4 h-4" />
+                          <XCircle size={14} />
                         )}
                         {item.inspection_result.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       <input
                         type="text"
-                        className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                         value={item.remarks}
                         onChange={(e) => handleChecklistChange(index, 'remarks', e.target.value)}
                         placeholder="Notes"
@@ -396,22 +407,22 @@ const StockVerificationPage = () => {
                 className="btn btn-outline text-sm"
                 onClick={handleAddIssue}
               >
-                <AlertTriangle className="w-4 h-4" />
+                <AlertTriangle size={14} />
                 Add Issue
               </button>
             </div>
             <hr className="border-border mb-4" />
             
             {issuesFound.map((issue, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div key={index} className="border border-gray-200 rounded p-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Material Name
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       value={issue.material_name}
                       onChange={(e) => handleIssueChange(index, 'material_name', e.target.value)}
                     />
@@ -421,7 +432,7 @@ const StockVerificationPage = () => {
                       Issue Type
                     </label>
                     <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       value={issue.issue_type}
                       onChange={(e) => handleIssueChange(index, 'issue_type', e.target.value)}
                     >
@@ -436,7 +447,7 @@ const StockVerificationPage = () => {
                       Severity
                     </label>
                     <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       value={issue.severity}
                       onChange={(e) => handleIssueChange(index, 'severity', e.target.value)}
                     >
@@ -450,7 +461,7 @@ const StockVerificationPage = () => {
                       Description
                     </label>
                     <textarea
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       rows="2"
                       value={issue.description}
                       onChange={(e) => handleIssueChange(index, 'description', e.target.value)}
@@ -462,14 +473,14 @@ const StockVerificationPage = () => {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                       value={issue.action_required}
                       onChange={(e) => handleIssueChange(index, 'action_required', e.target.value)}
                     />
                   </div>
                   <div className="flex items-end">
                     <button
-                      className="w-full px-4 py-2 border border-error-500 text-error-700 rounded-lg hover:bg-error-50 transition-colors"
+                      className="w-full px-4 py-2 border border-error-500 text-error-700 rounded hover:bg-error-50 transition-colors"
                       onClick={() => handleRemoveIssue(index)}
                     >
                       <Trash2 className="w-4 h-4 inline mr-2" />
@@ -488,16 +499,16 @@ const StockVerificationPage = () => {
           <hr className="border-border mb-4" />
           
           <textarea
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent mb-4"
+            className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 mb-4"
             rows="4"
             value={verificationNotes}
             onChange={(e) => setVerificationNotes(e.target.value)}
             placeholder="Overall inspection observations and notes..."
           />
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <label className="btn btn-outline cursor-pointer">
-              <Camera className="w-4 h-4" />
+              <Camera size={14} />
               Add Photos
               <input
                 type="file"
@@ -520,8 +531,8 @@ const StockVerificationPage = () => {
           <h2 className="text-display-6 font-semibold mb-4">Overall Verification Result</h2>
           <hr className="border-border mb-4" />
           
-          <div className="flex items-center gap-4">
-            <span className={`inline-flex items-center gap-2 px-6 py-3 rounded-full text-lg font-semibold ${
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-2 py-2 rounded-full text-lg font-semibold ${
               overallResult === 'passed' 
                 ? 'bg-success-100 text-success-700' 
                 : 'bg-error-100 text-error-700'
@@ -542,7 +553,7 @@ const StockVerificationPage = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-2">
           <button
             className="btn btn-outline"
             onClick={() => navigate(-1)}
@@ -551,7 +562,7 @@ const StockVerificationPage = () => {
             Cancel
           </button>
           <button
-            className={`btn ${overallResult === 'passed' ? 'btn-primary bg-success-600 hover:bg-success-700' : 'bg-error-600 hover:bg-error-700 text-white px-4 py-2 rounded-lg'}`}
+            className={`btn ${overallResult === 'passed' ? 'btn-primary bg-success-600 hover:bg-success-700' : 'bg-error-600 hover:bg-error-700 text-white px-4 py-2 rounded'}`}
             onClick={handleSubmitVerification}
             disabled={submitting}
           >
@@ -562,7 +573,7 @@ const StockVerificationPage = () => {
               </>
             ) : (
               <>
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle size={14} />
                 Submit Verification
               </>
             )}

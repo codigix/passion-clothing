@@ -178,12 +178,15 @@ const QualityControlPage = () => {
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="px-6 py-8 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Quality Control</h1>
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Quality Control</h1>
+          <p className="text-sm text-slate-600 mt-2">Manage and track quality inspections</p>
+        </div>
         <button
-          className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2 shadow hover:bg-primary-dark"
+          className="bg-teal-500 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 shadow-sm hover:bg-teal-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
           onClick={handleNewInspection}
         >
           <FaPlus />
@@ -193,30 +196,36 @@ const QualityControlPage = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-6 bg-white text-slate-900 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 flex justify-between items-center">
           <div>
-            <div className="text-gray-500 text-sm mb-1">Total Inspections</div>
-            <div className="text-2xl font-bold">{totalInspections}</div>
+            <div className="text-slate-600 text-sm font-medium mb-2">Total Inspections</div>
+            <div className="text-3xl font-bold text-slate-900">{totalInspections}</div>
           </div>
-          <FaCheckCircle className="text-primary text-3xl" />
-        </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
-          <div>
-            <div className="text-gray-500 text-sm mb-1">Passed</div>
-            <div className="text-2xl font-bold text-green-500">{passedInspections}</div>
+          <div className="bg-blue-100 p-3 rounded-lg">
+            <FaCheckCircle className="text-blue-600 text-2xl" />
           </div>
-          <FaCheckCircle className="text-green-500 text-3xl" />
         </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-6 bg-white text-slate-900 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 flex justify-between items-center">
           <div>
-            <div className="text-gray-500 text-sm mb-1">Failed</div>
-            <div className="text-2xl font-bold text-red-500">{failedInspections}</div>
+            <div className="text-slate-600 text-sm font-medium mb-2">Passed</div>
+            <div className="text-3xl font-bold text-green-600">{passedInspections}</div>
           </div>
-          <FaTimesCircle className="text-red-500 text-3xl" />
+          <div className="bg-green-100 p-3 rounded-lg">
+            <FaCheckCircle className="text-green-600 text-2xl" />
+          </div>
         </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-6 bg-white text-slate-900 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 flex justify-between items-center">
           <div>
-            <div className="text-gray-500 text-sm mb-1">Pending</div>
+            <div className="text-slate-600 text-sm font-medium mb-2">Failed</div>
+            <div className="text-3xl font-bold text-red-600">{failedInspections}</div>
+          </div>
+          <div className="bg-red-100 p-3 rounded-lg">
+            <FaTimesCircle className="text-red-600 text-2xl" />
+          </div>
+        </div>
+        <div className="p-6 bg-white text-slate-900 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 flex justify-between items-center">
+          <div>
+            <div className="text-slate-600 text-sm font-medium mb-2">Pending</div>
             <div className="text-2xl font-bold text-yellow-500">{pendingInspections}</div>
           </div>
           <FaExclamationTriangle className="text-yellow-500 text-3xl" />
@@ -224,9 +233,9 @@ const QualityControlPage = () => {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded shadow p-4 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
         <div className="relative">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
             <FaSearch />
           </span>
           <input
@@ -234,56 +243,68 @@ const QualityControlPage = () => {
             placeholder="Search inspections..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            className="pl-10 pr-4 py-2.5 w-full border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-900 placeholder-slate-400"
           />
         </div>
       </div>
 
       {/* Inspections Table */}
-      <div className="overflow-x-auto bg-white rounded shadow">
+      <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="px-4 py-2 text-left">Inspection #</th>
-              <th className="px-4 py-2 text-left">Order #</th>
-              <th className="px-4 py-2 text-left">Product</th>
-              <th className="px-4 py-2 text-left">Batch</th>
-              <th className="px-4 py-2 text-left">Inspector</th>
-              <th className="px-4 py-2 text-left">Date</th>
-              <th className="px-4 py-2 text-left">Inspected</th>
-              <th className="px-4 py-2 text-left">Pass Rate</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Result</th>
-              <th className="px-4 py-2 text-left">Actions</th>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Inspection #</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Order #</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Product</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Batch</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Inspector</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Date</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Inspected</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Pass Rate</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Status</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Result</th>
+              <th className="px-6 py-3 text-left font-semibold text-slate-900">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-200">
             {filteredInspections.map(inspection => (
-              <tr key={inspection.id} className="border-b">
-                <td className="px-4 py-2">{inspection.inspectionNumber}</td>
-                <td className="px-4 py-2">{inspection.orderNumber}</td>
-                <td className="px-4 py-2">{inspection.productName}</td>
-                <td className="px-4 py-2">{inspection.batchNumber}</td>
-                <td className="px-4 py-2">{inspection.inspector}</td>
-                <td className="px-4 py-2">{inspection.inspectionDate}</td>
-                <td className="px-4 py-2">{inspection.quantityInspected}</td>
-                <td className="px-4 py-2">{inspection.quantityInspected > 0 ? `${Math.round((inspection.quantityPassed / inspection.quantityInspected) * 100)}%` : '0%'}</td>
-                <td className="px-4 py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs border border-${getStatusColor(inspection.status)}-500 text-${getStatusColor(inspection.status)}-500`}>{inspection.status.replace('_', ' ')}</span>
+              <tr key={inspection.id} className="hover:bg-slate-50 transition-colors duration-150">
+                <td className="px-6 py-3 text-slate-900 font-medium">{inspection.inspectionNumber}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.orderNumber}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.productName}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.batchNumber}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.inspector}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.inspectionDate}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.quantityInspected}</td>
+                <td className="px-6 py-3 text-slate-700">{inspection.quantityInspected > 0 ? `${Math.round((inspection.quantityPassed / inspection.quantityInspected) * 100)}%` : '0%'}</td>
+                <td className="px-6 py-3">
+                  {inspection.status === 'completed' ? (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200">Completed</span>
+                  ) : inspection.status === 'in_progress' ? (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">In Progress</span>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Pending</span>
+                  )}
                 </td>
-                <td className="px-4 py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs border border-${getResultColor(inspection.result)}-500 text-${getResultColor(inspection.result)}-500`}>{inspection.result}</span>
+                <td className="px-6 py-3">
+                  {inspection.result === 'passed' ? (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200">Passed</span>
+                  ) : inspection.result === 'failed' ? (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200">Failed</span>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Pending</span>
+                  )}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-6 py-3">
                   <div className="flex gap-2">
-                    <button className="text-blue-500 hover:text-blue-700" onClick={() => handleViewInspection(inspection)} title="View">
-                      <FaEye />
+                    <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150" onClick={() => handleViewInspection(inspection)} title="View">
+                      <FaEye size={16} />
                     </button>
-                    <button className="text-yellow-500 hover:text-yellow-700" onClick={() => handleEditInspection(inspection)} title="Edit">
-                      <FaEdit />
+                    <button className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors duration-150" onClick={() => handleEditInspection(inspection)} title="Edit">
+                      <FaEdit size={16} />
                     </button>
-                    <button className="text-red-500 hover:text-red-700" onClick={() => handleDeleteInspection(inspection)} title="Delete">
-                      <FaTrash />
+                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150" onClick={() => handleDeleteInspection(inspection)} title="Delete">
+                      <FaTrash size={16} />
                     </button>
                   </div>
                 </td>
@@ -296,10 +317,10 @@ const QualityControlPage = () => {
       {/* Inspection Details Dialog */}
       {openDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Inspection Details</h2>
+          <div className="bg-white rounded shadow-lg w-full max-w-2xl p-6">
+            <h2 className="text-lg font-semibold mb-4">Inspection Details</h2>
             {selectedInspection && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div><span className="font-semibold">Inspection Number:</span> {selectedInspection.inspectionNumber}</div>
                 <div><span className="font-semibold">Order Number:</span> {selectedInspection.orderNumber}</div>
                 <div className="col-span-2"><span className="font-semibold">Product Name:</span> {selectedInspection.productName}</div>
@@ -331,9 +352,9 @@ const QualityControlPage = () => {
       {/* Create/Edit Inspection Dialog */}
       {(openCreateDialog || openEditDialog) && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">{openCreateDialog ? 'Create Inspection' : 'Edit Inspection'}</h2>
-            <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded shadow-lg w-full max-w-2xl p-6">
+            <h2 className="text-lg font-semibold mb-4">{openCreateDialog ? 'Create Inspection' : 'Edit Inspection'}</h2>
+            <form className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
                 <label className="block text-sm font-medium mb-1">Inspection Number</label>
                 <input

@@ -61,7 +61,7 @@ const materialsSchema = yup.object({
           .required('Status is required'),
       }),
     )
-    .min(1, 'At least one material is required'),
+    .min(1, 'At least one material is required for production order'),
 });
 
 const qualitySchema = yup.object({
@@ -91,7 +91,7 @@ const schedulingSchema = yup.object({
 });
 
 const orderDetailsSchema = yup.object({
-  productId: yup.string().required('Product is required'),
+  productId: yup.string().nullable(),
   productionType: yup
     .string()
     .oneOf(['in_house', 'outsourced', 'mixed'])
@@ -138,7 +138,7 @@ const customizationSchema = yup.object({
 });
 
 const orderSelectionSchema = yup.object({
-  productionApprovalId: yup.string().required('Please select an approved order'),
+  salesOrderId: yup.string().required('Please select a project/sales order'),
   autoFilled: yup.boolean(),
 });
 
@@ -173,7 +173,7 @@ const DEFAULT_FILTERS = {
 
 const defaultValues = {
   orderSelection: {
-    productionApprovalId: '',
+    salesOrderId: '',
     autoFilled: false,
   },
   orderDetails: {
@@ -191,15 +191,7 @@ const defaultValues = {
     expectedHours: '',
   },
   materials: {
-    items: [
-      {
-        materialId: '',
-        description: '',
-        requiredQuantity: '',
-        unit: '',
-        status: 'available',
-      },
-    ],
+    items: [],
   },
   quality: {
     checkpoints: [
@@ -250,8 +242,8 @@ function countValidationErrors(errorObject) {
 
 const stepConfig = [
   {
-    title: 'Select Order',
-    description: 'Choose an approved order to begin production.',
+    title: 'Select Project',
+    description: 'Choose a sales order project to begin production.',
     icon: FileSearch,
     key: 'orderSelection',
   },
@@ -300,28 +292,28 @@ const stepConfig = [
 ];
 
 const SectionCard = ({ icon: Icon, title, description, children }) => (
-  <section className="bg-gradient-to-br from-white to-gray-50 rounded-lg border border-gray-200 p-6 hover:shadow-sm transition-shadow">
-    <header className="flex items-start gap-4 mb-6 pb-4 border-b border-gray-200">
+  <section className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden animate-fadeInUp">
+    <header className="flex items-start gap-4 mb-6 pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-transparent p-6">
       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
         <Icon className="w-6 h-6" />
       </div>
       <div className="flex-1">
         <h2 className="text-lg font-bold text-gray-900 mb-1">{title}</h2>
-        <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
+        <p className="text-sm text-gray-600 leading-snug">{description}</p>
       </div>
     </header>
-    <div className="space-y-5">{children}</div>
+    <div className="px-6 pb-6 space-y-4">{children}</div>
   </section>
 );
 
 const Stepper = ({ currentStep, completedSteps, invalidSteps, onStepSelect }) => (
-  <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-6">
     <div className="mb-4">
-      <h3 className="text-lg font-semibold text-gray-900">Progress Steps</h3>
-      <p className="text-sm text-gray-600">Click on any step to navigate (if completed or in progress)</p>
+      <h3 className="text-base font-bold text-gray-900">Wizard Progress</h3>
+      <p className="text-sm text-gray-600 mt-1">Click any step to navigate • {completedSteps.size} of {stepConfig.length} completed</p>
     </div>
     
-    <nav className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+    <nav className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-3">
       {stepConfig.map((step, index) => {
         const Icon = step.icon;
         const isActive = currentStep === index;
@@ -330,20 +322,20 @@ const Stepper = ({ currentStep, completedSteps, invalidSteps, onStepSelect }) =>
         const isClickable = index <= currentStep + 1 || isCompleted || isErrored;
 
         const buttonClass = isActive
-          ? 'border-blue-500 bg-blue-50 shadow-md scale-105'
+          ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
           : isErrored
-            ? 'border-red-400 bg-red-50 hover:bg-red-100'
+            ? 'border-red-400 bg-red-50 hover:bg-red-100 shadow-sm'
             : isCompleted
-              ? 'border-green-400 bg-green-50 hover:bg-green-100'
-              : 'border-gray-200 bg-white hover:bg-gray-50';
+              ? 'border-green-400 bg-green-50 hover:bg-green-100 shadow-sm'
+              : 'border-gray-200 bg-white hover:bg-gray-50 shadow-sm';
 
         const badgeClass = isActive
-          ? 'bg-blue-600 text-white shadow-sm'
+          ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md'
           : isErrored
             ? 'bg-red-500 text-white'
             : isCompleted
               ? 'bg-green-500 text-white'
-              : 'bg-gray-100 text-gray-500';
+              : 'bg-gray-200 text-gray-600';
 
         const statusIcon = isCompleted ? (
           <CheckCircle2 className="w-3 h-3 text-green-600 absolute -top-1 -right-1 bg-white rounded-full" />
@@ -356,38 +348,38 @@ const Stepper = ({ currentStep, completedSteps, invalidSteps, onStepSelect }) =>
             key={step.title}
             type="button"
             onClick={() => isClickable && onStepSelect(index)}
-            className={`relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 ${buttonClass} ${!isClickable ? 'cursor-not-allowed opacity-50' : 'hover:shadow-sm'}`}
+            className={`relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 ${buttonClass} ${!isClickable ? 'cursor-not-allowed opacity-50' : 'hover:shadow-sm'}`}
             disabled={!isClickable}
             data-invalid={isErrored || undefined}
             title={`${step.title} - ${isCompleted ? 'Completed' : isErrored ? 'Needs attention' : isActive ? 'Current' : 'Pending'}`}
           >
             <div className="relative">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${badgeClass} transition-all`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full ${badgeClass} transition-all`}>
                 {isActive ? (
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
                 ) : (
-                  <span className="text-sm font-bold">{index + 1}</span>
+                  <span className="text-xs font-bold">{index + 1}</span>
                 )}
               </div>
               {statusIcon}
             </div>
             
             <div className="text-center w-full">
-              <p className={`text-xs font-semibold ${isActive ? 'text-blue-600' : isErrored ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
+              <p className={`text-[10px] font-semibold ${isActive ? 'text-blue-600' : isErrored ? 'text-red-600' : isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
                 {step.title}
               </p>
               {isActive && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-medium">
+                <span className="inline-block mt-0.5 px-1.5 py-0 bg-blue-100 text-blue-700 rounded-full text-[8px] font-medium">
                   Current
                 </span>
               )}
               {isCompleted && !isActive && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-medium">
+                <span className="inline-block mt-0.5 px-1.5 py-0 bg-green-100 text-green-700 rounded-full text-[8px] font-medium">
                   Done
                 </span>
               )}
               {isErrored && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-medium">
+                <span className="inline-block mt-0.5 px-1.5 py-0 bg-red-100 text-red-700 rounded-full text-[8px] font-medium">
                   Error
                 </span>
               )}
@@ -402,16 +394,16 @@ const Stepper = ({ currentStep, completedSteps, invalidSteps, onStepSelect }) =>
 const StepStatusBanner = ({ hasError, title, description }) => {
   const Icon = hasError ? AlertCircle : CheckCircle2;
   const containerClass = hasError
-    ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300 text-red-800 shadow-sm'
-    : 'bg-gradient-to-r from-green-50 to-green-100 border-green-300 text-green-800 shadow-sm';
+    ? 'bg-gradient-to-r from-red-50 via-red-50 to-red-100 border-red-300 text-red-800 shadow-md'
+    : 'bg-gradient-to-r from-green-50 via-green-50 to-green-100 border-green-300 text-green-800 shadow-md';
   const iconClass = hasError ? 'text-red-600' : 'text-green-600';
   const helperText = hasError
-    ? '⚠️ Resolve the highlighted fields below to continue.'
-    : '✓ All required fields are complete. Review and proceed when ready.';
+    ? '⚠️ Please resolve the highlighted fields below to continue.'
+    : '✓ All required fields are complete. You can proceed to the next step.';
 
   return (
     <div
-      className={`flex items-start gap-3 rounded-lg border-2 px-4 py-4 text-sm ${containerClass}`}
+      className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3.5 text-sm ${containerClass} animate-fadeInUp`}
       role="status"
       aria-live="polite"
       data-has-error={hasError || undefined}
@@ -419,7 +411,7 @@ const StepStatusBanner = ({ hasError, title, description }) => {
       <Icon className={`w-6 h-6 mt-0.5 flex-shrink-0 ${iconClass}`} aria-hidden="true" />
       <div className="space-y-1 flex-1">
         <p className="font-bold text-base">{hasError ? 'Validation Required' : 'Step Complete'}</p>
-        <p className="text-sm">{description}</p>
+        <p className="text-sm leading-snug">{description}</p>
         <p className="text-xs font-medium opacity-90 mt-2">{helperText}</p>
       </div>
     </div>
@@ -429,15 +421,15 @@ const StepStatusBanner = ({ hasError, title, description }) => {
 const StepHint = ({ children, tone = 'info' }) => {
   const Icon = tone === 'warning' ? AlertCircle : Info;
   const toneClasses = tone === 'warning'
-    ? 'border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-800 shadow-sm'
-    : 'border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 shadow-sm';
+    ? 'border-amber-300 bg-gradient-to-r from-amber-50 via-amber-50 to-amber-100 text-amber-800 shadow-sm'
+    : 'border-blue-300 bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 text-blue-800 shadow-sm';
   
   const iconClasses = tone === 'warning' ? 'text-amber-600' : 'text-blue-600';
 
   return (
     <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${toneClasses}`}>
       <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${iconClasses}`} />
-      <div className="leading-relaxed text-xs md:text-sm font-medium">{children}</div>
+      <div className="leading-relaxed font-medium">{children}</div>
     </div>
   );
 };
@@ -455,7 +447,7 @@ const ProductionWizardPage = () => {
   const [searchInputs, setSearchInputs] = useState(DEFAULT_FILTERS);
   const [productDetails, setProductDetails] = useState(null);
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
-  const [approvedOrders, setApprovedOrders] = useState([]);
+  const [salesOrders, setSalesOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [vendors, setVendors] = useState([]);
@@ -539,7 +531,7 @@ const ProductionWizardPage = () => {
     [],
   );
 
-  const fetchSalesOrders = useCallback(
+  const fetchSalesOrderOptions = useCallback(
     async ({ search = '', productId }) => {
       setLoadingSalesOrders(true);
       try {
@@ -559,7 +551,7 @@ const ProductionWizardPage = () => {
 
         setSalesOrderOptions(options);
       } catch (error) {
-        console.error('fetch sales orders error', error);
+        console.error('fetch sales order options error', error);
         // Silently fail - sales order selection is optional
         setSalesOrderOptions([]);
       } finally {
@@ -599,173 +591,190 @@ const ProductionWizardPage = () => {
     [methods],
   );
 
-  const fetchApprovedOrders = useCallback(async () => {
+  const fetchSalesOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
-      const response = await api.get('/production-approval/list/approved');
-      setApprovedOrders(response.data?.approvals || []);
+      // Fetch all sales orders that are ready for production
+      const response = await api.get('/sales/orders', {
+        params: { 
+          limit: 500,
+          // Show orders that are confirmed or already in procurement stage
+          // status: ['confirmed', 'procurement_created']
+        },
+      });
+      setSalesOrders(response.data?.orders || []);
     } catch (error) {
-      console.error('fetch approved orders error', error);
-      toast.error('Unable to load approved orders');
+      console.error('fetch sales orders error', error);
+      toast.error('Unable to load sales orders');
     } finally {
       setLoadingOrders(false);
     }
   }, []);
 
   const fetchOrderDetails = useCallback(
-    async (approvalId) => {
-      if (!approvalId) return;
+    async (salesOrderId) => {
+      if (!salesOrderId) return;
 
       setLoadingProductDetails(true);
       try {
-        const response = await api.get(`/production-approval/${approvalId}/details`);
-        const approval = response.data.approval;
+        console.log('📋 Fetching sales order details for ID:', salesOrderId);
         
-        if (!approval) {
-          toast.error('Approval data not found');
+        // 1. Fetch the sales order
+        const soResponse = await api.get(`/sales/orders/${salesOrderId}`);
+        const salesOrder = soResponse.data?.order;
+        
+        if (!salesOrder) {
+          toast.error('Sales order not found');
           return;
         }
 
-        // Extract data from nested structure
-        const mrnRequest = approval.mrnRequest || {};
-        const salesOrder = mrnRequest.salesOrder || {};
-        const purchaseOrder = mrnRequest.purchaseOrder || {};
-        const customer = salesOrder.customer || {};
-        const vendor = purchaseOrder.vendor || {};
-        const verification = approval.verification || {};
-        const receipt = verification.receipt || {};
-        
-        // Parse materials_requested from MRN
-        let materialsRequested = [];
+        console.log('✅ Sales order loaded:', salesOrder);
+
+        // 2. Fetch the linked purchase order (if available)
+        let purchaseOrder = {};
+        let vendor = {};
         try {
-          if (mrnRequest.materials_requested) {
-            materialsRequested = typeof mrnRequest.materials_requested === 'string' 
-              ? JSON.parse(mrnRequest.materials_requested) 
-              : mrnRequest.materials_requested;
-          }
+          // Get PO linked to this sales order
+          const poResponse = await api.get('/procurement/pos', {
+            params: { 
+              sales_order_id: salesOrderId,
+              limit: 1 
+            },
+          });
+          purchaseOrder = poResponse.data?.purchaseOrders?.[0] || {};
+          vendor = purchaseOrder.vendor || {};
+          console.log('✅ Purchase order linked:', purchaseOrder);
         } catch (e) {
-          console.warn('Failed to parse materials_requested:', e);
+          console.warn('No PO found for this sales order (yet):', e);
         }
 
-        // Extract customer name from manufacturing_notes as fallback
-        let extractedCustomerName = null;
-        if (mrnRequest.manufacturing_notes) {
-          const match = mrnRequest.manufacturing_notes.match(/Customer:\s*([^\n]+)/);
-          if (match) {
-            extractedCustomerName = match[1].trim();
+        // 3. Fetch MRN request for this project
+        let mrnRequest = {};
+        let materialsRequested = [];
+        let receivedMaterials = [];
+        try {
+          const projectName = salesOrder.project_name || `SO-${salesOrderId}`;
+          console.log(`🔍 Searching for MRN with project_name: "${projectName}"`);
+          
+          const mrnResponse = await api.get('/project-material-requests', {
+            params: { 
+              project_name: projectName,
+              limit: 1
+            },
+          });
+          
+          console.log('📨 MRN API Response:', mrnResponse.data);
+          mrnRequest = mrnResponse.data?.requests?.[0] || {};
+          
+          if (!mrnRequest.id) {
+            console.warn('⚠️ No MRN found for project_name:', projectName);
+          } else {
+            console.log('✅ MRN Found:', mrnRequest.request_number, 'ID:', mrnRequest.id);
           }
+          
+          // Parse materials from MRN
+          if (mrnRequest.materials_requested) {
+            try {
+              materialsRequested = typeof mrnRequest.materials_requested === 'string'
+                ? JSON.parse(mrnRequest.materials_requested)
+                : mrnRequest.materials_requested;
+              console.log(`📦 MRN materials_requested field contains ${materialsRequested.length} items`);
+              console.log('Materials structure:', materialsRequested);
+            } catch (e) {
+              console.warn('Failed to parse materials_requested:', e);
+              console.log('Raw materials_requested:', mrnRequest.materials_requested);
+            }
+          } else {
+            console.warn('⚠️ MRN has no materials_requested field');
+          }
+          
+          // Try to get received materials if verification exists
+          if (mrnRequest.id) {
+            try {
+              const verifyResponse = await api.get(`/project-material-requests/${mrnRequest.id}/verification`);
+              const verification = verifyResponse.data?.verification || {};
+              const receipt = verification.receipt || {};
+              if (receipt.received_materials) {
+                receivedMaterials = typeof receipt.received_materials === 'string'
+                  ? JSON.parse(receipt.received_materials)
+                  : receipt.received_materials;
+                console.log(`✅ Found ${receivedMaterials.length} received materials`);
+              }
+            } catch (e) {
+              console.warn('No verification found for MRN:', e);
+            }
+          }
+          
+          console.log(`✅ MRN Flow: ${materialsRequested.length} requested + ${receivedMaterials.length} received = ${(receivedMaterials.length > 0 ? receivedMaterials : materialsRequested).length} to display`);
+        } catch (e) {
+          console.error('❌ Error fetching MRN:', e);
+          console.warn('Could not load MRN materials - you can add them manually');
         }
 
-        // Parse items from sales order or purchase order
+        // Extract customer
+        const customer = salesOrder.customer || {};
+
+        // Parse items from sales order
         let items = [];
         try {
           if (salesOrder.items) {
             items = typeof salesOrder.items === 'string' ? JSON.parse(salesOrder.items) : salesOrder.items;
-          } else if (purchaseOrder.items) {
-            items = typeof purchaseOrder.items === 'string' ? JSON.parse(purchaseOrder.items) : purchaseOrder.items;
           }
         } catch (e) {
           console.warn('Failed to parse items:', e);
         }
 
-        // Parse received materials from receipt
-        let receivedMaterials = [];
-        try {
-          if (receipt.received_materials) {
-            receivedMaterials = typeof receipt.received_materials === 'string' 
-              ? JSON.parse(receipt.received_materials) 
-              : receipt.received_materials;
-          }
-        } catch (e) {
-          console.warn('Failed to parse received materials:', e);
-        }
-
-        // Determine customer/vendor name with multiple fallbacks
-        const customerVendorName = customer.name || 
-                                   vendor.name || 
-                                   extractedCustomerName || 
-                                   'N/A';
-
-        // Determine product name with multiple fallbacks
+        // Prepare transformed data for display
         const productName = items[0]?.product_name || 
                            items[0]?.name || 
                            materialsRequested[0]?.description ||
-                           materialsRequested[0]?.product_name ||
-                           approval.product_name ||
-                           mrnRequest.product_name ||
                            'N/A';
 
-        // Determine quantity with multiple fallbacks
         const quantity = items[0]?.quantity || 
                         materialsRequested[0]?.quantity_required ||
-                        receipt.total_items_received || 
                         1;
 
-        // Prepare transformed data for display
         const transformedData = {
-          customer_name: customerVendorName,
+          customer_name: customer.name || 'N/A',
           vendor_name: vendor.name || 'N/A',
           product_name: productName,
           quantity: quantity,
-          project_name: receipt.project_name || 
-                       purchaseOrder.project_name || 
-                       salesOrder.project_name || 
-                       mrnRequest.project_name ||
-                       approval.project_name ||
-                       'N/A',
-          product_id: items[0]?.product_id || 
-                     materialsRequested[0]?.product_id ||
-                     approval.product_id ||
-                     mrnRequest.product_id ||
-                     null,
-          sales_order_id: salesOrder.id || mrnRequest.sales_order_id || null,
-          special_instructions: salesOrder.special_instructions || 
-                               mrnRequest.manufacturing_notes || 
-                               approval.approval_notes || 
-                               '',
+          project_name: salesOrder.project_name || `SO-${salesOrderId}`,
+          delivery_date: salesOrder.delivery_date || '',
+          product_id: items[0]?.product_id || null,
+          sales_order_id: salesOrderId,
+          special_instructions: salesOrder.special_instructions || salesOrder.notes || '',
           materials: receivedMaterials.length > 0 ? receivedMaterials : materialsRequested
         };
 
         setSelectedOrderDetails(transformedData);
 
-        // If product_id exists, fetch the product details and ensure it's in the dropdown
+        // Resolve product ID
         let validProductId = null;
         if (transformedData.product_id) {
           try {
-            // Check if product_id is numeric or a product code
             const isNumeric = !isNaN(Number(transformedData.product_id));
             let product = null;
             
             if (isNumeric) {
-              // It's a numeric ID, fetch directly
               const productResponse = await api.get(`/products/${transformedData.product_id}`);
               product = productResponse.data?.product;
             } else {
-              // It's a product code, search for the product
-              console.log('🔍 Product ID appears to be a code, searching:', transformedData.product_id);
+              console.log('🔍 Searching for product code:', transformedData.product_id);
               const searchResponse = await api.get('/products', {
                 params: { search: transformedData.product_id, limit: 10 }
               });
               const products = searchResponse.data?.products || [];
-              // Find exact match by product_code
-              product = products.find(p => p.product_code === transformedData.product_id);
-              
-              if (!product && products.length > 0) {
-                // Fallback: use first result if no exact match
-                product = products[0];
-                console.warn('⚠️ No exact product code match, using first search result:', product.name);
-              }
+              product = products.find(p => p.product_code === transformedData.product_id) || products[0];
             }
             
             if (product) {
               validProductId = String(product.id);
-              console.log('✅ Resolved product:', { id: product.id, name: product.name, code: product.product_code });
+              console.log('✅ Product resolved:', product.name);
               
-              // Check if product is already in options
               setProductOptions((prevOptions) => {
                 const exists = prevOptions.some(opt => opt.value === String(product.id));
                 if (!exists) {
-                  // Add this product to the options
                   return [
                     {
                       value: String(product.id),
@@ -776,68 +785,84 @@ const ProductionWizardPage = () => {
                 }
                 return prevOptions;
               });
-            } else {
-              console.error('❌ Could not resolve product from ID/code:', transformedData.product_id);
             }
           } catch (error) {
-            console.warn('Could not fetch product details:', error);
-            // Non-blocking - continue with form population
+            console.warn('Could not resolve product:', error);
           }
         }
 
-        // Auto-fill form fields with validated product ID
+        // Auto-fill form
         if (validProductId) {
           methods.setValue('orderDetails.productId', validProductId);
         }
         if (transformedData.quantity) {
           methods.setValue('orderDetails.quantity', transformedData.quantity);
         }
-        if (transformedData.sales_order_id) {
-          methods.setValue('orderDetails.salesOrderId', String(transformedData.sales_order_id));
-        }
+        methods.setValue('orderDetails.salesOrderId', String(transformedData.sales_order_id));
         if (transformedData.special_instructions) {
           methods.setValue('orderDetails.specialInstructions', transformedData.special_instructions);
         }
 
-        // Auto-fill materials if available
-        if (receivedMaterials && receivedMaterials.length > 0) {
-          console.log('📦 Pre-filling materials from receipt:', receivedMaterials);
-          methods.setValue(
-            'materials.items',
-            receivedMaterials.map((m) => ({
-              materialId: String(m.inventory_id || m.material_code || m.barcode_scanned || ''),
-              description: m.material_name || m.name || m.description || '',
-              requiredQuantity: m.quantity_received || m.quantity || m.quantity_dispatched || '',
+        // Auto-fill materials from MRN
+        if (transformedData.materials && transformedData.materials.length > 0) {
+          const isFromReceipt = receivedMaterials.length > 0;
+          const source = isFromReceipt ? 'receipt' : 'MRN request';
+          console.log(`📦 Loading ${transformedData.materials.length} material(s) from ${source}`);
+          console.log('🔍 Materials data:', transformedData.materials);
+          
+          // Map materials directly from MRN without inventory fetch
+          const loadedMaterials = transformedData.materials.map((m, idx) => {
+            // Enhanced debugging
+            console.log(`Material ${idx}:`, m);
+            
+            // Generate auto-incremented material ID (M-001, M-002, etc.)
+            const materialId = `M-${(idx + 1).toString().padStart(3, '0')}`;
+            const description = m.material_name || m.name || m.description || m.product_name || '';
+            const requiredQty = m.quantity_received !== undefined ? m.quantity_received : 
+                               (m.quantity_required !== undefined ? m.quantity_required : 
+                               (m.quantity !== undefined ? m.quantity : ''));
+            
+            if (!description) {
+              console.warn(`⚠️ Material ${idx} has no description - skipping`);
+              return null;
+            }
+            
+            console.log(`✅ Material ${materialId} mapped: ${description}`);
+            
+            return {
+              materialId,
+              description,
+              requiredQuantity: requiredQty,
               unit: m.uom || m.unit || 'pieces',
-              status: 'available',
+              status: m.status || 'available',
               condition: m.condition || '',
               barcode: m.barcode_scanned || m.barcode || '',
-              remarks: m.remarks || ''
-            })),
-          );
-          toast.success(`✅ ${receivedMaterials.length} material(s) loaded from receipt`);
-        } else if (materialsRequested && materialsRequested.length > 0) {
-          // Fallback to requested materials if no received materials
-          console.log('📦 Pre-filling materials from request:', materialsRequested);
-          methods.setValue(
-            'materials.items',
-            materialsRequested.map((m) => ({
-              materialId: String(m.inventory_id || m.material_code || ''),
-              description: m.material_name || m.description || m.product_name || '',
-              requiredQuantity: m.quantity_required || m.quantity || '',
-              unit: m.unit || m.uom || 'pieces',
-              status: 'ordered',
-              remarks: 'From material request'
-            })),
-          );
-          toast.info(`⚠️ Using requested materials (${materialsRequested.length} items) - receipt not yet received`);
+              remarks: isFromReceipt ? m.remarks || '' : `From MRN ${mrnRequest.request_number || 'N/A'}`,
+              location: m.location || m.warehouse_location || '',
+              color: m.color || '',
+              gsm: m.gsm || '',
+              width: m.width || '',
+              purpose: m.purpose || ''
+            };
+          }).filter(m => m !== null); // Remove null entries
+          
+          if (loadedMaterials.length > 0) {
+            methods.setValue('materials.items', loadedMaterials);
+            console.log(`✅ Successfully loaded ${loadedMaterials.length} materials`);
+            toast.success(`✅ Loaded ${loadedMaterials.length} materials from MRN ${mrnRequest.request_number || 'project'}!`);
+          } else {
+            console.warn('⚠️ No valid materials after mapping');
+            console.warn('⚠️ No valid materials found to load');
+          }
+        } else {
+          console.log('ℹ️ No materials found in MRN request');
         }
 
         methods.setValue('orderSelection.autoFilled', true);
-        toast.success('Order details loaded successfully!');
+        toast.success('Project details loaded successfully!');
       } catch (error) {
         console.error('fetch order details error', error);
-        toast.error('Unable to load order details');
+        toast.error('Unable to load project details');
       } finally {
         setLoadingProductDetails(false);
       }
@@ -862,24 +887,64 @@ const ProductionWizardPage = () => {
 
   useEffect(() => {
     fetchProducts();
-    fetchApprovedOrders();
+    fetchSalesOrders();
     fetchVendors();
-  }, [fetchProducts, fetchApprovedOrders, fetchVendors]);
+  }, [fetchProducts, fetchSalesOrders, fetchVendors]);
 
-  // Auto-load order details from URL parameter (when redirected from approval page)
+  // Auto-load order details from URL parameter (when redirected from sales order or approval page)
   useEffect(() => {
+    // Check for new salesOrderId parameter
+    const salesOrderId = searchParams.get('salesOrderId');
+    // Fallback to old approvalId parameter for backward compatibility
     const approvalId = searchParams.get('approvalId');
-    if (approvalId) {
-      toast.success('Loading approved order details...');
-      // Set the approval ID in form
-      methods.setValue('orderSelection.productionApprovalId', approvalId);
+    
+    if (salesOrderId) {
+      toast.success('Loading project details...');
+      methods.setValue('orderSelection.salesOrderId', salesOrderId);
+      fetchOrderDetails(salesOrderId);
+    } else if (approvalId) {
+      // Legacy support - treat approvalId as sales order ID
+      toast.success('Loading project details from approval...');
+      methods.setValue('orderSelection.salesOrderId', approvalId);
       fetchOrderDetails(approvalId);
     }
   }, [searchParams, fetchOrderDetails, methods]);
 
+  // Watch for sales order changes and reset form accordingly
   useEffect(() => {
-    fetchSalesOrders({ productId: methods.getValues('orderDetails.productId') });
-  }, [fetchSalesOrders, methods]);
+    const subscription = methods.watch((value, { name, type }) => {
+      // When user changes the sales order selection, reset dependent fields
+      if (name === 'orderSelection.salesOrderId' && type === 'change') {
+        const newSalesOrderId = value.orderSelection.salesOrderId;
+        const currentSalesOrderId = methods.getValues('orderDetails.salesOrderId');
+        
+        // If selection changed, reset the related fields
+        if (newSalesOrderId !== currentSalesOrderId) {
+          console.log('🔄 Sales order changed. Resetting dependent fields...');
+          
+          // Reset order details
+          methods.setValue('orderDetails.productId', '');
+          methods.setValue('orderDetails.quantity', '');
+          methods.setValue('orderDetails.specialInstructions', '');
+          
+          // Reset scheduling
+          methods.setValue('scheduling.plannedStartDate', '');
+          methods.setValue('scheduling.plannedEndDate', '');
+          methods.setValue('scheduling.shift', '');
+          methods.setValue('scheduling.expectedHours', '');
+          
+          // Clear materials - important!
+          methods.setValue('materials.items', []);
+          
+          // Reset autofilled flag
+          methods.setValue('orderSelection.autoFilled', false);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [methods]);
+
+
 
   useEffect(() => {
     const subscription = methods.watch((value, { name, type }) => {
@@ -902,12 +967,6 @@ const ProductionWizardPage = () => {
             shouldTouch: false,
           });
         }
-      }
-
-      if (name === 'orderDetails.productId' && type === 'change') {
-        const nextProductId = value.orderDetails?.productId || undefined;
-        fetchSalesOrders({ productId: nextProductId, search: filters.salesOrderSearch });
-        fetchProductDetails(nextProductId);
       }
 
       const stepIndex = stepConfig.findIndex((step) => name.startsWith(step.key));
@@ -999,8 +1058,7 @@ const ProductionWizardPage = () => {
 
     salesOrderSearchTimeoutRef.current = setTimeout(() => {
       setFilters((prev) => ({ ...prev, salesOrderSearch: value }));
-      const productId = methods.getValues('orderDetails.productId');
-      fetchSalesOrders({ search: value, productId });
+      // Sales order search is now handled in OrderSelectionStep
     }, 350);
   };
 
@@ -1022,7 +1080,7 @@ const ProductionWizardPage = () => {
     // Log form values for debugging
     console.log('Form submission values:', JSON.stringify({
       productId: values.orderDetails.productId,
-      productionApprovalId: values.orderSelection.productionApprovalId,
+      salesOrderId: values.orderSelection.salesOrderId,
       productOptions: productOptions.length,
       availableProductIds: productOptions.map(p => p.value)
     }, null, 2));
@@ -1043,15 +1101,16 @@ const ProductionWizardPage = () => {
       const orderResponse = await api.post('/manufacturing/orders', payload);
       const createdOrder = orderResponse.data;
       
-      // Mark approval as production started if approval ID exists
-      if (values.orderSelection.productionApprovalId) {
+      // Update sales order status to in_production
+      if (values.orderSelection.salesOrderId) {
         try {
-          await api.put(`/production-approval/${values.orderSelection.productionApprovalId}/start-production`, {
+          await api.put(`/sales/orders/${values.orderSelection.salesOrderId}/status`, {
+            status: 'in_production',
             production_order_id: createdOrder.id || createdOrder.productionOrder?.id
           });
-          console.log('✅ Production approval marked as started');
-        } catch (approvalError) {
-          console.error('Failed to mark approval as started:', approvalError);
+          console.log('✅ Sales order status updated to in_production');
+        } catch (statusError) {
+          console.error('Failed to update sales order status:', statusError);
           // Don't fail the entire operation if this fails
         }
       }
@@ -1111,7 +1170,7 @@ const ProductionWizardPage = () => {
       case 0:
         return (
           <OrderSelectionStep
-            approvedOrders={approvedOrders}
+            salesOrders={salesOrders}
             loadingOrders={loadingOrders}
             selectedOrderDetails={selectedOrderDetails}
             loadingProductDetails={loadingProductDetails}
@@ -1119,7 +1178,7 @@ const ProductionWizardPage = () => {
           />
         );
       case 1:
-        return <OrderDetailsStep productOptions={productOptions} loadingProducts={loadingProducts} productDetails={productDetails} loadingProductDetails={loadingProductDetails} />;
+        return <OrderDetailsStep />;
       case 2:
         return <SchedulingStep />;
       case 3:
@@ -1137,7 +1196,7 @@ const ProductionWizardPage = () => {
       default:
         return null;
     }
-  }, [canCustomizeStages, currentStep, methods, productOptions, loadingProducts, productDetails, loadingProductDetails, approvedOrders, loadingOrders, selectedOrderDetails, fetchOrderDetails, vendors, loadingVendors]);
+  }, [canCustomizeStages, currentStep, methods, salesOrders, loadingOrders, selectedOrderDetails, fetchOrderDetails, vendors, loadingVendors]);
 
   // Calculate progress
   const progressPercentage = Math.round((completedSteps.size / stepConfig.length) * 100);
@@ -1145,65 +1204,65 @@ const ProductionWizardPage = () => {
 
   return (
     <>
-      <div className="p-4 md:p-8 space-y-6 bg-gray-50 min-h-screen">
+      <div className="p-4 md:p-6 space-y-6 bg-gray-50 min-h-screen">
         {/* Enhanced Header with Progress */}
-        <header className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+        <header className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <ClipboardList className="w-6 h-6 text-blue-600" />
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                  <ClipboardList className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">New Production Order</h1>
-                  <p className="text-sm text-gray-600">Complete each step to initiate a manufacturing order.</p>
+                  <h1 className="text-3xl font-bold text-gray-900">Production Order Wizard</h1>
+                  <p className="text-base text-gray-600 mt-1">Complete each step to create a new manufacturing order</p>
                 </div>
               </div>
               
               {/* Progress Bar */}
-              <div className="mt-4">
+              <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Overall Progress</span>
-                  <span className="text-sm font-semibold text-blue-600">{progressPercentage}%</span>
+                  <span className="text-sm font-semibold text-gray-700">Overall Progress</span>
+                  <span className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">{progressPercentage}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+                    className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 h-3 rounded-full transition-all duration-500 ease-out shadow-md"
                     style={{ width: `${progressPercentage}%` }}
                   ></div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-2">
                   {completedSteps.size} of {stepConfig.length} steps completed • {remainingSteps} remaining
                 </p>
               </div>
             </div>
 
             {/* Quick Stats */}
-            <div className="flex gap-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center min-w-[100px]">
+            <div className="flex gap-3">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3 text-center min-w-[100px] shadow-sm hover:shadow-md transition-shadow">
                 <div className="text-2xl font-bold text-blue-600">{completedSteps.size}</div>
-                <div className="text-xs text-gray-600 mt-1">Completed</div>
+                <div className="text-xs text-gray-600 mt-1 font-semibold">Completed</div>
               </div>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center min-w-[100px]">
-                <div className="text-2xl font-bold text-orange-600">{invalidSteps.size}</div>
-                <div className="text-xs text-gray-600 mt-1">Need Review</div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-3 text-center min-w-[100px] shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-2xl font-bold text-green-600">{stepConfig.length - completedSteps.size}</div>
+                <div className="text-xs text-gray-600 mt-1 font-semibold">Remaining</div>
               </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center min-w-[100px]">
-                <div className="text-2xl font-bold text-green-600">{stepConfig.length}</div>
-                <div className="text-xs text-gray-600 mt-1">Total Steps</div>
+              <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg p-3 text-center min-w-[100px] shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-2xl font-bold text-amber-600">{invalidSteps.size}</div>
+                <div className="text-xs text-gray-600 mt-1 font-semibold">Need Review</div>
               </div>
             </div>
           </div>
 
           {/* Help Section */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Info className="w-4 h-4" />
-              <span>Estimated time to complete: <span className="font-semibold text-gray-900">10-15 minutes</span></span>
+          <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />
+              <span>Estimated completion time: <span className="font-bold text-gray-900">10-15 minutes</span></span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span>Need help?</span>
-              <a href="mailto:support@pashion-erp.com" className="text-blue-600 font-semibold hover:text-blue-700">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Need assistance?</span>
+              <a href="mailto:support@pashion-erp.com" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
                 Contact Support
               </a>
             </div>
@@ -1221,16 +1280,16 @@ const ProductionWizardPage = () => {
         <FormProvider {...methods}>
           <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
             {/* Step Content Card */}
-            <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 animate-fadeInUp">
               {/* Current Step Header */}
-              <div className="mb-6 pb-4 border-b border-gray-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+              <div className="mb-8 pb-6 border-b border-gray-100">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
                     {currentStep + 1}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{stepConfig[currentStep].title}</h2>
-                    <p className="text-sm text-gray-600">{stepConfig[currentStep].description}</p>
+                    <h2 className="text-2xl font-bold text-gray-900">{stepConfig[currentStep].title}</h2>
+                    <p className="text-base text-gray-600 mt-1">{stepConfig[currentStep].description}</p>
                   </div>
                 </div>
                 
@@ -1242,63 +1301,64 @@ const ProductionWizardPage = () => {
               </div>
 
               {/* Step Content */}
-              <div className="min-h-[400px]">
+              <div className="min-h-[450px] space-y-6">
                 {renderStepContent}
               </div>
             </div>
 
             {/* Enhanced Footer */}
-            <footer className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <footer className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
                 {/* Step Counter */}
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-semibold text-gray-900">Step {currentStep + 1}</span> of {stepConfig.length}
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="font-bold text-gray-900 text-lg">Step {currentStep + 1}</span>
+                    <span className="text-gray-600"> of {stepConfig.length}</span>
                   </div>
-                  <div className="w-px h-6 bg-gray-300"></div>
-                  <div className="text-sm text-gray-600">
+                  <div className="w-px h-6 bg-gray-200"></div>
+                  <div className="text-gray-600">
                     {currentStep === stepConfig.length - 1 ? (
                       <span className="flex items-center gap-2 text-green-600 font-semibold">
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle2 className="w-5 h-5" />
                         Ready to submit
                       </span>
                     ) : (
-                      <span>{stepConfig.length - currentStep - 1} steps remaining</span>
+                      <span><span className="font-semibold">{stepConfig.length - currentStep - 1}</span> steps remaining</span>
                     )}
                   </div>
                 </div>
 
                 {/* Navigation Buttons */}
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   {currentStep > 0 && (
                     <button
                       type="button"
                       onClick={handlePrevious}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold text-base hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md"
                     >
                       <ArrowLeft className="w-4 h-4" />
-                      Previous
+                      <span>Previous</span>
                     </button>
                   )}
                   {currentStep < stepConfig.length - 1 && (
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold text-base hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
                       disabled={hasStepError}
                     >
-                      Next Step
+                      <span>Next Step</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
                   {currentStep === stepConfig.length - 1 && (
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 px-8 py-2.5 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold text-base hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
                       disabled={submitting || hasStepError}
                     >
                       {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {submitting ? 'Creating Order...' : 'Create Production Order'}
+                      <span>{submitting ? 'Creating...' : 'Create Order'}</span>
                       {!submitting && <CheckCircle2 className="w-4 h-4" />}
                     </button>
                   )}
@@ -1307,10 +1367,10 @@ const ProductionWizardPage = () => {
 
               {/* Warning if errors */}
               {hasStepError && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>Please fix the validation errors above before proceeding to the next step.</span>
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-3 px-4 py-3 text-sm bg-amber-50 border border-amber-300 rounded-lg text-amber-800">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                    <span className="font-medium">Please fix the validation errors above before proceeding to the next step.</span>
                   </div>
                 </div>
               )}
@@ -1350,7 +1410,7 @@ const Row = ({ children, columns = 2 }) => {
   return <div className={`grid grid-cols-1 gap-4 ${mdCols}`}>{children}</div>;
 };
 
-const TextInput = ({ name, label, type = 'text', required, placeholder }) => {
+const TextInput = ({ name, label, type = 'text', required, placeholder, disabled = false, size = 'md' }) => {
   const {
     register,
     formState: { errors },
@@ -1359,6 +1419,13 @@ const TextInput = ({ name, label, type = 'text', required, placeholder }) => {
   const error = getNestedError(errors, name);
   const errorId = error ? toErrorId(name) : undefined;
 
+  // Size variants
+  const sizeClasses = {
+    sm: 'px-2 py-1 text-sm',
+    md: 'px-3 py-2 text-base',
+    lg: 'px-4 py-3 text-lg',
+  }[size] || 'px-3 py-2';
+
   return (
     <div>
       <FieldLabel label={label} required={required} />
@@ -1366,8 +1433,13 @@ const TextInput = ({ name, label, type = 'text', required, placeholder }) => {
         {...register(name, type === 'number' ? { valueAsNumber: true } : {})}
         type={type}
         placeholder={placeholder}
-        className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
-          error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
+        disabled={disabled}
+        className={`w-full rounded-md border ${sizeClasses} focus:outline-none focus:ring-2 transition-colors ${
+          disabled 
+            ? 'bg-gray-100 text-gray-600 border-gray-300 cursor-not-allowed' 
+            : error 
+              ? 'border-red-400 focus:ring-red-400 focus:border-red-400' 
+              : 'border-gray-300 focus:ring-primary focus:border-primary'
         }`}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={errorId}
@@ -1486,7 +1558,7 @@ const SwitchInput = ({ name, label, hint, disabled }) => {
 };
 
 const OrderSelectionStep = ({
-  approvedOrders,
+  salesOrders,
   loadingOrders,
   selectedOrderDetails,
   loadingProductDetails,
@@ -1498,391 +1570,426 @@ const OrderSelectionStep = ({
     formState: { errors },
   } = useFormContextSafe();
 
-  const selectedApprovalId = watch('orderSelection.productionApprovalId');
+  const selectedSalesOrderId = watch('orderSelection.salesOrderId');
   const autoFilled = watch('orderSelection.autoFilled');
+
+  // Auto-trigger fetch when order is selected and has changed
+  useEffect(() => {
+    if (selectedSalesOrderId && !autoFilled) {
+      fetchOrderDetails(selectedSalesOrderId);
+    }
+  }, [selectedSalesOrderId, autoFilled, fetchOrderDetails]);
 
   return (
     <SectionCard
       icon={FileSearch}
-      title="Select Approved Order"
-      description="Choose an approved order from the MRN workflow"
+      title="Select Project"
+      description="Choose a sales order project to begin production"
     >
       <StepStatusBanner
         hasError={!!errors.orderSelection}
-        title="Order Selection"
-        description="Select an approved production approval to auto-fill order details."
+        title="Project Selection"
+        description="Select a sales order project to auto-fill order details, delivery date, customer info, and materials."
       />
 
       <div>
-        <label htmlFor="productionApprovalId" className="block text-sm font-medium text-gray-700 mb-2">
-          Approved Order <span className="text-red-500">*</span>
+        <label htmlFor="salesOrderId" className="block text-sm font-medium text-gray-700 mb-2">
+          Project / Sales Order <span className="text-red-500">*</span>
         </label>
         <select
-          id="productionApprovalId"
-          {...register('orderSelection.productionApprovalId')}
-          className={`w-full px-4 py-2 border rounded-lg ${errors.orderSelection?.productionApprovalId ? 'border-red-500' : 'border-gray-300'}`}
+          id="salesOrderId"
+          {...register('orderSelection.salesOrderId')}
+          className={`w-full px-4 py-2 border rounded-lg ${errors.orderSelection?.salesOrderId ? 'border-red-500' : 'border-gray-300'}`}
           disabled={loadingOrders}
         >
-          <option value="">-- Select an approved order --</option>
-          {approvedOrders.map((order) => {
-            // Extract customer name from multiple sources
-            const customerName = order.mrnRequest?.salesOrder?.customer?.name || 
-                                order.mrnRequest?.purchaseOrder?.vendor?.name || 
-                                (() => {
-                                  // Fallback: extract from manufacturing_notes
-                                  const notes = order.mrnRequest?.manufacturing_notes || '';
-                                  const match = notes.match(/Customer:\s*([^\n]+)/);
-                                  return match ? match[1].trim() : 'Unknown';
-                                })();
+          <option value="">-- Select a project/sales order --</option>
+          {salesOrders.map((order) => {
+            // Get customer name
+            const customerName = order.customer?.name || 'Unknown Customer';
             
-            // Get order number
-            const orderNumber = order.mrnRequest?.salesOrder?.order_number || 
-                               order.mrnRequest?.purchaseOrder?.po_number || 
-                               order.mrnRequest?.project_name ||
-                               'N/A';
+            // Get product from items
+            let productName = 'N/A';
+            try {
+              if (order.items) {
+                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                if (Array.isArray(items) && items.length > 0) {
+                  productName = items[0].product_name || items[0].name || 'N/A';
+                }
+              }
+            } catch (e) {
+              console.warn('Could not parse items for order:', order.id);
+            }
             
-            // Get quantity with fallbacks
-            const quantity = order.verification?.receipt?.total_items_received || 
-                            (() => {
-                              try {
-                                const materials = order.mrnRequest?.materials_requested;
-                                if (materials && materials.length > 0) {
-                                  return materials[0]?.quantity_required || 0;
-                                }
-                              } catch (e) {}
-                              return 0;
-                            })();
+            // Get quantity
+            let quantity = 0;
+            try {
+              if (order.items) {
+                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                if (Array.isArray(items) && items.length > 0) {
+                  quantity = items[0].quantity || 0;
+                }
+              }
+            } catch (e) {
+              console.warn('Could not parse quantity for order:', order.id);
+            }
             
             return (
-              <option key={order.id} value={order.id}>
-                {order.verification?.receipt?.receipt_number || `Approval #${order.id}`}
-                {' • '}
-                {orderNumber}
+              <option key={order.id} value={String(order.id)}>
+                {order.order_number || `SO-${order.id}`}
                 {' • '}
                 {customerName}
                 {' • '}
-                Qty: {quantity}
+                {productName}
+                {quantity > 0 ? ` • Qty: ${quantity}` : ''}
               </option>
             );
           })}
         </select>
-        {errors.orderSelection?.productionApprovalId && (
+        {errors.orderSelection?.salesOrderId && (
           <p className="mt-1 text-sm text-red-500">
-            {errors.orderSelection.productionApprovalId.message}
+            {errors.orderSelection.salesOrderId.message}
           </p>
         )}
       </div>
 
-      {selectedApprovalId && (
-        <button
-          type="button"
-          onClick={() => fetchOrderDetails(selectedApprovalId)}
-          disabled={loadingProductDetails || autoFilled}
-          className="w-full md:w-auto px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {loadingProductDetails ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Loading...
-            </>
-          ) : autoFilled ? (
-            <>
-              <CheckCircle2 className="w-4 h-4" />
-              Auto-filled Successfully
-            </>
-          ) : (
-            'Load Order Details'
-          )}
-        </button>
+      {loadingProductDetails && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+          <span className="text-sm text-blue-800">Loading project details, PO, and materials...</span>
+        </div>
       )}
 
-      {selectedOrderDetails && (
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-semibold text-blue-900 mb-2">Order Summary</h3>
-          <div className="text-sm text-blue-800 space-y-1">
+      {selectedOrderDetails && autoFilled && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            Project Details Loaded
+          </h3>
+          <div className="text-sm text-green-800 space-y-1">
             <p>
-              <strong>Customer/Vendor:</strong>{' '}
-              {selectedOrderDetails.customer_name || selectedOrderDetails.vendor_name || 'N/A'}
+              <strong>Customer:</strong> {selectedOrderDetails.customer_name || 'N/A'}
             </p>
             <p>
               <strong>Product:</strong> {selectedOrderDetails.product_name || 'N/A'}
             </p>
             <p>
-              <strong>Quantity:</strong> {selectedOrderDetails.quantity || 'N/A'}
+              <strong>Quantity:</strong> {selectedOrderDetails.quantity || 0}
             </p>
             <p>
-              <strong>Project:</strong> {selectedOrderDetails.project_name || 'N/A'}
+              <strong>Project Name:</strong> {selectedOrderDetails.project_name || 'N/A'}
             </p>
+            <p>
+              <strong>Delivery Date:</strong> {selectedOrderDetails.delivery_date ? format(parseISO(selectedOrderDetails.delivery_date), 'MMM dd, yyyy') : 'Not specified'}
+            </p>
+            {selectedOrderDetails.materials && selectedOrderDetails.materials.length > 0 && (
+              <p>
+                <strong>Materials:</strong> {selectedOrderDetails.materials.length} item(s) loaded
+              </p>
+            )}
           </div>
         </div>
       )}
 
       <StepHint>
-        💡 Select an approved order to automatically populate product details, quantities, and material
-        requirements.
+        💡 Select a project/sales order to automatically load project details, customer info, delivery date, and material requirements from the sales order and linked PO/MRN.
       </StepHint>
     </SectionCard>
   );
 };
 
-const OrderDetailsStep = ({ productOptions, loadingProducts, productDetails, loadingProductDetails }) => {
-  const { setValue, watch } = useFormContextSafe();
-  const selectedProductId = watch('orderDetails.productId');
-  const selectedSalesOrderId = watch('orderDetails.salesOrderId');
-
-  // Auto-populate quantity when sales order is selected
-  useEffect(() => {
-    if (productDetails && selectedSalesOrderId) {
-      const selectedSO = productDetails.salesOrders?.find(
-        (so) => String(so.id) === String(selectedSalesOrderId)
-      );
-      if (selectedSO && selectedSO.product_quantity) {
-        setValue('orderDetails.quantity', selectedSO.product_quantity, {
-          shouldDirty: true,
-          shouldValidate: true,
-        });
-      }
-    }
-  }, [selectedSalesOrderId, productDetails, setValue]);
+const OrderDetailsStep = () => {
+  const { watch } = useFormContextSafe();
+  const salesOrderId = watch('orderSelection.salesOrderId');
+  const quantity = watch('orderDetails.quantity');
 
   return (
     <SectionCard icon={ClipboardList} title="Production order basics" description="Capture the essential order metadata.">
-      <Row>
-        <SelectInput
-          name="orderDetails.productId"
-          label="Product"
-          required
-          options={productOptions}
-          disabled={loadingProducts}
-        />
-        <SelectInput
-          name="orderDetails.productionType"
-          label="Production Type"
-          required
-          options={[
-            { value: 'in_house', label: 'In-House' },
-            { value: 'outsourced', label: 'Outsourced' },
-            { value: 'mixed', label: 'Mixed' },
-          ]}
-        />
-        <TextInput name="orderDetails.quantity" label="Quantity" type="number" required />
-        <SelectInput
-          name="orderDetails.priority"
-          label="Priority"
-          required
-          options={[
-            { value: 'low', label: 'Low' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'high', label: 'High' },
-            { value: 'urgent', label: 'Urgent' },
-          ]}
-        />
-      </Row>
-      <Row>
-        {productDetails && productDetails.salesOrders && productDetails.salesOrders.length > 0 ? (
-          <SelectInput
-            name="orderDetails.salesOrderId"
-            label="Linked Sales Order"
-            options={productDetails.salesOrders.map((so) => ({
-              value: String(so.id),
-              label: `${so.order_number} - Qty: ${so.product_quantity || so.total_quantity}${so.customer?.name ? ` (${so.customer.name})` : ''}`,
-            }))}
-          />
-        ) : (
-          <TextInput name="orderDetails.salesOrderId" label="Linked Sales Order" disabled />
-        )}
-        <TextArea
-          name="orderDetails.specialInstructions"
-          label="Special Instructions"
-          rows={3}
-          placeholder="Note any production nuances, trims, or handling notes"
-        />
-      </Row>
-    
-    {loadingProductDetails && (
-      <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
-        <p className="text-sm text-blue-700">Loading product details...</p>
-      </div>
-    )}
-    
-    {productDetails && !loadingProductDetails && (
-      <div className="mt-4 space-y-4">
-        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Product Information</h3>
-          <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            {productDetails.product?.product_code && (
-              <div>
-                <dt className="text-xs text-gray-500">Product Code</dt>
-                <dd className="font-medium text-gray-900">{productDetails.product.product_code}</dd>
-              </div>
-            )}
-            {productDetails.product?.barcode && (
-              <div>
-                <dt className="text-xs text-gray-500">Barcode</dt>
-                <dd className="font-medium text-gray-900">{productDetails.product.barcode}</dd>
-              </div>
-            )}
-          </dl>
+      {!salesOrderId ? (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-amber-900">⚠️ Project Not Selected</p>
+            <p className="text-xs text-amber-700 mt-1">
+              Please go back to Step 1 and select a project/sales order first. 
+              <br />Product information and quantity will be automatically loaded here.
+            </p>
+          </div>
         </div>
-        
-        {productDetails.salesOrders && productDetails.salesOrders.length > 0 && (
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Related Sales Orders</h3>
-            <div className="space-y-2">
-              {productDetails.salesOrders.map((order) => (
-                <div key={order.id} className="text-sm border-l-2 border-primary pl-3">
-                  <div className="font-medium text-gray-900">{order.order_number}</div>
-                  <div className="text-xs text-gray-600">
-                    Quantity: {order.total_quantity} • 
-                    {order.buyer_reference && ` Buyer Ref: ${order.buyer_reference} •`}
-                    {order.delivery_date && ` Delivery: ${new Date(order.delivery_date).toLocaleDateString()}`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {productDetails.purchaseOrders && productDetails.purchaseOrders.length > 0 && (
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Related Purchase Orders</h3>
-            <div className="space-y-2">
-              {productDetails.purchaseOrders.map((po) => (
-                <div key={po.id} className="text-sm border-l-2 border-green-500 pl-3">
-                  <div className="font-medium text-gray-900">{po.po_number}</div>
-                  <div className="text-xs text-gray-600">
-                    {po.project_name && `Project: ${po.project_name} • `}
-                    {po.expected_delivery_date && `Expected: ${new Date(po.expected_delivery_date).toLocaleDateString()}`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {productDetails.inventoryItems && productDetails.inventoryItems.length > 0 && (
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Available Inventory Items (Barcodes)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {productDetails.inventoryItems.map((item) => (
-                <div key={item.id} className="text-sm border border-gray-300 rounded p-2 bg-white">
-                  <div className="font-mono text-xs text-primary font-semibold">{item.barcode}</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    Available: {item.quantity_available} {item.unit}
-                    {item.location && ` • ${item.location}`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )}
+      ) : (
+        <>
+          <StepHint>
+            ✅ Product information is automatically loaded from the project selected in Step 1. 
+            <br />Adjust production type and priority as needed. Materials will be fetched from the project's material request in Step 4.
+          </StepHint>
+          <Row>
+            <SelectInput
+              name="orderDetails.productionType"
+              label="Production Type"
+              required
+              options={[
+                { value: 'in_house', label: 'In-House' },
+                { value: 'outsourced', label: 'Outsourced' },
+                { value: 'mixed', label: 'Mixed' },
+              ]}
+            />
+            <TextInput name="orderDetails.quantity" label="Quantity" type="number" required />
+            <SelectInput
+              name="orderDetails.priority"
+              label="Priority"
+              required
+              options={[
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+                { value: 'urgent', label: 'Urgent' },
+              ]}
+            />
+          </Row>
+          <Row>
+            <TextArea
+              name="orderDetails.specialInstructions"
+              label="Special Instructions"
+              rows={3}
+              placeholder="Note any production nuances, trims, or handling notes"
+            />
+          </Row>
+        </>
+      )}
   </SectionCard>
   );
 };
 
-const SchedulingStep = () => (
-  <SectionCard icon={CalendarCheck} title="Plan the production timeline" description="Ensure scheduling aligns with capacity and promises.">
-    <Row>
-      <TextInput name="scheduling.plannedStartDate" label="Planned Start Date" type="date" required />
-      <TextInput name="scheduling.plannedEndDate" label="Planned End Date" type="date" required />
-      <SelectInput
-        name="scheduling.shift"
-        label="Shift"
-        required
-        options={[
-          { value: 'day', label: 'Day Shift' },
-          { value: 'morning', label: 'Morning Shift' },
-          { value: 'afternoon', label: 'Afternoon Shift' },
-          { value: 'evening', label: 'Evening Shift' },
-          { value: 'night', label: 'Night Shift' },
-          { value: 'flexible', label: 'Flexible' },
-        ]}
-      />
-      <TextInput name="scheduling.expectedHours" label="Expected Hours" type="number" />
-    </Row>
-  </SectionCard>
-);
+const SchedulingStep = () => {
+  const { watch } = useFormContextSafe();
+  const salesOrderId = watch('orderSelection.salesOrderId');
+
+  return (
+    <SectionCard icon={CalendarCheck} title="Plan the production timeline" description="Ensure scheduling aligns with capacity and promises.">
+      {!salesOrderId ? (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-amber-900">⚠️ Project Not Selected</p>
+            <p className="text-xs text-amber-700 mt-1">
+              Please go back to Step 1 and select a project/sales order first. 
+              <br />Then you can plan the production timeline here.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <Row>
+          <TextInput name="scheduling.plannedStartDate" label="Planned Start Date" type="date" required />
+          <TextInput name="scheduling.plannedEndDate" label="Planned End Date" type="date" required />
+          <SelectInput
+            name="scheduling.shift"
+            label="Shift"
+            required
+            options={[
+              { value: 'day', label: 'Day Shift' },
+              { value: 'morning', label: 'Morning Shift' },
+              { value: 'afternoon', label: 'Afternoon Shift' },
+              { value: 'evening', label: 'Evening Shift' },
+              { value: 'night', label: 'Night Shift' },
+              { value: 'flexible', label: 'Flexible' },
+            ]}
+          />
+          <TextInput name="scheduling.expectedHours" label="Expected Hours" type="number" />
+        </Row>
+      )}
+    </SectionCard>
+  );
+};
 
 const MaterialsStep = () => {
   const { control, formState: { errors }, watch } = useFormContextSafe();
   const { fields, append, remove } = useFieldArray({ control, name: 'materials.items' });
   const autoFilled = watch('orderSelection.autoFilled');
+  const salesOrderId = watch('orderSelection.salesOrderId');
+  
+  // Function to generate next Material ID (M-001, M-002, etc.)
+  const generateNextMaterialId = () => {
+    const maxIndex = fields.length > 0 
+      ? Math.max(...fields.map((field, idx) => idx)) + 1 
+      : 0;
+    return `M-${(maxIndex + 1).toString().padStart(3, '0')}`;
+  };
 
   return (
     <SectionCard icon={PackageSearch} title="Verify materials" description="Ensure material sufficiency to avoid interruptions.">
       <div className="space-y-6">
-        {autoFilled && fields.length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+        {/* Show message when no project selected */}
+        {!salesOrderId && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-green-900">Materials loaded from approved receipt</p>
-              <p className="text-xs text-green-700 mt-1">
-                These materials were dispatched from inventory and received in manufacturing. 
-                Verify quantities and add any additional materials if needed.
+              <p className="text-sm font-bold text-amber-900">⚠️ Project Not Selected</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Please go back to Step 1 and select a project/sales order first. 
+                <br />Materials will be automatically loaded from the project's Material Request.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Show message when loading or no materials found */}
+        {salesOrderId && !autoFilled && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-blue-900">🔄 Loading materials...</p>
+              <p className="text-xs text-blue-700 mt-1">
+                Fetching materials from the project's Material Request Number. Please wait...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Show when materials are loaded */}
+        {autoFilled && fields.length > 0 && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-blue-900">📦 Materials loaded from MRN</p>
+              <p className="text-xs text-blue-700 mt-1">
+                {fields.length} material(s) fetched from the Material Request Number for this project. 
+                <br />✓ Material IDs are auto-generated (M-001, M-002, etc.) for each material.
+                <br />✓ Read-only fields (ID, Description, Unit, Color, GSM, Width) are locked from MRN.
+                <br />✓ Adjust Required Quantity and Status as needed before submission.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Show when project selected but no materials in MRN */}
+        {autoFilled && fields.length === 0 && (
+          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-yellow-900">⚠️ No Materials Found in MRN</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                No materials were found in the Material Request for this project. 
+                <br />You can manually add materials below using the "Add Material" button.
               </p>
             </div>
           </div>
         )}
 
         {fields.map((field, index) => (
-          <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-gray-700">Material #{index + 1}</span>
+          <div key={field.id} className="border-2 border-gray-200 rounded-lg p-5 space-y-4 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+              <div>
+                <span className="text-sm font-bold text-gray-900">📌 Material #{index + 1}</span>
+                {field.remarks && (
+                  <p className="text-xs text-gray-600 mt-1">🔗 {field.remarks}</p>
+                )}
+              </div>
               {fields.length > 1 && (
                 <button
                   type="button"
                   onClick={() => remove(index)}
-                  className="text-sm text-red-500 hover:text-red-600"
+                  className="text-xs px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded border border-red-200 transition-colors"
                 >
-                  Remove
+                  ✕ Remove
                 </button>
               )}
             </div>
-            <Row columns={3}>
-              <TextInput name={`materials.items.${index}.materialId`} label="Material ID / Code" required />
-              <TextInput name={`materials.items.${index}.description`} label="Description" required />
-              <TextInput name={`materials.items.${index}.requiredQuantity`} label="Required Quantity" type="number" required />
-            </Row>
-            <Row>
-              <TextInput name={`materials.items.${index}.unit`} label="Unit" required />
-              <SelectInput
-                name={`materials.items.${index}.status`}
-                label="Status"
-                required
-                options={[
-                  { value: 'available', label: 'Available' },
-                  { value: 'shortage', label: 'Shortage' },
-                  { value: 'ordered', label: 'Ordered' },
-                ]}
-              />
-              {field.barcode && (
-                <TextInput name={`materials.items.${index}.barcode`} label="Barcode" disabled />
-              )}
-            </Row>
-            {(field.condition || field.remarks) && (
-              <Row columns={field.remarks ? 2 : 1}>
-                {field.condition && (
-                  <TextInput name={`materials.items.${index}.condition`} label="Condition" disabled />
+
+            {/* Core Material Info */}
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Core Information</p>
+              <Row columns={3}>
+                <TextInput name={`materials.items.${index}.materialId`} label="Material ID / Code" required disabled size="md" />
+                <TextInput name={`materials.items.${index}.description`} label="Description" required disabled size="md" />
+                <TextInput name={`materials.items.${index}.requiredQuantity`} label="Required Qty ⚡" type="number" required size="md" />
+              </Row>
+            </div>
+            
+            {/* MRN Details - Fetched from Material Request Number */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300 rounded-lg p-4">
+              <p className="text-xs font-bold text-purple-900 mb-3 uppercase tracking-wide">📋 Sourced from MRN</p>
+              <Row columns={3}>
+                <TextInput name={`materials.items.${index}.unit`} label="Unit" required disabled size="sm" />
+                {field.barcode && (
+                  <TextInput name={`materials.items.${index}.barcode`} label="🏷️ Barcode" disabled size="sm" />
                 )}
-                {field.remarks && (
-                  <TextInput name={`materials.items.${index}.remarks`} label="Remarks" disabled />
+                {field.location && (
+                  <TextInput name={`materials.items.${index}.location`} label="📍 Location" disabled size="sm" />
                 )}
               </Row>
-            )}
+              
+              {/* Fabric Attributes */}
+              {(field.color || field.gsm || field.width) && (
+                <>
+                  <hr className="my-3 border-purple-200" />
+                  <p className="text-xs font-semibold text-purple-800 mb-2">Fabric Attributes</p>
+                  <Row columns={3}>
+                    {field.color && (
+                      <TextInput name={`materials.items.${index}.color`} label="🎨 Color" disabled size="sm" />
+                    )}
+                    {field.gsm && (
+                      <TextInput name={`materials.items.${index}.gsm`} label="⚖️ GSM" disabled size="sm" />
+                    )}
+                    {field.width && (
+                      <TextInput name={`materials.items.${index}.width`} label="📏 Width" disabled size="sm" />
+                    )}
+                  </Row>
+                </>
+              )}
+
+              {field.condition && (
+                <>
+                  <hr className="my-3 border-purple-200" />
+                  <Row>
+                    <TextInput name={`materials.items.${index}.condition`} label="Condition" disabled size="sm" />
+                  </Row>
+                </>
+              )}
+            </div>
+
+            {/* Status & Actions */}
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Status & Adjustments</p>
+              <Row columns={2}>
+                <SelectInput
+                  name={`materials.items.${index}.status`}
+                  label="Availability Status"
+                  required
+                  options={[
+                    { value: 'available', label: '✓ Available' },
+                    { value: 'shortage', label: '⚠️ Shortage' },
+                    { value: 'ordered', label: '📦 Ordered' },
+                  ]}
+                />
+              </Row>
+            </div>
           </div>
         ))}
 
         <ErrorText error={errors.materials?.items} />
 
-        <button
-          type="button"
-          onClick={() => append({ materialId: '', description: '', requiredQuantity: '', unit: '', status: 'available' })}
-          className="px-4 py-2 rounded-md border border-dashed border-primary text-primary hover:bg-primary/5"
-        >
-          Add Material
-        </button>
+        {/* Add Material Button */}
+        {(fields.length === 0 || autoFilled) && (
+          <button
+            type="button"
+            onClick={() => append({ 
+              materialId: generateNextMaterialId(), 
+              description: '', 
+              requiredQuantity: '', 
+              unit: 'pieces', 
+              status: 'available',
+              barcode: '',
+              location: '',
+              color: '',
+              gsm: '',
+              width: '',
+              condition: '',
+              remarks: ''
+            })}
+            className="w-full px-4 py-3 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium transition-colors text-sm"
+          >
+            {fields.length === 0 ? '➕ Add First Material' : '➕ Add Additional Material'}
+          </button>
+        )}
       </div>
     </SectionCard>
   );
@@ -2201,7 +2308,7 @@ const ReviewStep = ({ values }) => {
       : 'Not specified';
 
   const summaryRows = [
-    { label: 'Product', value: values.orderDetails.productId || 'Not specified' },
+    { label: 'Project', value: values.orderSelection.salesOrderId || 'Not specified' },
     { label: 'Quantity', value: values.orderDetails.quantity || 'Not specified' },
     { label: 'Priority', value: values.orderDetails.priority || 'Not specified' },
     { label: 'Planned Schedule', value: scheduleSummary },
@@ -2211,16 +2318,16 @@ const ReviewStep = ({ values }) => {
 
   return (
     <SectionCard icon={CheckCircle2} title="Review order" description="Confirm accuracy before submission.">
-      <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <dl className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {summaryRows.map((row) => (
-          <div key={row.label} className="border border-gray-200 rounded-md p-4 bg-gray-50">
-            <dt className="text-xs uppercase tracking-wider text-gray-500">{row.label}</dt>
-            <dd className="mt-1 text-sm font-medium text-gray-900">{row.value}</dd>
+          <div key={row.label} className="border border-gray-200 rounded-md p-3 bg-gray-50">
+            <dt className="text-[10px] uppercase tracking-wider text-gray-500">{row.label}</dt>
+            <dd className="mt-0.5 text-xs font-medium text-gray-900">{row.value}</dd>
           </div>
         ))}
       </dl>
 
-      <div className="mt-6">
+      <div className="mt-4">
         <SwitchInput
           name="review.acknowledge"
           label="I confirm that the order details are accurate"
@@ -2247,8 +2354,8 @@ function buildPayload(values) {
     production_type: orderDetails.productionType,
     quantity: Number(orderDetails.quantity),
     priority: orderDetails.priority,
-    sales_order_id: orderDetails.salesOrderId || null,
-    production_approval_id: orderSelection.productionApprovalId ? Number(orderSelection.productionApprovalId) : null,
+    sales_order_id: orderSelection.salesOrderId || orderDetails.salesOrderId || null,
+    production_approval_id: null, // Legacy field - no longer used with sales order selection
     special_instructions: orderDetails.specialInstructions || null,
     planned_start_date: scheduling.plannedStartDate,
     planned_end_date: scheduling.plannedEndDate,

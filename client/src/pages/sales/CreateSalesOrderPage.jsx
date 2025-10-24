@@ -358,17 +358,17 @@ const CreateSalesOrderPage = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/sales/orders')}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+              className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
             >
               <FaArrowLeft className="h-4 w-4" />
               Back
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">Create Sales Order</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Create Sales Order</h1>
           </div>
           
           {createdOrder && (
@@ -380,7 +380,7 @@ const CreateSalesOrderPage = () => {
 
         {/* Error Message */}
         {submitError && (
-          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mb-4 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
             {submitError}
           </div>
         )}
@@ -388,9 +388,9 @@ const CreateSalesOrderPage = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Customer & Order Information */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 border-b pb-3">
-              <h2 className="text-xl font-semibold text-gray-900">🔹 Customer & Order Information</h2>
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 border-b pb-3">
+              <h2 className="text-lg font-semibold text-gray-900">🔹 Customer & Order Information</h2>
               <p className="mt-1 text-sm text-gray-500">Client details and contact information</p>
             </div>
 
@@ -404,7 +404,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.customerName}
                   onChange={(e) => handleInputChange('customerName', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="XYZ Pvt Ltd"
                   required
                 />
@@ -419,7 +419,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="Complete address with city and pincode"
                 />
               </div>
@@ -433,7 +433,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.contactPerson}
                   onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="Name of representative"
                 />
               </div>
@@ -447,7 +447,7 @@ const CreateSalesOrderPage = () => {
                   type="email"
                   value={orderData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="contact@company.com"
                 />
               </div>
@@ -461,7 +461,7 @@ const CreateSalesOrderPage = () => {
                   type="tel"
                   value={orderData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="+91 98765 43210"
                 />
               </div>
@@ -475,7 +475,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.gstNumber}
                   onChange={(e) => handleInputChange('gstNumber', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="22AAAAA0000A1Z5"
                 />
               </div>
@@ -489,7 +489,7 @@ const CreateSalesOrderPage = () => {
                   type="date"
                   value={orderData.orderDate}
                   onChange={(e) => handleInputChange('orderDate', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
               </div>
@@ -497,9 +497,9 @@ const CreateSalesOrderPage = () => {
           </div>
 
           {/* Product / Order Details */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 border-b pb-3">
-              <h2 className="text-xl font-semibold text-gray-900">🔹 Product / Order Details</h2>
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 border-b pb-3">
+              <h2 className="text-lg font-semibold text-gray-900">🔹 Product / Order Details</h2>
               <p className="mt-1 text-sm text-gray-500">Product specifications and pricing</p>
             </div>
 
@@ -513,7 +513,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.projectTitle}
                   onChange={(e) => handleInputChange('projectTitle', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="e.g., Winter Uniforms – XYZ Pvt Ltd"
                   required
                 />
@@ -528,7 +528,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.productName}
                   onChange={(e) => handleInputChange('productName', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="e.g., Formal Shirt"
                   required
                 />
@@ -543,7 +543,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.productCode}
                   readOnly
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600 shadow-sm"
+                  className="w-full rounded border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600 shadow-sm"
                   placeholder="Auto-generated"
                 />
               </div>
@@ -556,7 +556,7 @@ const CreateSalesOrderPage = () => {
                   id="productType"
                   value={orderData.productType}
                   onChange={(e) => handleInputChange('productType', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Select product type</option>
                   {productTypes.map((type) => (
@@ -575,7 +575,7 @@ const CreateSalesOrderPage = () => {
                     type="text"
                     value={orderData.customProductType}
                     onChange={(e) => handleInputChange('customProductType', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     placeholder="Enter custom type"
                   />
                 </div>
@@ -590,7 +590,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.fabricType}
                   onChange={(e) => handleInputChange('fabricType', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="e.g., Cotton, Polyester, Cotton Blend"
                 />
               </div>
@@ -604,7 +604,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.color}
                   onChange={(e) => handleInputChange('color', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="e.g., Navy Blue, White, Black"
                 />
               </div>
@@ -619,7 +619,7 @@ const CreateSalesOrderPage = () => {
                   min="1"
                   value={orderData.quantity}
                   onChange={(e) => handleInputChange('quantity', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="1000"
                   required
                 />
@@ -634,7 +634,7 @@ const CreateSalesOrderPage = () => {
                   type="text"
                   value={orderData.qualitySpecification}
                   onChange={(e) => handleInputChange('qualitySpecification', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="e.g., 220 GSM Cotton"
                 />
               </div>
@@ -650,7 +650,7 @@ const CreateSalesOrderPage = () => {
                   step="0.01"
                   value={orderData.pricePerPiece}
                   onChange={(e) => handleInputChange('pricePerPiece', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="250.00"
                   required
                 />
@@ -660,7 +660,7 @@ const CreateSalesOrderPage = () => {
                 <label className="text-sm font-semibold text-gray-700">
                   Order Price <span className="text-xs text-gray-500">(Auto-calculated)</span>
                 </label>
-                <div className="flex items-center rounded-lg border border-gray-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-900">
+                <div className="flex items-center rounded border border-gray-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-900">
                   ₹ {calculations.orderPrice}
                 </div>
               </div>
@@ -674,7 +674,7 @@ const CreateSalesOrderPage = () => {
                   type="file"
                   accept="image/*,.pdf"
                   onChange={handleFileUpload}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition file:mr-4 file:rounded file:border-0 file:bg-blue-50 file:px-4 file:py-1 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition file:mr-4 file:rounded file:border-0 file:bg-blue-50 file:px-4 file:py-1 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
                 />
                 {orderData.designFileName && (
                   <p className="mt-1 text-xs text-green-600">✓ {orderData.designFileName}</p>
@@ -683,7 +683,7 @@ const CreateSalesOrderPage = () => {
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">Size Option</label>
-                <div className="flex gap-4">
+                <div className="flex gap-2">
                   <label className="flex items-center space-x-2">
                     <input
                       type="radio"
@@ -691,7 +691,7 @@ const CreateSalesOrderPage = () => {
                       value="fixed"
                       checked={orderData.sizeOption === 'fixed'}
                       onChange={(e) => handleInputChange('sizeOption', e.target.value)}
-                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-opacity-20"
                     />
                     <span className="text-sm text-gray-700">Fixed (S/M/L/XL)</span>
                   </label>
@@ -702,7 +702,7 @@ const CreateSalesOrderPage = () => {
                       value="custom"
                       checked={orderData.sizeOption === 'custom'}
                       onChange={(e) => handleInputChange('sizeOption', e.target.value)}
-                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-opacity-20"
                     />
                     <span className="text-sm text-gray-700">Custom</span>
                   </label>
@@ -724,13 +724,13 @@ const CreateSalesOrderPage = () => {
                 </div>
 
                 {orderData.sizeDetails.length === 0 ? (
-                  <div className="text-sm text-gray-500 italic p-4 border border-dashed border-gray-300 rounded-lg text-center">
+                  <div className="text-sm text-gray-500 italic p-4 border border-dashed border-gray-300 rounded text-center">
                     No sizes added. Click "Add Size" to start adding size details.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {orderData.sizeDetails.map((sizeDetail, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                         <div className="flex-1">
                           <input
                             type="text"
@@ -758,7 +758,7 @@ const CreateSalesOrderPage = () => {
                           className="text-red-500 hover:text-red-700 p-1"
                           title="Remove size"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg size={16} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
@@ -778,7 +778,7 @@ const CreateSalesOrderPage = () => {
                   value={orderData.expectedDeliveryDate}
                   onChange={(e) => handleInputChange('expectedDeliveryDate', e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
               </div>
@@ -794,7 +794,7 @@ const CreateSalesOrderPage = () => {
                   step="0.01"
                   value={orderData.advancePaid}
                   onChange={(e) => handleInputChange('advancePaid', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="0.00"
                 />
               </div>
@@ -807,7 +807,7 @@ const CreateSalesOrderPage = () => {
                   id="gstPercentage"
                   value={orderData.gstPercentage}
                   onChange={(e) => handleInputChange('gstPercentage', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="0">0%</option>
                   <option value="5">5%</option>
@@ -820,39 +820,39 @@ const CreateSalesOrderPage = () => {
 
             {/* Financial Summary */}
             <div className="mt-6 border-t pt-6">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg bg-gray-50 p-4">
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded bg-gray-50 p-4">
                   <div className="text-xs font-medium text-gray-500">Bulk Total</div>
-                  <div className="mt-1 text-xl font-bold text-gray-900">₹ {calculations.bulkTotal}</div>
+                  <div className="mt-1 text-lg font-bold text-gray-900">₹ {calculations.bulkTotal}</div>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-4">
+                <div className="rounded bg-gray-50 p-4">
                   <div className="text-xs font-medium text-gray-500">GST Amount ({orderData.gstPercentage}%)</div>
-                  <div className="mt-1 text-xl font-bold text-gray-900">₹ {calculations.gstAmount}</div>
+                  <div className="mt-1 text-lg font-bold text-gray-900">₹ {calculations.gstAmount}</div>
                 </div>
-                <div className="rounded-lg bg-blue-50 p-4">
+                <div className="rounded bg-blue-50 p-4">
                   <div className="text-xs font-medium text-blue-600">Total with GST</div>
-                  <div className="mt-1 text-xl font-bold text-blue-900">₹ {calculations.totalWithGST}</div>
+                  <div className="mt-1 text-lg font-bold text-blue-900">₹ {calculations.totalWithGST}</div>
                 </div>
-                <div className="rounded-lg bg-orange-50 p-4">
+                <div className="rounded bg-orange-50 p-4">
                   <div className="text-xs font-medium text-orange-600">Remaining Amount</div>
-                  <div className="mt-1 text-xl font-bold text-orange-900">₹ {calculations.remainingAmount}</div>
+                  <div className="mt-1 text-lg font-bold text-orange-900">₹ {calculations.remainingAmount}</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">🔹 Actions</h2>
+              <h2 className="text-lg font-semibold text-gray-900">🔹 Actions</h2>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
               {/* Save Sales Order */}
               <button
                 type="submit"
                 disabled={isSubmitting || createdOrder}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1.5 rounded bg-blue-500 px-2 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FaCheck className="h-4 w-4" />
                 {isSubmitting ? 'Saving...' : createdOrder ? 'Order Saved' : 'Save Sales Order'}
@@ -863,7 +863,7 @@ const CreateSalesOrderPage = () => {
                 type="button"
                 onClick={handleSendToProcurement}
                 disabled={!createdOrder}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-600 bg-purple-50 px-6 py-3 text-sm font-semibold text-purple-700 shadow-md transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded border border-purple-600 bg-purple-50 px-2 py-2 text-sm font-semibold text-purple-700 shadow-md transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FaPaperPlane className="h-4 w-4" />
                 Send to Procurement
@@ -874,7 +874,7 @@ const CreateSalesOrderPage = () => {
                 type="button"
                 onClick={handleDownloadInvoice}
                 disabled={!createdOrder}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-green-600 bg-green-50 px-6 py-3 text-sm font-semibold text-green-700 shadow-md transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded border border-green-600 bg-green-50 px-2 py-2 text-sm font-semibold text-green-700 shadow-md transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FaFileInvoice className="h-4 w-4" />
                 Download Invoice
@@ -885,7 +885,7 @@ const CreateSalesOrderPage = () => {
                 type="button"
                 onClick={handleCreateChallan}
                 disabled={!createdOrder}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-600 bg-orange-50 px-6 py-3 text-sm font-semibold text-orange-700 shadow-md transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded border border-orange-600 bg-orange-50 px-2 py-2 text-sm font-semibold text-orange-700 shadow-md transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FaTruck className="h-4 w-4" />
                 Create Challan
@@ -896,7 +896,7 @@ const CreateSalesOrderPage = () => {
                 type="button"
                 onClick={handleGenerateQR}
                 disabled={!createdOrder}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-600 bg-indigo-50 px-6 py-3 text-sm font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded border border-indigo-600 bg-indigo-50 px-2 py-2 text-sm font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FaQrcode className="h-4 w-4" />
                 Generate QR Code
@@ -907,7 +907,7 @@ const CreateSalesOrderPage = () => {
                 type="button"
                 onClick={handleTrackStatus}
                 disabled={!createdOrder}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-600 bg-gray-50 px-6 py-3 text-sm font-semibold text-gray-700 shadow-md transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded border border-gray-600 bg-gray-50 px-2 py-2 text-sm font-semibold text-gray-700 shadow-md transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FaDownload className="h-4 w-4" />
                 Track Status
@@ -919,14 +919,14 @@ const CreateSalesOrderPage = () => {
         {/* QR Code Modal */}
         {showQRCode && qrData && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="relative max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="relative max-w-md rounded bg-white p-6 shadow-2xl">
               <button
                 onClick={() => setShowQRCode(false)}
                 className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
               >
                 ✕
               </button>
-              <h3 className="mb-4 text-xl font-bold text-gray-900">Order QR Code</h3>
+              <h3 className="mb-4 text-lg font-bold text-gray-900">Order QR Code</h3>
               <QRCodeDisplay data={qrData} />
               <p className="mt-4 text-center text-sm text-gray-600">
                 Scan this QR code to view order details

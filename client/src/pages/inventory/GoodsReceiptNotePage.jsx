@@ -259,10 +259,10 @@ const GoodsReceiptNotePage = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Goods Receipt & Material Requests</h1>
             <p className="text-gray-600">Manage material requests (MRN) and receipts (GRN) in one place</p>
@@ -270,13 +270,13 @@ const GoodsReceiptNotePage = () => {
           <div className="flex gap-2">
             <button
               onClick={() => navigate('/inventory/grn/create')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-1.5"
             >
               <FaPlus /> Create GRN
             </button>
             <button
               onClick={() => navigate('/procurement/material-requests')}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center gap-1.5"
             >
               <FaClipboardList /> View All MRNs
             </button>
@@ -284,47 +284,47 @@ const GoodsReceiptNotePage = () => {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 border-b border-gray-200">
-          <div className="flex gap-4">
+        <div className="mb-4 border-b border-gray-200">
+          <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('mrn')}
-              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-2 ${
+              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-1.5 ${
                 activeTab === 'mrn'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              <FaClipboardList className="w-4 h-4" />
+              <FaClipboardList size={14} />
               Material Requests (MRN)
-              <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+              <span className="bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full text-xs">
                 {mrnRequests.length}
               </span>
             </button>
             <button
               onClick={() => setActiveTab('pending')}
-              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-2 ${
+              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-1.5 ${
                 activeTab === 'pending'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              <FaClock className="w-4 h-4" />
+              <FaClock size={14} />
               Pending GRN Approvals
-              <span className="bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-xs">
+              <span className="bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded-full text-xs">
                 {pendingPOs.length}
               </span>
             </button>
             <button
               onClick={() => setActiveTab('grns')}
-              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-2 ${
+              className={`px-4 py-2 font-medium transition-colors relative flex items-center gap-1.5 ${
                 activeTab === 'grns'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              <FaTruck className="w-4 h-4" />
+              <FaTruck size={14} />
               Goods Receipt Notes (GRN)
-              <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs">
+              <span className="bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full text-xs">
                 {grns.length}
               </span>
             </button>
@@ -333,10 +333,10 @@ const GoodsReceiptNotePage = () => {
 
         {/* MRN Tab */}
         {activeTab === 'mrn' && (
-          <div className="bg-white rounded-lg shadow-sm border">
+          <div className="bg-white rounded shadow-sm border">
             <div className="p-4 border-b bg-blue-50">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <FaClipboardList className="w-5 h-5" />
+              <h3 className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <FaClipboardList size={16} />
                 Material Requests (MRN)
               </h3>
               <p className="text-sm text-gray-600 mt-1">Review and approve material requests from manufacturing</p>
@@ -344,13 +344,13 @@ const GoodsReceiptNotePage = () => {
 
             {/* MRN Filters */}
             <div className="p-4 border-b bg-gray-50">
-              <div className="flex gap-4 items-center">
-                <div className="flex items-center gap-2">
+              <div className="flex gap-2 items-center">
+                <div className="flex items-center gap-1.5">
                   <label className="text-sm font-medium text-gray-700">Status:</label>
                   <select
                     value={mrnStatusFilter}
                     onChange={(e) => setMrnStatusFilter(e.target.value)}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                   >
                     <option value="all">All Status</option>
                     <option value="pending">Pending Review</option>
@@ -366,13 +366,13 @@ const GoodsReceiptNotePage = () => {
                 </div>
                 <div className="flex-1">
                   <div className="relative">
-                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search MRNs..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -386,14 +386,14 @@ const GoodsReceiptNotePage = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MRN Number</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Value</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MRN Number</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Value</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -438,14 +438,14 @@ const GoodsReceiptNotePage = () => {
                                 <>
                                   <button
                                     onClick={() => acceptMRNRequest(mrn.id)}
-                                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center gap-1"
+                                    className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 flex items-center gap-1"
                                     title="Accept & Convert to GRN"
                                   >
                                     <FaCheckCircle className="w-3 h-3" /> Accept
                                   </button>
                                   <button
                                     onClick={() => rejectMRNRequest(mrn.id, 'Not approved by inventory')}
-                                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center gap-1"
+                                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 flex items-center gap-1"
                                     title="Reject Request"
                                   >
                                     <FaTimes className="w-3 h-3" /> Reject
@@ -472,7 +472,7 @@ const GoodsReceiptNotePage = () => {
 
         {/* Pending POs Tab */}
         {activeTab === 'pending' && (
-          <div className="bg-white rounded-lg shadow-sm border">
+          <div className="bg-white rounded shadow-sm border">
             <div className="p-4 border-b bg-blue-50">
               <h3 className="font-semibold text-gray-900">Purchase Orders Awaiting GRN Creation</h3>
               <p className="text-sm text-gray-600 mt-1">These purchase orders have been approved and are ready for goods receipt</p>
@@ -484,13 +484,13 @@ const GoodsReceiptNotePage = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Number</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Delivery</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Number</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Date</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Delivery</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -510,7 +510,7 @@ const GoodsReceiptNotePage = () => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => navigate(`/inventory/grn/create?po_id=${po.po_id}`)}
-                              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center gap-1"
+                              className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 flex items-center gap-1"
                               title="Create GRN"
                             >
                               <FaPlus className="w-3 h-3" /> Create GRN
@@ -544,24 +544,24 @@ const GoodsReceiptNotePage = () => {
         {activeTab === 'grns' && (
           <>
             {/* Filters */}
-            <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
-              <div className="flex gap-4">
+            <div className="bg-white p-4 rounded shadow-sm border mb-4">
+              <div className="flex gap-2">
                 <div className="flex-1">
                   <div className="relative">
-                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search GRNs..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     />
                   </div>
                 </div>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="border rounded px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 >
                   <option value="">All Status</option>
                   <option value="draft">Draft</option>
@@ -574,7 +574,7 @@ const GoodsReceiptNotePage = () => {
             </div>
 
             {/* GRN List */}
-        <div className="bg-white rounded-lg shadow-sm border">
+        <div className="bg-white rounded shadow-sm border">
           {loading ? (
             <div className="p-8 text-center">Loading...</div>
           ) : (
@@ -583,13 +583,13 @@ const GoodsReceiptNotePage = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GRN #</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO #</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GRN #</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO #</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received Date</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -693,9 +693,9 @@ const GoodsReceiptNotePage = () => {
         {/* Create GRN Dialog */}
         {showCreateDialog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold mb-4">Create Goods Receipt Note</h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-white rounded p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg font-bold mb-4">Create Goods Receipt Note</h2>
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 <input
                   type="text"
                   placeholder="Purchase Order ID"
@@ -775,7 +775,7 @@ const GoodsReceiptNotePage = () => {
                 </button>
                 <button
                   onClick={handleCreateGRN}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600"
                 >
                   Create GRN
                 </button>
@@ -787,8 +787,8 @@ const GoodsReceiptNotePage = () => {
         {/* Verify GRN Dialog */}
         {showInspectDialog && selectedGRN && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">Verify GRN - {selectedGRN.grn_number}</h2>
+            <div className="bg-white rounded p-6 w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4">Verify GRN - {selectedGRN.grn_number}</h2>
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">Status</label>
                 <select
@@ -818,7 +818,7 @@ const GoodsReceiptNotePage = () => {
                 </button>
                 <button
                   onClick={handleVerifyGRN}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600"
                 >
                   Submit Verification
                 </button>
@@ -830,9 +830,9 @@ const GoodsReceiptNotePage = () => {
         {/* View GRN Details Dialog */}
         {selectedGRN && !showInspectDialog && !showCreateDialog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold mb-4">GRN Details - {selectedGRN.grn_number}</h2>
-              <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg font-bold mb-4">GRN Details - {selectedGRN.grn_number}</h2>
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 <div><strong>PO Number:</strong> {selectedGRN.purchaseOrder?.po_number}</div>
                 <div><strong>Supplier:</strong> {selectedGRN.supplier_name}</div>
                 <div><strong>Received Date:</strong> {new Date(selectedGRN.received_date).toLocaleDateString()}</div>
@@ -884,7 +884,7 @@ const GoodsReceiptNotePage = () => {
               <div className="flex justify-end">
                 <button
                   onClick={() => setSelectedGRN(null)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600"
                 >
                   Close
                 </button>
@@ -896,9 +896,9 @@ const GoodsReceiptNotePage = () => {
         {/* MRN Detail Modal */}
         {showMrnDetailModal && selectedMRN && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">MRN Details - {selectedMRN.request_number}</h2>
+                <h2 className="text-lg font-bold">MRN Details - {selectedMRN.request_number}</h2>
                 <button
                   onClick={() => setShowMrnDetailModal(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -907,7 +907,7 @@ const GoodsReceiptNotePage = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 <div><strong>Project:</strong> {selectedMRN.project_name}</div>
                 <div><strong>Request Date:</strong> {new Date(selectedMRN.request_date).toLocaleDateString()}</div>
                 <div><strong>Priority:</strong> {getMRNPriorityBadge(selectedMRN.priority)}</div>
@@ -963,13 +963,13 @@ const GoodsReceiptNotePage = () => {
                   <>
                     <button
                       onClick={() => acceptMRNRequest(selectedMRN.id)}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+                      className="px-3 py-1.5 bg-green-500 text-sm text-white rounded hover:bg-green-600 flex items-center gap-1.5"
                     >
                       <FaCheckCircle /> Accept & Convert to GRN
                     </button>
                     <button
                       onClick={() => rejectMRNRequest(selectedMRN.id, 'Not approved by inventory')}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2"
+                      className="px-3 py-1.5 bg-red-500 text-sm text-white rounded hover:bg-red-600 flex items-center gap-1.5"
                     >
                       <FaTimes /> Reject
                     </button>

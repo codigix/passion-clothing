@@ -91,7 +91,7 @@ const FinanceInvoicesPage = () => {
           <Plus size={18} /> Create Invoice
         </button>
       </div>
-      <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
+      <div className="overflow-x-auto border border-gray-200 rounded bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left">
             <tr>
@@ -131,7 +131,7 @@ const FinanceInvoicesPage = () => {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
             <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" onClick={closeModal}>&times;</button>
             {modalType === 'view' && selectedInvoice && (
               <div>

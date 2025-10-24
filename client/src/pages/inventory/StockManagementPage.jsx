@@ -67,7 +67,7 @@ function ActionDropdown({ stock, onView, onAdd, onRemove, onEdit, showQRModal, s
       </button>
 
       {isOpen && (
-        <div className={`absolute right-0 z-50 ${openUpward ? 'bottom-full mb-2' : 'mt-2'} w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none`}>
+        <div className={`absolute right-0 z-50 ${openUpward ? 'bottom-full mb-2' : 'mt-2'} w-48 origin-top-right rounded bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none`}>
           <div className="py-1">
             {(stock.barcode || stock.qrCode) && (
               <button
@@ -239,8 +239,8 @@ const StockManagementPage = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">
           Stock Management
         </h1>
         <div className="flex gap-3">
@@ -248,14 +248,14 @@ const StockManagementPage = () => {
           <div className="relative" ref={columnMenuRef}>
             <button
               onClick={() => setShowColumnMenu(!showColumnMenu)}
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
               <FaColumns className="h-4 w-4" />
               Columns
             </button>
             
             {showColumnMenu && (
-              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                 <div className="p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-gray-900">Show/Hide Columns</h3>
@@ -279,7 +279,7 @@ const StockManagementPage = () => {
                     {AVAILABLE_COLUMNS.map((column) => (
                       <label
                         key={column.id}
-                        className={`flex items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 ${
+                        className={`flex items-center gap-1.5 rounded px-2 py-1.5 hover:bg-gray-50 ${
                           column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                         }`}
                       >
@@ -313,46 +313,46 @@ const StockManagementPage = () => {
       </div>
 
       {/* Stock Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Items</p>
-              <p className="text-3xl font-bold text-gray-900">{stocks.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{stocks.length}</p>
             </div>
             <Package className="text-blue-600" size={32} />
           </div>
         </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Low Stock Items</p>
-              <p className="text-3xl font-bold text-red-600">{lowStockItems.length}</p>
+              <p className="text-2xl font-bold text-red-600">{lowStockItems.length}</p>
             </div>
             <AlertTriangle className="text-red-600" size={32} />
           </div>
         </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Overstock Items</p>
-              <p className="text-3xl font-bold text-yellow-600">{overstockItems.length}</p>
+              <p className="text-2xl font-bold text-yellow-600">{overstockItems.length}</p>
             </div>
             <AlertTriangle className="text-yellow-600" size={32} />
           </div>
         </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Normal Stock</p>
-              <p className="text-3xl font-bold text-green-600">{stocks.length - lowStockItems.length - overstockItems.length}</p>
+              <p className="text-2xl font-bold text-green-600">{stocks.length - lowStockItems.length - overstockItems.length}</p>
             </div>
             <Package className="text-green-600" size={32} />
           </div>
         </div>
       </div>
 
-      <div className="bg-white  shadow border mb-6">
+      <div className="bg-white  shadow border mb-4">
         <div className="flex border-b">
           <button
             className={`px-4 py-3 text-sm font-medium ${
@@ -387,7 +387,7 @@ const StockManagementPage = () => {
         </div>
       </div>
 
-      <div className="bg-white  shadow border mb-6 p-4">
+      <div className="bg-white  shadow border mb-4 p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
@@ -395,44 +395,44 @@ const StockManagementPage = () => {
             placeholder="Search stock items..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow border overflow-x-auto">
+      <div className="bg-white rounded shadow border overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
               {isColumnVisible('barcode') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barcode / Batch</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barcode / Batch</th>
               )}
               {isColumnVisible('item_name') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
               )}
               {isColumnVisible('category') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               )}
               {isColumnVisible('current_stock') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
               )}
               {isColumnVisible('min_stock') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
               )}
               {isColumnVisible('max_stock') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Stock</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Stock</th>
               )}
               {isColumnVisible('unit') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
               )}
               {isColumnVisible('location') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
               )}
               {isColumnVisible('status') && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               )}
               {isColumnVisible('actions') && (
-                <th className="sticky right-0 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">Actions</th>
+                <th className="sticky right-0 bg-gray-50 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">Actions</th>
               )}
             </tr>
           </thead>
@@ -444,7 +444,7 @@ const StockManagementPage = () => {
                   {isColumnVisible('barcode') && (
                     <td className="px-6 py-4 whitespace-nowrap">
                       {stock.barcode || stock.batchNumber ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <FaBarcode className="text-gray-400" />
                           <div>
                             {stock.barcode && (
@@ -516,16 +516,16 @@ const StockManagementPage = () => {
       {/* Create Stock Simple Dialog */}
       {createOpen && (
         <div className="mt-6">
-          <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+          <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
             <h3 className="text-lg font-semibold mb-4">New Stock</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Product ID</label>
                 <input
                   type="text"
                   value={creatingForm.product_id}
                   onChange={(e) => setCreatingForm({ ...creatingForm, product_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
               <div>
@@ -534,7 +534,7 @@ const StockManagementPage = () => {
                   type="text"
                   value={creatingForm.location}
                   onChange={(e) => setCreatingForm({ ...creatingForm, location: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
               <div>
@@ -543,7 +543,7 @@ const StockManagementPage = () => {
                   type="number"
                   value={creatingForm.current_stock}
                   onChange={(e) => setCreatingForm({ ...creatingForm, current_stock: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
               <div>
@@ -553,7 +553,7 @@ const StockManagementPage = () => {
                   step="0.01"
                   value={creatingForm.unit_cost}
                   onChange={(e) => setCreatingForm({ ...creatingForm, unit_cost: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
             </div>
@@ -578,18 +578,18 @@ const StockManagementPage = () => {
       {/* Adjust Dialog */}
       {adjustOpen && (
         <div className="mt-6">
-          <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+          <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
             <h3 className="text-lg font-semibold mb-4">
               {adjustMode === 'add' ? 'Increase Stock' : adjustMode === 'remove' ? 'Decrease Stock' : 'Edit Stock'}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
                 <input
                   type="number"
                   defaultValue={selected?.currentStock ?? 0}
                   onChange={(e) => setSelected({ ...selected, currentStock: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
               <div>
@@ -598,7 +598,7 @@ const StockManagementPage = () => {
                   type="number"
                   defaultValue={selected?.reserved_stock ?? 0}
                   onChange={(e) => setSelected({ ...selected, reserved_stock: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
               <div>
@@ -608,14 +608,14 @@ const StockManagementPage = () => {
                   step="0.01"
                   defaultValue={selected?.unit_cost ?? 0}
                   onChange={(e) => setSelected({ ...selected, unit_cost: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
               <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
               </div>
             </div>
@@ -640,9 +640,9 @@ const StockManagementPage = () => {
       {/* QR Code Modal */}
       {showQRModal && selectedQRItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-semibold text-gray-800">Item QR Code & Barcode</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Item QR Code & Barcode</h2>
             </div>
 
             <div className="p-6">
@@ -661,7 +661,7 @@ const StockManagementPage = () => {
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 {selectedQRItem.barcode && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <FaBarcode className="text-gray-400" />
                     <strong>Barcode:</strong> {selectedQRItem.barcode}
                   </div>
@@ -678,13 +678,13 @@ const StockManagementPage = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded flex items-center justify-center gap-2"
                 >
                   <FaBarcode /> Print
                 </button>
                 <button
                   onClick={() => setShowQRModal(false)}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                  className="flex-1 px-3 py-1.5 bg-blue-500 text-sm hover:bg-blue-600 text-white rounded-md"
                 >
                   Close
                 </button>

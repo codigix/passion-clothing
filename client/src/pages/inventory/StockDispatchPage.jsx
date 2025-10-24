@@ -202,7 +202,7 @@ const StockDispatchPage = () => {
   if (!mrnRequest) {
     return (
       <div className="p-6">
-        <div className="bg-error-50 border border-error-200 text-error-800 rounded-lg p-4">
+        <div className="bg-error-50 border border-error-200 text-error-800 rounded p-4">
           MRN request not found
         </div>
       </div>
@@ -220,10 +220,10 @@ const StockDispatchPage = () => {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg mr-4"
+          className="p-2 hover:bg-gray-100 rounded mr-4"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
@@ -237,7 +237,7 @@ const StockDispatchPage = () => {
         <div className="card p-6">
           <h2 className="text-display-6 font-semibold mb-4">MRN Request Details</h2>
           <hr className="border-border mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             <div>
               <p className="text-body-2 text-text-secondary mb-1">Request Number</p>
               <p className="text-body-1 font-medium">{mrnRequest.request_number}</p>
@@ -270,29 +270,29 @@ const StockDispatchPage = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Material Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inventory Link</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Requested</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Available</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Dispatch Qty</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Barcode</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Batch #</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Location</th>
+                  <th className="px-2 py-2 text-xs text-left text-sm font-semibold text-gray-700">Material Name</th>
+                  <th className="px-2 py-2 text-xs text-left text-sm font-semibold text-gray-700">Inventory Link</th>
+                  <th className="px-2 py-2 text-xs text-right text-sm font-semibold text-gray-700">Requested</th>
+                  <th className="px-2 py-2 text-xs text-right text-sm font-semibold text-gray-700">Available</th>
+                  <th className="px-2 py-2 text-xs text-right text-sm font-semibold text-gray-700">Dispatch Qty</th>
+                  <th className="px-2 py-2 text-xs text-left text-sm font-semibold text-gray-700">Barcode</th>
+                  <th className="px-2 py-2 text-xs text-left text-sm font-semibold text-gray-700">Batch #</th>
+                  <th className="px-2 py-2 text-xs text-left text-sm font-semibold text-gray-700">Location</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {dispatchedMaterials.map((material, index) => (
                   <React.Fragment key={index}>
                     <tr className={`hover:bg-gray-50 ${!material.inventory_id ? 'bg-warning-50' : ''}`}>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <div>
                           <p className="text-sm font-medium">{material.material_name}</p>
                           <p className="text-xs text-gray-500">{material.material_code}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         {material.inventory_id ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <div className="flex items-center gap-1 px-2 py-1 bg-success-100 text-success-700 rounded-full text-xs">
                               <CheckCircle className="w-3 h-3" />
                               Linked
@@ -305,21 +305,21 @@ const StockDispatchPage = () => {
                           <button
                             onClick={() => searchInventoryForMaterial(index, material.material_name)}
                             disabled={searchingInventory[index]}
-                            className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded transition-colors"
                           >
                             {searchingInventory[index] ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              <Search className="w-4 h-4" />
+                              <Search size={14} />
                             )}
                             Link to Stock
                           </button>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right">
+                      <td className="px-2 py-2 text-sm text-right">
                         {material.quantity_requested} {material.uom}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-2 py-2 text-right">
                         {material.available_stock !== undefined ? (
                           <span className={`text-sm font-medium ${material.available_stock < material.quantity_dispatched ? 'text-error-600' : 'text-success-600'}`}>
                             {material.available_stock}
@@ -328,38 +328,38 @@ const StockDispatchPage = () => {
                           <span className="text-xs text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-2 py-2 text-right">
                         <input
                           type="number"
-                          className="w-24 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-24 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500"
                           value={material.quantity_dispatched}
                           onChange={(e) => handleMaterialChange(index, 'quantity_dispatched', parseFloat(e.target.value) || 0)}
                           min="0"
                           max={material.available_stock || material.quantity_requested}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <input
                           type="text"
-                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                          className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 text-sm"
                           value={material.barcode}
                           onChange={(e) => handleMaterialChange(index, 'barcode', e.target.value)}
                           placeholder="Barcode"
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <input
                           type="text"
-                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                          className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 text-sm"
                           value={material.batch_number}
                           onChange={(e) => handleMaterialChange(index, 'batch_number', e.target.value)}
                           placeholder="Batch"
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <input
                           type="text"
-                          className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                          className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 text-sm"
                           value={material.location}
                           onChange={(e) => handleMaterialChange(index, 'location', e.target.value)}
                           placeholder="Location"
@@ -369,14 +369,14 @@ const StockDispatchPage = () => {
                     {/* Inventory Search Results */}
                     {inventoryResults[index] && inventoryResults[index].length > 0 && (
                       <tr>
-                        <td colSpan="8" className="px-4 py-3 bg-gray-50">
+                        <td colSpan="8" className="px-2 py-2 bg-gray-50">
                           <div className="text-xs font-semibold text-gray-700 mb-2">Select Inventory Item:</div>
                           <div className="space-y-1">
                             {inventoryResults[index].map((item) => (
                               <button
                                 key={item.id}
                                 onClick={() => linkInventoryItem(index, item)}
-                                className="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-primary-50 border border-gray-200 rounded-lg text-left transition-colors"
+                                className="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-primary-50 border border-gray-200 rounded text-left transition-colors"
                               >
                                 <div className="flex-1">
                                   <p className="text-sm font-medium text-gray-900">{item.product_name}</p>
@@ -399,7 +399,7 @@ const StockDispatchPage = () => {
           
           {/* Warning if materials not linked */}
           {dispatchedMaterials.some(m => !m.inventory_id) && (
-            <div className="mt-4 p-3 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-2">
+            <div className="mt-4 p-3 bg-warning-50 border border-warning-200 rounded flex items-start gap-2">
               <AlertTriangle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-warning-800">
@@ -419,16 +419,16 @@ const StockDispatchPage = () => {
           <hr className="border-border mb-4" />
           
           <textarea
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent mb-4"
+            className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-blue-500 mb-4"
             rows="4"
             value={dispatchNotes}
             onChange={(e) => setDispatchNotes(e.target.value)}
             placeholder="Any special instructions or notes..."
           />
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <label className="btn btn-outline cursor-pointer">
-              <Camera className="w-4 h-4" />
+              <Camera size={14} />
               Add Photos
               <input
                 type="file"
@@ -447,7 +447,7 @@ const StockDispatchPage = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-2">
           <button
             className="btn btn-outline"
             onClick={() => navigate(-1)}
@@ -467,7 +467,7 @@ const StockDispatchPage = () => {
               </>
             ) : (
               <>
-                <Truck className="w-4 h-4" />
+                <Truck size={14} />
                 Dispatch Materials
               </>
             )}

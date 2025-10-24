@@ -109,26 +109,26 @@ const GoodsReceiptPage = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Goods Receipt</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Goods Receipt</h1>
           <p className="text-gray-600 mt-1">Record material receipts from vendors</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Purchase Orders List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FaClipboardList className="w-5 h-5" />
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-1.5">
+              <ClipboardList size={16} />
               Purchase Orders Ready for Receipt
             </h2>
           </div>
           <div className="p-4 max-h-96 overflow-y-auto">
             {purchaseOrders.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                <FaClipboardList className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <ClipboardList className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p>No purchase orders ready for receipt</p>
               </div>
             ) : (
@@ -137,7 +137,7 @@ const GoodsReceiptPage = () => {
                   <div
                     key={po.id}
                     onClick={() => handlePOSelect(po)}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    className={`p-4 border rounded cursor-pointer transition-colors ${
                       selectedPO?.id === po.id
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
@@ -164,10 +164,10 @@ const GoodsReceiptPage = () => {
         </div>
 
         {/* Receipt Form */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FaTruck className="w-5 h-5" />
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-1.5">
+              <Truck size={16} />
               Record Goods Receipt
             </h2>
           </div>
@@ -175,7 +175,7 @@ const GoodsReceiptPage = () => {
             {selectedPO ? (
               <div className="space-y-4">
                 {/* PO Details */}
-                <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="bg-gray-50 p-3 rounded-md">
                   <h3 className="font-medium text-gray-900 mb-2">PO Details</h3>
                   <div className="text-sm text-gray-600 space-y-1">
                     <p><span className="font-medium">PO:</span> {selectedPO.po_number}</p>
@@ -194,7 +194,7 @@ const GoodsReceiptPage = () => {
                       type="date"
                       value={receiptData.received_date}
                       onChange={(e) => setReceiptData({...receiptData, received_date: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                       required
                     />
                   </div>
@@ -207,7 +207,7 @@ const GoodsReceiptPage = () => {
                       type="number"
                       value={receiptData.received_quantity}
                       onChange={(e) => setReceiptData({...receiptData, received_quantity: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                       placeholder="Enter received quantity"
                       min="0"
                       step="0.01"
@@ -222,7 +222,7 @@ const GoodsReceiptPage = () => {
                     <select
                       value={receiptData.quality_status}
                       onChange={(e) => setReceiptData({...receiptData, quality_status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     >
                       <option value="approved">Approved</option>
                       <option value="pending_qc">Pending Quality Check</option>
@@ -238,7 +238,7 @@ const GoodsReceiptPage = () => {
                       value={receiptData.notes}
                       onChange={(e) => setReceiptData({...receiptData, notes: e.target.value})}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                       placeholder="Additional notes about the receipt..."
                     />
                   </div>
@@ -246,16 +246,16 @@ const GoodsReceiptPage = () => {
                   <button
                     onClick={handleReceiptSubmit}
                     disabled={submitting}
-                    className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    <FaCheckCircle className="w-4 h-4" />
+                    <CheckCircle size={14} />
                     {submitting ? 'Recording...' : 'Record Goods Receipt'}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
-                <FaTruck className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <Truck className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium">Select a Purchase Order</p>
                 <p className="text-sm">Choose a purchase order from the list to record goods receipt</p>
               </div>

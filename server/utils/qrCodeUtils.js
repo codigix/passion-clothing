@@ -1,14 +1,21 @@
 // Centralized QR Code Update Utility
 const { SalesOrder, ProductionOrder, ProductionStage, Customer, BillOfMaterials } = require('../config/database');
 
-async function updateOrderQRCode(salesOrderId, status) {
-  const salesOrder = await SalesOrder.findByPk(salesOrderId, {
+async function updateOrderQRCode(salesOrderId, status, transaction = null) {
+  const findOptions = {
     include: [
       { model: Customer, as: 'customer' },
       { model: ProductionOrder, as: 'productionOrders', include: [{ model: ProductionStage, as: 'stages' }] },
       { model: BillOfMaterials, as: 'billOfMaterials' }
     ]
-  });
+  };
+
+  // Add transaction to options if provided
+  if (transaction) {
+    findOptions.transaction = transaction;
+  }
+
+  const salesOrder = await SalesOrder.findByPk(salesOrderId, findOptions);
 
   if (!salesOrder) return;
 
@@ -43,9 +50,16 @@ async function updateOrderQRCode(salesOrderId, status) {
     last_updated: new Date()
   };
 
-  await salesOrder.update({
+  const updateOptions = {
     qr_code: JSON.stringify(qrData)
-  });
+  };
+
+  // Add transaction to update options if provided
+  if (transaction) {
+    await salesOrder.update(updateOptions, { transaction });
+  } else {
+    await salesOrder.update(updateOptions);
+  }
 
   return qrData;
 }

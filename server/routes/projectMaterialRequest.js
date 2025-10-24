@@ -485,19 +485,25 @@ router.post('/:id/check-stock', authenticateToken, checkDepartment(['inventory',
     let noneAvailable = true;
 
     for (const material of materialsRequested) {
-      // Search for matching inventory items
+      // Search for matching inventory items by product_name, category, material, or description
       const inventoryItems = await Inventory.findAll({
         where: {
-          product_name: {
-            [Op.like]: `%${material.material_name}%`
-          },
-          status: 'available'
+          [Op.or]: [
+            { product_name: { [Op.like]: `%${material.material_name}%` } },
+            { category: { [Op.like]: `%${material.material_name}%` } },
+            { material: { [Op.like]: `%${material.material_name}%` } },
+            { description: { [Op.like]: `%${material.material_name}%` } }
+          ],
+          is_active: true,
+          quality_status: 'approved',
+          available_stock: { [Op.gt]: 0 }
         },
-        transaction
+        transaction,
+        attributes: ['id', 'product_name', 'barcode', 'batch_number', 'available_stock', 'current_stock', 'location', 'category', 'color']
       });
 
-      const availableQty = inventoryItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
-      const requestedQty = parseFloat(material.quantity);
+      const availableQty = inventoryItems.reduce((sum, item) => sum + parseFloat(item.available_stock || 0), 0);
+      const requestedQty = parseFloat(material.quantity_required || material.quantity || 0);
       const shortageQty = Math.max(0, requestedQty - availableQty);
 
       const itemStatus = availableQty >= requestedQty ? 'available' : 
@@ -514,12 +520,17 @@ router.post('/:id/check-stock', authenticateToken, checkDepartment(['inventory',
         available_qty: availableQty,
         shortage_qty: shortageQty,
         status: itemStatus,
+        grn_received: inventoryItems.length > 0,
         inventory_items: inventoryItems.map(item => ({
           id: item.id,
+          product_name: item.product_name,
           barcode: item.barcode,
           batch_number: item.batch_number,
-          quantity: item.quantity,
-          location: item.location
+          available_stock: parseFloat(item.available_stock),
+          current_stock: parseFloat(item.current_stock),
+          location: item.location,
+          category: item.category,
+          color: item.color
         }))
       });
     }
@@ -607,11 +618,13 @@ router.post('/:id/reserve-materials', authenticateToken, checkDepartment(['inven
     if (inventory_ids && inventory_ids.length > 0) {
       for (const invId of inventory_ids) {
         const inventoryItem = await Inventory.findByPk(invId, { transaction });
-        if (inventoryItem && inventoryItem.status === 'available') {
+        if (inventoryItem && inventoryItem.available_stock > 0 && inventoryItem.is_active) {
+          // Update reserved stock instead of using non-existent 'status' field
+          const reservedAmount = parseFloat(inventory_ids[invId] || inventoryItem.available_stock);
           await inventoryItem.update({
-            status: 'reserved',
-            reserved_for_project: materialRequest.project_name,
-            reserved_at: new Date()
+            reserved_stock: parseFloat(inventoryItem.reserved_stock || 0) + reservedAmount,
+            available_stock: Math.max(0, parseFloat(inventoryItem.available_stock) - reservedAmount),
+            notes: `Reserved for ${materialRequest.project_name} - ${notes || ''}`
           }, { transaction });
         }
       }

@@ -161,29 +161,29 @@ const ShipmentTrackingPage = () => {
     const latestStatus = shipment.trackingUpdates?.[0]?.status || shipment.status;
     
     return (
-      <div className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div className="bg-white border rounded p-4 hover:shadow-md transition-shadow">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <Package className="w-5 h-5 text-gray-400" />
             <span className="font-medium text-gray-900">{shipment.shipment_number}</span>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(latestStatus)}`}>
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(latestStatus)}`}>
             {latestStatus?.replace('_', ' ')}
           </span>
         </div>
         
         <div className="space-y-2 text-sm text-gray-600">
           <div className="flex items-center space-x-2">
-            <User className="w-4 h-4" />
+            <User size={14} />
             <span>{shipment.salesOrder?.customer?.name || 'N/A'}</span>
           </div>
           <div className="flex items-center space-x-2">
-            <MapPin className="w-4 h-4" />
+            <MapPin size={14} />
             <span className="truncate">{shipment.delivery_address || 'N/A'}</span>
           </div>
           {shipment.tracking_number && (
             <div className="flex items-center space-x-2">
-              <Route className="w-4 h-4" />
+              <Route size={14} />
               <span className="font-mono text-xs">{shipment.tracking_number}</span>
               <button
                 onClick={() => copyTrackingNumber(shipment.tracking_number)}
@@ -215,7 +215,7 @@ const ShipmentTrackingPage = () => {
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+        <div className="bg-white rounded p-6 w-full max-w-sm">
           <h3 className="text-lg font-semibold mb-4 text-center">QR Code</h3>
           <div className="flex justify-center mb-4">
             <img src={qrCodeUrl} alt="QR Code" className="border rounded" />
@@ -225,7 +225,7 @@ const ShipmentTrackingPage = () => {
           </p>
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="w-full px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600"
           >
             Close
           </button>
@@ -239,12 +239,12 @@ const ShipmentTrackingPage = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Shipment Tracking</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Shipment Tracking</h1>
           <p className="text-gray-600">Track your shipments in real-time</p>
         </div>
         <button
           onClick={fetchRecentShipments}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
@@ -252,24 +252,24 @@ const ShipmentTrackingPage = () => {
       </div>
 
       {/* Tracking Search */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Track a Shipment</h2>
+      <div className="bg-white rounded shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Track a Shipment</h2>
         <div className="flex space-x-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-2.5 top-2.5 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Enter tracking number or shipment number..."
               value={trackingNumber}
               onChange={(e) => setTrackingNumber(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleTrackShipment()}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
           <button
             onClick={() => handleTrackShipment()}
             disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center"
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin mr-2" />
@@ -281,9 +281,9 @@ const ShipmentTrackingPage = () => {
           {trackingNumber && (
             <button
               onClick={() => setShowQRCode(true)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
             >
-              <QrCode className="w-4 h-4" />
+              <QrCode size={14} />
             </button>
           )}
         </div>
@@ -291,10 +291,10 @@ const ShipmentTrackingPage = () => {
 
       {/* Tracking Results */}
       {shipmentData && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Shipment Details */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded shadow p-6">
               <h3 className="text-lg font-semibold mb-4">Shipment Details</h3>
               
               <div className="space-y-4">
@@ -312,7 +312,7 @@ const ShipmentTrackingPage = () => {
                         onClick={() => copyTrackingNumber(shipmentData.tracking_number)}
                         className="text-blue-500 hover:text-blue-700"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy size={14} />
                       </button>
                     )}
                   </div>
@@ -322,7 +322,7 @@ const ShipmentTrackingPage = () => {
                   <label className="text-sm font-medium text-gray-500">Status</label>
                   <div className="flex items-center space-x-2 mt-1">
                     {getStatusIcon(shipmentData.status)}
-                    <span className={`px-2 py-1 rounded-full text-sm font-medium ${getStatusColor(shipmentData.status)}`}>
+                    <span className={`px-1.5 py-0.5 rounded-full text-sm font-medium ${getStatusColor(shipmentData.status)}`}>
                       {shipmentData.status?.replace('_', ' ')}
                     </span>
                   </div>
@@ -363,7 +363,7 @@ const ShipmentTrackingPage = () => {
                 <label className="text-sm font-medium text-gray-500 mb-2 block">Progress</label>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${getProgressPercentage(shipmentData.status)}%` }}
                   ></div>
                 </div>
@@ -374,7 +374,7 @@ const ShipmentTrackingPage = () => {
 
           {/* Tracking Timeline */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded shadow p-6">
               <h3 className="text-lg font-semibold mb-4">Tracking History</h3>
               
               {trackingHistory.length > 0 ? (
@@ -391,11 +391,11 @@ const ShipmentTrackingPage = () => {
       )}
 
       {/* Recent Shipments */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded shadow p-6">
         <h3 className="text-lg font-semibold mb-4">Recent Active Shipments</h3>
         
         {recentShipments.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {recentShipments.map((shipment) => (
               <ShipmentCard key={shipment.id} shipment={shipment} />
             ))}

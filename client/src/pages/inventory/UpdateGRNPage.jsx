@@ -159,7 +159,7 @@ const UpdateGRNPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Information */}
-          <div className="bg-white shadow-sm rounded-lg">
+          <div className="bg-white shadow-sm rounded">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Received Information</h3>
               <p className="mt-1 text-sm text-gray-600">Enter the actual received details</p>
@@ -174,7 +174,7 @@ const UpdateGRNPage = () => {
                     type="date"
                     value={formData.received_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, received_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -186,7 +186,7 @@ const UpdateGRNPage = () => {
                     type="text"
                     value={formData.inward_challan_number}
                     onChange={(e) => setFormData(prev => ({ ...prev, inward_challan_number: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     placeholder="Enter challan number"
                   />
                 </div>
@@ -198,7 +198,7 @@ const UpdateGRNPage = () => {
                     type="text"
                     value={formData.supplier_invoice_number}
                     onChange={(e) => setFormData(prev => ({ ...prev, supplier_invoice_number: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     placeholder="Enter invoice number"
                   />
                 </div>
@@ -207,7 +207,7 @@ const UpdateGRNPage = () => {
           </div>
 
           {/* Items Table */}
-          <div className="bg-white shadow-sm rounded-lg">
+          <div className="bg-white shadow-sm rounded">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Received Items</h3>
               <p className="mt-1 text-sm text-gray-600">Update actual received quantities and details</p>
@@ -254,7 +254,7 @@ const UpdateGRNPage = () => {
                             step="0.01"
                             value={item.ordered_qty}
                             onChange={(e) => handleItemChange(index, 'ordered_qty', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:ring-opacity-20"
                             readOnly
                           />
                         </td>
@@ -264,7 +264,7 @@ const UpdateGRNPage = () => {
                             step="0.01"
                             value={item.invoiced_qty}
                             onChange={(e) => handleItemChange(index, 'invoiced_qty', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:ring-opacity-20"
                           />
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -273,7 +273,7 @@ const UpdateGRNPage = () => {
                             step="0.01"
                             value={item.received_qty}
                             onChange={(e) => handleItemChange(index, 'received_qty', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:ring-opacity-20"
                             required
                             min="0"
                           />
@@ -284,7 +284,7 @@ const UpdateGRNPage = () => {
                             step="0.01"
                             value={item.weight}
                             onChange={(e) => handleItemChange(index, 'weight', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:ring-opacity-20"
                             min="0"
                           />
                         </td>
@@ -293,7 +293,7 @@ const UpdateGRNPage = () => {
                             type="text"
                             value={item.remarks}
                             onChange={(e) => handleItemChange(index, 'remarks', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:ring-opacity-20"
                             placeholder="Remarks"
                           />
                         </td>
@@ -306,7 +306,7 @@ const UpdateGRNPage = () => {
           </div>
 
           {/* Remarks */}
-          <div className="bg-white shadow-sm rounded-lg">
+          <div className="bg-white shadow-sm rounded">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Additional Remarks</h3>
             </div>
@@ -315,26 +315,26 @@ const UpdateGRNPage = () => {
                 value={formData.remarks}
                 onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                 placeholder="Any additional remarks or notes about the received items..."
               />
             </div>
           </div>
 
           {/* Actions */}
-          <div className="bg-white shadow-sm rounded-lg">
+          <div className="bg-white shadow-sm rounded">
             <div className="px-6 py-4 flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => navigate('/inventory/grn')}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-opacity-20"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-blue-500 border border-transparent rounded text-sm font-medium text-white hover:bg-blue-600 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-opacity-20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <div className="flex items-center">

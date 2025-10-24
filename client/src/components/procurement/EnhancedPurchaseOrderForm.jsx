@@ -398,7 +398,7 @@ const EnhancedPurchaseOrderForm = ({
           {/* Step 1: Basic Information */}
           {currentStep === 0 && (
             <div className="space-y-6">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
+              <div className="r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Package className="w-5 h-5 text-blue-600" />
                   Basic Order Information
@@ -538,7 +538,7 @@ const EnhancedPurchaseOrderForm = ({
           {/* Step 2: Items (Fabric & Accessories) */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-6">
+              <div className="r from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <Package className="w-5 h-5 text-purple-600" />
@@ -769,7 +769,7 @@ const EnhancedPurchaseOrderForm = ({
           {/* Step 3: Financial Details */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6">
+              <div className="r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial & Additional Details</h3>
                 
                 <div className="space-y-6">

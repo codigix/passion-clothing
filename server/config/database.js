@@ -239,6 +239,7 @@ const defineAssociations = () => {
 
   // Courier Partner associations
   CourierPartner.hasMany(Shipment, { foreignKey: 'courier_partner_id', as: 'shipments' });
+  CourierPartner.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
   // Notification associations
   Notification.belongsTo(User, { foreignKey: 'recipient_user_id', as: 'recipient' });

@@ -248,7 +248,7 @@ const ShipmentDispatchPage = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-white rounded p-6 w-full max-w-md">
           <h3 className="text-lg font-semibold mb-4">Dispatch Shipment</h3>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -256,7 +256,7 @@ const ShipmentDispatchPage = () => {
               <select
                 value={formData.courier_partner_id}
                 onChange={(e) => setFormData({...formData, courier_partner_id: e.target.value})}
-                className="w-full p-2 border rounded-lg"
+                className="w-full p-2 border rounded"
                 required
               >
                 <option value="">Select Courier</option>
@@ -273,7 +273,7 @@ const ShipmentDispatchPage = () => {
                 type="text"
                 value={formData.tracking_number}
                 onChange={(e) => setFormData({...formData, tracking_number: e.target.value})}
-                className="w-full p-2 border rounded-lg"
+                className="w-full p-2 border rounded"
                 placeholder="Enter tracking number"
                 required
               />
@@ -284,7 +284,7 @@ const ShipmentDispatchPage = () => {
                 type="text"
                 value={formData.location}
                 onChange={(e) => setFormData({...formData, location: e.target.value})}
-                className="w-full p-2 border rounded-lg"
+                className="w-full p-2 border rounded"
                 placeholder="Dispatch location"
               />
             </div>
@@ -293,7 +293,7 @@ const ShipmentDispatchPage = () => {
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="w-full p-2 border rounded-lg"
+                className="w-full p-2 border rounded"
                 rows="3"
                 placeholder="Additional notes"
               />
@@ -302,13 +302,13 @@ const ShipmentDispatchPage = () => {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-gray-600 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
                 Dispatch
               </button>
@@ -331,7 +331,7 @@ const ShipmentDispatchPage = () => {
           <button
             onClick={() => handlePrintLabels(selectedShipments)}
             disabled={selectedShipments.length === 0}
-            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
           >
             <Printer className="w-4 h-4 mr-2" />
             Print Labels
@@ -339,14 +339,14 @@ const ShipmentDispatchPage = () => {
           <button
             onClick={handleBulkDispatch}
             disabled={selectedShipments.length === 0}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
           >
             <Send className="w-4 h-4 mr-2" />
             Bulk Dispatch
           </button>
           <button
             onClick={fetchShipments}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="flex items-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
@@ -356,7 +356,7 @@ const ShipmentDispatchPage = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pending Dispatch</p>
@@ -365,7 +365,7 @@ const ShipmentDispatchPage = () => {
             <Clock className="w-8 h-8 text-yellow-500" />
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Dispatched</p>
@@ -374,7 +374,7 @@ const ShipmentDispatchPage = () => {
             <Send className="w-8 h-8 text-blue-500" />
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">In Transit</p>
@@ -383,7 +383,7 @@ const ShipmentDispatchPage = () => {
             <Truck className="w-8 h-8 text-purple-500" />
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Delivered</p>
@@ -395,7 +395,7 @@ const ShipmentDispatchPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="bg-white p-6 rounded shadow">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
@@ -404,13 +404,13 @@ const ShipmentDispatchPage = () => {
               placeholder="Search shipments..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           >
             <option value="">All Statuses</option>
             <option value="pending">Pending</option>
@@ -421,7 +421,7 @@ const ShipmentDispatchPage = () => {
           <select
             value={courierFilter}
             onChange={(e) => setCourierFilter(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           >
             <option value="">All Couriers</option>
             {courierPartners.map(courier => (
@@ -434,18 +434,18 @@ const ShipmentDispatchPage = () => {
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           />
         </div>
       </div>
 
       {/* Shipments Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <input
                     type="checkbox"
                     onChange={(e) => {
@@ -458,22 +458,22 @@ const ShipmentDispatchPage = () => {
                     checked={selectedShipments.length === shipments.length && shipments.length > 0}
                   />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Shipment
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Courier
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>

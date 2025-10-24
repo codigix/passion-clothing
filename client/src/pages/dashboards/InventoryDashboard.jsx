@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { FaBoxOpen, FaPlus, FaSearch, FaExclamationTriangle, FaEye, FaEdit, FaQrcode, FaDownload, FaArrowDown, FaTags, FaWarehouse, FaTruck, FaShoppingCart, FaCheckCircle, FaIndustry, FaClipboardCheck } from 'react-icons/fa';
+import { Package, AlertTriangle, ArrowDownCircle, Warehouse } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import MinimalStatCard from '../../components/common/MinimalStatCard';
+import '../../styles/compactDashboard.css';
 
 const InventoryDashboard = () => {
   const navigate = useNavigate();
@@ -189,35 +192,6 @@ const InventoryDashboard = () => {
     return type === 'inward' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
-    <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs font-semibold uppercase text-gray-500 mb-1 tracking-wide">{title}</div>
-          <div className="text-lg font-bold text-gray-900 mb-1">{value}</div>
-          {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
-        </div>
-        <div
-          className={`rounded-full p-3 flex items-center justify-center w-12 h-12 ${
-            color === 'primary'
-              ? 'bg-blue-100'
-              : color === 'success'
-                ? 'bg-green-100'
-                : color === 'warning'
-                  ? 'bg-yellow-100'
-                  : color === 'error'
-                    ? 'bg-red-100'
-                    : 'bg-blue-100'
-          }`}
-        >
-          {icon}
-        </div>
-      </div>
-    </div>
-    
-
-  );
-
   const TabPanel = ({ children, value, index }) => (
     <div className={value !== index ? 'hidden' : ''}>
       {value === index && <div className="p-4">{children}</div>}
@@ -234,35 +208,35 @@ const InventoryDashboard = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
         <div className="flex gap-3">
-          <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100 flex items-center gap-2" onClick={() => navigate('/inventory/stock')}><FaQrcode /> Stock Management</button>
+          <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100 flex items-center gap-1.5" onClick={() => navigate('/inventory/stock')}><FaQrcode /> Stock Management</button>
           <button className="px-4 py-1 text-sm font-medium text-white bg-primary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center" onClick={() => navigate('/inventory/products')}><FaPlus /> Add Product</button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Items" value={stats.totalItems} icon={<FaBoxOpen className="text-blue-600 text-xl" />} color="primary" />
-        <StatCard title="Low Stock Items" value={stats.lowStockItems} icon={<FaExclamationTriangle className="text-yellow-600 text-xl" />} color="warning" />
-        <StatCard title="Out of Stock" value={stats.outOfStock} icon={<FaArrowDown className="text-red-600 text-xl" />} color="error" />
-        <StatCard title="Total Value" value={`₹${(stats.totalValue / 100000).toFixed(1)}L`} icon={<FaWarehouse className="text-green-600 text-xl" />} color="success" subtitle="Current inventory value" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <MinimalStatCard title="Total Items" value={stats.totalItems} icon={Package} />
+        <MinimalStatCard title="Low Stock Items" value={stats.lowStockItems} icon={AlertTriangle} />
+        <MinimalStatCard title="Out of Stock" value={stats.outOfStock} icon={ArrowDownCircle} />
+        <MinimalStatCard title="Total Value" value={`₹${(stats.totalValue / 100000).toFixed(1)}L`} icon={Warehouse} subtitle="Current inventory value" />
       </div>
 
       {/* Low Stock Alert */}
       {(stats.lowStockItems > 0 || stats.outOfStock > 0) && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 flex justify-between items-center">
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 flex justify-between items-center">
           <span>{stats.lowStockItems} items are running low on stock. {stats.outOfStock} items are out of stock.</span>
           <button className="px-3 py-1 rounded bg-yellow-600 text-white text-sm font-semibold hover:bg-yellow-600" onClick={() => setTabValue(1)}>View Details</button>
         </div>
       )}
 
       {/* Search and Quick Actions */}
-      <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
-        <div >
-          <div className="font-semibold text-lg text-gray-900 mb-3">Quick Actions</div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+      <div className="compact-card mb-4">
+        <div>
+          <div className="compact-section-title mb-3">Quick Actions</div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
             <div className="col-span-2">
               <div className="relative">
                 <input 
@@ -272,16 +246,16 @@ const InventoryDashboard = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" />
               </div>
             </div>
             <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100" onClick={() => navigate('/inventory/stock')}>Stock Management</button>
             <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100" onClick={() => navigate('/inventory/alerts')}>Stock Alerts</button>
-            <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100 flex items-center gap-2" onClick={() => navigate('/inventory/lifecycle')}>
+            <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100 flex items-center gap-1.5" onClick={() => navigate('/inventory/lifecycle')}>
               <FaQrcode /> Lifecycle Tracking
             </button>
             <button
-              className="px-4 py-1 text-sm font-medium text-white bg-green-600 border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-green-600 hover:text-success hover:bg-transparent flex gap-2 items-center w-fit"
+              className="px-4 py-1 text-sm font-medium text-white bg-green-500 border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-green-600 hover:text-success hover:bg-transparent flex gap-2 items-center w-fit"
               onClick={() => navigate('/inventory/reports')}
             >
               <FaDownload /> Export Report
@@ -291,18 +265,18 @@ const InventoryDashboard = () => {
       </div>
 
       {/* Tabs for different views */}
-      <div className="bg-white rounded-xl shadow border border-gray-200">
+      <div className="bg-white rounded shadow border border-gray-200">
         <div className="border-b bg-gray-50">
-          <div className="flex gap-2">
+          <div className="compact-tabs">
             {['Incoming Orders', 'Recent Movements', 'Low Stock Items', 'Categories'].map((tab, idx) => (
               <button
                 key={tab}
-                className={`px-4 py-2 font-medium text-sm border-b-2 transition-all ${tabValue === idx ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+                className={`compact-tab ${tabValue === idx ? 'compact-tab-active' : ''}`}
                 onClick={() => setTabValue(idx)}
               >
                 {tab}
                 {idx === 0 && (incomingOrders.length + mrnRequests.length) > 0 && (
-                  <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
                     {incomingOrders.length + mrnRequests.length}
                   </span>
                 )}
@@ -313,11 +287,11 @@ const InventoryDashboard = () => {
 
         <TabPanel value={tabValue} index={0}>
           <div>
-            <div className="flex justify-between items-center mb-4">
-              <div className="font-semibold text-lg text-gray-900">GRN Requests - Purchase Orders Awaiting Receipt</div>
+            <div className="flex justify-between items-center mb-3">
+              <div className="compact-section-title">GRN Requests - Purchase Orders Awaiting Receipt</div>
               <div className="flex gap-2">
                 <button
-                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+                  className="compact-btn compact-btn-primary"
                   onClick={() => navigate('/inventory/grn')}
                 >
                   <FaCheckCircle /> View All GRNs
@@ -325,39 +299,39 @@ const InventoryDashboard = () => {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
+              <table className="compact-table">
+                <thead>
                   <tr>
-                    <th className="font-semibold text-gray-700 p-2 border-b">PO Number</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Vendor</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">PO Date</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Expected Delivery</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Items</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Amount</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Requested By</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b text-center">Actions</th>
+                    <th>PO Number</th>
+                    <th>Vendor</th>
+                    <th>PO Date</th>
+                    <th>Expected Delivery</th>
+                    <th>Items</th>
+                    <th>Amount</th>
+                    <th>Requested By</th>
+                    <th className="text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {incomingOrders.map((request) => (
-                    <tr key={request.id} className="hover:bg-gray-50 border-b">
-                      <td className="p-2 font-semibold text-gray-900">{request.po_number}</td>
-                      <td className="p-2">{request.vendor_name}</td>
-                      <td className="p-2">{request.po_date ? new Date(request.po_date).toLocaleDateString() : 'N/A'}</td>
-                      <td className="p-2">{request.expected_delivery_date ? new Date(request.expected_delivery_date).toLocaleDateString() : 'N/A'}</td>
-                      <td className="p-2 text-center">{request.items_count || 0}</td>
-                      <td className="p-2">₹{request.total_amount?.toLocaleString() || '0'}</td>
-                      <td className="p-2 text-xs text-gray-600">{request.requested_by || 'N/A'}</td>
-                      <td className="p-2 text-center">
+                    <tr key={request.id}>
+                      <td className="font-semibold text-gray-900">{request.po_number}</td>
+                      <td>{request.vendor_name}</td>
+                      <td>{request.po_date ? new Date(request.po_date).toLocaleDateString() : 'N/A'}</td>
+                      <td>{request.expected_delivery_date ? new Date(request.expected_delivery_date).toLocaleDateString() : 'N/A'}</td>
+                      <td className="text-center">{request.items_count || 0}</td>
+                      <td>₹{request.total_amount?.toLocaleString() || '0'}</td>
+                      <td className="text-[10px] text-gray-600">{request.requested_by || 'N/A'}</td>
+                      <td className="text-center">
                         <button
-                          className="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 mr-1"
+                          className="compact-btn compact-btn-sm compact-btn-success mr-1"
                           onClick={() => navigate(`/inventory/grn/create?po_id=${request.po_id}`)}
                           title="Create GRN"
                         >
                           Create GRN
                         </button>
                         <button
-                          className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700"
+                          className="compact-btn compact-btn-sm compact-btn-primary"
                           onClick={() => navigate(`/procurement/purchase-orders/${request.po_id}`)}
                           title="View PO Details"
                         >
@@ -378,14 +352,14 @@ const InventoryDashboard = () => {
             </div>
 
             {/* MRN Requests - Material Release from Manufacturing */}
-            <div className="mt-8">
-              <div className="flex justify-between items-center mb-4">
-                <div className="font-semibold text-lg text-gray-900 flex items-center gap-2">
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-3">
+                <div className="compact-section-title flex items-center gap-1.5">
                   <FaIndustry className="text-blue-600" />
                   MRN Requests - Material Release for Projects
                 </div>
                 <button
-                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 text-sm"
+                  className="compact-btn compact-btn-primary"
                   onClick={() => navigate('/inventory/mrn-requests')}
                 >
                   <FaClipboardCheck />
@@ -393,57 +367,57 @@ const InventoryDashboard = () => {
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50">
+                <table className="compact-table">
+                  <thead>
                     <tr>
-                      <th className="font-semibold text-gray-700 p-2 border-b">MRN Number</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b">Project Name</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b">Department</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b">Request Date</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b">Required By</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b">Items</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b">Priority</th>
-                      <th className="font-semibold text-gray-700 p-2 border-b text-center">Actions</th>
+                      <th>MRN Number</th>
+                      <th>Project Name</th>
+                      <th>Department</th>
+                      <th>Request Date</th>
+                      <th>Required By</th>
+                      <th>Items</th>
+                      <th>Priority</th>
+                      <th className="text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mrnRequests.map((request) => (
-                      <tr key={request.id} className="hover:bg-gray-50 border-b">
-                        <td className="p-2 font-semibold text-gray-900">{request.request_number}</td>
-                        <td className="p-2">{request.project_name}</td>
-                        <td className="p-2 text-xs">
-                          <span className="px-2 py-1 rounded bg-blue-100 text-blue-700 font-semibold">
+                      <tr key={request.id}>
+                        <td className="font-semibold text-gray-900">{request.request_number}</td>
+                        <td>{request.project_name}</td>
+                        <td>
+                          <span className="compact-badge compact-badge-blue">
                             {request.requesting_department?.toUpperCase() || 'MANUFACTURING'}
                           </span>
                         </td>
-                        <td className="p-2">{request.request_date ? new Date(request.request_date).toLocaleDateString() : 'N/A'}</td>
-                        <td className="p-2">{request.required_by_date ? new Date(request.required_by_date).toLocaleDateString() : 'N/A'}</td>
-                        <td className="p-2 text-center">{request.total_items || 0}</td>
-                        <td className="p-2">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                            request.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-                            request.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                            request.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-green-100 text-green-700'
+                        <td>{request.request_date ? new Date(request.request_date).toLocaleDateString() : 'N/A'}</td>
+                        <td>{request.required_by_date ? new Date(request.required_by_date).toLocaleDateString() : 'N/A'}</td>
+                        <td className="text-center">{request.total_items || 0}</td>
+                        <td>
+                          <span className={`compact-badge ${
+                            request.priority === 'urgent' ? 'compact-badge-red' :
+                            request.priority === 'high' ? 'compact-badge-orange' :
+                            request.priority === 'medium' ? 'compact-badge-yellow' :
+                            'compact-badge-green'
                           }`}>
                             {request.priority?.toUpperCase() || 'MEDIUM'}
                           </span>
                         </td>
-                        <td className="p-2 text-center">
+                        <td className="text-center">
                           <button
-                            className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 mr-1 flex items-center gap-1 inline-flex"
+                            className="compact-btn compact-btn-sm compact-btn-primary mr-1"
                             onClick={() => navigate(`/inventory/mrn/${request.id}`)}
                             title="Review Material Request"
                           >
-                            <FaClipboardCheck className="text-xs" />
+                            <FaClipboardCheck />
                             Review
                           </button>
                           <button
-                            className="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 flex items-center gap-1 inline-flex"
+                            className="compact-btn compact-btn-sm compact-btn-success"
                             onClick={() => navigate(`/inventory/dispatch/${request.id}`)}
                             title="Accept & Dispatch Materials"
                           >
-                            <FaTruck className="text-xs" />
+                            <FaTruck />
                             Dispatch
                           </button>
                         </td>
@@ -451,7 +425,7 @@ const InventoryDashboard = () => {
                     ))}
                     {mrnRequests.length === 0 && (
                       <tr>
-                        <td colSpan="8" className="p-8 text-center text-gray-500">
+                        <td colSpan="8" className="p-6 text-center text-gray-500 text-xs">
                           No MRN requests pending. All material requests have been processed.
                         </td>
                       </tr>
@@ -464,40 +438,42 @@ const InventoryDashboard = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <div >
-            <div className="flex justify-between items-center mb-4">
-              <div className="font-semibold text-lg text-gray-900">Recent Stock Movements</div>
-              <button className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:border-blue-600 hover:bg-gray-100" onClick={() => navigate('/challans/register')}>View All Movements</button>
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <div className="compact-section-title">Recent Stock Movements</div>
+              <button className="compact-btn compact-btn-secondary" onClick={() => navigate('/challans/register')}>View All Movements</button>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
+              <table className="compact-table">
+                <thead>
                   <tr>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Item Code</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Item Name</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Type</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b text-right">Quantity</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Challan No.</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Reference</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Date</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b text-center">Actions</th>
+                    <th>Item Code</th>
+                    <th>Item Name</th>
+                    <th>Type</th>
+                    <th className="text-right">Quantity</th>
+                    <th>Challan No.</th>
+                    <th>Reference</th>
+                    <th>Date</th>
+                    <th className="text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentMovements.map((movement) => (
-                    <tr key={movement.id} className="hover:bg-gray-50 border-b">
-                      <td className="p-2 font-semibold text-gray-900">{movement.itemCode}</td>
-                      <td className="p-2">{movement.itemName}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 ${getMovementColor(movement.type)}`}>{movement.type === 'inward' ? <FaTruck /> : <FaArrowDown />} {movement.type?.toUpperCase()}</span>
+                    <tr key={movement.id}>
+                      <td className="font-semibold text-gray-900">{movement.itemCode}</td>
+                      <td>{movement.itemName}</td>
+                      <td>
+                        <span className={`compact-badge inline-flex items-center gap-1 ${getMovementColor(movement.type)}`}>
+                          {movement.type === 'inward' ? <FaTruck /> : <FaArrowDown />} {movement.type?.toUpperCase()}
+                        </span>
                       </td>
-                      <td className="p-2 text-right">{movement.quantity} {movement.unit}</td>
-                      <td className="p-2">{movement.location}</td>
-                      <td className="p-2">-</td>
-                      <td className="p-2">{new Date(movement.date).toLocaleDateString()}</td>
-                      <td className="p-2 text-center">
+                      <td className="text-right">{movement.quantity} {movement.unit}</td>
+                      <td>{movement.location}</td>
+                      <td>-</td>
+                      <td>{new Date(movement.date).toLocaleDateString()}</td>
+                      <td className="text-center">
                         <button
-                          className="p-2 rounded bg-blue-100 text-blue-600 hover:bg-blue-200"
+                          className="compact-icon-btn compact-icon-btn-primary"
                           onClick={() => navigate('/inventory/stock')}
                           title="View Stock"
                         >
@@ -513,23 +489,23 @@ const InventoryDashboard = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <div >
-            <div className="flex justify-between items-center mb-4">
-              <div className="font-semibold text-lg text-gray-900">Low Stock Items</div>
-              <button className="px-4 py-1 text-sm font-medium text-white bg-primary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center" onClick={() => navigate('/procurement/purchase-orders')}>Create Purchase Order</button>
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <div className="compact-section-title">Low Stock Items</div>
+              <button className="compact-btn compact-btn-primary" onClick={() => navigate('/procurement/purchase-orders')}>Create Purchase Order</button>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
+              <table className="compact-table">
+                <thead>
                   <tr>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Item Code</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Item Name</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Category</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b text-right">Current Stock</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b text-right">Min Stock</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Stock Level</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b">Location</th>
-                    <th className="font-semibold text-gray-700 p-2 border-b text-center">Actions</th>
+                    <th>Item Code</th>
+                    <th>Item Name</th>
+                    <th>Category</th>
+                    <th className="text-right">Current Stock</th>
+                    <th className="text-right">Min Stock</th>
+                    <th>Stock Level</th>
+                    <th>Location</th>
+                    <th className="text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -538,31 +514,31 @@ const InventoryDashboard = () => {
                     const stockInfo = getStockLevel(item.current_stock, minStock);
                     const percentage = minStock > 0 ? (item.current_stock / minStock) * 100 : 0;
                     return (
-                      <tr key={item.id} className="hover:bg-gray-50 border-b">
-                        <td className="p-2 font-semibold text-gray-900">{item.product?.product_code}</td>
-                        <td className="p-2">{item.product?.name}</td>
-                        <td className="p-2"><span className="px-2 py-1 border rounded text-xs bg-gray-50">{item.product?.category}</span></td>
-                        <td className="p-2 text-right">{item.current_stock} {item.product?.unit_of_measurement}</td>
-                        <td className="p-2 text-right">{minStock} {item.product?.unit_of_measurement}</td>
-                        <td className="p-2">
-                          <div className={`flex items-center gap-2 ${stockInfo.color}`}>
+                      <tr key={item.id}>
+                        <td className="font-semibold text-gray-900">{item.product?.product_code}</td>
+                        <td>{item.product?.name}</td>
+                        <td><span className="compact-badge compact-badge-gray">{item.product?.category}</span></td>
+                        <td className="text-right">{item.current_stock} {item.product?.unit_of_measurement}</td>
+                        <td className="text-right">{minStock} {item.product?.unit_of_measurement}</td>
+                        <td>
+                          <div className={`flex items-center gap-1.5 ${stockInfo.color}`}>
                             <div className="w-16 h-2 bg-gray-200 rounded">
                               <div className={`h-2 rounded ${stockInfo.color}`} style={{ width: `${Math.min(percentage, 100)}%` }}></div>
                             </div>
-                            <span className="text-xs font-semibold">{percentage.toFixed(0)}%</span>
+                            <span className="text-[10px] font-semibold">{percentage.toFixed(0)}%</span>
                           </div>
                         </td>
-                        <td className="p-2">{item.location}</td>
-                        <td className="p-2 text-center">
+                        <td>{item.location}</td>
+                        <td className="text-center">
                           <button
-                            className="p-2 rounded bg-blue-100 text-blue-600 hover:bg-blue-200"
+                            className="compact-icon-btn compact-icon-btn-primary mr-1"
                             onClick={() => navigate('/inventory/products')}
                             title="Edit Item"
                           >
                             <FaEdit />
                           </button>
                           <button
-                            className="p-2 rounded bg-purple-100 text-purple-600 hover:bg-purple-200"
+                            className="compact-icon-btn compact-icon-btn-secondary"
                             onClick={() => navigate('/procurement/purchase-orders')}
                             title="Create Purchase Order"
                           >
@@ -579,22 +555,22 @@ const InventoryDashboard = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <div >
-            <div className="font-semibold text-lg text-gray-900 mb-4">Inventory Categories</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <div className="compact-section-title mb-3">Inventory Categories</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {categories.length > 0 ? categories.map((category) => (
                 <div
                   key={category.category}
-                  className="border rounded-xl bg-white shadow p-4 text-center cursor-pointer hover:shadow-lg transition-shadow"
+                  className="border rounded bg-white shadow p-3 text-center cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => navigate('/inventory/products')}
                 >
-                  <FaTags className="text-blue-600 text-3xl mx-auto mb-2" />
-                  <div className="font-semibold text-lg text-gray-900 mb-1">{category.category}</div>
-                  <div className="text-sm text-gray-600 mb-1">{category.itemCount} items</div>
-                  <div className="text-xs text-gray-500 mb-2">₹{(category.totalValue / 100000).toFixed(1)}L value</div>
+                  <FaTags className="text-blue-600 text-2xl mx-auto mb-2" />
+                  <div className="font-semibold text-sm text-gray-900 mb-1">{category.category}</div>
+                  <div className="text-xs text-gray-600 mb-1">{category.itemCount} items</div>
+                  <div className="text-[10px] text-gray-500">₹{(category.totalValue / 100000).toFixed(1)}L value</div>
                 </div>
               )) : (
-                <div className="col-span-full text-center text-gray-500 py-8">
+                <div className="col-span-full text-center text-gray-500 py-6 text-xs">
                   No categories found. Add products to see categories here.
                 </div>
               )}
@@ -606,10 +582,10 @@ const InventoryDashboard = () => {
       {/* QR Code Dialog */}
       {qrCodeDialogOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+          <div className="bg-white rounded shadow-lg w-full max-w-md">
             <div className="px-6 py-4 border-b font-bold text-lg">Order QR Code</div>
             <div className="px-6 py-4 text-center">
-              <div className="bg-gray-100 p-4 rounded-lg inline-block">
+              <div className="bg-gray-100 p-4 rounded inline-block">
                 {/* QR Code would be generated here */}
                 <div className="w-48 h-48 bg-gray-300 flex items-center justify-center text-gray-600">
                   QR Code for Order {selectedOrder.order_number}
@@ -636,7 +612,7 @@ const InventoryDashboard = () => {
       {/* Stock Receipt Confirmation Dialog */}
       {stockReceiptDialogOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg">
+          <div className="bg-white rounded shadow-lg w-full max-w-lg">
             <div className="px-6 py-4 border-b font-bold text-lg">Confirm Stock Receipt</div>
             <div className="px-6 py-4">
               <div className="mb-4">
@@ -671,7 +647,7 @@ const InventoryDashboard = () => {
                 Cancel
               </button>
               <button
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                className="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-500"
                 onClick={handleConfirmStockReceipt}
               >
                 Confirm Receipt
@@ -684,10 +660,10 @@ const InventoryDashboard = () => {
       {/* QR Scanner Dialog */}
       {qrScannerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+          <div className="bg-white rounded shadow-lg w-full max-w-md">
             <div className="px-6 py-4 border-b font-bold text-lg">Scan QR Code</div>
             <div className="px-6 py-4 text-center">
-              <div className="bg-gray-100 p-4 rounded-lg">
+              <div className="bg-gray-100 p-4 rounded-md">
                 <div className="w-full h-64 bg-gray-300 flex items-center justify-center text-gray-600 mb-4">
                   Camera Scanner Placeholder
                 </div>

@@ -37,11 +37,12 @@ module.exports = (sequelize) => {
     },
     product_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'products',
         key: 'id'
-      }
+      },
+      comment: 'Product ID (optional - materials fetched from MRN/Sales Order instead)'
     },
     quantity: {
       type: DataTypes.INTEGER,

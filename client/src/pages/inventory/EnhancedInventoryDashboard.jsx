@@ -118,21 +118,21 @@ const EnhancedInventoryDashboard = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Inventory Management</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-800">Inventory Management</h1>
         <button
           onClick={() => navigate('/inventory/add-item')}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
         >
           <FaPlus /> Add Item
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-6 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Total Items</p>
@@ -142,7 +142,7 @@ const EnhancedInventoryDashboard = () => {
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Factory Stock</p>
@@ -152,7 +152,7 @@ const EnhancedInventoryDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Project Stock</p>
@@ -162,7 +162,7 @@ const EnhancedInventoryDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Total Value</p>
@@ -174,7 +174,7 @@ const EnhancedInventoryDashboard = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
+      <div className="bg-white p-4 rounded shadow mb-4">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <input
@@ -183,12 +183,12 @@ const EnhancedInventoryDashboard = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             />
           </div>
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center gap-1.5 bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition"
           >
             <FaSearch /> Search
           </button>
@@ -196,7 +196,7 @@ const EnhancedInventoryDashboard = () => {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow mb-6">
+      <div className="bg-white rounded shadow mb-4">
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('all')}
@@ -247,7 +247,7 @@ const EnhancedInventoryDashboard = () => {
               {projects.map((project) => (
                 <div
                   key={project.sales_order_id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
+                  className="border border-gray-200 rounded p-4 hover:shadow-md transition cursor-pointer"
                   onClick={() => navigate(`/inventory/project/${project.sales_order_id}`)}
                 >
                   <div className="flex justify-between items-start">
@@ -273,22 +273,22 @@ const EnhancedInventoryDashboard = () => {
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Product
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Barcode
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Category
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Location
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Stock
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -370,7 +370,7 @@ const EnhancedInventoryDashboard = () => {
       {/* Barcode Modal */}
       {showBarcodeModal && selectedItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <div className="bg-white rounded p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Barcode</h3>
             <div className="text-center mb-4">
               <p className="font-medium text-gray-800 mb-2">{selectedItem.product_name}</p>
@@ -381,7 +381,7 @@ const EnhancedInventoryDashboard = () => {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={printBarcode}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
               >
                 <FaPrint /> Print
               </button>
@@ -399,14 +399,14 @@ const EnhancedInventoryDashboard = () => {
       {/* Send to Manufacturing Modal */}
       {showSendToMfgModal && selectedItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <div className="bg-white rounded p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Send to Manufacturing</h3>
             <div className="mb-4">
               <p className="font-medium text-gray-800">{selectedItem.product_name}</p>
               <p className="text-sm text-gray-600">Available: {selectedItem.available_stock} {selectedItem.unit_of_measurement}</p>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Quantity to Send
               </label>
               <input
@@ -414,18 +414,18 @@ const EnhancedInventoryDashboard = () => {
                 value={sendQty}
                 onChange={(e) => setSendQty(e.target.value)}
                 max={selectedItem.available_stock}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 placeholder="Enter quantity"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Notes (Optional)
               </label>
               <textarea
                 value={sendNotes}
                 onChange={(e) => setSendNotes(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 rows="3"
                 placeholder="Add notes..."
               />
@@ -433,7 +433,7 @@ const EnhancedInventoryDashboard = () => {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleSendToManufacturing}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
               >
                 Send
               </button>

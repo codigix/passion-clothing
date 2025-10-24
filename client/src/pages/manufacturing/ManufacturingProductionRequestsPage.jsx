@@ -182,30 +182,30 @@ const ManufacturingProductionRequestsPage = () => {
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-blue-500">
           <div className="text-sm text-gray-600">Total Requests</div>
           <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-yellow-500">
           <div className="text-sm text-gray-600">Pending Review</div>
           <div className="text-2xl font-bold text-gray-800">{stats.pending}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-orange-500">
           <div className="text-sm text-gray-600">In Progress</div>
           <div className="text-2xl font-bold text-gray-800">{stats.inProgress}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-green-500">
           <div className="text-sm text-gray-600">Completed</div>
           <div className="text-2xl font-bold text-gray-800">{stats.completed}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+        <div className="bg-white rounded shadow p-4 border-l-4 border-red-500">
           <div className="text-sm text-gray-600">Urgent Priority</div>
           <div className="text-2xl font-bold text-gray-800">{stats.urgent}</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div className="bg-white rounded shadow-md p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div className="relative">
@@ -215,7 +215,7 @@ const ManufacturingProductionRequestsPage = () => {
               placeholder="Search requests..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500"
             />
           </div>
 
@@ -225,7 +225,7 @@ const ManufacturingProductionRequestsPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500 appearance-none"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -247,7 +247,7 @@ const ManufacturingProductionRequestsPage = () => {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500 appearance-none"
             >
               <option value="">All Priorities</option>
               <option value="low">Low</option>
@@ -263,7 +263,7 @@ const ManufacturingProductionRequestsPage = () => {
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-blue-500 appearance-none"
             >
               <option value="">All Projects</option>
               {uniqueProjects.map(project => (
@@ -278,7 +278,7 @@ const ManufacturingProductionRequestsPage = () => {
           <div className="mt-4 flex justify-end">
             <button
               onClick={resetFilters}
-              className="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
             >
               <FaTimes className="mr-2" />
               Reset Filters
@@ -289,7 +289,7 @@ const ManufacturingProductionRequestsPage = () => {
 
       {/* Requests List */}
       {filteredRequests.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+        <div className="bg-white rounded shadow-md p-12 text-center">
           <FaIndustry className="mx-auto text-6xl text-gray-300 mb-4" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">
             {requests.length === 0 ? 'No Production Requests' : 'No Matching Requests'}
@@ -305,7 +305,7 @@ const ManufacturingProductionRequestsPage = () => {
           {filteredRequests.map((request) => (
             <div
               key={request.id}
-              className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200"
+              className="bg-white rounded shadow-md hover:shadow-lg transition-shadow border border-gray-200"
             >
               {/* Card Header */}
               <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-white">
@@ -418,7 +418,7 @@ const ManufacturingProductionRequestsPage = () => {
                 <div className="flex space-x-2 mt-4">
                   <button
                     onClick={() => handleProcessRequest(request)}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded font-medium transition-colors flex items-center justify-center"
                   >
                     <FaArrowRight className="mr-2" />
                     Create MRN
@@ -426,14 +426,14 @@ const ManufacturingProductionRequestsPage = () => {
                   {request.sales_order_number ? (
                     <button
                       onClick={() => handleViewSO(request.sales_order_id)}
-                      className="px-4 py-2 border border-green-300 hover:bg-green-50 text-green-700 rounded-lg font-medium transition-colors"
+                      className="px-4 py-2 border border-green-300 hover:bg-green-50 text-green-700 rounded font-medium transition-colors"
                     >
                       View SO
                     </button>
                   ) : (
                     <button
                       onClick={() => handleViewPO(request.po_id)}
-                      className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors"
+                      className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded font-medium transition-colors"
                     >
                       View PO
                     </button>

@@ -138,7 +138,7 @@ const SystemConfigPage = () => {
   };
 
   const CompanySettingsTab = () => (
-    <div className="bg-white rounded-lg shadow-md">
+    <div className="bg-white rounded shadow-md">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center">
           <FaBuilding className="w-6 h-6 mr-3" />
@@ -154,7 +154,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.name}
               onChange={(e) => handleCompanySettingChange('name', e.target.value)}
             />
@@ -163,7 +163,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.email}
               onChange={(e) => handleCompanySettingChange('email', e.target.value)}
             />
@@ -172,7 +172,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
             <textarea
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.address}
               onChange={(e) => handleCompanySettingChange('address', e.target.value)}
             />
@@ -181,7 +181,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.phone}
               onChange={(e) => handleCompanySettingChange('phone', e.target.value)}
             />
@@ -190,7 +190,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.website}
               onChange={(e) => handleCompanySettingChange('website', e.target.value)}
             />
@@ -199,7 +199,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.gstNumber}
               onChange={(e) => handleCompanySettingChange('gstNumber', e.target.value)}
             />
@@ -208,14 +208,14 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={companySettings.panNumber}
               onChange={(e) => handleCompanySettingChange('panNumber', e.target.value)}
             />
           </div>
           <div className="col-span-1 md:col-span-2">
             <button
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
               onClick={() => handleSave('Company')}
               disabled={loading}
             >
@@ -229,7 +229,7 @@ const SystemConfigPage = () => {
   );
 
   const SystemSettingsTab = () => (
-    <div className="bg-white rounded-lg shadow-md">
+    <div className="bg-white rounded shadow-md">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center">
           <FaCog className="w-6 h-6 mr-3" />
@@ -244,7 +244,7 @@ const SystemConfigPage = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={systemSettings.timezone}
               onChange={(e) => handleSystemSettingChange('timezone', e.target.value)}
             >
@@ -256,7 +256,7 @@ const SystemConfigPage = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date Format</label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={systemSettings.dateFormat}
               onChange={(e) => handleSystemSettingChange('dateFormat', e.target.value)}
             >
@@ -268,7 +268,7 @@ const SystemConfigPage = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={systemSettings.currency}
               onChange={(e) => handleSystemSettingChange('currency', e.target.value)}
             >
@@ -281,7 +281,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Session Timeout (minutes)</label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={systemSettings.sessionTimeout}
               onChange={(e) => handleSystemSettingChange('sessionTimeout', parseInt(e.target.value))}
             />
@@ -308,7 +308,7 @@ const SystemConfigPage = () => {
           </div>
           <div className="col-span-1 md:col-span-2">
             <button
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
               onClick={() => handleSave('System')}
               disabled={loading}
             >
@@ -322,7 +322,7 @@ const SystemConfigPage = () => {
   );
 
   const SecuritySettingsTab = () => (
-    <div className="bg-white rounded-lg shadow-md">
+    <div className="bg-white rounded shadow-md">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center">
           <FaShieldAlt className="w-6 h-6 mr-3" />
@@ -338,7 +338,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Password Length</label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={securitySettings.passwordMinLength}
               onChange={(e) => handleSecuritySettingChange('passwordMinLength', parseInt(e.target.value))}
             />
@@ -347,7 +347,7 @@ const SystemConfigPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Max Login Attempts</label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
               value={securitySettings.maxLoginAttempts}
               onChange={(e) => handleSecuritySettingChange('maxLoginAttempts', parseInt(e.target.value))}
             />
@@ -374,7 +374,7 @@ const SystemConfigPage = () => {
           </div>
           <div className="col-span-1 md:col-span-2">
             <button
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
               onClick={() => handleSave('Security')}
               disabled={loading}
             >
@@ -396,12 +396,12 @@ const SystemConfigPage = () => {
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-6">System Configuration</h1>
-      <div className="bg-white rounded-lg shadow mb-6">
+      <div className="bg-white rounded shadow mb-6">
         <div className="flex border-b">
           {tabs.map((tab, idx) => (
             <button
               key={idx}
-              className={`px-6 py-3 text-sm font-semibold focus:outline-none transition border-b-2 ${activeTab === idx ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
+              className={`px-2 py-2 text-sm font-semibold focus:outline-none transition border-b-2 ${activeTab === idx ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-blue-600'}`}
               onClick={() => setActiveTab(idx)}
             >
               {tab.label}

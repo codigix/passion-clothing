@@ -117,7 +117,7 @@ const InventoryBarcodeLookup = () => {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-md">
+      <div className="bg-white rounded shadow-md">
         <div className="px-6 py-4 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <FaQrcode className="mr-3 text-blue-600" />
@@ -141,7 +141,7 @@ const InventoryBarcodeLookup = () => {
                 value={manualBarcode}
                 onChange={(e) => setManualBarcode(e.target.value)}
                 placeholder="Enter barcode number..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 onKeyPress={(e) => e.key === 'Enter' && handleManualLookup()}
               />
             </div>
@@ -149,7 +149,7 @@ const InventoryBarcodeLookup = () => {
               <button
                 onClick={handleManualLookup}
                 disabled={loading}
-                className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                className="w-full md:w-auto px-2 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 disabled:opacity-50 transition flex items-center justify-center gap-2"
               >
                 <FaSearch />
                 {loading ? 'Searching...' : 'Lookup'}
@@ -175,7 +175,7 @@ const InventoryBarcodeLookup = () => {
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded shadow-md p-8 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-600">Searching for item...</p>
         </div>
@@ -185,12 +185,12 @@ const InventoryBarcodeLookup = () => {
       {inventoryData && !loading && (
         <div className="space-y-6">
           {/* Barcode Display & Print */}
-          <div className="bg-white rounded-lg shadow-md print-section">
+          <div className="bg-white rounded shadow-md print-section">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Barcode Display</h3>
               <button
                 onClick={printPage}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
               >
                 <FaPrint /> Print
               </button>
@@ -207,7 +207,7 @@ const InventoryBarcodeLookup = () => {
           </div>
 
           {/* Main Product Information */}
-          <div className="bg-white rounded-lg shadow-md">
+          <div className="bg-white rounded shadow-md">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <FaBoxOpen className="mr-2 text-blue-600" />
@@ -355,7 +355,7 @@ const InventoryBarcodeLookup = () => {
 
           {/* Stock Status Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-6 text-white">
+            <div className="r from-blue-500 to-blue-600 rounded shadow-md p-6 text-white">
               <div className="flex items-center justify-between mb-2">
                 <FaWarehouse className="text-3xl opacity-80" />
                 <div className="text-right">
@@ -381,7 +381,7 @@ const InventoryBarcodeLookup = () => {
               })()}
             </div>
 
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md p-6 text-white">
+            <div className="r from-green-500 to-green-600 rounded shadow-md p-6 text-white">
               <div className="flex items-center justify-between">
                 <FaCheckCircle className="text-3xl opacity-80" />
                 <div className="text-right">
@@ -394,7 +394,7 @@ const InventoryBarcodeLookup = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md p-6 text-white">
+            <div className="r from-orange-500 to-orange-600 rounded shadow-md p-6 text-white">
               <div className="flex items-center justify-between">
                 <FaTruck className="text-3xl opacity-80" />
                 <div className="text-right">
@@ -407,7 +407,7 @@ const InventoryBarcodeLookup = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md p-6 text-white">
+            <div className="r from-purple-500 to-purple-600 rounded shadow-md p-6 text-white">
               <div className="flex items-center justify-between">
                 <FaBoxOpen className="text-3xl opacity-80" />
                 <div className="text-right">
@@ -424,7 +424,7 @@ const InventoryBarcodeLookup = () => {
           {/* Location & Additional Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Location Info */}
-            <div className="bg-white rounded-lg shadow-md">
+            <div className="bg-white rounded shadow-md">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FaMapMarkerAlt className="mr-2 text-red-600" />
@@ -452,7 +452,7 @@ const InventoryBarcodeLookup = () => {
             </div>
 
             {/* Stock Limits */}
-            <div className="bg-white rounded-lg shadow-md">
+            <div className="bg-white rounded shadow-md">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FaInfoCircle className="mr-2 text-blue-600" />
@@ -489,7 +489,7 @@ const InventoryBarcodeLookup = () => {
           </div>
 
           {/* Value Calculation */}
-          <div className="bg-white rounded-lg shadow-md">
+          <div className="bg-white rounded shadow-md">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <FaDollarSign className="mr-2 text-green-600" />
@@ -498,19 +498,19 @@ const InventoryBarcodeLookup = () => {
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-center p-4 bg-blue-50 rounded">
                   <p className="text-sm text-gray-600 mb-2">Total Value (Cost)</p>
                   <p className="text-2xl font-bold text-blue-600">
                     ₹{((inventoryData.current_stock || 0) * (inventoryData.cost_price || 0)).toFixed(2)}
                   </p>
                 </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-center p-4 bg-green-50 rounded">
                   <p className="text-sm text-gray-600 mb-2">Total Value (Selling)</p>
                   <p className="text-2xl font-bold text-green-600">
                     ₹{((inventoryData.current_stock || 0) * (inventoryData.selling_price || 0)).toFixed(2)}
                   </p>
                 </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-center p-4 bg-purple-50 rounded">
                   <p className="text-sm text-gray-600 mb-2">Potential Profit</p>
                   <p className="text-2xl font-bold text-purple-600">
                     ₹{((inventoryData.current_stock || 0) * ((inventoryData.selling_price || 0) - (inventoryData.cost_price || 0))).toFixed(2)}
@@ -521,18 +521,18 @@ const InventoryBarcodeLookup = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded shadow-md p-6">
             <div className="flex flex-wrap gap-4 justify-center">
               <button
                 onClick={() => navigate(`/inventory/${inventoryData.id}/history`)}
-                className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition"
+                className="flex items-center gap-2 bg-purple-600 text-white px-2 py-2 rounded hover:bg-purple-700 transition"
               >
                 <FaHistory />
                 View History
               </button>
               <button
                 onClick={() => navigate('/inventory')}
-                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
+                className="flex items-center gap-2 bg-blue-500 text-white px-2 py-2 rounded hover:bg-blue-600 transition"
               >
                 <FaBoxOpen />
                 View All Inventory
@@ -543,7 +543,7 @@ const InventoryBarcodeLookup = () => {
                   setScannedBarcode('');
                   setManualBarcode('');
                 }}
-                className="flex items-center gap-2 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition"
+                className="flex items-center gap-2 bg-gray-600 text-white px-2 py-2 rounded hover:bg-gray-700 transition"
               >
                 <FaSearch />
                 Scan Another Item
@@ -555,7 +555,7 @@ const InventoryBarcodeLookup = () => {
 
       {/* No Results Found */}
       {!inventoryData && scannedBarcode && !loading && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded p-6">
           <div className="flex items-center">
             <FaExclamationTriangle className="text-2xl text-yellow-600 mr-4" />
             <div>

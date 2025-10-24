@@ -130,12 +130,12 @@ const CreateGRNPage = () => {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-6">
             <h2 className="text-lg font-semibold text-yellow-800 mb-2">No Purchase Order Selected</h2>
             <p className="text-yellow-700 mb-4">Please select a purchase order to create GRN.</p>
             <button
               onClick={() => navigate('/procurement/purchase-orders')}
-              className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700"
+              className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
             >
               Go to Purchase Orders
             </button>
@@ -183,7 +183,7 @@ const CreateGRNPage = () => {
 
         {/* Alert if shortages detected */}
         {summary.shortages > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="font-semibold text-red-900">Shortage Detected!</h3>
@@ -196,7 +196,7 @@ const CreateGRNPage = () => {
 
         {/* PO Info Card */}
         {purchaseOrder && (
-          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <div className="bg-white rounded shadow-sm border p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
               Purchase Order Details
@@ -231,7 +231,7 @@ const CreateGRNPage = () => {
         )}
 
         {/* GRN Form */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded shadow-sm border p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Receipt Information</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -242,7 +242,7 @@ const CreateGRNPage = () => {
                 type="date"
                 value={formData.received_date}
                 onChange={(e) => handleInputChange('received_date', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
             <div>
@@ -254,7 +254,7 @@ const CreateGRNPage = () => {
                 value={formData.inward_challan_number}
                 onChange={(e) => handleInputChange('inward_challan_number', e.target.value)}
                 placeholder="DC-12345"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
             <div>
@@ -266,7 +266,7 @@ const CreateGRNPage = () => {
                 value={formData.supplier_invoice_number}
                 onChange={(e) => handleInputChange('supplier_invoice_number', e.target.value)}
                 placeholder="INV-12345"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
             <div>
@@ -278,14 +278,14 @@ const CreateGRNPage = () => {
                 value={formData.remarks}
                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                 placeholder="Optional notes"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
           </div>
         </div>
 
         {/* Items Table */}
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-6">
+        <div className="bg-white rounded shadow-sm border overflow-hidden mb-6">
           <div className="px-6 py-4 border-b bg-gray-50">
             <h2 className="text-lg font-semibold">3-Way Matching: PO vs Invoice vs Actual Receipt</h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -422,22 +422,22 @@ const CreateGRNPage = () => {
         </div>
 
         {/* Summary Card */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white rounded shadow-sm border p-6 mb-6">
           <h3 className="font-semibold mb-4">Discrepancy Summary</h3>
           <div className="grid grid-cols-4 gap-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-green-50 border border-green-200 rounded p-4">
               <div className="text-sm text-green-600 mb-1">Perfect Matches</div>
               <div className="text-2xl font-bold text-green-700">{summary.perfectMatches}</div>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded p-4">
               <div className="text-sm text-red-600 mb-1">Shortages</div>
               <div className="text-2xl font-bold text-red-700">{summary.shortages}</div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
               <div className="text-sm text-yellow-600 mb-1">Overages</div>
               <div className="text-2xl font-bold text-yellow-700">{summary.overages}</div>
             </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="bg-orange-50 border border-orange-200 rounded p-4">
               <div className="text-sm text-orange-600 mb-1">Invoice Mismatches</div>
               <div className="text-2xl font-bold text-orange-700">{summary.invoiceMismatches}</div>
             </div>
@@ -448,14 +448,14 @@ const CreateGRNPage = () => {
         <div className="flex justify-end gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-6 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2"
           >
             <Save className="w-5 h-5" />
             {loading ? 'Creating GRN...' : 'Create GRN & Proceed to Verification'}

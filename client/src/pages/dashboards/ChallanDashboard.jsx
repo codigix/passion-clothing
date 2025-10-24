@@ -65,26 +65,14 @@ const ChallanDashboard = () => {
     return colors[type] || 'bg-gray-100 text-gray-700';
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary' }) => (
-    <div className="p-6 bg-white rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center">
-      <div className="flex-1">
-        <div className="text-xs font-semibold uppercase text-gray-500 mb-1 tracking-wide">{title}</div>
-        <div className="text-lg font-bold text-gray-900">{value}</div>
-      </div>
-      <div className={`rounded-xl p-3 flex items-center justify-center w-14 h-14 ${color === 'primary' ? 'bg-blue-100' : color === 'warning' ? 'bg-yellow-100' : color === 'success' ? 'bg-green-100' : color === 'error' ? 'bg-red-100' : 'bg-blue-100'}`}>
-        {icon}
-      </div>
-    </div>
-  );
-
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-900">
           Challan Management
         </h1>
         <button
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+          className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600 flex items-center gap-1.5"
           onClick={() => navigate('/challans/create')}
         >
           <FaPlus />
@@ -93,51 +81,51 @@ const ChallanDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <StatCard
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <MinimalStatCard
           title="Total Challans"
           value={stats.totalChallans}
           icon={<FaReceipt />}
-          color="primary"
+          
         />
-        <StatCard
+        <MinimalStatCard
           title="Pending Approval"
           value={stats.pendingApproval}
           icon={<FaClock />}
-          color="warning"
+          
         />
-        <StatCard
+        <MinimalStatCard
           title="Approved"
           value={stats.approved}
           icon={<FaCheckCircle />}
-          color="success"
+          
         />
-        <StatCard
+        <MinimalStatCard
           title="Rejected"
           value={stats.rejected}
           icon={<FaTimes />}
-          color="error"
+          
         />
       </div>
 
       {/* Search and Filters */}
-      <div className="p-6 bg-white rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] mb-6">
+      <div className="p-4 bg-white rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] mb-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Quick Search
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
           <div className="md:col-span-6">
             <div className="relative">
               <input
-                className="w-full border border-gray-300 rounded px-3 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded px-3 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 placeholder="Search by challan number, vendor, customer..."
               />
-              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+              <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" />
             </div>
           </div>
           <div className="md:col-span-3">
             <button
-              className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 text-gray-700 rounded hover:bg-gray-50"
               onClick={() => navigate('/challans/register')}
             >
               Advanced Search
@@ -145,7 +133,7 @@ const ChallanDashboard = () => {
           </div>
           <div className="md:col-span-3">
             <button
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"
+              className="w-full px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2"
             >
               <FaDownload />
               Export Report
@@ -155,14 +143,14 @@ const ChallanDashboard = () => {
       </div>
 
       {/* Recent Challans */}
-      <div className="grid grid-cols-1 gap-6">
-        <div className="p-6 bg-white rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)]">
+      <div className="grid grid-cols-1 gap-3">
+        <div className="p-4 bg-white rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)]">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
               Recent Challans
             </h2>
             <button
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+              className="px-2.5 py-1.5 border border-gray text-xs-300 text-gray-700 rounded hover:bg-gray-50"
               onClick={() => navigate('/challans/register')}
             >
               View All
@@ -173,13 +161,13 @@ const ChallanDashboard = () => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan Number</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan Number</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
+                  <th className="px-2 py-2 text-xs text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-2 py-2 text-xs text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">

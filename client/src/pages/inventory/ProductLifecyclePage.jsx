@@ -7,13 +7,13 @@ export default function ProductLifecyclePage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Product Lifecycle Management</h1>
         <p className="text-gray-600">Track products from creation to delivery using barcode scanning</p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-gray-200 mb-4">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('tracker')}

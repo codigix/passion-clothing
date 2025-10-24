@@ -85,7 +85,7 @@ const VendorPerformancePage = () => {
           <select
             value={filterPeriod}
             onChange={(e) => setFilterPeriod(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
           >
             <option value="last_7_days">Last 7 Days</option>
             <option value="last_30_days">Last 30 Days</option>
@@ -98,7 +98,7 @@ const VendorPerformancePage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Vendors List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Vendors</h2>
           </div>
@@ -108,7 +108,7 @@ const VendorPerformancePage = () => {
                 <div
                   key={vendor.id}
                   onClick={() => setSelectedVendor(vendor)}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-3 border rounded cursor-pointer transition-colors ${
                     selectedVendor?.id === vendor.id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
@@ -137,13 +137,13 @@ const VendorPerformancePage = () => {
           {selectedVendor && performanceData ? (
             <div className="space-y-6">
               {/* Vendor Header */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900">{selectedVendor.name}</h2>
                     <p className="text-gray-600">{selectedVendor.vendor_code}</p>
                   </div>
-                  <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${getRatingBgColor(performanceData.overall_rating)}`}>
+                  <div className={`flex items-center gap-2 px-4 py-2 rounded ${getRatingBgColor(performanceData.overall_rating)}`}>
                     <Star className={`w-5 h-5 ${getRatingColor(performanceData.overall_rating)}`} />
                     <span className={`text-2xl font-bold ${getRatingColor(performanceData.overall_rating)}`}>
                       {performanceData.overall_rating?.toFixed(1) || 'N/A'}
@@ -154,9 +154,9 @@ const VendorPerformancePage = () => {
 
               {/* Key Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
+                    <div className="p-2 bg-blue-100 rounded">
                       <ShoppingCart className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
@@ -166,9 +166,9 @@ const VendorPerformancePage = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
+                    <div className="p-2 bg-green-100 rounded">
                       <Clock className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
@@ -178,9 +178,9 @@ const VendorPerformancePage = () => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
+                    <div className="p-2 bg-purple-100 rounded">
                       <CheckCircle className="w-6 h-6 text-purple-600" />
                     </div>
                     <div>
@@ -192,7 +192,7 @@ const VendorPerformancePage = () => {
               </div>
 
               {/* Detailed Metrics */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="bg-white rounded shadow-sm border border-gray-200">
                 <div className="p-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Performance Details</h3>
                 </div>
@@ -238,7 +238,7 @@ const VendorPerformancePage = () => {
               </div>
 
               {/* Recent Orders */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="bg-white rounded shadow-sm border border-gray-200">
                 <div className="p-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
                 </div>
@@ -246,7 +246,7 @@ const VendorPerformancePage = () => {
                   {performanceData.recent_orders?.length > 0 ? (
                     <div className="space-y-3">
                       {performanceData.recent_orders.map((order) => (
-                        <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                           <div>
                             <p className="font-medium text-gray-900">{order.po_number}</p>
                             <p className="text-sm text-gray-600">
@@ -277,7 +277,7 @@ const VendorPerformancePage = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
+            <div className="bg-white rounded shadow-sm border border-gray-200 p-12">
               <div className="text-center text-gray-500">
                 <ChartLine className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-lg font-medium mb-2">Select a Vendor</h3>

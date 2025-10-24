@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FaShoppingCart, FaPlus, FaSearch, FaEye, FaEdit, FaChartLine, FaClock, FaCheckCircle, FaTruck, FaMoneyBill, FaUser, FaClipboardList, FaDownload, FaSpinner, FaExclamationTriangle, FaFilter, FaCalendarAlt, FaFileExport, FaQrcode, FaPaperPlane } from 'react-icons/fa';
+import { ShoppingCart, Clock, CheckCircle, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
+import MinimalStatCard from '../../components/common/MinimalStatCard';
+import Tooltip from '../../components/common/Tooltip';
+import '../../styles/compactDashboard.css';
 
 const SalesDashboard = () => {
   const navigate = useNavigate();
@@ -143,17 +147,17 @@ const SalesDashboard = () => {
   // Get status color for badges
   const getStatusColor = (status) => {
     const colors = {
-      draft: 'bg-gray-100 text-gray-700',
-      pending_approval: 'bg-yellow-100 text-yellow-700',
-      confirmed: 'bg-blue-100 text-blue-700',
-      in_production: 'bg-orange-100 text-orange-700',
-      ready_to_ship: 'bg-purple-100 text-purple-700',
-      shipped: 'bg-indigo-100 text-indigo-700',
-      delivered: 'bg-green-100 text-green-700',
-      completed: 'bg-green-100 text-green-700',
-      cancelled: 'bg-red-100 text-red-700'
+      draft: 'bg-gray-50 text-gray-700 border border-gray-200',
+      pending_approval: 'bg-amber-50 text-amber-700 border border-amber-200',
+      confirmed: 'bg-blue-50 text-blue-700 border border-blue-200',
+      in_production: 'bg-blue-50 text-blue-700 border border-blue-200',
+      ready_to_ship: 'bg-blue-50 text-blue-700 border border-blue-200',
+      shipped: 'bg-blue-50 text-blue-700 border border-blue-200',
+      delivered: 'bg-green-50 text-green-700 border border-green-200',
+      completed: 'bg-green-50 text-green-700 border border-green-200',
+      cancelled: 'bg-red-50 text-red-700 border border-red-200'
     };
-    return colors[status] || 'bg-gray-100 text-gray-700';
+    return colors[status] || 'bg-gray-50 text-gray-700 border border-gray-200';
   };
 
   // Calculate progress based on status
@@ -172,32 +176,11 @@ const SalesDashboard = () => {
     return progressMap[status] || 0;
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle, progress }) => (
-    <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="text-xs font-semibold uppercase text-gray-500 mb-1 tracking-wide">{title}</div>
-          <div className="text-2xl font-bold text-gray-900 mb-1">{value}</div>
-          {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
-          {progress !== undefined && (
-            <div className="mt-3">
-              <div className="w-full h-2 bg-gray-200 rounded-full">
-                <div className={`h-2 rounded-full ${color === 'info' ? 'bg-blue-500' : color === 'success' ? 'bg-green-500' : color === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
-              </div>
-              <span className="text-xs text-gray-500 mt-1 block">{progress}% of target</span>
-            </div>
-          )}
-        </div>
-        <div className={`rounded-full p-3 flex items-center justify-center w-12 h-12 ${color === 'primary' ? 'bg-blue-100 text-blue-600' : color === 'success' ? 'bg-green-100 text-green-600' : color === 'info' ? 'bg-blue-100 text-blue-600' : color === 'warning' ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
+
 
   const TabPanel = ({ children, value, index }) => (
     <div className={value !== index ? 'hidden' : ''}>
-      {value === index && <div className="p-6">{children}</div>}
+      {value === index && <div className="p-4">{children}</div>}
     </div>
   );
 
@@ -230,7 +213,7 @@ const SalesDashboard = () => {
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-500"
             >
               Try Again
             </button>
@@ -241,72 +224,67 @@ const SalesDashboard = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Sales Dashboard</h1>
-          <p className="text-gray-600 mt-1">Monitor your sales performance and manage orders</p>
+          <h1 className="text-2xl font-bold text-gray-800">Sales Dashboard</h1>
+          <p className="text-sm text-gray-600 mt-0.5">Monitor sales performance and manage orders</p>
         </div>
         <button
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+          className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5 font-medium"
           onClick={() => navigate('/sales/orders/create')}
         >
-          <FaPlus className="text-sm" />
-          Create Sales Order
+          <FaPlus size={14} />
+          Create Order
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <StatCard
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+        <MinimalStatCard
           title="Total Orders"
           value={stats?.totalOrders || 0}
-          icon={<FaShoppingCart className="text-xl" />}
-          color="primary"
+          icon={ShoppingCart}
         />
-        <StatCard
+        <MinimalStatCard
           title="Active Orders"
           value={stats?.pendingOrders || 0}
-          icon={<FaClock className="text-xl" />}
-          color="warning"
+          icon={Clock}
         />
-        <StatCard
+        <MinimalStatCard
           title="Completed Orders"
           value={stats?.orderStats?.find(s => s.status === 'completed')?.count || 0}
-          icon={<FaCheckCircle className="text-xl" />}
-          color="success"
+          icon={CheckCircle}
         />
-        <StatCard
+        <MinimalStatCard
           title="Total Revenue"
           value={`₹${((stats?.totalRevenue || 0) / 100000).toFixed(1)}L`}
-          icon={<FaMoneyBill className="text-xl" />}
-          color="info"
-          subtitle="This month"
+          icon={DollarSign}
         />
       </div>
 
       {/* Enhanced Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="bg-white rounded shadow-sm border border-gray-200 p-3 mb-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:items-center lg:justify-between gap-3">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg text-gray-900 mb-4">Quick Search & Filters</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <h3 className="text-xs font-semibold text-gray-800 mb-2">Quick Search & Filters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Search Orders</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Search Orders</label>
                 <div className="relative">
                   <input
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 text-sm rounded px-3 py-1.5 pl-8 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                     placeholder="Search by order no, customer name..."
                     onChange={(e) => handleSearch(e.target.value)}
                   />
-                  <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                  <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" size={12} />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Status Filter</label>
                 <select
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 text-sm rounded px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
                   value={filterStatus}
                   onChange={e => setFilterStatus(e.target.value)}
                 >
@@ -322,18 +300,18 @@ const SalesDashboard = () => {
               </div>
               <div className="flex gap-2">
                 <button
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  className="px-2.5 py-1.5 border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-1.5"
                   onClick={() => navigate('/sales/reports')}
                 >
-                  <FaChartLine className="text-sm" />
-                  View Reports
+                  <FaChartLine size={12} />
+                  Reports
                 </button>
                 <button
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  className="px-2.5 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors flex items-center gap-1.5 disabled:opacity-50"
                   onClick={handleExportOrders}
                   disabled={exporting}
                 >
-                  {exporting ? <FaSpinner className="animate-spin text-sm" /> : <FaFileExport className="text-sm" />}
+                  {exporting ? <FaSpinner className="animate-spin" size={12} /> : <FaFileExport size={12} />}
                   {exporting ? 'Exporting...' : 'Export'}
                 </button>
               </div>
@@ -343,14 +321,14 @@ const SalesDashboard = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white rounded shadow-sm border border-gray-200">
         {/* Tab Navigation */}
-        <div className="border-b border-gray-200 bg-gray-50 px-6">
-          <div className="flex gap-8">
+        <div className="border-b border-gray-200 bg-gray-50 px-4">
+          <div className="flex gap-6">
             {['Sales Orders', 'Sales Pipeline', 'Customer Management'].map((tab, idx) => (
               <button
                 key={tab}
-                className={`py-4 px-2 font-medium text-sm border-b-2 transition-all ${
+                className={`py-2.5 px-2 font-medium text-xs border-b-2 transition-all ${
                   tabValue === idx
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300'
@@ -366,44 +344,44 @@ const SalesDashboard = () => {
         <TabPanel value={tabValue} index={0}>
           <div>
             {/* Orders Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="font-semibold text-xl text-gray-900">Sales Orders</h3>
-                <p className="text-gray-600 text-sm mt-1">{filteredOrders.length} orders found</p>
+                <h3 className="font-semibold text-lg text-gray-800">Sales Orders</h3>
+                <p className="text-gray-600 text-xs mt-0.5">{filteredOrders.length} orders found</p>
               </div>
               <button
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-1.5"
                 onClick={() => navigate('/sales/orders')}
               >
-                <FaClipboardList className="text-sm" />
-                View All Orders
+                <FaClipboardList size={13} />
+                View All
               </button>
             </div>
 
             {/* Orders Table */}
             <div className="overflow-x-auto">
-              <table className="min-w-full">
+              <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-left">Order No.</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-left">Customer</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-left">Products</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-right">Quantity</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-right">Amount</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-center">Status</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-center">Progress</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-left">Delivery Date</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-left">Salesperson</th>
-                    <th className="font-semibold text-gray-700 px-4 py-3 text-center">Actions</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Order No.</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Customer</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Products</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-right">Qty</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-right">Amount</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-center">Status</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-center">Progress</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Delivery</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Salesperson</th>
+                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan="10" className="px-4 py-6 text-center text-gray-500">
                         <div className="flex flex-col items-center">
-                          <FaClipboardList className="text-4xl text-gray-300 mb-2" />
-                          <p>No orders found matching your criteria</p>
+                          <FaClipboardList className="text-3xl text-gray-300 mb-2" />
+                          <p className="text-sm">No orders found matching your criteria</p>
                         </div>
                       </td>
                     </tr>
@@ -423,15 +401,15 @@ const SalesDashboard = () => {
                         }}
                         aria-label={`View order ${order.order_number}`}
                       >
-                        <td className="px-4 py-3 font-semibold text-gray-900 group-hover:underline">{order.order_number}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-2 font-semibold text-sm text-gray-900 group-hover:underline">{order.order_number}</td>
+                        <td className="px-2 py-2">
                           <div>
-                            <span className="font-medium text-gray-900">{order.customer?.name || 'N/A'}</span>
+                            <span className="font-medium text-sm text-gray-900">{order.customer?.name || 'N/A'}</span>
                             <div className="text-xs text-gray-500">{order.customer?.phone || ''}</div>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-700">
+                        <td className="px-2 py-2">
+                          <div className="text-xs text-gray-700">
                             {order.items && order.items.length > 0 ? (
                               <div>
                                 {order.items.slice(0, 2).map((item, idx) => (
@@ -441,7 +419,7 @@ const SalesDashboard = () => {
                                 ))}
                                 {order.items.length > 2 && (
                                   <div className="text-xs text-gray-500">
-                                    +{order.items.length - 2} more items
+                                    +{order.items.length - 2} more
                                   </div>
                                 )}
                               </div>
@@ -450,18 +428,18 @@ const SalesDashboard = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right font-medium">{order.total_quantity || 0}</td>
-                        <td className="px-4 py-3 text-right font-medium">₹{order.final_amount?.toLocaleString() || 0}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
+                        <td className="px-2 py-2 text-right text-sm font-medium">{order.total_quantity || 0}</td>
+                        <td className="px-2 py-2 text-right text-sm font-medium">₹{order.final_amount?.toLocaleString() || 0}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-sm text-xs font-medium ${getStatusColor(order.status)}`}>
                             {order.status.replace('_', ' ').toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-16 h-2 bg-gray-200 rounded-full">
+                        <td className="px-2 py-2 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <div className="w-12 h-1.5 bg-gray-200 rounded-full">
                               <div
-                                className="h-2 rounded-full bg-blue-500"
+                                className="h-1.5 rounded-full bg-blue-500"
                                 style={{ width: `${getOrderProgress(order.status)}%` }}
                               ></div>
                             </div>
@@ -470,50 +448,60 @@ const SalesDashboard = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="px-2 py-2 text-xs text-gray-700">
                           {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : 'N/A'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="px-2 py-2 text-xs text-gray-700">
                           {order.creator?.name || 'N/A'}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                              onClick={e => { e.stopPropagation(); handleViewOrder(order.id); }}
-                              title="View Order"
-                            >
-                              <FaEye className="text-sm" />
-                            </button>
-                            <button
-                              className="p-2 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
-                              onClick={e => { e.stopPropagation(); handleEditOrder(order.id); }}
-                              title="Edit Order"
-                            >
-                              <FaEdit className="text-sm" />
-                            </button>
-                            <button
-                              className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                              onClick={e => { e.stopPropagation(); handleShowQrCode(order); }}
-                              title="View QR Code"
-                            >
-                              <FaQrcode className="text-sm" />
-                            </button>
+                        <td className="px-2 py-2 text-center">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <Tooltip text="View" position="top">
+                              <button
+                                className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                onClick={e => { e.stopPropagation(); handleViewOrder(order.id); }}
+                              >
+                                <FaEye size={13} />
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="Edit" position="top">
+                              <button
+                                className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                onClick={e => { e.stopPropagation(); handleEditOrder(order.id); }}
+                              >
+                                <FaEdit size={13} />
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="QR Code" position="top">
+                              <button
+                                className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                onClick={e => { e.stopPropagation(); handleShowQrCode(order); }}
+                              >
+                                <FaQrcode size={13} />
+                              </button>
+                            </Tooltip>
                             {/* Show "Send to Procurement" button only for DRAFT orders that haven't been sent yet */}
                             {order.status === 'draft' && !order.ready_for_procurement && (
-                              <button
-                                className="p-2 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors"
-                                onClick={e => { e.stopPropagation(); handleSendToProcurement(order); }}
-                                title="Send to Procurement for Approval"
-                              >
-                                <FaPaperPlane className="text-sm" />
-                              </button>
+                              <Tooltip text="Send to Procurement" position="top">
+                                <button
+                                  className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                  onClick={e => { e.stopPropagation(); handleSendToProcurement(order); }}
+                                >
+                                  <FaPaperPlane size={13} />
+                                </button>
+                              </Tooltip>
                             )}
                             {/* Show indicator if order is waiting for procurement approval */}
                             {order.status === 'draft' && order.ready_for_procurement && (
-                              <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full whitespace-nowrap">
-                                ⏳ Awaiting Approval
-                              </span>
+                              <Tooltip text="Awaiting for Approval" position="top">
+                                <button
+                                  className="p-1.5 rounded border border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 transition-colors"
+                                  onClick={e => { e.stopPropagation(); handleSendToProcurement(order); }}
+                                >
+                                  ⏳
+                                </button>
+                              </Tooltip>
+                              
                             )}
                           </div>
                         </td>
@@ -529,45 +517,45 @@ const SalesDashboard = () => {
         <TabPanel value={tabValue} index={1}>
           <div>
             {/* Pipeline Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="font-semibold text-xl text-gray-900">Sales Pipeline</h3>
-                <p className="text-gray-600 text-sm mt-1">Track your sales opportunities through different stages</p>
+                <h3 className="font-semibold text-lg text-gray-800">Sales Pipeline</h3>
+                <p className="text-gray-600 text-xs mt-0.5">Track opportunities through different stages</p>
               </div>
               <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5"
                 onClick={() => navigate('/sales/pipeline')}
               >
-                <FaChartLine className="text-sm" />
-                View Full Pipeline
+                <FaChartLine size={13} />
+                View Full
               </button>
             </div>
 
             {/* Pipeline Stages */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {salesPipeline.length === 0 ? (
-                <div className="col-span-full text-center py-8">
-                  <FaChartLine className="text-4xl text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500">No pipeline data available</p>
+                <div className="col-span-full text-center py-6">
+                  <FaChartLine className="text-3xl text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">No pipeline data available</p>
                 </div>
               ) : (
                 salesPipeline.map((stage, index) => (
-                  <div key={stage.status} className="bg-white rounded-lg border border-gray-200 p-6 text-center hover:shadow-md transition-shadow">
-                    <div className="text-lg font-semibold text-blue-600 mb-2 capitalize">
+                  <div key={stage.status} className="bg-white rounded border border-gray-200 p-3 text-center hover:border-gray-300 transition-colors">
+                    <div className="text-sm font-semibold text-gray-700 mb-1 capitalize">
                       {stage.status.replace('_', ' ')}
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">{stage.count}</div>
-                    <div className="text-sm text-gray-500 mb-3">Opportunities</div>
-                    <div className="text-xl font-semibold text-green-600">
+                    <div className="text-2xl font-bold text-gray-900 mb-1">{stage.count}</div>
+                    <div className="text-xs text-gray-500 mb-2">Opportunities</div>
+                    <div className="text-lg font-semibold text-gray-900">
                       ₹{((stage.value || 0) / 100000).toFixed(1)}L
                     </div>
                     <div className="text-xs text-gray-500">Pipeline Value</div>
 
                     {/* Progress indicator */}
-                    <div className="mt-4">
-                      <div className="w-full h-2 bg-gray-200 rounded-full">
+                    <div className="mt-2">
+                      <div className="w-full h-1.5 bg-gray-200 rounded">
                         <div
-                          className="h-2 bg-blue-500 rounded-full transition-all duration-300"
+                          className="h-1.5 bg-blue-500 rounded transition-all duration-300"
                           style={{
                             width: `${Math.min((index + 1) * 20, 100)}%`
                           }}
@@ -581,23 +569,23 @@ const SalesDashboard = () => {
 
             {/* Pipeline Summary */}
             {salesPipeline.length > 0 && (
-              <div className="mt-8 bg-gray-50 rounded-lg p-6">
+              <div className="mt-8 bg-white border border-gray-200 rounded p-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Pipeline Summary</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-gray-900">
                       {salesPipeline.reduce((sum, stage) => sum + stage.count, 0)}
                     </div>
                     <div className="text-sm text-gray-600">Total Opportunities</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-gray-900">
                       ₹{(salesPipeline.reduce((sum, stage) => sum + (stage.value || 0), 0) / 100000).toFixed(1)}L
                     </div>
                     <div className="text-sm text-gray-600">Total Pipeline Value</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-gray-900">
                       {salesPipeline.length > 0 ? Math.round(salesPipeline.reduce((sum, stage) => sum + stage.count, 0) / salesPipeline.length) : 0}
                     </div>
                     <div className="text-sm text-gray-600">Avg. per Stage</div>
@@ -617,35 +605,35 @@ const SalesDashboard = () => {
                 <p className="text-gray-600 text-sm mt-1">Manage your customer relationships and insights</p>
               </div>
               <button
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+                className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5 font-medium text-sm"
                 onClick={() => navigate('/sales/customers')}
               >
-                <FaPlus className="text-sm" />
+                <FaPlus size={14} />
                 Add Customer
               </button>
             </div>
 
             {/* Customer Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-6 text-center hover:shadow-md transition-shadow">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaUser className="text-blue-600 text-2xl" />
+              <div className="bg-white rounded border border-gray-200 p-6 text-center hover:border-gray-300 transition-colors">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mx-auto mb-4">
+                  <FaUser className="text-gray-600 text-xl" />
                 </div>
                 <div className="text-3xl font-bold text-gray-900 mb-2">{customerStats?.total || 0}</div>
                 <div className="text-sm text-gray-600">Total Customers</div>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 text-center hover:shadow-md transition-shadow">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaChartLine className="text-green-600 text-2xl" />
+              <div className="bg-white rounded border border-gray-200 p-6 text-center hover:border-gray-300 transition-colors">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mx-auto mb-4">
+                  <FaChartLine className="text-gray-600 text-xl" />
                 </div>
                 <div className="text-3xl font-bold text-gray-900 mb-2">{customerStats?.newThisMonth || 0}</div>
                 <div className="text-sm text-gray-600">New This Month</div>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 text-center hover:shadow-md transition-shadow">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaMoneyBill className="text-blue-600 text-2xl" />
+              <div className="bg-white rounded border border-gray-200 p-6 text-center hover:border-gray-300 transition-colors">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mx-auto mb-4">
+                  <FaMoneyBill className="text-gray-600 text-xl" />
                 </div>
                 <div className="text-3xl font-bold text-gray-900 mb-2">₹{(customerStats?.avgOrderValue || 0) / 1000}K</div>
                 <div className="text-sm text-gray-600">Avg. Order Value</div>
@@ -653,15 +641,15 @@ const SalesDashboard = () => {
             </div>
 
             {/* Customer Actions */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded border border-gray-200 p-6">
               <h4 className="font-semibold text-gray-900 mb-4">Quick Actions</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
-                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                   onClick={() => navigate('/sales/customers')}
                 >
                   <div className="flex items-center gap-3">
-                    <FaUser className="text-blue-600" />
+                    <FaUser className="text-gray-600" />
                     <div>
                       <div className="font-medium text-gray-900">View Customers</div>
                       <div className="text-sm text-gray-600">Manage customer database</div>
@@ -670,11 +658,11 @@ const SalesDashboard = () => {
                 </button>
 
                 <button
-                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                   onClick={() => navigate('/sales/customer-segments')}
                 >
                   <div className="flex items-center gap-3">
-                    <FaChartLine className="text-green-600" />
+                    <FaChartLine className="text-gray-600" />
                     <div>
                       <div className="font-medium text-gray-900">Customer Segments</div>
                       <div className="text-sm text-gray-600">Analyze customer groups</div>
@@ -683,11 +671,11 @@ const SalesDashboard = () => {
                 </button>
 
                 <button
-                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                   onClick={() => navigate('/sales/customer-feedback')}
                 >
                   <div className="flex items-center gap-3">
-                    <FaCheckCircle className="text-purple-600" />
+                    <FaCheckCircle className="text-gray-600" />
                     <div>
                       <div className="font-medium text-gray-900">Customer Feedback</div>
                       <div className="text-sm text-gray-600">View customer reviews</div>
@@ -696,11 +684,11 @@ const SalesDashboard = () => {
                 </button>
 
                 <button
-                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
                   onClick={() => navigate('/sales/customer-reports')}
                 >
                   <div className="flex items-center gap-3">
-                    <FaDownload className="text-orange-600" />
+                    <FaDownload className="text-gray-600" />
                     <div>
                       <div className="font-medium text-gray-900">Customer Reports</div>
                       <div className="text-sm text-gray-600">Generate customer insights</div>
@@ -716,12 +704,12 @@ const SalesDashboard = () => {
       {/* QR Code Dialog */}
       {qrDialogOpen && selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded p-6 max-w-md w-full mx-4 border border-gray-200">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Order QR Code</h3>
               <button
                 onClick={() => setQrDialogOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
                 ×
               </button>

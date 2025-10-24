@@ -94,14 +94,14 @@ const UserManagementPage = () => {
 
   const getDepartmentColor = (department) => {
     const colors = {
-      sales: 'bg-blue-600',
-      inventory: 'bg-green-600',
+      sales: 'bg-blue-500',
+      inventory: 'bg-green-500',
       manufacturing: 'bg-orange-600',
       procurement: 'bg-purple-600',
       outsourcing: 'bg-pink-600',
       shipment: 'bg-indigo-600',
       store: 'bg-teal-600',
-      finance: 'bg-red-600',
+      finance: 'bg-red-500',
       admin: 'bg-gray-600',
       samples: 'bg-yellow-600'
     };
@@ -126,8 +126,8 @@ const UserManagementPage = () => {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">User Management</h1>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">User Management</h1>
         <div className="text-sm text-gray-500 mb-4">Manage system users, roles, and permissions</div>
         <div className="flex justify-between items-center">
           <div className="flex gap-3">
@@ -140,7 +140,7 @@ const UserManagementPage = () => {
           </div>
           <button
             onClick={() => navigate('/admin/users/create')}
-            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-1.5"
           >
             <FaPlus className="text-sm" /> Add New User
           </button>
@@ -148,17 +148,17 @@ const UserManagementPage = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded shadow border border-gray-200 p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <form onSubmit={handleSearch} className="md:col-span-2">
             <div className="relative">
-              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+              <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search users by name, email, or employee ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
               />
             </div>
           </form>
@@ -169,7 +169,7 @@ const UserManagementPage = () => {
               setSelectedDepartment(e.target.value);
               setPage(1);
             }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
           >
             <option value="">All Departments</option>
             <option value="sales">Sales</option>
@@ -190,7 +190,7 @@ const UserManagementPage = () => {
               setSelectedStatus(e.target.value);
               setPage(1);
             }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -200,7 +200,7 @@ const UserManagementPage = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded shadow border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -216,22 +216,22 @@ const UserManagementPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contact
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Department
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -353,7 +353,7 @@ const UserManagementPage = () => {
                     onClick={() => handlePageChange(pageNum)}
                     className={`px-3 py-1 border rounded text-sm ${
                       page === pageNum
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-blue-500 text-white border-blue-600'
                         : 'border-gray-300 hover:bg-gray-50'
                     }`}
                   >

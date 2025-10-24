@@ -1,7 +1,8 @@
 const express = require('express');
-const { Shipment, SalesOrder, Customer, CourierPartner, ShipmentTracking, User } = require('../config/database');
+const { Shipment, SalesOrder, Customer, CourierPartner, ShipmentTracking, User, ProductionOrder, Product } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { updateOrderQRCode } = require('../utils/qrCodeUtils');
 const router = express.Router();
 
 // Get shipments with filtering and pagination
@@ -344,6 +345,117 @@ router.delete('/:id', authenticateToken, checkDepartment(['shipment', 'admin']),
   } catch (error) {
     console.error('Shipment deletion error:', error);
     res.status(500).json({ message: 'Failed to delete shipment' });
+  }
+});
+
+// Incoming orders ready for shipment
+router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
+  try {
+    const { status = 'ready_for_shipment', limit = 20 } = req.query;
+
+    // Build filter for production orders nearing completion
+    const productionWhere = {
+      status: status
+    };
+
+       const productionOrders = await ProductionOrder.findAll({
+         where: productionWhere,
+         include: [
+           {
+             model: SalesOrder,
+             as: 'salesOrder',
+             include: [{ model: Customer, as: 'customer' }]
+           },
+           {
+             model: Product,
+             as: 'product',
+             attributes: ['id', 'name', 'product_code', 'description', 'status', 'barcode']
+           }
+         ],
+         order: [['updated_at', 'DESC']],
+         attributes: [
+           'id',
+           'production_number',
+           'status',
+           'production_type',
+           'priority',
+           'quantity',
+           'planned_end_date',
+           'actual_end_date',
+           'sales_order_id',
+           'product_id',
+           'specifications',
+           'updated_at'
+         ],
+         limit: parseInt(limit, 10)
+       });
+
+    const formattedOrders = productionOrders.map((order) => {
+      const items = Array.isArray(order.salesOrder?.items)
+        ? order.salesOrder.items
+        : (() => {
+            try {
+              return order.salesOrder?.items ? JSON.parse(order.salesOrder.items) : [];
+            } catch (err) {
+              console.warn('Failed to parse sales order items for production order', order.id, err);
+              return [];
+            }
+          })();
+
+      const computedQuantity = (() => {
+        const firstItemQuantity = items?.[0]?.quantity || 0;
+        if (firstItemQuantity) return firstItemQuantity;
+
+        const materialQuantity = Array.isArray(order.materialRequirements)
+          ? order.materialRequirements[0]?.required_quantity
+          : null;
+        if (materialQuantity) return materialQuantity;
+
+        const receiptQuantity = Array.isArray(order.receipts)
+          ? order.receipts[0]?.total_items_received
+          : null;
+
+        return receiptQuantity || order.quantity;
+      })();
+
+      return {
+        id: order.id,
+        production_number: order.production_number,
+        production_status: order.status,
+        production_type: order.production_type,
+        priority: order.priority,
+        quantity: computedQuantity,
+        planned_completion: order.planned_end_date,
+        actual_completion: order.actual_end_date,
+        sales_order_id: order.sales_order_id,
+        sales_order_number: order.salesOrder?.order_number || null,
+        sales_order_status: order.salesOrder?.status || null,
+        customer_name: order.salesOrder?.customer?.name || 'N/A',
+        customer_phone: order.salesOrder?.customer?.phone || order.salesOrder?.customer?.mobile || null,
+        customer_email: order.salesOrder?.customer?.email || null,
+        shipping_address: order.salesOrder?.shipping_address || order.salesOrder?.delivery_address || null,
+        product_name:
+          order.product?.name ||
+          items[0]?.product_name ||
+          items[0]?.name ||
+          order.specifications?.product_name ||
+          (order.product_id ? `Product #${order.product_id}` : 'N/A'),
+        product_code: order.product?.product_code || null,
+        product_status: order.product?.status || null,
+        product_barcode: order.product?.barcode || null,
+        product_description: order.product?.description || null,
+        items,
+        last_updated: order.updated_at
+      };
+    });
+
+    res.json({
+      orders: formattedOrders,
+      total: formattedOrders.length
+    });
+  } catch (error) {
+    console.error('Incoming orders fetch error:', error);
+    res.status(500).json({ message: 'Failed to fetch incoming orders' });
   }
 });
 
@@ -752,35 +864,176 @@ router.post('/create-from-order/:salesOrderId', authenticateToken, checkDepartme
   }
 });
 
-// Helper function to update QR code (duplicate from manufacturing, should be centralized)
-async function updateOrderQRCode(salesOrderId, status) {
-  const salesOrder = await SalesOrder.findByPk(salesOrderId, {
-    include: [
-      { model: require('../models/Customer'), as: 'customer' },
-      { model: ProductionOrder, as: 'productionOrders', include: [{ model: ProductionStage, as: 'stages' }] }
-    ]
-  });
+// Update shipment status (QC, Packed, Shipped, In Transit, Delivered, etc.)
+router.patch('/:id/status', authenticateToken, checkDepartment(['shipment', 'warehouse', 'admin']), async (req, res) => {
+  try {
+    const { status, notes, tracking_number, courier_company, courier_partner_id } = req.body;
+    
+    const shipment = await Shipment.findByPk(req.params.id, {
+      include: [
+        { 
+          model: SalesOrder, 
+          as: 'salesOrder',
+          include: [{ model: Customer, as: 'customer' }]
+        },
+        { 
+          model: CourierPartner, 
+          as: 'courierPartner' 
+        }
+      ]
+    });
 
-  if (!salesOrder) return;
+    if (!shipment) {
+      return res.status(404).json({ message: 'Shipment not found' });
+    }
 
-  const qrData = {
-    order_id: salesOrder.order_number,
-    status,
-    customer: salesOrder.customer?.name,
-    delivery_date: salesOrder.delivery_date,
-    current_stage: status,
-    lifecycle_history: salesOrder.lifecycle_history,
-    production_progress: salesOrder.productionOrders?.[0] ? {
-      total_quantity: salesOrder.productionOrders[0].quantity,
-      completed_stages: salesOrder.productionOrders[0].stages?.filter(s => s.status === 'completed').length,
-      total_stages: salesOrder.productionOrders[0].stages?.length
-    } : null,
-    last_updated: new Date()
-  };
+    // Validate status transition
+    const validStatusTransitions = {
+      'preparing': ['packed', 'ready_to_ship'],
+      'packed': ['ready_to_ship', 'shipped'],
+      'ready_to_ship': ['shipped'],
+      'shipped': ['in_transit'],
+      'in_transit': ['out_for_delivery', 'failed_delivery'],
+      'out_for_delivery': ['delivered', 'failed_delivery'],
+      'delivered': [],
+      'failed_delivery': ['in_transit', 'returned'],
+      'returned': [],
+      'cancelled': []
+    };
 
-  await salesOrder.update({
-    qr_code: JSON.stringify(qrData)
-  });
-}
+    if (!validStatusTransitions[shipment.status]?.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status transition from '${shipment.status}' to '${status}'`,
+        allowed_transitions: validStatusTransitions[shipment.status]
+      });
+    }
+
+    const oldStatus = shipment.status;
+
+    // Update shipment
+    await shipment.update({
+      status,
+      tracking_number: tracking_number || shipment.tracking_number,
+      courier_company: courier_company || shipment.courier_company,
+      courier_partner_id: courier_partner_id || shipment.courier_partner_id,
+      last_status_update: new Date()
+    });
+
+    // Create tracking entry
+    const statusDescriptions = {
+      'preparing': 'Preparing shipment for dispatch',
+      'packed': 'Order has been packed',
+      'ready_to_ship': 'Ready for shipment',
+      'shipped': 'Shipment has been dispatched',
+      'in_transit': 'Shipment is in transit',
+      'out_for_delivery': 'Shipment is out for delivery',
+      'delivered': 'Shipment has been delivered',
+      'failed_delivery': 'Delivery attempt failed',
+      'returned': 'Shipment has been returned',
+      'cancelled': 'Shipment has been cancelled'
+    };
+
+    await ShipmentTracking.create({
+      shipment_id: shipment.id,
+      status: status,
+      description: notes || statusDescriptions[status] || `Status updated to ${status}`,
+      timestamp: new Date(),
+      created_by: req.user.id
+    });
+
+    // Update sales order status if needed
+    const salesOrderStatusMap = {
+      'shipped': 'shipped',
+      'in_transit': 'in_transit',
+      'out_for_delivery': 'out_for_delivery',
+      'delivered': 'delivered'
+    };
+
+    if (salesOrderStatusMap[status]) {
+      await shipment.salesOrder?.update({
+        status: salesOrderStatusMap[status],
+        shipped_at: status === 'shipped' ? new Date() : shipment.salesOrder.shipped_at,
+        delivered_at: status === 'delivered' ? new Date() : shipment.salesOrder.delivered_at
+      });
+
+      // Update QR code
+      await updateOrderQRCode(shipment.sales_order_id, salesOrderStatusMap[status]);
+    }
+
+    // Send customer notification for key milestones
+    if (['shipped', 'out_for_delivery', 'delivered'].includes(status)) {
+      const notificationTexts = {
+        'shipped': `Your order is on the way! Tracking #${shipment.tracking_number || shipment.shipment_number}`,
+        'out_for_delivery': `Your order is out for delivery today!`,
+        'delivered': `Your order has been delivered. Thank you for your business!`
+      };
+
+      // TODO: Send to customer via SMS/Email using NotificationService
+    }
+
+    res.json({
+      message: `Shipment status updated from ${oldStatus} to ${status}`,
+      shipment: await Shipment.findByPk(shipment.id, {
+        include: [
+          { 
+            model: SalesOrder, 
+            as: 'salesOrder',
+            include: [{ model: Customer, as: 'customer' }]
+          },
+          { 
+            model: CourierPartner, 
+            as: 'courierPartner' 
+          },
+          {
+            model: ShipmentTracking,
+            as: 'trackingUpdates',
+            order: [['timestamp', 'DESC']],
+            limit: 5
+          }
+        ]
+      })
+    });
+
+  } catch (error) {
+    console.error('Shipment status update error:', error);
+    res.status(500).json({ 
+      message: 'Failed to update shipment status',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Get shipment dashboard stats
+router.get('/dashboard/stats', authenticateToken, checkDepartment(['shipment', 'warehouse', 'admin']), async (req, res) => {
+  try {
+    const stats = {};
+    const shipmentStatuses = ['preparing', 'packed', 'ready_to_ship', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'failed_delivery', 'returned', 'cancelled'];
+
+    for (const status of shipmentStatuses) {
+      const count = await Shipment.count({ where: { status } });
+      stats[status] = count;
+    }
+
+    const totalShipments = await Shipment.count();
+    const activeShipments = (stats.shipped || 0) + (stats.in_transit || 0) + (stats.out_for_delivery || 0);
+    const completedShipments = (stats.delivered || 0);
+    const failedShipments = (stats.failed_delivery || 0);
+
+    res.json({
+      stats,
+      totals: {
+        total: totalShipments,
+        active: activeShipments,
+        completed: completedShipments,
+        failed: failedShipments,
+        pending: totalShipments - activeShipments - completedShipments - failedShipments
+      }
+    });
+
+  } catch (error) {
+    console.error('Shipment dashboard stats error:', error);
+    res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
+  }
+});
 
 module.exports = router;

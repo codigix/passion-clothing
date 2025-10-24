@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FaCheckCircle, FaSignOutAlt, FaClock, FaExclamationTriangle, FaChartLine } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
+import MinimalStatCard from '../components/common/MinimalStatCard';
 
 const AttendancePage = () => {
   const { user } = useAuth();
@@ -126,28 +127,15 @@ const AttendancePage = () => {
     });
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle, unit }) => (
-    <div className="bg-white shadow  p-4 flex flex-col justify-between h-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-gray-500 text-xs mb-1">{title}</div>
-          <div className="text-2xl font-bold text-gray-800">{value}{unit && <span className="text-base">{unit}</span>}</div>
-          {subtitle && <div className="text-xs text-gray-400">{subtitle}</div>}
-        </div>
-        <div className={`text-3xl ${color === 'success' ? 'text-green-500' : color === 'primary' ? 'text-blue-500' : color === 'info' ? 'text-cyan-500' : color === 'warning' ? 'text-yellow-500' : 'text-gray-400'}`}>{icon}</div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Attendance Management</h1>
+      <h1 className="text-2xl md:text-2xl font-bold text-gray-800 mb-4">Attendance Management</h1>
 
       {/* Current Time and Check-in/out */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25  ">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25  ">
           <div className="text-lg font-semibold mb-2">Current Time</div>
-          <div className="text-3xl font-bold text-primary mb-2">{formatTime(currentTime)}</div>
+          <div className="text-2xl font-bold text-primary mb-2">{formatTime(currentTime)}</div>
           <div className="text-gray-500">{currentTime.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
@@ -155,7 +143,7 @@ const AttendancePage = () => {
             day: 'numeric'
           })}</div>
         </div>
-        <div className="p-6 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25  ">
+        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25  ">
           <div className="text-lg font-semibold mb-2">Today's Attendance</div>
           {todayAttendance ? (
             <div className="w-full">
@@ -171,7 +159,7 @@ const AttendancePage = () => {
               </div>
               {!todayAttendance.checkOut && (
                 <button
-                  className="w-full py-2 rounded bg-red-500 text-white font-semibold flex items-center justify-center gap-2 hover:bg-red-600"
+                  className="w-full py-2 rounded bg-red-500 text-white font-semibold flex items-center justify-center gap-2 hover:bg-red-500"
                   onClick={handleCheckOut}
                 >
                   <FaSignOutAlt /> Check Out
@@ -182,7 +170,7 @@ const AttendancePage = () => {
             <div className="w-full">
               <div className="text-gray-500 mb-2">You haven't checked in today</div>
               <button
-                className="w-full py-2 rounded bg-green-500 text-white font-semibold flex items-center justify-center gap-2 hover:bg-green-600"
+                className="w-full py-2 rounded bg-green-500 text-white font-semibold flex items-center justify-center gap-2 hover:bg-green-500"
                 onClick={handleCheckIn}
               >
                 <FaCheckCircle /> Check In
@@ -193,41 +181,36 @@ const AttendancePage = () => {
       </div>
 
       {/* Attendance Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+        <MinimalStatCard
           title="Present Days"
           value={attendanceStats.presentDays}
-          icon={<FaCheckCircle />}
-          color="success"
+          icon={FaCheckCircle}
           subtitle={`Out of ${attendanceStats.totalWorkingDays} days`}
         />
-        <StatCard
+        <MinimalStatCard
           title="Attendance Rate"
-          value={attendanceStats.attendancePercentage}
-          unit="%"
-          icon={<FaChartLine />}
-          color="primary"
+          value={`${attendanceStats.attendancePercentage}%`}
+          icon={FaChartLine}
         />
-        <StatCard
+        <MinimalStatCard
           title="Total Hours"
           value={attendanceStats.totalHours}
-          icon={<FaClock />}
-          color="info"
+          icon={FaClock}
           subtitle="This month"
         />
-        <StatCard
+        <MinimalStatCard
           title="Late Arrivals"
           value={attendanceStats.lateArrivals}
-          icon={<FaExclamationTriangle />}
-          color="warning"
+          icon={FaExclamationTriangle}
           subtitle="This month"
         />
       </div>
 
       {/* Attendance Progress */}
-      <div className="bg-white rounded shadow p-6 mb-6">
+      <div className="bg-white rounded shadow p-6 mb-4">
         <div className="text-lg font-semibold mb-2">Monthly Attendance Progress</div>
-        <div className="flex items-center gap-4 mb-2">
+        <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 h-3 bg-gray-200 rounded">
             <div
               className="h-3 rounded bg-green-500"

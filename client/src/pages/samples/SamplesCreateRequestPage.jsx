@@ -71,14 +71,14 @@ const SamplesCreateRequestPage = () => {
         <button
           type="button"
           onClick={() => navigate("/samples")}
-          className="inline-flex items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+          className="inline-flex items-center justify-center rounded border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
         >
           Back to Dashboard
         </button>
       </div>
 
       {showSuccess && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+        <div className="rounded border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" aria-hidden />
             Sample request logged successfully! Redirecting to orders...
@@ -89,7 +89,7 @@ const SamplesCreateRequestPage = () => {
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
         <form
           onSubmit={handleSubmit}
-          className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+          className="space-y-6 rounded border border-gray-200 bg-white p-6 shadow-sm"
         >
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
@@ -110,7 +110,7 @@ const SamplesCreateRequestPage = () => {
                 value={formData.customerName}
                 onChange={handleInputChange}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               />
             </label>
             <label className="text-sm font-medium text-gray-700">
@@ -121,7 +121,7 @@ const SamplesCreateRequestPage = () => {
                 value={formData.customerContact}
                 onChange={handleInputChange}
                 placeholder="+91 98765 43210"
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               />
             </label>
           </div>
@@ -135,7 +135,7 @@ const SamplesCreateRequestPage = () => {
                 value={formData.productName}
                 onChange={handleInputChange}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               />
             </label>
             <label className="text-sm font-medium text-gray-700">
@@ -145,7 +145,7 @@ const SamplesCreateRequestPage = () => {
                 name="expectedDate"
                 value={formData.expectedDate}
                 onChange={handleInputChange}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               />
             </label>
           </div>
@@ -157,7 +157,7 @@ const SamplesCreateRequestPage = () => {
                 name="sampleType"
                 value={formData.sampleType}
                 onChange={handleInputChange}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               >
                 {sampleTypes.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -172,7 +172,7 @@ const SamplesCreateRequestPage = () => {
                 name="quantity"
                 value={formData.quantity}
                 onChange={handleInputChange}
-                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
               >
                 {quantityOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -191,14 +191,14 @@ const SamplesCreateRequestPage = () => {
               onChange={handleInputChange}
               rows={4}
               placeholder="Eg: Prefer organic cotton, include logo embroidery, deliver via express courier..."
-              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="mt-1 w-full rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20/20"
             />
           </label>
 
           <div className="flex justify-end">
             <button
               type="submit"
-              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+              className="inline-flex items-center justify-center rounded bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600"
             >
               Submit Request
             </button>
@@ -206,7 +206,7 @@ const SamplesCreateRequestPage = () => {
         </form>
 
         <aside className="space-y-6">
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
               <Palette className="h-5 w-5 text-blue-600" aria-hidden />
               Recent Requests
@@ -215,7 +215,7 @@ const SamplesCreateRequestPage = () => {
               {lastRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm"
+                  className="rounded border border-gray-200 bg-gray-50 p-4 text-sm"
                 >
                   <p className="font-semibold text-gray-900">
                     {request.sampleNo} — {request.customerName}
@@ -231,7 +231,7 @@ const SamplesCreateRequestPage = () => {
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
               <Users className="h-5 w-5 text-indigo-600" aria-hidden />
               Customer Preferences
@@ -243,7 +243,7 @@ const SamplesCreateRequestPage = () => {
             </ul>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
               <Target className="h-5 w-5 text-green-600" aria-hidden />
               Approval Checklist
@@ -255,7 +255,7 @@ const SamplesCreateRequestPage = () => {
             </ul>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
               <Calendar className="h-5 w-5 text-purple-600" aria-hidden />
               Processing SLA

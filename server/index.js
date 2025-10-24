@@ -36,6 +36,7 @@ const materialDispatchRoutes = require('./routes/materialDispatch');
 const materialReceiptRoutes = require('./routes/materialReceipt');
 const materialVerificationRoutes = require('./routes/materialVerification');
 const productionApprovalRoutes = require('./routes/productionApproval');
+const ordersRoutes = require('./routes/orders');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -106,6 +107,7 @@ app.use('/api/material-dispatch', materialDispatchRoutes);
 app.use('/api/material-receipt', materialReceiptRoutes);
 app.use('/api/material-verification', materialVerificationRoutes);
 app.use('/api/production-approval', productionApprovalRoutes);
+app.use('/api/orders', ordersRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

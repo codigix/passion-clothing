@@ -48,7 +48,7 @@ const LoginPage = () => {
           <h1 className="text-3xl font-bold text-gray-800 mb-1">PASHION ERP</h1>
           <p className="text-gray-500">Clothing Factory Management System</p>
         </div>
-        <div className="bg-white shadow rounded-lg border border-gray-200">
+        <div className="bg-white shadow rounded border border-gray-200">
           <div className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 text-center mb-1">Welcome Back</h2>
             <p className="text-gray-500 text-center mb-4">Sign in to your account to continue</p>

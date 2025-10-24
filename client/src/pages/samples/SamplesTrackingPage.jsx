@@ -29,13 +29,13 @@ const SamplesTrackingPage = () => {
         <button
           type="button"
           onClick={() => navigate("/samples")}
-          className="inline-flex items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+          className="inline-flex items-center justify-center rounded border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
         >
           Back to Dashboard
         </button>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Active Tracking</h2>
         <p className="mt-1 text-sm text-gray-500">
           Keep stakeholders aligned with real-time progress across production stages.
@@ -45,7 +45,7 @@ const SamplesTrackingPage = () => {
           {sampleTracking.map((item) => (
             <div
               key={item.id}
-              className="rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm"
+              className="rounded border border-gray-200 bg-gray-50 p-4 shadow-sm"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -65,19 +65,19 @@ const SamplesTrackingPage = () => {
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm">
+                <div className="rounded border border-gray-200 bg-white p-3 text-sm">
                   <p className="text-xs text-gray-500">Status</p>
                   <p className="font-medium text-gray-900">
                     {formatLabel(item.status)}
                   </p>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm">
+                <div className="rounded border border-gray-200 bg-white p-3 text-sm">
                   <p className="text-xs text-gray-500">Duration</p>
                   <p className="font-medium text-gray-900">
                     {item.duration ? `${item.duration} days` : "Ongoing"}
                   </p>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-3 text-sm">
+                <div className="rounded border border-gray-200 bg-white p-3 text-sm">
                   <p className="text-xs text-gray-500">Assigned To</p>
                   <p className="font-medium text-gray-900">{item.assignedTo}</p>
                 </div>
@@ -87,7 +87,7 @@ const SamplesTrackingPage = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Stage Overview</h2>
         <p className="mt-1 text-sm text-gray-500">
           Each sample moves through a consistent lifecycle from request to delivery.
@@ -97,7 +97,7 @@ const SamplesTrackingPage = () => {
           {trackingStages.map((stage, index) => (
             <div
               key={stage.key}
-              className="flex flex-col items-center rounded-lg border border-gray-200 bg-gray-50 p-4 text-center"
+              className="flex flex-col items-center rounded border border-gray-200 bg-gray-50 p-4 text-center"
             >
               <Circle className="mb-2 h-5 w-5 text-blue-600" aria-hidden />
               <p className="text-sm font-semibold text-gray-900">{stage.label}</p>
@@ -109,7 +109,7 @@ const SamplesTrackingPage = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Team Allocation</h2>
         <p className="mt-1 text-sm text-gray-500">
           Quickly identify responsibilities and next steps for cross-functional teams.
@@ -119,7 +119,7 @@ const SamplesTrackingPage = () => {
           {sampleOrders.map((order) => (
             <div
               key={order.id}
-              className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4"
+              className="flex flex-col gap-3 rounded border border-gray-200 bg-gray-50 p-4"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-900">
@@ -139,7 +139,7 @@ const SamplesTrackingPage = () => {
               </div>
               <button
                 type="button"
-                className="mt-2 inline-flex items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-100"
+                className="mt-2 inline-flex items-center justify-center rounded border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-100"
               >
                 View Timeline
               </button>

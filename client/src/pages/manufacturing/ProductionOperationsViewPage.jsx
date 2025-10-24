@@ -18,10 +18,12 @@ import {
   Send,
   Download,
   Package,
-  Calculator
+  Calculator,
+  Truck
 } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import ReadyForShipmentDialog from '../../components/shipment/ReadyForShipmentDialog';
 
 const ProductionOperationsViewPage = () => {
   const { id } = useParams();
@@ -52,6 +54,9 @@ const ProductionOperationsViewPage = () => {
   const [reconciliationDialog, setReconciliationDialog] = useState(false);
   const [materials, setMaterials] = useState([]);
   const [reconciliationData, setReconciliationData] = useState([]);
+  
+  // Shipment workflow
+  const [readyForShipmentDialog, setReadyForShipmentDialog] = useState(false);
 
   useEffect(() => {
     fetchProductionOrder();
@@ -199,7 +204,7 @@ const ProductionOperationsViewPage = () => {
   };
 
   const getStageStatusClass = (status, isSelected) => {
-    const baseClass = 'p-4 rounded-lg border-2 mb-3 cursor-pointer transition-all';
+    const baseClass = 'p-4 rounded border-2 mb-3 cursor-pointer transition-all';
     if (isSelected) {
       return `${baseClass} border-red-500 bg-red-50`;
     }
@@ -244,7 +249,9 @@ const ProductionOperationsViewPage = () => {
   const handlePauseStage = async () => {
     try {
       const stage = stages[selectedStageIndex];
-      await api.post(`/manufacturing/stages/${stage.id}/pause`);
+      await api.post(`/manufacturing/stages/${stage.id}/pause`, {
+        status: 'on_hold'
+      });
       toast.success('Stage paused successfully');
       fetchProductionOrder();
     } catch (error) {
@@ -433,7 +440,7 @@ const ProductionOperationsViewPage = () => {
           <p className="text-gray-600">Production order not found</p>
           <button
             onClick={() => navigate('/manufacturing')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Back to Dashboard
           </button>
@@ -453,7 +460,7 @@ const ProductionOperationsViewPage = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/manufacturing')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded transition-colors"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
@@ -545,7 +552,7 @@ const ProductionOperationsViewPage = () => {
         {/* Right Panel - Stage Details */}
         <div className="flex-1 p-6 h-[calc(100vh-180px)] overflow-y-auto">
           {currentStage && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
               {/* Stage Title and Actions */}
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -560,14 +567,14 @@ const ProductionOperationsViewPage = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveChanges}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
                     >
                       <Save className="w-4 h-4" />
                       Save Changes
                     </button>
                     <button
                       onClick={() => setEditMode(false)}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                     >
                       <X className="w-4 h-4" />
                       Cancel
@@ -576,7 +583,7 @@ const ProductionOperationsViewPage = () => {
                 ) : (
                   <button
                     onClick={() => setEditMode(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
                     <Edit className="w-4 h-4" />
                     Edit
@@ -586,7 +593,7 @@ const ProductionOperationsViewPage = () => {
 
               {/* Stage Customization Info */}
               {(currentStage.is_embroidery || currentStage.is_printing || currentStage.outsourced !== undefined) && (
-                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded">
                   <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
                     <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
@@ -639,7 +646,7 @@ const ProductionOperationsViewPage = () => {
                       type="date"
                       value={formData.start_date}
                       onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                     />
                   ) : (
                     <p className="text-gray-900">
@@ -655,7 +662,7 @@ const ProductionOperationsViewPage = () => {
                       type="time"
                       value={formData.start_time}
                       onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                     />
                   ) : (
                     <p className="text-gray-900">
@@ -672,7 +679,7 @@ const ProductionOperationsViewPage = () => {
                       type="date"
                       value={formData.end_date}
                       onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                     />
                   ) : (
                     <p className="text-gray-900">
@@ -688,7 +695,7 @@ const ProductionOperationsViewPage = () => {
                       type="time"
                       value={formData.end_time}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                     />
                   ) : (
                     <p className="text-gray-900">
@@ -717,7 +724,7 @@ const ProductionOperationsViewPage = () => {
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                     placeholder="Add notes about this stage..."
                   />
                 ) : (
@@ -729,7 +736,7 @@ const ProductionOperationsViewPage = () => {
 
               {/* Outsourcing Options (for specific stages) */}
               {isOutsourcingStage(currentStage) && (
-                <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Building2 className="w-5 h-5 text-purple-600" />
                     Outsourcing Options
@@ -741,7 +748,7 @@ const ProductionOperationsViewPage = () => {
                         setWorkType('in_house');
                         toast.success('Set to In-House Production');
                       }}
-                      className={`p-4 rounded-lg border-2 transition-all ${
+                      className={`p-4 rounded border-2 transition-all ${
                         workType === 'in_house'
                           ? 'border-green-500 bg-green-50'
                           : 'border-gray-300 bg-white hover:bg-gray-50'
@@ -756,7 +763,7 @@ const ProductionOperationsViewPage = () => {
                         setWorkType('outsourced');
                         toast.success('Set to Outsourced');
                       }}
-                      className={`p-4 rounded-lg border-2 transition-all ${
+                      className={`p-4 rounded border-2 transition-all ${
                         workType === 'outsourced'
                           ? 'border-purple-500 bg-purple-50'
                           : 'border-gray-300 bg-white hover:bg-gray-50'
@@ -771,7 +778,7 @@ const ProductionOperationsViewPage = () => {
                     <div className="space-y-3">
                       <button
                         onClick={() => setOutwardChallanDialog(true)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded hover:bg-orange-700"
                       >
                         <Send className="w-5 h-5" />
                         Create Outward Challan
@@ -779,7 +786,7 @@ const ProductionOperationsViewPage = () => {
                       
                       <button
                         onClick={() => setInwardChallanDialog(true)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600"
                       >
                         <Download className="w-5 h-5" />
                         Create Inward Challan
@@ -791,7 +798,7 @@ const ProductionOperationsViewPage = () => {
                           <h4 className="font-medium text-gray-900 mb-2">Challans</h4>
                           <div className="space-y-2">
                             {challans.map((challan) => (
-                              <div key={challan.id} className="p-3 bg-white border border-gray-200 rounded-lg">
+                              <div key={challan.id} className="p-3 bg-white border border-gray-200 rounded">
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="font-medium">{challan.challan_number}</p>
@@ -813,7 +820,7 @@ const ProductionOperationsViewPage = () => {
 
               {/* Material Reconciliation (for last stage) */}
               {isLastStage() && currentStage.status === 'in_progress' && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Calculator className="w-5 h-5 text-amber-600" />
                     Material Reconciliation
@@ -823,7 +830,7 @@ const ProductionOperationsViewPage = () => {
                   </p>
                   <button
                     onClick={openMaterialReconciliation}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded hover:bg-amber-700"
                   >
                     <Package className="w-5 h-5" />
                     Open Material Reconciliation
@@ -836,7 +843,7 @@ const ProductionOperationsViewPage = () => {
                 <button
                   onClick={handlePreviousStage}
                   disabled={selectedStageIndex === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous Stage
@@ -846,7 +853,7 @@ const ProductionOperationsViewPage = () => {
                   {currentStage.status === 'pending' && (
                     <button
                       onClick={handleStartStage}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
                     >
                       <Play className="w-4 h-4" />
                       Start Stage
@@ -857,14 +864,14 @@ const ProductionOperationsViewPage = () => {
                     <>
                       <button
                         onClick={handlePauseStage}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
                       >
                         <Pause className="w-4 h-4" />
                         Pause
                       </button>
                       <button
                         onClick={handleCompleteStage}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Complete Stage
@@ -875,7 +882,7 @@ const ProductionOperationsViewPage = () => {
                   {currentStage.status === 'on_hold' && (
                     <button
                       onClick={handleStartStage}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
                     >
                       <Play className="w-4 h-4" />
                       Resume Stage
@@ -886,12 +893,33 @@ const ProductionOperationsViewPage = () => {
                 <button
                   onClick={handleNextStage}
                   disabled={selectedStageIndex === stages.length - 1}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next Stage
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Ready for Shipment Button - Shows when all stages are complete */}
+              {productionOrder?.status === 'completed' && overallProgress === 100 && (
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Production Complete! 🎉</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        All production stages have been completed. The order is ready for shipment.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setReadyForShipmentDialog(true)}
+                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md hover:shadow-lg font-semibold"
+                    >
+                      <Truck className="w-5 h-5" />
+                      Mark as Ready for Shipment
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -900,7 +928,7 @@ const ProductionOperationsViewPage = () => {
       {/* Material Reconciliation Dialog */}
       {reconciliationDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Material Reconciliation</h2>
               <p className="text-sm text-gray-600 mt-1">
@@ -954,7 +982,7 @@ const ProductionOperationsViewPage = () => {
                 </table>
               </div>
 
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
                 <p className="text-sm text-blue-800">
                   <strong>Note:</strong> Leftover materials will be automatically returned to inventory after submission.
                 </p>
@@ -964,13 +992,13 @@ const ProductionOperationsViewPage = () => {
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setReconciliationDialog(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReconciliationSubmit}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
               >
                 Complete Reconciliation
               </button>
@@ -997,6 +1025,18 @@ const ProductionOperationsViewPage = () => {
           challans={challans.filter(c => c.type === 'outward' && c.status === 'pending')}
         />
       )}
+
+      {/* Ready for Shipment Dialog */}
+      <ReadyForShipmentDialog
+        open={readyForShipmentDialog}
+        onClose={() => setReadyForShipmentDialog(false)}
+        productionOrder={productionOrder}
+        onSuccess={(data) => {
+          toast.success('Order marked ready for shipment!');
+          // Navigate to shipment management page
+          navigate('/manufacturing/shipments');
+        }}
+      />
     </div>
   );
 };
@@ -1035,7 +1075,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full">
+      <div className="bg-white rounded max-w-2xl w-full">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Create Outward Challan</h2>
           <p className="text-sm text-gray-600 mt-1">Send materials to vendor for outsourced work</p>
@@ -1047,7 +1087,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
             <select
               value={formData.vendor_id}
               onChange={(e) => setFormData({ ...formData, vendor_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             >
               <option value="">Select Vendor</option>
               {vendors.map((vendor) => (
@@ -1064,7 +1104,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
               type="number"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
 
@@ -1074,7 +1114,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
               type="date"
               value={formData.expected_date}
               onChange={(e) => setFormData({ ...formData, expected_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
 
@@ -1085,7 +1125,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
               value={formData.transport_mode}
               onChange={(e) => setFormData({ ...formData, transport_mode: e.target.value })}
               placeholder="e.g., Truck, Courier"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
 
@@ -1096,7 +1136,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
               value={formData.vehicle_number}
               onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
               placeholder="e.g., MH01AB1234"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
 
@@ -1107,7 +1147,7 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               placeholder="Special instructions for vendor..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
         </div>
@@ -1115,13 +1155,13 @@ const OutwardChallanDialog = ({ onClose, onSubmit, vendors, productionOrder }) =
         <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
           >
             Create Outward Challan
           </button>
@@ -1160,7 +1200,7 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full">
+      <div className="bg-white rounded max-w-2xl w-full">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Create Inward Challan</h2>
           <p className="text-sm text-gray-600 mt-1">Receive completed work from vendor</p>
@@ -1172,7 +1212,7 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
             <select
               value={formData.outward_challan_id}
               onChange={(e) => setFormData({ ...formData, outward_challan_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             >
               <option value="">Select Outward Challan</option>
               {challans.map((challan) => (
@@ -1189,7 +1229,7 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
               type="number"
               value={formData.received_quantity}
               onChange={(e) => setFormData({ ...formData, received_quantity: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
 
@@ -1200,7 +1240,7 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
               onChange={(e) => setFormData({ ...formData, quality_notes: e.target.value })}
               rows={3}
               placeholder="Quality inspection notes..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
 
@@ -1211,7 +1251,7 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
               onChange={(e) => setFormData({ ...formData, discrepancies: e.target.value })}
               rows={3}
               placeholder="Any discrepancies or issues..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
             />
           </div>
         </div>
@@ -1219,13 +1259,13 @@ const InwardChallanDialog = ({ onClose, onSubmit, challans }) => {
         <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Create Inward Challan
           </button>
