@@ -125,18 +125,19 @@ const ShipmentDispatchPage = () => {
 
   const handleDispatchShipment = async (shipmentId, dispatchData, shipmentData) => {
     try {
-      // Use provided shipment data, or fall back to looking it up
-      const shipment = shipmentData || selectedShipment || shipments.find(s => s.id === shipmentId);
+      // Fetch the latest shipment data to avoid stale status
+      const freshResponse = await api.get(`/shipments/${shipmentId}`);
+      const freshShipment = freshResponse.data.shipment || freshResponse.data;
       
-      if (!shipment) {
+      if (!freshShipment) {
         toast.error('Shipment not found');
         return;
       }
 
-      // Determine the correct status based on current shipment status
+      // Determine the correct status based on CURRENT shipment status from backend
       let targetStatus = 'shipped'; // Default for ready_to_ship
       
-      const currentStatus = shipment.status?.trim().toLowerCase();
+      const currentStatus = freshShipment.status?.trim().toLowerCase();
       
       // Status transition logic
       if (currentStatus === 'ready_to_ship') {
@@ -149,7 +150,8 @@ const ShipmentDispatchPage = () => {
         targetStatus = 'delivered';
       } else {
         // For any other status, try to move to next logical state
-        toast.warn(`Current status: ${shipment.status}. Please check allowed transitions.`);
+        toast.warn(`Current status: ${freshShipment.status}. Please check allowed transitions.`);
+        return;
       }
 
       await api.post(`/shipments/${shipmentId}/status`, {
