@@ -1,5 +1,5 @@
 const express = require('express');
-const { Shipment, SalesOrder, Customer, CourierPartner, ShipmentTracking, User, ProductionOrder, Product } = require('../config/database');
+const { Shipment, SalesOrder, Customer, CourierPartner, ShipmentTracking, User, ProductionOrder, Product, ProductionStage } = require('../config/database');
 const { authenticateToken, checkDepartment } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { updateOrderQRCode } = require('../utils/qrCodeUtils');
@@ -170,7 +170,8 @@ router.post('/', authenticateToken, checkDepartment(['shipment', 'admin']), asyn
       payment_mode,
       special_instructions,
       recipient_name,
-      recipient_phone
+      recipient_phone,
+      recipient_email
     } = req.body;
 
     // Generate shipment number
@@ -211,6 +212,7 @@ router.post('/', authenticateToken, checkDepartment(['shipment', 'admin']), asyn
       special_instructions,
       recipient_name,
       recipient_phone,
+      recipient_email,
       created_by: req.user.id
     });
 
@@ -234,6 +236,97 @@ router.post('/', authenticateToken, checkDepartment(['shipment', 'admin']), asyn
   } catch (error) {
     console.error('Shipment creation error:', error);
     res.status(500).json({ message: 'Failed to create shipment' });
+  }
+});
+
+// Create shipment from order (for CreateShipmentPage)
+router.post('/create-from-order/:salesOrderId', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
+  try {
+    const { salesOrderId } = req.params;
+    const {
+      courier_company,
+      tracking_number,
+      expected_delivery_date,
+      notes,
+      shipping_address,
+      recipient_name,
+      recipient_phone,
+      recipient_email
+    } = req.body;
+
+    // Validate sales order exists
+    const salesOrder = await SalesOrder.findByPk(salesOrderId);
+    if (!salesOrder) {
+      return res.status(404).json({ message: 'Sales order not found' });
+    }
+
+    // Check if shipment already exists for this order
+    const existingShipment = await Shipment.findOne({
+      where: { sales_order_id: salesOrderId }
+    });
+    if (existingShipment) {
+      return res.status(400).json({ 
+        message: 'A shipment already exists for this order',
+        shipment_id: existingShipment.id
+      });
+    }
+
+    // Generate shipment number
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    const lastShipment = await Shipment.findOne({
+      where: {
+        shipment_number: { [Op.like]: `SHP-${dateStr}-%` }
+      },
+      order: [['shipment_number', 'DESC']]
+    });
+
+    let sequence = 1;
+    if (lastShipment) {
+      const lastSequence = parseInt(lastShipment.shipment_number.split('-')[2]);
+      sequence = lastSequence + 1;
+    }
+
+    const shipment_number = `SHP-${dateStr}-${sequence.toString().padStart(4, '0')}`;
+
+    const shipment = await Shipment.create({
+      shipment_number,
+      sales_order_id: salesOrderId,
+      expected_delivery_date,
+      shipping_address,
+      courier_company,
+      tracking_number,
+      special_instructions: notes,
+      recipient_name,
+      recipient_phone,
+      recipient_email,
+      status: 'pending',
+      created_by: req.user.id
+    });
+
+    // Create initial tracking entry
+    await ShipmentTracking.create({
+      shipment_id: shipment.id,
+      status: 'pending',
+      description: 'Shipment created and ready for dispatch',
+      created_by: req.user.id
+    });
+
+    res.status(201).json({ 
+      message: 'Shipment created successfully',
+      shipment: await Shipment.findByPk(shipment.id, {
+        include: [
+          { model: SalesOrder, as: 'salesOrder' },
+          { model: CourierPartner, as: 'courierPartner' }
+        ]
+      })
+    });
+  } catch (error) {
+    console.error('Shipment creation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create shipment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -351,46 +444,55 @@ router.delete('/:id', authenticateToken, checkDepartment(['shipment', 'admin']),
 // Incoming orders ready for shipment
 router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
   try {
-    const { status = 'ready_for_shipment', limit = 20 } = req.query;
+    const { status = 'completed', limit = 20, exclude_delivered = 'true' } = req.query;
+
+    // Map generic status to valid ProductionOrder ENUM values
+    let statusFilter = status;
+    if (status === 'ready_for_shipment') {
+      // Map ready_for_shipment to completed or quality_check
+      statusFilter = ['completed', 'quality_check'];
+    } else if (Array.isArray(status)) {
+      statusFilter = status;
+    }
 
     // Build filter for production orders nearing completion
-    const productionWhere = {
-      status: status
-    };
+    const productionWhere = Array.isArray(statusFilter)
+      ? { status: { [Op.in]: statusFilter } }
+      : { status: statusFilter };
 
-       const productionOrders = await ProductionOrder.findAll({
-         where: productionWhere,
-         include: [
-           {
-             model: SalesOrder,
-             as: 'salesOrder',
-             include: [{ model: Customer, as: 'customer' }]
-           },
-           {
-             model: Product,
-             as: 'product',
-             attributes: ['id', 'name', 'product_code', 'description', 'status', 'barcode']
-           }
-         ],
-         order: [['updated_at', 'DESC']],
-         attributes: [
-           'id',
-           'production_number',
-           'status',
-           'production_type',
-           'priority',
-           'quantity',
-           'planned_end_date',
-           'actual_end_date',
-           'sales_order_id',
-           'product_id',
-           'specifications',
-           'updated_at'
-         ],
-         limit: parseInt(limit, 10)
-       });
+    const productionOrders = await ProductionOrder.findAll({
+      where: productionWhere,
+      include: [
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
+          include: [{ model: Customer, as: 'customer' }]
+        },
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name', 'product_code', 'description', 'status', 'barcode']
+        }
+      ],
+      order: [['updated_at', 'DESC']],
+      attributes: [
+        'id',
+        'production_number',
+        'status',
+        'production_type',
+        'priority',
+        'quantity',
+        'planned_end_date',
+        'actual_end_date',
+        'sales_order_id',
+        'product_id',
+        'specifications',
+        'updated_at'
+      ],
+      limit: parseInt(limit, 10)
+    });
 
-    const formattedOrders = productionOrders.map((order) => {
+    const formattedOrders = await Promise.all(productionOrders.map(async (order) => {
       const items = Array.isArray(order.salesOrder?.items)
         ? order.salesOrder.items
         : (() => {
@@ -418,22 +520,42 @@ router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', '
         return receiptQuantity || order.quantity;
       })();
 
+      // Check if shipment exists for this production order
+      const shipment = await Shipment.findOne({
+        where: { 
+          production_order_id: order.id 
+        },
+        attributes: ['id', 'shipment_number', 'status', 'tracking_number', 'created_at']
+      });
+
       return {
+        // Production order identifiers
         id: order.id,
         production_number: order.production_number,
         production_status: order.status,
+        status: order.status, // For compatibility with UI
         production_type: order.production_type,
         priority: order.priority,
         quantity: computedQuantity,
         planned_completion: order.planned_end_date,
         actual_completion: order.actual_end_date,
+        
+        // Sales order linkage
         sales_order_id: order.sales_order_id,
         sales_order_number: order.salesOrder?.order_number || null,
+        order_number: order.salesOrder?.order_number || null, // For compatibility
         sales_order_status: order.salesOrder?.status || null,
+        
+        // Customer information
         customer_name: order.salesOrder?.customer?.name || 'N/A',
         customer_phone: order.salesOrder?.customer?.phone || order.salesOrder?.customer?.mobile || null,
         customer_email: order.salesOrder?.customer?.email || null,
+        
+        // Delivery information
         shipping_address: order.salesOrder?.shipping_address || order.salesOrder?.delivery_address || null,
+        
+        // Product information
+        product_id: order.product_id,
         product_name:
           order.product?.name ||
           items[0]?.product_name ||
@@ -444,14 +566,37 @@ router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', '
         product_status: order.product?.status || null,
         product_barcode: order.product?.barcode || null,
         product_description: order.product?.description || null,
+        
+        // Items and specifications
         items,
-        last_updated: order.updated_at
+        specifications: order.specifications || null,
+        
+        // Shipment information
+        has_shipment: !!shipment,
+        shipment_id: shipment?.id || null,
+        shipment_number: shipment?.shipment_number || null,
+        shipment_status: shipment?.status || null,
+        shipment_tracking: shipment?.tracking_number || null,
+        shipment_created_at: shipment?.created_at || null,
+        can_create_shipment: !shipment, // Can only create if no shipment exists
+        is_dispatched: shipment && shipment.status !== 'preparing', // Once any status beyond preparing
+        is_delivered: shipment && shipment.status === 'delivered', // Only if delivered
+        
+        // Timestamps
+        last_updated: order.updated_at,
+        updated_at: order.updated_at // For compatibility
       };
-    });
+    }));
+
+    // Filter out delivered orders if requested
+    const shouldExcludeDelivered = exclude_delivered === 'true' || exclude_delivered === true;
+    const filteredOrders = shouldExcludeDelivered 
+      ? formattedOrders.filter(order => !order.is_delivered)
+      : formattedOrders;
 
     res.json({
-      orders: formattedOrders,
-      total: formattedOrders.length
+      orders: filteredOrders,
+      total: filteredOrders.length
     });
   } catch (error) {
     console.error('Incoming orders fetch error:', error);
@@ -463,7 +608,9 @@ router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', '
 router.post('/:id/status', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
   try {
     const { status, location, description, latitude, longitude } = req.body;
-    const shipment = await Shipment.findByPk(req.params.id);
+    const shipment = await Shipment.findByPk(req.params.id, {
+      include: [{ model: SalesOrder, as: 'salesOrder' }]
+    });
     
     if (!shipment) {
       return res.status(404).json({ message: 'Shipment not found' });
@@ -476,21 +623,56 @@ router.post('/:id/status', authenticateToken, checkDepartment(['shipment', 'admi
       actual_delivery_date: status === 'delivered' ? new Date() : shipment.actual_delivery_date
     });
 
-    // Create tracking entry
-    await ShipmentTracking.create({
-      shipment_id: shipment.id,
-      status,
-      location,
-      description,
-      latitude,
-      longitude,
-      created_by: req.user.id
-    });
+    // Update linked SalesOrder status based on shipment status
+    if (shipment.sales_order_id && shipment.salesOrder) {
+      const statusMapping = {
+        'preparing': 'order_confirmed',
+        'dispatched': 'dispatched',
+        'in_transit': 'in_transit',
+        'out_for_delivery': 'out_for_delivery',
+        'delivered': 'delivered'
+      };
 
-    res.json({ message: 'Shipment status updated successfully' });
+      const salesOrderStatus = statusMapping[status] || status;
+      
+      await shipment.salesOrder.update({
+        status: salesOrderStatus,
+        updated_at: new Date()
+      });
+    }
+
+    // Create tracking entry
+    try {
+      await ShipmentTracking.create({
+        shipment_id: shipment.id,
+        status,
+        location,
+        description,
+        timestamp: new Date(),
+        latitude,
+        longitude,
+        created_by: req.user.id
+      });
+    } catch (trackingError) {
+      console.error('Tracking entry creation failed (non-blocking):', trackingError);
+      // Continue - shipment status was updated, tracking is optional
+    }
+
+    res.json({ 
+      message: 'Shipment status updated successfully',
+      shipment: await Shipment.findByPk(shipment.id, {
+        include: [
+          { model: SalesOrder, as: 'salesOrder' },
+          { model: CourierPartner, as: 'courierPartner' }
+        ]
+      })
+    });
   } catch (error) {
     console.error('Status update error:', error);
-    res.status(500).json({ message: 'Failed to update shipment status' });
+    res.status(500).json({ 
+      message: 'Failed to update shipment status',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -794,7 +976,16 @@ router.get('/reports/courier-performance', authenticateToken, checkDepartment(['
 // Create shipment from sales order ready to ship
 router.post('/create-from-order/:salesOrderId', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
   try {
-    const { courier_company, tracking_number, expected_delivery_date, notes } = req.body;
+    const { 
+      courier_company, 
+      tracking_number, 
+      expected_delivery_date, 
+      notes,
+      shipping_address,
+      recipient_name,
+      recipient_phone,
+      recipient_email
+    } = req.body;
 
     const salesOrder = await SalesOrder.findByPk(req.params.salesOrderId, {
       include: [
@@ -811,6 +1002,19 @@ router.post('/create-from-order/:salesOrderId', authenticateToken, checkDepartme
       return res.status(400).json({ message: 'Sales order is not ready for shipment' });
     }
 
+    // Validate required fields
+    if (!shipping_address || !shipping_address.trim()) {
+      return res.status(400).json({ message: 'Shipping address is required' });
+    }
+
+    if (!recipient_name || !recipient_name.trim()) {
+      return res.status(400).json({ message: 'Recipient name is required' });
+    }
+
+    if (!recipient_phone || !recipient_phone.trim()) {
+      return res.status(400).json({ message: 'Recipient phone is required' });
+    }
+
     // Generate shipment number
     const shipmentNumber = `SHP-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
 
@@ -824,6 +1028,10 @@ router.post('/create-from-order/:salesOrderId', authenticateToken, checkDepartme
       total_quantity: salesOrder.total_quantity,
       total_weight: 0, // Calculate if needed
       total_volume: 0, // Calculate if needed
+      shipping_address: shipping_address.trim(),
+      recipient_name: recipient_name.trim(),
+      recipient_phone: recipient_phone.trim(),
+      recipient_email: recipient_email ? recipient_email.trim() : null,
       courier_company,
       tracking_number,
       status: 'packed',
@@ -859,8 +1067,11 @@ router.post('/create-from-order/:salesOrderId', authenticateToken, checkDepartme
       })
     });
   } catch (error) {
-    console.error('Create shipment error:', error);
-    res.status(500).json({ message: 'Failed to create shipment' });
+    console.error('Create shipment error:', error.message, error);
+    res.status(500).json({ 
+      message: 'Failed to create shipment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -889,7 +1100,8 @@ router.patch('/:id/status', authenticateToken, checkDepartment(['shipment', 'war
 
     // Validate status transition
     const validStatusTransitions = {
-      'preparing': ['packed', 'ready_to_ship'],
+      'pending': ['preparing', 'packed', 'ready_to_ship', 'shipped'],
+      'preparing': ['packed', 'ready_to_ship', 'shipped'],
       'packed': ['ready_to_ship', 'shipped'],
       'ready_to_ship': ['shipped'],
       'shipped': ['in_transit'],
@@ -956,8 +1168,13 @@ router.patch('/:id/status', authenticateToken, checkDepartment(['shipment', 'war
         delivered_at: status === 'delivered' ? new Date() : shipment.salesOrder.delivered_at
       });
 
-      // Update QR code
-      await updateOrderQRCode(shipment.sales_order_id, salesOrderStatusMap[status]);
+      // Update QR code (non-blocking - don't fail if QR code update fails)
+      try {
+        await updateOrderQRCode(shipment.sales_order_id, salesOrderStatusMap[status]);
+      } catch (qrError) {
+        console.error('QR code update failed (non-blocking):', qrError);
+        // Continue - don't throw, this is not critical
+      }
     }
 
     // Send customer notification for key milestones

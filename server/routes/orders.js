@@ -8,6 +8,7 @@ const router = express.Router();
 /**
  * Generic order status update endpoint
  * Determines order type and updates status accordingly
+ * Handles cross-order status updates (e.g., ProductionOrder -> SalesOrder, Shipment updates)
  * PUT /api/orders/:id/status
  */
 router.put('/:id/status', authenticateToken, async (req, res) => {
@@ -15,7 +16,7 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
   
   try {
     const { id } = req.params;
-    const { status, department, action, notes } = req.body;
+    let { status, department, action, notes } = req.body;
 
     if (!status) {
       await transaction.rollback();
@@ -37,8 +38,82 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
     }
 
     if (!order) {
+      order = await Shipment.findByPk(id, { transaction });
+      orderType = 'shipment';
+    }
+
+    if (!order) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Handle special status mappings for ProductionOrder
+    let linkedSalesOrderUpdate = null;
+    if (orderType === 'production_order' && status === 'ready_for_shipment') {
+      // Map "ready_for_shipment" to "completed" for ProductionOrder
+      status = 'completed';
+      
+      // Also update linked SalesOrder to "ready_to_ship"
+      if (order.sales_order_id) {
+        const linkedSalesOrder = await SalesOrder.findByPk(order.sales_order_id, { transaction });
+        if (linkedSalesOrder) {
+          linkedSalesOrderUpdate = linkedSalesOrder;
+          await linkedSalesOrder.update(
+            {
+              status: 'ready_to_ship',
+              last_updated_by: req.user.id,
+              last_updated_at: new Date()
+            },
+            { transaction }
+          );
+
+          // Update lifecycle history for SalesOrder
+          try {
+            let salesHistory = JSON.parse(linkedSalesOrder.lifecycle_history || '[]');
+            if (!Array.isArray(salesHistory)) salesHistory = [];
+            
+            salesHistory.push({
+              status: 'ready_to_ship',
+              timestamp: new Date().toISOString(),
+              department: department || 'shipment',
+              action: 'auto_updated_from_production_order',
+              notes: notes || 'Automatically updated when production completed',
+              updated_by: req.user.id
+            });
+
+            await linkedSalesOrder.update(
+              { lifecycle_history: JSON.stringify(salesHistory) },
+              { transaction }
+            );
+          } catch (error) {
+            console.error('Error updating SalesOrder lifecycle history:', error);
+          }
+
+          // Update QR code for linked SalesOrder
+          try {
+            await updateOrderQRCode(linkedSalesOrder.id, 'ready_to_ship', transaction);
+          } catch (error) {
+            console.error('Error updating SalesOrder QR code:', error);
+          }
+        }
+      }
+    }
+
+    // Handle Shipment status updates with tracking
+    if (orderType === 'shipment') {
+      const ShipmentTracking = require('../config/database').ShipmentTracking;
+      const oldStatus = order.status;
+      
+      // Create tracking entry for status change
+      await ShipmentTracking.create({
+        shipment_id: order.id,
+        status: status,
+        description: `Status updated from ${oldStatus} to ${status}`,
+        created_by: req.user.id
+      }, { transaction });
+      
+      // Update last_status_update timestamp
+      order.last_status_update = new Date();
     }
 
     // Update order status
@@ -82,7 +157,7 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
 
     await transaction.commit();
 
-    res.json({
+    const response = {
       success: true,
       message: `${orderType} status updated successfully`,
       order: {
@@ -90,7 +165,18 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
         status: order.status,
         type: orderType
       }
-    });
+    };
+
+    // Include linked SalesOrder update info if applicable
+    if (linkedSalesOrderUpdate) {
+      response.linkedSalesOrder = {
+        id: linkedSalesOrderUpdate.id,
+        status: 'ready_to_ship',
+        message: 'Linked SalesOrder automatically updated to ready_to_ship'
+      };
+    }
+
+    res.json(response);
   } catch (error) {
     await transaction.rollback();
     console.error('Error updating order status:', error);
@@ -122,6 +208,11 @@ router.put('/:id/qr-code', authenticateToken, async (req, res) => {
     if (!order) {
       order = await ProductionOrder.findByPk(id);
       orderType = 'production_order';
+    }
+
+    if (!order) {
+      order = await Shipment.findByPk(id);
+      orderType = 'shipment';
     }
 
     if (!order) {

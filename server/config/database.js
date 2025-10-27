@@ -92,6 +92,7 @@ const QualityCheckpoint = require('../models/QualityCheckpoint')(sequelize);
 const StageOperation = require('../models/StageOperation')(sequelize);
 const MaterialConsumption = require('../models/MaterialConsumption')(sequelize);
 const ProductionCompletion = require('../models/ProductionCompletion')(sequelize);
+const CourierAgent = require('../models/CourierAgent')(sequelize);
 
 // Define associations
 const defineAssociations = () => {
@@ -435,7 +436,8 @@ const db = {
   QualityCheckpoint,
   StageOperation,
   MaterialConsumption,
-  ProductionCompletion
+  ProductionCompletion,
+  CourierAgent
 };
 
 module.exports = db;

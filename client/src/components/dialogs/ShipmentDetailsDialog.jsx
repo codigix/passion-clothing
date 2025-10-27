@@ -1,14 +1,26 @@
 import React from 'react';
-import { X, Package, Truck, MapPin, Calendar, Phone, Mail } from 'lucide-react';
+import { X, Package, Truck, MapPin, Calendar, Phone, Mail, AlertCircle } from 'lucide-react';
 
 const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
   if (!isOpen || !shipment) return null;
+
+  // Determine if this is an incoming production order or a shipment
+  const isProductionOrder = shipment.production_number && !shipment.shipment_number;
+  const orderNumber = shipment.sales_order_number || shipment.salesOrder?.order_number || shipment.order_number || 'N/A';
+  const customerName = shipment.customer_name || shipment.salesOrder?.customer?.name || 'N/A';
+  const customerPhone = shipment.customer_phone || shipment.salesOrder?.customer?.phone || shipment.salesOrder?.customer?.mobile || 'N/A';
+  const customerEmail = shipment.customer_email || shipment.salesOrder?.customer?.email || 'N/A';
+  const productName = shipment.product_name || shipment.salesOrder?.product_name || 'N/A';
+  const shippingAddress = shipment.shipping_address || 'N/A';
+  const status = shipment.status || shipment.production_status || 'unknown';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Shipment Details</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {isProductionOrder ? 'Production Order Details' : 'Shipment Details'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -18,33 +30,44 @@ const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Production Order Alert */}
+          {isProductionOrder && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">Ready for Shipment</p>
+                <p className="text-xs text-blue-800 mt-1">This is a production order. Click "Create Shipment" to create a shipment from this order.</p>
+              </div>
+            </div>
+          )}
+
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Shipment Number
+                {isProductionOrder ? 'Production Number' : 'Shipment Number'}
               </label>
-              <p className="text-sm text-gray-900 font-mono">{shipment.shipment_number}</p>
+              <p className="text-sm text-gray-900 font-mono">{shipment.production_number || shipment.shipment_number || 'N/A'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Order Number
               </label>
-              <p className="text-sm text-gray-900">{shipment.salesOrder?.order_number || 'N/A'}</p>
+              <p className="text-sm text-gray-900">{orderNumber}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Status
               </label>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(shipment.status)}`}>
-                {shipment.status.replace('_', ' ').toUpperCase()}
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                {(status || 'unknown').replace('_', ' ').toUpperCase()}
               </span>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tracking Number
+                {isProductionOrder ? 'Production Type' : 'Tracking Number'}
               </label>
-              <p className="text-sm text-gray-900 font-mono">{shipment.tracking_number || 'Not assigned'}</p>
+              <p className="text-sm text-gray-900 font-mono">{isProductionOrder ? (shipment.production_type || 'N/A') : (shipment.tracking_number || 'Not assigned')}</p>
             </div>
           </div>
 
@@ -59,13 +82,13 @@ const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Customer Name
                 </label>
-                <p className="text-sm text-gray-900">{shipment.salesOrder?.customer?.name || 'N/A'}</p>
+                <p className="text-sm text-gray-900">{customerName}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Recipient Name
                 </label>
-                <p className="text-sm text-gray-900">{shipment.recipient_name || 'N/A'}</p>
+                <p className="text-sm text-gray-900">{shipment.recipient_name || customerName}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -73,7 +96,7 @@ const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
                 </label>
                 <p className="text-sm text-gray-900 flex items-center gap-1">
                   <Phone size={14} />
-                  {shipment.recipient_phone || 'N/A'}
+                  {shipment.recipient_phone || customerPhone}
                 </p>
               </div>
               <div>
@@ -82,51 +105,87 @@ const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
                 </label>
                 <p className="text-sm text-gray-900 flex items-center gap-1">
                   <Mail size={14} />
-                  {shipment.salesOrder?.customer?.email || 'N/A'}
+                  {customerEmail}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Shipping Information */}
+          {/* Product Information */}
           <div className="border-t border-gray-200 pt-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <Truck size={20} />
-              Shipping Information
+              <Package size={20} />
+              Product Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Courier Partner
+                  Product Name
                 </label>
-                <p className="text-sm text-gray-900">{shipment.courierPartner?.name || shipment.courier_company || 'N/A'}</p>
+                <p className="text-sm text-gray-900">{productName}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Shipping Method
+                  Product Code
                 </label>
-                <p className="text-sm text-gray-900 capitalize">{shipment.shipping_method || 'Standard'}</p>
+                <p className="text-sm text-gray-900">{shipment.product_code || 'N/A'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Shipment Date
+                  Quantity
                 </label>
-                <p className="text-sm text-gray-900 flex items-center gap-1">
-                  <Calendar size={14} />
-                  {new Date(shipment.shipment_date).toLocaleDateString()}
-                </p>
+                <p className="text-sm text-gray-900">{shipment.quantity || 0} units</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Expected Delivery
+                  Priority
                 </label>
-                <p className="text-sm text-gray-900 flex items-center gap-1">
-                  <Calendar size={14} />
-                  {new Date(shipment.expected_delivery_date).toLocaleDateString()}
-                </p>
+                <p className="text-sm text-gray-900 capitalize">{shipment.priority || 'N/A'}</p>
               </div>
             </div>
           </div>
+
+          {/* Shipping Information */}
+          {!isProductionOrder && (
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <Truck size={20} />
+                Shipping Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Courier Partner
+                  </label>
+                  <p className="text-sm text-gray-900">{shipment.courierPartner?.name || shipment.courier_company || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Shipping Method
+                  </label>
+                  <p className="text-sm text-gray-900 capitalize">{shipment.shipping_method || 'Standard'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Shipment Date
+                  </label>
+                  <p className="text-sm text-gray-900 flex items-center gap-1">
+                    <Calendar size={14} />
+                    {shipment.shipment_date ? new Date(shipment.shipment_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Expected Delivery
+                  </label>
+                  <p className="text-sm text-gray-900 flex items-center gap-1">
+                    <Calendar size={14} />
+                    {shipment.expected_delivery_date ? new Date(shipment.expected_delivery_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Delivery Address */}
           <div className="border-t border-gray-200 pt-6">
@@ -135,34 +194,36 @@ const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
               Delivery Address
             </h3>
             <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">
-              {shipment.shipping_address}
+              {shippingAddress}
             </p>
           </div>
 
           {/* Package Details */}
-          <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Package Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Quantity
-                </label>
-                <p className="text-sm text-gray-900">{shipment.total_quantity} items</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Weight
-                </label>
-                <p className="text-sm text-gray-900">{shipment.total_weight || 'N/A'} kg</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Shipping Cost
-                </label>
-                <p className="text-sm text-gray-900">₹{shipment.shipping_cost || 0}</p>
+          {!isProductionOrder && (
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Package Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Total Quantity
+                  </label>
+                  <p className="text-sm text-gray-900">{shipment.total_quantity || 0} items</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Total Weight
+                  </label>
+                  <p className="text-sm text-gray-900">{shipment.total_weight || 'N/A'} kg</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Shipping Cost
+                  </label>
+                  <p className="text-sm text-gray-900">₹{shipment.shipping_cost || 0}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Special Instructions */}
           {shipment.special_instructions && (

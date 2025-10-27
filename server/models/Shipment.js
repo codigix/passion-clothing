@@ -130,6 +130,10 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(15),
       allowNull: true
     },
+    recipient_email: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
     delivery_attempts: {
       type: DataTypes.INTEGER,
       defaultValue: 0

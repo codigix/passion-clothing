@@ -736,9 +736,9 @@ const ManufacturingDashboard = () => {
     const mainOrderId = order.order_id || order.id; // Use main SO ID or PO ID
 
     try {
-      // 1. Update main order status to ready_for_shipment
+      // 1. Update main order status to ready_to_ship (valid status for SalesOrder)
       await api.put(`/orders/${mainOrderId}/status`, {
-        status: 'ready_for_shipment',
+        status: 'ready_to_ship', // ✅ Valid status for SalesOrder
         department: 'shipment',
         action: 'sent_to_shipment',
         notes: 'Order ready for shipment'
@@ -747,7 +747,7 @@ const ManufacturingDashboard = () => {
       // 2. Update QR code/Tracking status
       await api.put(`/orders/${mainOrderId}/qr-code`, {
         department: 'shipment',
-        status: 'ready_for_shipment',
+        status: 'ready_to_ship', // ✅ Changed to match valid status
         timestamp: new Date().toISOString(),
         stage: 'ready_for_dispatch'
       });

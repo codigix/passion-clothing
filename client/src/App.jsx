@@ -19,7 +19,10 @@ import ShipmentDashboard from './pages/dashboards/ShipmentDashboard';
 import ShipmentDispatchPage from './pages/shipment/ShipmentDispatchPage';
 import ShipmentTrackingPage from './pages/shipment/ShipmentTrackingPage';
 import ShipmentReportsPage from './pages/shipment/ShipmentReportsPage';
+import CreateShipmentPage from './pages/shipment/CreateShipmentPage';
 import ShippingDashboardPage from './pages/shipment/ShippingDashboardPage';
+import CourierAgentLoginPage from './pages/shipment/CourierAgentLoginPage';
+import CourierAgentManagementPage from './pages/admin/CourierAgentManagementPage';
 import StoreDashboard from './pages/dashboards/StoreDashboard';
 import FinanceDashboard from './pages/dashboards/FinanceDashboard';
 import FinanceInvoicesPage from './pages/finance/FinanceInvoicesPage';
@@ -250,8 +253,10 @@ function App() {
         <Route path="/samples/create" element={<ProtectedDashboard department="samples"><SamplesCreateRequestPage /></ProtectedDashboard>} />
 
         {/* Shipment Routes */}
+        <Route path="/shipment/create" element={<ProtectedDashboard department="shipment"><CreateShipmentPage /></ProtectedDashboard>} />
         <Route path="/shipment/dispatch" element={<ProtectedDashboard department="shipment"><ShipmentDispatchPage /></ProtectedDashboard>} />
         <Route path="/shipment/tracking" element={<ProtectedDashboard department="shipment"><ShipmentTrackingPage /></ProtectedDashboard>} />
+        <Route path="/shipment/tracking/:trackingId" element={<ProtectedDashboard department="shipment"><ShipmentTrackingPage /></ProtectedDashboard>} />
         <Route path="/shipment/reports" element={<ProtectedDashboard department="shipment"><ShipmentReportsPage /></ProtectedDashboard>} />
 
         {/* Store Routes */}
@@ -269,6 +274,10 @@ function App() {
         <Route path="/admin/users" element={<ProtectedDashboard department="admin"><UserManagementPage /></ProtectedDashboard>} />
         <Route path="/admin/roles" element={<ProtectedDashboard department="admin"><RoleManagementPage /></ProtectedDashboard>} />
         <Route path="/admin/config" element={<ProtectedDashboard department="admin"><SystemConfigPage /></ProtectedDashboard>} />
+        <Route path="/admin/courier-agents" element={<ProtectedDashboard department="admin"><CourierAgentManagementPage /></ProtectedDashboard>} />
+
+        {/* Courier Agent Routes (Public) */}
+        <Route path="/courier-agent/login" element={<CourierAgentLoginPage />} />
 
         {/* Common Routes */}
         <Route path="/profile" element={<ProfilePage />} />

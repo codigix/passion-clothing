@@ -38,6 +38,7 @@ const AVAILABLE_COLUMNS = [
   { id: 'balance', label: 'Balance Amount', defaultVisible: false },
   { id: 'delivery_date', label: 'Delivery Date', defaultVisible: true },
   { id: 'status', label: 'Status', defaultVisible: true },
+  { id: 'shipment_status', label: 'Shipment Status', defaultVisible: true },
   { id: 'procurement', label: 'Procurement Status', defaultVisible: false },
   { id: 'invoice', label: 'Invoice Status', defaultVisible: false },
   { id: 'challan', label: 'Challan Status', defaultVisible: false },
@@ -51,6 +52,7 @@ const SalesOrdersPage = () => {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
+  const [shipmentMap, setShipmentMap] = useState({}); // Map order_id -> shipment status
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,6 +83,7 @@ const SalesOrdersPage = () => {
   useEffect(() => {
     fetchOrders();
     fetchSummary();
+    fetchShipments();
   }, []);
 
   useEffect(() => {
@@ -112,6 +115,24 @@ const SalesOrdersPage = () => {
       console.error('Failed to fetch orders:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchShipments = async () => {
+    try {
+      const response = await api.get('/shipments?limit=500');
+      const shipments = response.data.shipments || [];
+      
+      // Create a map of sales_order_id -> shipment status
+      const map = {};
+      shipments.forEach(shipment => {
+        if (shipment.sales_order_id) {
+          map[shipment.sales_order_id] = shipment.status;
+        }
+      });
+      setShipmentMap(map);
+    } catch (error) {
+      console.error('Failed to fetch shipments:', error);
     }
   };
 
@@ -356,6 +377,25 @@ const SalesOrdersPage = () => {
       delivered: { color: 'bg-green-100 text-green-700', label: 'Delivered' }
     };
     const badge = config[status] || config.pending;
+    return <span className={`px-2 py-1 rounded text-xs ${badge.color}`}>{badge.label}</span>;
+  };
+
+  const getShipmentStatusBadge = (orderId) => {
+    const shipmentStatus = shipmentMap[orderId];
+    if (!shipmentStatus) {
+      return <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">Not Created</span>;
+    }
+    
+    const config = {
+      pending: { color: 'bg-red-100 text-red-600', label: 'Pending' },
+      dispatched: { color: 'bg-blue-100 text-blue-600', label: 'Dispatched' },
+      in_transit: { color: 'bg-yellow-100 text-yellow-600', label: 'In Transit' },
+      out_for_delivery: { color: 'bg-orange-100 text-orange-600', label: 'Out for Delivery' },
+      delivered: { color: 'bg-green-100 text-green-700', label: 'Delivered' },
+      failed_delivery: { color: 'bg-red-100 text-red-700', label: 'Failed Delivery' }
+    };
+    
+    const badge = config[shipmentStatus] || config.pending;
     return <span className={`px-2 py-1 rounded text-xs ${badge.color}`}>{badge.label}</span>;
   };
 
@@ -683,6 +723,9 @@ const SalesOrdersPage = () => {
                 {isColumnVisible('status') && (
                   <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 )}
+                {isColumnVisible('shipment_status') && (
+                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipment Status</th>
+                )}
                 {isColumnVisible('procurement') && (
                   <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Procurement</th>
                 )}
@@ -783,6 +826,11 @@ const SalesOrdersPage = () => {
                       {isColumnVisible('status') && (
                         <td className="px-2 py-2 whitespace-nowrap">
                           {getStatusBadge(order.status)}
+                        </td>
+                      )}
+                      {isColumnVisible('shipment_status') && (
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          {getShipmentStatusBadge(order.id)}
                         </td>
                       )}
                       {isColumnVisible('procurement') && (

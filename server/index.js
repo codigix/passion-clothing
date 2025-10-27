@@ -37,6 +37,7 @@ const materialReceiptRoutes = require('./routes/materialReceipt');
 const materialVerificationRoutes = require('./routes/materialVerification');
 const productionApprovalRoutes = require('./routes/productionApproval');
 const ordersRoutes = require('./routes/orders');
+const courierAgentRoutes = require('./routes/courierAgent');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -90,6 +91,7 @@ app.use('/api/manufacturing', manufacturingRoutes);/*  */
 app.use('/api/outsourcing', outsourcingRoutes);
 app.use('/api/shipments', shipmentRoutes);
 app.use('/api/courier-partners', courierPartnerRoutes);
+app.use('/api/courier-agents', courierAgentRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/reports', reportRoutes);

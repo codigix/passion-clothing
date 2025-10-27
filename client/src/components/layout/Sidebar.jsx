@@ -171,6 +171,7 @@ const Sidebar = ({ open, onToggle }) => {
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/admin' },
         { text: 'User Management', icon: <User size={18} />, path: '/admin/users' },
         { text: 'Role Management', icon: <Shield size={18} />, path: '/admin/roles' },
+        { text: 'Courier Agents', icon: <Truck size={18} />, path: '/admin/courier-agents' },
         { text: 'System Config', icon: <Settings size={18} />, path: '/admin/config' },
       ],
     };
