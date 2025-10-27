@@ -455,6 +455,135 @@ router.post('/pos', authenticateToken, checkDepartment(['procurement', 'admin'])
   }
 });
 
+// Update purchase order
+router.put('/pos/:id', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      vendor_id,
+      customer_id,
+      project_name,
+      client_name,
+      expected_delivery_date,
+      items,
+      fabric_requirements,
+      accessories,
+      cost_summary,
+      attachments,
+      discount_percentage = 0,
+      tax_percentage = 0,
+      freight = 0,
+      payment_terms,
+      delivery_address,
+      terms_conditions,
+      special_instructions,
+      internal_notes,
+      priority = 'medium',
+      status
+    } = req.body;
+
+    // Find existing PO
+    const purchaseOrder = await PurchaseOrder.findByPk(id);
+    if (!purchaseOrder) {
+      return res.status(404).json({ message: 'Purchase order not found' });
+    }
+
+    // Validate inputs
+    if (!vendor_id || !expected_delivery_date || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Vendor, delivery date, and items are required' });
+    }
+
+    const vendor = await Vendor.findByPk(vendor_id);
+    if (!vendor) {
+      return res.status(400).json({ message: 'Vendor not found' });
+    }
+
+    // Calculate amounts
+    const total_quantity = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+    const total_amount = items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+    const discount_amount = (total_amount * discount_percentage) / 100;
+    const afterDiscount = total_amount - discount_amount;
+    const tax_amount = (afterDiscount * tax_percentage) / 100;
+    const freight_amount = parseFloat(freight) || 0;
+    const final_amount = afterDiscount + tax_amount + freight_amount;
+
+    // Track change history
+    const previousData = {
+      vendor_id: purchaseOrder.vendor_id,
+      project_name: purchaseOrder.project_name,
+      expected_delivery_date: purchaseOrder.expected_delivery_date,
+      total_amount: purchaseOrder.total_amount,
+      final_amount: purchaseOrder.final_amount,
+      priority: purchaseOrder.priority
+    };
+
+    // Build change history
+    const changeHistory = purchaseOrder.change_history || [];
+    const changes = {};
+    
+    if (vendor_id !== purchaseOrder.vendor_id) changes.vendor_id = { from: purchaseOrder.vendor_id, to: vendor_id };
+    if (project_name !== purchaseOrder.project_name) changes.project_name = { from: purchaseOrder.project_name, to: project_name };
+    if (expected_delivery_date !== purchaseOrder.expected_delivery_date) changes.expected_delivery_date = { from: purchaseOrder.expected_delivery_date, to: expected_delivery_date };
+    if (priority !== purchaseOrder.priority) changes.priority = { from: purchaseOrder.priority, to: priority };
+
+    if (Object.keys(changes).length > 0) {
+      changeHistory.push({
+        timestamp: new Date(),
+        changed_by: req.user.id,
+        changed_by_name: req.user.name,
+        changes: changes
+      });
+    }
+
+    // Update PO
+    await purchaseOrder.update({
+      vendor_id,
+      customer_id: customer_id || null,
+      project_name: project_name || null,
+      client_name: client_name || null,
+      expected_delivery_date,
+      items,
+      fabric_requirements,
+      accessories,
+      cost_summary,
+      attachments,
+      total_quantity,
+      total_amount,
+      discount_percentage,
+      discount_amount,
+      tax_percentage,
+      tax_amount,
+      final_amount,
+      payment_terms,
+      delivery_address,
+      terms_conditions,
+      special_instructions,
+      internal_notes,
+      priority,
+      status: status || purchaseOrder.status,
+      last_edited_by: req.user.id,
+      last_edited_at: new Date(),
+      change_history: changeHistory.length > 0 ? changeHistory : purchaseOrder.change_history
+    });
+
+    res.json({
+      message: 'Purchase order updated successfully',
+      purchaseOrder: {
+        id: purchaseOrder.id,
+        po_number: purchaseOrder.po_number,
+        status: purchaseOrder.status,
+        total_quantity: purchaseOrder.total_quantity,
+        final_amount: purchaseOrder.final_amount,
+        last_edited_by: req.user.id,
+        last_edited_at: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Purchase order update error:', error);
+    res.status(500).json({ message: 'Failed to update purchase order' });
+  }
+});
+
 // Create purchase order from sales order
 router.post('/pos/from-sales-order/:salesOrderId', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
   try {
@@ -1026,13 +1155,17 @@ router.post('/pos/:id/submit-for-approval', authenticateToken, checkDepartment([
   }
 });
 
-// Update purchase order
+// Update purchase order with version history tracking
 router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    const isEditMode = updateData.editMode === true; // Flag to identify edit operations
 
-    const purchaseOrder = await PurchaseOrder.findByPk(id);
+    const purchaseOrder = await PurchaseOrder.findByPk(id, {
+      include: [{ model: User, as: 'editor', attributes: ['id', 'name'] }]
+    });
+    
     if (!purchaseOrder) {
       return res.status(404).json({ message: 'Purchase order not found' });
     }
@@ -1042,10 +1175,25 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
       return res.status(400).json({ message: 'Cannot update completed or cancelled purchase orders' });
     }
 
+    // For edit mode (not just status changes), only allow in draft status
+    if (isEditMode && purchaseOrder.status !== 'draft') {
+      return res.status(400).json({ 
+        message: 'Purchase orders can only be edited in draft status. Current status: ' + purchaseOrder.status 
+      });
+    }
+
     const updates = {};
+    const changeRecord = {
+      timestamp: new Date(),
+      changed_by: req.user.id,
+      changed_by_name: req.user.name,
+      changes: {},
+      version_before: purchaseOrder.version_number,
+      reason: updateData.edit_reason || 'PO modification'
+    };
 
     // Handle status update with validation
-    if (updateData.status !== undefined) {
+    if (updateData.status !== undefined && !isEditMode) {
       if (!isValidStatusTransition(purchaseOrder.status, updateData.status)) {
         return res.status(400).json({
           message: `Invalid status transition from ${purchaseOrder.status} to ${updateData.status}`
@@ -1056,6 +1204,7 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
       const auditFields = deriveStatusAuditFields(purchaseOrder, updateData.status, req.user.id, updateData.approve);
       Object.assign(updates, auditFields);
       updates.status = updateData.status;
+      changeRecord.changes.status = { from: purchaseOrder.status, to: updateData.status };
     }
 
     // Handle other field updates
@@ -1065,8 +1214,27 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
       'internal_notes', 'priority'
     ];
 
+    let itemsChanged = false;
+    
     allowedFields.forEach(field => {
       if (updateData[field] !== undefined) {
+        // Track changes for version history
+        if (field === 'items') {
+          const oldItemCount = purchaseOrder.items?.length || 0;
+          const newItemCount = updateData[field]?.length || 0;
+          changeRecord.changes.items = {
+            old_count: oldItemCount,
+            new_count: newItemCount,
+            items_added: newItemCount - oldItemCount,
+            item_details: updateData[field]
+          };
+          itemsChanged = true;
+        } else if (field !== 'status') {
+          changeRecord.changes[field] = {
+            from: purchaseOrder[field],
+            to: updateData[field]
+          };
+        }
         updates[field] = updateData[field];
       }
     });
@@ -1098,10 +1266,33 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
       updates.final_amount = total_amount - updates.discount_amount + updates.tax_amount;
     }
 
+    // Track version history for edits
+    if (isEditMode && Object.keys(changeRecord.changes).length > 0) {
+      updates.version_number = (purchaseOrder.version_number || 1) + 1;
+      updates.last_edited_by = req.user.id;
+      updates.last_edited_at = new Date();
+      updates.requires_reapproval = true; // Mark for re-approval if items were changed
+      
+      // Add to change history
+      const existingHistory = purchaseOrder.change_history || [];
+      changeRecord.version_after = updates.version_number;
+      existingHistory.push(changeRecord);
+      updates.change_history = existingHistory;
+
+      // If items changed and PO was in pending_approval, reset to draft
+      if (itemsChanged && purchaseOrder.status === 'pending_approval') {
+        updates.status = 'draft';
+        updates.approval_status = 'not_requested';
+        updates.approved_by = null;
+        updates.approved_at = null;
+        changeRecord.changes.approval_reset = { reason: 'Items modified - PO requires re-submission for approval' };
+      }
+    }
+
     // Update the purchase order
     await purchaseOrder.update(updates);
 
-    // Update linked sales order status based on PO status
+    // Update linked sales order status based on PO status if status changed
     if (purchaseOrder.linked_sales_order_id && updateData.status) {
       const soStatus = {
         'sent': 'po_created',
@@ -1123,12 +1314,13 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
       include: [
         { model: Vendor, as: 'vendor', attributes: ['id', 'name', 'vendor_code', 'email', 'phone'] },
         { model: User, as: 'creator', attributes: ['id', 'name', 'employee_id'] },
-        { model: User, as: 'approver', attributes: ['id', 'name', 'employee_id'], required: false }
+        { model: User, as: 'approver', attributes: ['id', 'name', 'employee_id'], required: false },
+        { model: User, as: 'lastEditor', attributes: ['id', 'name', 'employee_id'], required: false }
       ]
     });
 
     // Send notifications based on status change
-    if (updateData.status) {
+    if (updateData.status && !isEditMode) {
       const statusActions = {
         'approved': 'approved',
         'sent': 'sent',
@@ -1141,15 +1333,75 @@ router.patch('/pos/:id', authenticateToken, checkDepartment(['procurement', 'adm
       if (action) {
         await NotificationService.notifyProcurementAction(action, updatedOrder, req.user.id);
       }
+    } else if (isEditMode) {
+      // Send notification about PO modification
+      await NotificationService.sendToDepartment('procurement', {
+        type: 'po_modified',
+        title: `Purchase Order Modified: ${purchaseOrder.po_number}`,
+        message: `PO ${purchaseOrder.po_number} has been updated. Version ${updates.version_number || purchaseOrder.version_number}.`,
+        priority: 'medium',
+        related_entity_id: updatedOrder.id,
+        related_entity_type: 'purchase_order',
+        action_url: `/procurement/purchase-orders/${updatedOrder.id}`,
+        metadata: {
+          po_number: updatedOrder.po_number,
+          version: updates.version_number || purchaseOrder.version_number,
+          modified_by: req.user.name,
+          changes: changeRecord.changes,
+          requires_reapproval: updates.requires_reapproval || false
+        },
+        expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      });
     }
 
     res.json({
       message: 'Purchase order updated successfully',
-      purchaseOrder: updatedOrder
+      purchaseOrder: updatedOrder,
+      versionHistory: {
+        currentVersion: updates.version_number || purchaseOrder.version_number,
+        requiresReapproval: updates.requires_reapproval || false,
+        lastEditedAt: updates.last_edited_at || null,
+        changeRecord: isEditMode ? changeRecord : null
+      }
     });
   } catch (error) {
     console.error('Purchase order update error:', error);
-    res.status(500).json({ message: 'Failed to update purchase order' });
+    res.status(500).json({ message: 'Failed to update purchase order', error: error.message });
+  }
+});
+
+// Get purchase order change history
+router.get('/pos/:id/history', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const purchaseOrder = await PurchaseOrder.findByPk(id, {
+      attributes: ['id', 'po_number', 'version_number', 'change_history', 'last_edited_at', 'last_edited_by', 'created_at', 'updated_at'],
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'name', 'employee_id'], required: false },
+        { model: User, as: 'lastEditor', attributes: ['id', 'name', 'employee_id'], required: false }
+      ]
+    });
+
+    if (!purchaseOrder) {
+      return res.status(404).json({ message: 'Purchase order not found' });
+    }
+
+    const history = purchaseOrder.change_history || [];
+
+    res.json({
+      po_number: purchaseOrder.po_number,
+      current_version: purchaseOrder.version_number,
+      created_at: purchaseOrder.created_at,
+      created_by: purchaseOrder.creator,
+      last_edited_at: purchaseOrder.last_edited_at,
+      last_edited_by: purchaseOrder.lastEditor,
+      change_history: history,
+      total_changes: history.length
+    });
+  } catch (error) {
+    console.error('Get PO history error:', error);
+    res.status(500).json({ message: 'Failed to fetch purchase order history', error: error.message });
   }
 });
 

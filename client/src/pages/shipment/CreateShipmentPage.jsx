@@ -9,7 +9,11 @@ import {
   Calendar,
   User,
   MapPin,
-  X
+  X,
+  Star,
+  Phone,
+  Mail,
+  MapPin as LocationIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '../../utils/api';
@@ -20,17 +24,14 @@ const CreateShipmentPage = () => {
   const orderData = location.state?.orderFromManufacturing;
 
   const [loading, setLoading] = useState(false);
-  const [courierPartners, setCourierPartners] = useState([]);
   const [courierAgents, setCourierAgents] = useState([]);
-  const [fetchingCouriers, setFetchingCouriers] = useState(true);
-  const [fetchingAgents, setFetchingAgents] = useState(false);
-  const [showCourierDropdown, setShowCourierDropdown] = useState(false);
-  const [courierSearchInput, setCourierSearchInput] = useState('');
+  const [fetchingAgents, setFetchingAgents] = useState(true);
   const [shipmentCreated, setShipmentCreated] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  
   const [formData, setFormData] = useState({
-    courier_company: '',
     courier_agent_id: '',
     agent_id: '',
     tracking_number: '',
@@ -65,32 +66,19 @@ const CreateShipmentPage = () => {
     };
     
     populateRecipientDetails();
-    fetchCourierPartners();
+    fetchAllCourierAgents();
   }, [orderData, navigate]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showCourierDropdown && !event.target.closest('.relative')) {
-        setShowCourierDropdown(false);
-      }
-    };
-
-    if (showCourierDropdown) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showCourierDropdown]);
-
-  const fetchCourierPartners = async () => {
+  const fetchAllCourierAgents = async () => {
     try {
-      setFetchingCouriers(true);
-      const response = await api.get('/courier-partners?is_active=true');
-      setCourierPartners(response.data.courierPartners || []);
+      setFetchingAgents(true);
+      const response = await api.get('/courier-agents?is_active=true');
+      setCourierAgents(response.data.agents || []);
     } catch (error) {
-      console.error('Failed to fetch courier partners:', error);
-      toast.error('Failed to load courier partners');
+      console.error('Failed to fetch courier agents:', error);
+      toast.error('Failed to load courier agents');
     } finally {
-      setFetchingCouriers(false);
+      setFetchingAgents(false);
     }
   };
 
@@ -102,97 +90,49 @@ const CreateShipmentPage = () => {
     }));
   };
 
-  const handleSelectChange = async (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-      ...(name === 'courier_company' && { courier_agent_id: '', agent_id: '' })
-    }));
-
-    if (name === 'courier_company' && value) {
-      await fetchAgentsForCompany(value);
-    }
-  };
-
-  const handleCourierCompanySearch = (value) => {
-    setCourierSearchInput(value);
-    setFormData(prev => ({
-      ...prev,
-      courier_company: value,
-      courier_agent_id: '',
-      agent_id: ''
-    }));
-    setShowCourierDropdown(true);
-  };
-
-  const generateTrackingNumber = () => {
+  const generateTrackingNumber = (agent = null) => {
     const timestamp = Date.now().toString().slice(-8);
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `TRK-${timestamp}-${random}`;
-  };
-
-  const selectCourierCompany = async (courierName) => {
-    const trackingNumber = generateTrackingNumber();
-    setFormData(prev => ({
-      ...prev,
-      courier_company: courierName,
-      courier_agent_id: '',
-      agent_id: '',
-      tracking_number: trackingNumber
-    }));
-    setCourierSearchInput('');
-    setShowCourierDropdown(false);
-    await fetchAgentsForCompany(courierName);
-  };
-
-  const clearCourierCompany = () => {
-    setFormData(prev => ({
-      ...prev,
-      courier_company: '',
-      courier_agent_id: '',
-      agent_id: ''
-    }));
-    setCourierSearchInput('');
-    setCourierAgents([]);
-  };
-
-  const filteredCouriers = courierPartners.filter(courier =>
-    (courier.name || '').toLowerCase().includes(courierSearchInput.toLowerCase())
-  );
-
-  const fetchAgentsForCompany = async (company) => {
-    try {
-      setFetchingAgents(true);
-      const response = await api.get(`/courier-agents/by-company/${encodeURIComponent(company)}`);
-      setCourierAgents(response.data.agents || []);
-      if (response.data.agents?.length === 0) {
-        toast.success('No agents available for this company');
-      }
-    } catch (error) {
-      console.error('Failed to fetch agents:', error);
-      setCourierAgents([]);
-      toast.error('Failed to fetch agents for this company');
-    } finally {
-      setFetchingAgents(false);
+    
+    // If agent is selected, include agent code in tracking number
+    if (agent?.agent_id) {
+      return `${agent.agent_id}-${timestamp}-${random}`;
     }
+    
+    return `TRK-${timestamp}-${random}`;
   };
 
   const handleAgentChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Find the selected agent from the list
+    const agent = courierAgents.find(a => a.id.toString() === value);
+    
+    if (agent) {
+      setSelectedAgent(agent);
+      
+      // Generate tracking number with agent code
+      const trackingNumber = generateTrackingNumber(agent);
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        tracking_number: trackingNumber,
+        agent_id: agent.agent_id // Store agent_id for reference
+      }));
+    } else {
+      setSelectedAgent(null);
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        agent_id: '',
+        tracking_number: ''
+      }));
+    }
   };
 
   const validateForm = () => {
-    if (!formData.courier_company.trim()) {
-      toast.error('Please select a courier company');
-      return false;
-    }
-
-    if (!formData.courier_agent_id && courierAgents.length > 0) {
+    if (!formData.courier_agent_id) {
       toast.error('Please select a courier agent');
       return false;
     }
@@ -250,7 +190,8 @@ const CreateShipmentPage = () => {
       const salesOrderId = orderData.sales_order_id || orderData.id;
       
       const response = await api.post(`/shipments/create-from-order/${salesOrderId}`, {
-        courier_company: formData.courier_company,
+        courier_agent_id: formData.courier_agent_id,
+        agent_id: formData.agent_id,
         tracking_number: formData.tracking_number,
         expected_delivery_date: formData.expected_delivery_date,
         notes: formData.notes,
@@ -263,7 +204,8 @@ const CreateShipmentPage = () => {
       setShipmentCreated({
         ...response.data.shipment,
         orderInfo: orderData,
-        formData: formData
+        formData: formData,
+        agentInfo: selectedAgent
       });
       setShowConfirmation(true);
       toast.success('Shipment created successfully!');
@@ -324,8 +266,8 @@ const CreateShipmentPage = () => {
                   <p className="text-xs text-gray-600 font-semibold mb-2">Shipment Details</p>
                   <div className="space-y-2 text-sm">
                     <div>
-                      <p className="text-xs text-gray-500">Courier</p>
-                      <p className="font-semibold text-gray-900">{shipmentCreated.formData?.courier_company}</p>
+                      <p className="text-xs text-gray-500">Courier Agent</p>
+                      <p className="font-semibold text-gray-900">{shipmentCreated.agentInfo?.agent_name || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Tracking Number</p>
@@ -478,55 +420,14 @@ const CreateShipmentPage = () => {
                 </div>
                 
                 <div className="space-y-3">
-                  <div className="relative">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Courier Company</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={courierSearchInput}
-                        onChange={(e) => handleCourierCompanySearch(e.target.value)}
-                        placeholder="Search courier..."
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 text-sm transition"
-                        disabled={fetchingCouriers}
-                      />
-                      {formData.courier_company && (
-                        <button
-                          type="button"
-                          onClick={clearCourierCompany}
-                          className="px-3 py-2 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition"
-                          title="Clear selection"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    {showCourierDropdown && filteredCouriers.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-md z-10 max-h-40 overflow-y-auto">
-                        {filteredCouriers.map((courier) => (
-                          <button
-                            key={courier.id}
-                            type="button"
-                            onClick={() => selectCourierCompany(courier.name)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm text-gray-900 border-b border-gray-100 last:border-0 transition"
-                          >
-                            {courier.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {formData.courier_company && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded text-sm font-medium text-green-900">
-                      ✓ {formData.courier_company} selected
-                    </div>
-                  )}
-
                   {/* Courier Agent */}
-                  {courierAgents.length > 0 && (
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Agent Location</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Courier Agent</label>
+                    {fetchingAgents ? (
+                      <div className="px-3 py-2 border border-gray-300 rounded bg-gray-50 text-gray-600 text-sm">
+                        Loading agents...
+                      </div>
+                    ) : courierAgents.length > 0 ? (
                       <select
                         name="courier_agent_id"
                         value={formData.courier_agent_id}
@@ -536,10 +437,58 @@ const CreateShipmentPage = () => {
                         <option value="">Select agent...</option>
                         {courierAgents.map((agent) => (
                           <option key={agent.id} value={agent.id}>
-                            {agent.name} - {agent.location || 'N/A'}
+                            {agent.agent_name || agent.name} ({agent.region || 'All regions'})
                           </option>
                         ))}
                       </select>
+                    ) : (
+                      <div className="px-3 py-2 border border-red-300 rounded bg-red-50 text-red-700 text-sm">
+                        No courier agents available
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Agent Details Card */}
+                  {selectedAgent && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-blue-900 mb-2">Agent Details</p>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex items-center gap-2 text-blue-800">
+                              <User className="w-4 h-4 flex-shrink-0" />
+                              <span><strong>{selectedAgent.agent_name}</strong></span>
+                            </div>
+                            {selectedAgent.email && (
+                              <div className="flex items-center gap-2 text-blue-800">
+                                <Mail className="w-4 h-4 flex-shrink-0" />
+                                <span>{selectedAgent.email}</span>
+                              </div>
+                            )}
+                            {selectedAgent.phone && (
+                              <div className="flex items-center gap-2 text-blue-800">
+                                <Phone className="w-4 h-4 flex-shrink-0" />
+                                <span>{selectedAgent.phone}</span>
+                              </div>
+                            )}
+                            {selectedAgent.region && (
+                              <div className="flex items-center gap-2 text-blue-800">
+                                <LocationIcon className="w-4 h-4 flex-shrink-0" />
+                                <span>{selectedAgent.region}</span>
+                              </div>
+                            )}
+                            {selectedAgent.performance_rating > 0 && (
+                              <div className="flex items-center gap-2 text-blue-800">
+                                <Star className="w-4 h-4 flex-shrink-0 text-yellow-500" />
+                                <span>{selectedAgent.performance_rating.toFixed(2)}/5.00 ({selectedAgent.total_shipments || 0} shipments)</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-blue-200">
+                        <p className="text-xs font-semibold text-blue-900">Tracking ID will include: <span className="font-mono text-blue-700">{selectedAgent.agent_id}</span></p>
+                      </div>
                     </div>
                   )}
 
@@ -646,7 +595,7 @@ const CreateShipmentPage = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || fetchingCouriers}
+                disabled={loading || fetchingAgents}
                 className="w-full px-4 py-2.5 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition text-sm shadow-sm"
               >
                 {loading ? 'Creating Shipment...' : '+ Create Shipment'}

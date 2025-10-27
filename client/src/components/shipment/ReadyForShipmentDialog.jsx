@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -17,7 +17,11 @@ import {
   ListItemText,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import { CheckCircle2, AlertCircle, Truck, Package, MapPin, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -32,7 +36,24 @@ const ReadyForShipmentDialog = ({
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [shippingMethod, setShippingMethod] = useState('standard');
   const [activeStep, setActiveStep] = useState(0);
+
+  // Calculate expected delivery date based on shipping method
+  const shippingMethods = {
+    'same_day': { label: 'Same Day', days: 0, description: 'Today or next business day' },
+    'overnight': { label: 'Overnight', days: 1, description: '1 business day' },
+    'express': { label: 'Express', days: 3, description: '3 business days' },
+    'standard': { label: 'Standard', days: 7, description: '5-7 business days' }
+  };
+
+  const expectedDeliveryDate = useMemo(() => {
+    const today = new Date();
+    const days = shippingMethods[shippingMethod]?.days || 7;
+    const date = new Date(today);
+    date.setDate(date.getDate() + days);
+    return date;
+  }, [shippingMethod]);
 
   const steps = [
     'Confirm Order',
@@ -64,7 +85,9 @@ const ReadyForShipmentDialog = ({
         `/manufacturing/orders/${productionOrder.id}/ready-for-shipment`,
         {
           notes: notes || undefined,
-          special_instructions: specialInstructions || undefined
+          special_instructions: specialInstructions || undefined,
+          shipping_method: shippingMethod,
+          expected_delivery_date: expectedDeliveryDate
         }
       );
 
@@ -73,6 +96,7 @@ const ReadyForShipmentDialog = ({
       onClose();
       setNotes('');
       setSpecialInstructions('');
+      setShippingMethod('standard');
       setActiveStep(0);
     } catch (error) {
       const message =
@@ -200,8 +224,48 @@ const ReadyForShipmentDialog = ({
         {activeStep === 1 && (
           <Box className="space-y-4">
             <Typography variant="h6" className="font-semibold">
-              Add Shipping Notes (Optional)
+              Shipping Details & Notes
             </Typography>
+
+            {/* Shipping Method Selection */}
+            <FormControl fullWidth size="small">
+              <InputLabel>Shipping Method</InputLabel>
+              <Select
+                value={shippingMethod}
+                label="Shipping Method"
+                onChange={(e) => setShippingMethod(e.target.value)}
+              >
+                <MenuItem value="same_day">
+                  Same Day - Today or next business day
+                </MenuItem>
+                <MenuItem value="overnight">
+                  Overnight - 1 business day
+                </MenuItem>
+                <MenuItem value="express">
+                  Express - 3 business days
+                </MenuItem>
+                <MenuItem value="standard">
+                  Standard - 5-7 business days
+                </MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Expected Delivery Date Display */}
+            <Box className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Typography variant="caption" className="text-blue-600 font-semibold">
+                📅 EXPECTED DELIVERY DATE
+              </Typography>
+              <Typography variant="h6" className="text-blue-900 font-bold mt-1">
+                {expectedDeliveryDate.toLocaleDateString('en-US', { 
+                  weekday: 'short', 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
+              </Typography>
+            </Box>
+
+            <Divider />
 
             <TextField
               label="Delivery Notes"
@@ -260,6 +324,19 @@ const ReadyForShipmentDialog = ({
                 <div className="flex justify-between">
                   <span className="text-gray-600">Quantity:</span>
                   <span className="font-medium">{productionOrder.quantity} units</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Shipping Method:</span>
+                  <span className="font-medium capitalize">{shippingMethods[shippingMethod]?.label}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Expected Delivery:</span>
+                  <span className="font-medium">
+                    {expectedDeliveryDate.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Has Delivery Notes:</span>

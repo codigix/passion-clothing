@@ -312,22 +312,22 @@ const ShipmentDashboard = () => {
     return colors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
-  // Calculate delivery time for delivered shipments
+  // Calculate delivery time in days - works for both delivered and in-progress
   const calculateDeliveryTime = (createdAt, deliveredAt, status) => {
-    if (status !== 'delivered' || !createdAt || !deliveredAt) {
-      return 'In progress';
+    if (!createdAt) {
+      return 'N/A';
     }
     
     const created = new Date(createdAt);
-    const delivered = new Date(deliveredAt);
-    const diffMs = delivered - created;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const endDate = status === 'delivered' && deliveredAt ? new Date(deliveredAt) : new Date();
+    const diffMs = endDate - created;
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays > 0) {
-      return `${diffDays}d ${diffHours}h`;
+    if (status === 'delivered') {
+      return `${diffDays} days`;
+    } else {
+      return `${diffDays} days (In progress)`;
     }
-    return `${diffHours}h`;
   };
 
   const TabPanel = ({ children, value, index }) => {
@@ -357,43 +357,56 @@ const ShipmentDashboard = () => {
   }
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg shadow-lg p-6 text-white">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Shipment & Delivery Dashboard</h1>
-            <p className="text-blue-100 text-sm">Manage shipments, track deliveries, and monitor logistics performance</p>
-          </div>
-          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-            <button
-              className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all duration-200 text-white border border-white border-opacity-30"
-              onClick={() => navigate('/shipment/tracking')}
-              title="Track shipments"
-            >
-              <TrendingUp size={18} />
-              <span className="hidden sm:inline">Track</span>
-            </button>
-            <button
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 font-medium"
-              onClick={() => navigate('/shipment/create')}
-            >
-              <Plus size={18} />
-              <span className="hidden sm:inline">Create</span>
-            </button>
-            <button
-              className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all duration-200 text-white border border-white border-opacity-30"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              title="Refresh data"
-            >
-              <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-            </button>
+    <div className="space-y-6 pb-8 bg-gray-50 min-h-screen -m-6 p-6">
+      {/* Header Section - Redesigned */}
+      <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-blue-800 rounded-2xl shadow-2xl p-8 text-white overflow-hidden relative">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400 rounded-full -mr-48 -mt-48"></div>
+        </div>
+        <div className="relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-blue-400 bg-opacity-20 backdrop-blur-sm p-3 rounded-xl">
+                  <Truck size={28} className="text-blue-300" />
+                </div>
+                <div>
+                  <p className="text-blue-200 text-sm font-semibold">LOGISTICS MANAGEMENT</p>
+                </div>
+              </div>
+              <h1 className="text-4xl font-bold mb-2">Shipment & Delivery Dashboard</h1>
+              <p className="text-blue-100 text-base leading-relaxed">Real-time tracking, performance analytics, and logistics coordination</p>
+            </div>
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+              <button
+                className="flex items-center gap-2 px-4 py-2.5 bg-white bg-opacity-15 hover:bg-opacity-25 rounded-xl transition-all duration-200 text-white border border-white border-opacity-30 backdrop-blur-sm font-medium"
+                onClick={() => navigate('/shipment/tracking')}
+                title="Track shipments"
+              >
+                <TrendingUp size={18} />
+                <span className="hidden sm:inline">Live Track</span>
+              </button>
+              <button
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-400 to-blue-500 text-white hover:shadow-xl rounded-xl transition-all duration-200 font-medium"
+                onClick={() => navigate('/shipment/create')}
+              >
+                <Plus size={18} />
+                <span className="hidden sm:inline">Create</span>
+              </button>
+              <button
+                className="flex items-center gap-2 px-4 py-2.5 bg-white bg-opacity-15 hover:bg-opacity-25 rounded-xl transition-all duration-200 text-white border border-white border-opacity-30 backdrop-blur-sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                title="Refresh data"
+              >
+                <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Enhanced */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard 
           title="Total Shipments" 
@@ -402,6 +415,7 @@ const ShipmentDashboard = () => {
           bgGradient="from-blue-50 to-blue-100"
           iconColor="text-blue-600"
           borderColor="border-blue-200"
+          shadow="shadow-lg hover:shadow-xl"
         />
         <StatCard 
           title="In Transit" 
@@ -410,6 +424,7 @@ const ShipmentDashboard = () => {
           bgGradient="from-violet-50 to-violet-100"
           iconColor="text-violet-600"
           borderColor="border-violet-200"
+          shadow="shadow-lg hover:shadow-xl"
         />
         <StatCard 
           title="Delivered" 
@@ -418,6 +433,7 @@ const ShipmentDashboard = () => {
           bgGradient="from-emerald-50 to-emerald-100"
           iconColor="text-emerald-600"
           borderColor="border-emerald-200"
+          shadow="shadow-lg hover:shadow-xl"
         />
         <StatCard 
           title="Delayed" 
@@ -426,6 +442,7 @@ const ShipmentDashboard = () => {
           bgGradient="from-rose-50 to-rose-100"
           iconColor="text-rose-600"
           borderColor="border-rose-200"
+          shadow="shadow-lg hover:shadow-xl"
         />
         <StatCard 
           title="On-Time %" 
@@ -435,6 +452,7 @@ const ShipmentDashboard = () => {
           bgGradient="from-amber-50 to-amber-100"
           iconColor="text-amber-600"
           borderColor="border-amber-200"
+          shadow="shadow-lg hover:shadow-xl"
         />
         <StatCard 
           title="Avg. Delivery" 
@@ -444,19 +462,20 @@ const ShipmentDashboard = () => {
           bgGradient="from-indigo-50 to-indigo-100"
           iconColor="text-indigo-600"
           borderColor="border-indigo-200"
+          shadow="shadow-lg hover:shadow-xl"
         />
       </div>
 
-      {/* Quick Actions Bar */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+      {/* Quick Actions Bar - Enhanced */}
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
           <div className="md:col-span-5">
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className="relative group">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
               <input
                 type="text"
-                placeholder="Search shipments, tracking no, customer..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Search by shipment, tracking #, customer..."
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -464,31 +483,34 @@ const ShipmentDashboard = () => {
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full px-3 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
+              className="w-full px-3 py-2.5 border border-gray-300 hover:border-blue-400 hover:bg-blue-50 rounded-lg transition-all text-sm font-medium text-gray-700 flex items-center justify-center gap-2"
               onClick={() => navigate('/shipment/bulk-tracking')}
             >
-              Bulk Tracking
+              <Package size={16} />
+              <span className="hidden sm:inline">Bulk Track</span>
             </button>
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full px-3 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
+              className="w-full px-3 py-2.5 border border-gray-300 hover:border-violet-400 hover:bg-violet-50 rounded-lg transition-all text-sm font-medium text-gray-700 flex items-center justify-center gap-2"
               onClick={() => navigate('/shipment/performance')}
             >
-              Performance
+              <BarChart3 size={16} />
+              <span className="hidden sm:inline">Performance</span>
             </button>
           </div>
           <div className="md:col-span-2">
             <button
-              className="w-full px-3 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-700"
+              className="w-full px-3 py-2.5 border border-gray-300 hover:border-amber-400 hover:bg-amber-50 rounded-lg transition-all text-sm font-medium text-gray-700 flex items-center justify-center gap-2"
               onClick={() => navigate('/shipment/reports')}
             >
-              Reports
+              <FileText size={16} />
+              <span className="hidden sm:inline">Reports</span>
             </button>
           </div>
           <div className="md:col-span-1">
             <button 
-              className="w-full px-3 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-medium"
+              className="w-full px-3 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center gap-2 text-sm font-medium"
               onClick={handleExport}
             >
               <Download size={16} />
@@ -498,10 +520,10 @@ const ShipmentDashboard = () => {
         </div>
       </div>
 
-      {/* Main Content - Tabs */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+      {/* Main Content - Tabs - Enhanced */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         {/* Enhanced Tab Navigation */}
-        <div className="border-b border-gray-200 bg-gray-50 overflow-x-auto">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white overflow-x-auto">
           <div className="flex">
             {tabs.map((tab, index) => {
               const TabIcon = tab.icon;
@@ -510,14 +532,14 @@ const ShipmentDashboard = () => {
                 <button
                   key={index}
                   onClick={() => setTabValue(index)}
-                  className={`px-4 py-4 text-sm font-medium border-b-2 transition-all duration-200 flex items-center gap-2 whitespace-nowrap hover:bg-gray-100
+                  className={`px-6 py-4 text-sm font-semibold border-b-3 transition-all duration-200 flex items-center gap-2 whitespace-nowrap hover:bg-gray-100
                     ${isActive 
-                      ? `border-blue-600 text-blue-600 bg-white` 
+                      ? `border-blue-600 text-blue-700 bg-blue-50` 
                       : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                 >
-                  <TabIcon size={18} />
-                  {tab.name}
+                  <TabIcon size={20} />
+                  <span>{tab.name}</span>
                 </button>
               );
             })}
@@ -680,20 +702,20 @@ const ShipmentDashboard = () => {
                 description="Create or track shipments from here"
               />
             ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border-0">
                 <table className="w-full text-sm">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0">
+                  <thead className="bg-gradient-to-r from-slate-900 via-blue-900 to-blue-800 sticky top-0 z-10">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Shipment #</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Order #</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Customer</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Address</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Courier</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Tracking</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Delivery</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Time Taken</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Shipment #</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Order #</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Customer</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Address</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Courier</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Tracking</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Delivery</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">⏱️ Time Taken</th>
+                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-4 text-center text-xs font-bold text-blue-100 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -702,7 +724,11 @@ const ShipmentDashboard = () => {
                       return (
                         <tr 
                           key={shipment.id} 
-                          className={`transition-colors ${isDelivered ? 'bg-emerald-50 hover:bg-emerald-100' : 'hover:bg-blue-50'}`}
+                          className={`transition-all duration-200 border-l-4 ${
+                            isDelivered 
+                              ? 'bg-emerald-50 hover:bg-emerald-100 border-l-emerald-500 hover:shadow-md' 
+                              : 'bg-white hover:bg-blue-50 border-l-blue-400 hover:shadow-md'
+                          }`}
                         >
                           <td className="px-4 py-3 font-semibold text-gray-900">{shipment.shipment_number || 'N/A'}</td>
                           <td className="px-4 py-3 text-gray-700">{shipment.salesOrder?.order_number || 'N/A'}</td>
@@ -718,7 +744,7 @@ const ShipmentDashboard = () => {
                               <span>{shipment.shipping_address || 'N/A'}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-700">{shipment.courierPartner?.name || shipment.courier_company || 'N/A'}</td>
+                          <td className="px-4 py-3 text-gray-700">{shipment.courierAgent?.name ? `${shipment.courierAgent.name} (${shipment.courierAgent.company_name || 'N/A'})` : shipment.courier_company || 'N/A'}</td>
                           <td className="px-4 py-3">
                             <button
                               className="text-blue-600 hover:text-blue-800 font-medium"
@@ -729,16 +755,16 @@ const ShipmentDashboard = () => {
                           </td>
                           <td className="px-4 py-3 text-gray-700">{shipment.expected_delivery_date ? new Date(shipment.expected_delivery_date).toLocaleDateString() : 'N/A'}</td>
                           <td className="px-4 py-3">
-                            {isDelivered ? (
-                              <div className="flex items-center gap-1.5">
-                                <Clock size={14} className="text-emerald-600" />
-                                <span className="font-medium text-emerald-700">
-                                  {calculateDeliveryTime(shipment.created_at, shipment.delivered_at, shipment.status)}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-500 text-xs">—</span>
-                            )}
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-sm w-fit ${
+                              isDelivered 
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+                                : 'bg-amber-100 text-amber-700 border border-amber-200'
+                            }`}>
+                              <Clock size={16} />
+                              <span>
+                                {calculateDeliveryTime(shipment.created_at, shipment.delivered_at, shipment.status)}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(shipment.status)}`}>
@@ -747,11 +773,7 @@ const ShipmentDashboard = () => {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex justify-center gap-2">
-                              {isDelivered && (
-                                <div className="text-xs text-emerald-600 font-semibold bg-emerald-100 px-2 py-1 rounded whitespace-nowrap">
-                                  ✓ Delivered
-                                </div>
-                              )}
+                              
                               {!isDelivered && (
                                 <>
                                   <ActionButton 
@@ -941,17 +963,19 @@ const ShipmentDashboard = () => {
   );
 };
 
-// Stat Card Component
-const StatCard = ({ title, value, unit = '', icon: Icon, bgGradient, iconColor, borderColor }) => (
-  <div className={`bg-gradient-to-br ${bgGradient} border ${borderColor} rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow`}>
+// Stat Card Component - Enhanced
+const StatCard = ({ title, value, unit = '', icon: Icon, bgGradient, iconColor, borderColor, shadow = '' }) => (
+  <div className={`bg-gradient-to-br ${bgGradient} border ${borderColor} rounded-xl p-5 ${shadow} transition-all duration-300 transform hover:scale-105 cursor-pointer`}>
     <div className="flex items-start justify-between">
       <div className="flex-1">
-        <p className="text-xs text-gray-600 font-medium uppercase tracking-wide mb-2">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        {unit && <p className="text-xs text-gray-500 mt-1">{unit}</p>}
+        <p className="text-xs text-gray-700 font-bold uppercase tracking-widest mb-3">{title}</p>
+        <div className="flex items-baseline gap-1">
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          {unit && <p className="text-xs text-gray-600 font-medium">{unit}</p>}
+        </div>
       </div>
-      <div className={`p-2 rounded-lg bg-white bg-opacity-50 ${iconColor}`}>
-        <Icon size={20} />
+      <div className={`p-3 rounded-lg bg-white bg-opacity-70 ${iconColor} transform hover:scale-110 transition-transform`}>
+        <Icon size={24} />
       </div>
     </div>
   </div>

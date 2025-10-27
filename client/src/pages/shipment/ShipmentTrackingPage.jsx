@@ -458,8 +458,8 @@ const ShipmentTrackingPage = () => {
                 </div>
 
                 <div className="border-t pt-4">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Courier</label>
-                  <p className="text-gray-900 font-semibold mt-1">{shipmentData.courier_company || 'N/A'}</p>
+                  <label className="text-xs font-bold text-gray-500 uppercase">Courier Agent</label>
+                  <p className="text-gray-900 font-semibold mt-1">{shipmentData.courierAgent?.name ? `${shipmentData.courierAgent.name} (${shipmentData.courierAgent.company_name || 'N/A'})` : shipmentData.courier_company || 'N/A'}</p>
                 </div>
 
                 <div className="border-t pt-4">

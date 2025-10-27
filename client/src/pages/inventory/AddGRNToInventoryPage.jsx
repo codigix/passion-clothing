@@ -186,53 +186,53 @@ const AddGRNToInventoryPage = () => {
 
         {/* Items to Add */}
         <div className="bg-white rounded shadow-sm border overflow-hidden mb-6">
-          <div className="px-6 py-4 border-b bg-gray-50">
-            <h2 className="text-lg font-semibold">Items to Add to Inventory</h2>
+          <div className="px-5 py-3 border-b bg-gradient-to-r from-gray-50 to-white">
+            <h2 className="text-base font-semibold text-gray-900">Items to Add to Inventory</h2>
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Color/Specs</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Weight</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide">#</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide">Material</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide">Color/Specs</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide">UOM</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide">Quantity</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 uppercase tracking-wide">Weight</th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-700 uppercase tracking-wide">Value</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100">
                 {grn.items_received?.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                  <tr key={index} className="hover:bg-blue-50 transition-colors">
+                    <td className="px-3 py-2 text-gray-600 font-medium">{index + 1}</td>
+                    <td className="px-3 py-2 text-gray-900 font-medium">
                       {item.material_name}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {item.color && <span className="text-gray-700">{item.color}</span>}
-                      {item.gsm && <span className="text-gray-500 ml-1">({item.gsm} GSM)</span>}
+                    <td className="px-3 py-2 text-gray-600">
+                      {item.color && <span className="text-gray-700 font-medium">{item.color}</span>}
+                      {item.gsm && <span className="text-gray-500 text-xs ml-1">({item.gsm}GSM)</span>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{item.uom}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                    <td className="px-3 py-2 text-gray-600 text-center">{item.uom}</td>
+                    <td className="px-3 py-2 text-gray-900 font-semibold text-center">
                       {item.received_quantity}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-3 py-2 text-gray-600">
                       {item.weight ? `${item.weight} kg` : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                    <td className="px-3 py-2 text-gray-900 font-semibold text-right">
                       ₹{parseFloat(item.total || 0).toLocaleString('en-IN')}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 border-t">
+              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                 <tr>
-                  <td colSpan="6" className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                  <td colSpan="6" className="px-3 py-2 font-semibold text-gray-900 text-right">
                     Total Value:
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                  <td className="px-3 py-2 font-bold text-gray-900 text-right">
                     ₹{parseFloat(grn.total_received_value || 0).toLocaleString('en-IN')}
                   </td>
                 </tr>

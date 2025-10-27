@@ -186,6 +186,7 @@ function App() {
         <Route path="/procurement/pending-approvals" element={<ProtectedDashboard department="procurement"><PendingApprovalsPage /></ProtectedDashboard>} />
         <Route path="/procurement/purchase-orders" element={<ProtectedDashboard department="procurement"><PurchaseOrdersPage /></ProtectedDashboard>} />
         <Route path="/procurement/purchase-orders/create" element={<ProtectedDashboard department="procurement"><CreatePurchaseOrderPage /></ProtectedDashboard>} />
+        <Route path="/procurement/purchase-orders/:id/edit" element={<ProtectedDashboard department="procurement"><CreatePurchaseOrderPage /></ProtectedDashboard>} />
         <Route path="/procurement/purchase-orders/:id" element={<ProtectedDashboard department="procurement"><PurchaseOrderDetailsPage /></ProtectedDashboard>} />
         <Route path="/procurement/vendors" element={<ProtectedDashboard department="procurement"><VendorsPage /></ProtectedDashboard>} />
         <Route path="/procurement/vendor-management" element={<ProtectedDashboard department="procurement"><VendorManagementPage /></ProtectedDashboard>} />

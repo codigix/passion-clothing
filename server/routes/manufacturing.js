@@ -20,6 +20,7 @@ const {
   MaterialConsumption,
   ProductionCompletion,
   Shipment,
+  ShipmentTracking,
   Vendor,
   Customer,
   PurchaseOrder
@@ -2656,6 +2657,26 @@ router.post('/orders/:id/ready-for-shipment', authenticateToken, checkDepartment
                            order.salesOrder?.customer?.address || 
                            'Address not provided';
 
+    // Calculate expected delivery date based on shipping method
+    const calculateExpectedDelivery = (shippingMethod = 'standard') => {
+      const today = new Date();
+      const daysMap = {
+        'same_day': 0,      // Today or next business day
+        'overnight': 1,     // 1 day
+        'express': 3,       // 3 days
+        'standard': 7       // 7 days
+      };
+      const days = daysMap[shippingMethod] || 7;
+      const expectedDate = new Date(today);
+      expectedDate.setDate(expectedDate.getDate() + days);
+      return expectedDate;
+    };
+
+    const shippingMethod = req.body?.shipping_method || 'standard';
+    const expectedDeliveryDate = req.body?.expected_delivery_date 
+      ? new Date(req.body.expected_delivery_date)
+      : calculateExpectedDelivery(shippingMethod);
+
     // Create shipment
     const shipment = await Shipment.create({
       shipment_number,
@@ -2670,8 +2691,9 @@ router.post('/orders/:id/ready-for-shipment', authenticateToken, checkDepartment
       special_instructions: special_instructions || notes || '',
       delivery_notes: notes || '',
       status: 'preparing',
-      shipping_method: 'standard',
+      shipping_method: shippingMethod,
       payment_mode: 'prepaid',
+      expected_delivery_date: expectedDeliveryDate,
       created_by: req.user.id
     }, { transaction });
 
@@ -2691,17 +2713,15 @@ router.post('/orders/:id/ready-for-shipment', authenticateToken, checkDepartment
       status_notes: `Ready for shipment - Shipment ${shipment_number} created`
     }, { transaction });
 
-    // Send notifications
-    await NotificationService.create({
-      user_id: req.user.id,
+    // Send notifications to shipment department
+    await NotificationService.sendToDepartment('shipment', {
       title: 'Production Ready for Shipment',
       message: `Production order ${order.production_number} is ready for shipment. Shipment ${shipment_number} created.`,
-      type: 'production_completed',
+      type: 'manufacturing',
       priority: 'high',
-      department: 'shipment',
-      related_id: shipment.id,
-      related_type: 'shipment'
-    }, { transaction });
+      related_entity_id: shipment.id,
+      related_entity_type: 'shipment'
+    }, transaction);
 
     await transaction.commit();
 

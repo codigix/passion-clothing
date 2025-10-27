@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Package, 
-  Truck, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  Search, 
-  Filter, 
-  Plus, 
-  Eye, 
-  Edit, 
+import {
+  Package,
+  Truck,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Search,
+  Filter,
+  Plus,
+  Eye,
+  Edit,
   Send,
   Calendar,
   MapPin,
@@ -48,7 +48,7 @@ const ShipmentDispatchPage = () => {
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [showDeliveryTrackingModal, setShowDeliveryTrackingModal] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState(null);
-  const [courierPartners, setCourierPartners] = useState([]);
+  const [courierAgents, setCourierAgents] = useState([]);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   const [stats, setStats] = useState({
     pending: 0,
@@ -67,7 +67,7 @@ const ShipmentDispatchPage = () => {
 
   useEffect(() => {
     fetchShipments();
-    fetchCourierPartners();
+    fetchCourierAgents();
     fetchStats();
   }, [searchTerm, statusFilter, courierFilter]);
 
@@ -78,11 +78,11 @@ const ShipmentDispatchPage = () => {
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter) params.append('status', statusFilter);
       if (courierFilter) params.append('courier_partner_id', courierFilter);
-      
+
       const response = await fetch(`/api/shipments?${params}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setShipments(data.shipments || []);
@@ -95,17 +95,17 @@ const ShipmentDispatchPage = () => {
     }
   };
 
-  const fetchCourierPartners = async () => {
+  const fetchCourierAgents = async () => {
     try {
-      const response = await fetch('/api/courier-partners', {
+      const response = await fetch('/api/courier-agents', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
-        setCourierPartners(data.courierPartners || []);
+        setCourierAgents(data.agents || []);
       }
     } catch (error) {
-      console.error('Error fetching courier partners:', error);
+      console.error('Error fetching courier agents:', error);
     }
   };
 
@@ -123,13 +123,40 @@ const ShipmentDispatchPage = () => {
     }
   };
 
-  const handleDispatchShipment = async (shipmentId, dispatchData) => {
+  const handleDispatchShipment = async (shipmentId, dispatchData, shipmentData) => {
     try {
+      // Use provided shipment data, or fall back to looking it up
+      const shipment = shipmentData || selectedShipment || shipments.find(s => s.id === shipmentId);
+      
+      if (!shipment) {
+        toast.error('Shipment not found');
+        return;
+      }
+
+      // Determine the correct status based on current shipment status
+      let targetStatus = 'shipped'; // Default for ready_to_ship
+      
+      const currentStatus = shipment.status?.trim().toLowerCase();
+      
+      // Status transition logic
+      if (currentStatus === 'ready_to_ship') {
+        targetStatus = 'shipped';
+      } else if (currentStatus === 'shipped') {
+        targetStatus = 'in_transit';
+      } else if (currentStatus === 'in_transit') {
+        targetStatus = 'out_for_delivery';
+      } else if (currentStatus === 'out_for_delivery') {
+        targetStatus = 'delivered';
+      } else {
+        // For any other status, try to move to next logical state
+        toast.warn(`Current status: ${shipment.status}. Please check allowed transitions.`);
+      }
+
       await api.post(`/shipments/${shipmentId}/status`, {
-        status: 'dispatched',
+        status: targetStatus,
         location: dispatchData.location,
         notes: dispatchData.notes,
-        courier_partner_id: dispatchData.courier_partner_id,
+        courier_agent_id: dispatchData.courier_agent_id,
         tracking_number: dispatchData.tracking_number
       });
 
@@ -140,34 +167,61 @@ const ShipmentDispatchPage = () => {
       setSelectedShipment(null);
     } catch (error) {
       console.error('Error dispatching shipment:', error);
-      toast.error('Failed to dispatch shipment');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to dispatch shipment';
+      toast.error(errorMsg);
     }
   };
 
   const handleBulkDispatch = async () => {
-    if (selectedShipments.length === 0) {
-      toast.error('Please select shipments to dispatch');
+    // Filter out delivered shipments
+    const dispatchableShipments = selectedShipments.filter(shipmentId => {
+      const shipment = shipments.find(s => s.id === shipmentId);
+      return shipment && shipment.status !== 'delivered';
+    });
+
+    if (dispatchableShipments.length === 0) {
+      toast.error('No pending shipments selected to dispatch. Delivered shipments cannot be dispatched.');
       return;
     }
 
+    const skippedCount = selectedShipments.length - dispatchableShipments.length;
+    if (skippedCount > 0) {
+      toast.info(`⏭️ Skipping ${skippedCount} delivered shipment(s)`);
+    }
+
     try {
-      const promises = selectedShipments.map(shipmentId =>
-        fetch(`/api/shipments/${shipmentId}/status`, {
+      const promises = dispatchableShipments.map(shipmentId => {
+        // Determine target status based on current status
+        const shipment = shipments.find(s => s.id === shipmentId);
+        let targetStatus = 'shipped';
+        
+        const currentStatus = shipment?.status?.trim().toLowerCase();
+        if (currentStatus === 'ready_to_ship') {
+          targetStatus = 'shipped';
+        } else if (currentStatus === 'shipped') {
+          targetStatus = 'in_transit';
+        } else if (currentStatus === 'in_transit') {
+          targetStatus = 'out_for_delivery';
+        } else if (currentStatus === 'out_for_delivery') {
+          targetStatus = 'delivered';
+        }
+
+        return fetch(`/api/shipments/${shipmentId}/status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            status: 'dispatched',
+            status: targetStatus,
             location: 'Warehouse',
             notes: 'Bulk dispatch'
           })
-        })
-      );
+        });
+      });
 
       await Promise.all(promises);
-      toast.success(`✓ ${selectedShipments.length} shipments dispatched successfully`);
+      toast.success(`✓ ${dispatchableShipments.length} shipment(s) dispatched successfully`);
       setSelectedShipments([]);
       fetchShipments();
       fetchStats();
@@ -218,11 +272,10 @@ const ShipmentDispatchPage = () => {
 
     return (
       <div
-        className={`relative rounded-xl border-2 transition-all duration-300 cursor-pointer group ${
-          isSelected
+        className={`relative rounded-xl border-2 transition-all duration-300 cursor-pointer group ${isSelected
             ? 'border-blue-500 bg-blue-50 shadow-lg'
             : `border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg ${statusColors.bg}`
-        }`}
+          }`}
         onClick={() => {
           if (selectedShipments.includes(shipment.id)) {
             setSelectedShipments(selectedShipments.filter(id => id !== shipment.id));
@@ -236,7 +289,7 @@ const ShipmentDispatchPage = () => {
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => {}}
+            onChange={() => { }}
             className="w-5 h-5 rounded border-2 border-gray-300 cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           />
@@ -291,29 +344,52 @@ const ShipmentDispatchPage = () => {
 
         {/* Action Buttons */}
         <div className="p-4 border-t-2 border-gray-100 flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedShipment(shipment);
-              setShowDispatchModal(true);
-            }}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition transform hover:scale-105"
-          >
-            <Send className="w-4 h-4" />
-            Dispatch
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedShipment(shipment);
-              setShowDeliveryTrackingModal(true);
-            }}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-white border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-50 transition"
-            title="View tracking"
-          >
-            <Eye className="w-4 h-4" />
-            Track
-          </button>
+          {shipment.status !== 'delivered' ? (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedShipment(shipment);
+                  setShowDispatchModal(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition transform hover:scale-105"
+              >
+                <Send className="w-4 h-4" />
+                Dispatch
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedShipment(shipment);
+                  setShowDeliveryTrackingModal(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-white border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-50 transition"
+                title="View tracking"
+              >
+                <Eye className="w-4 h-4" />
+                Track
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-50 border-2 border-emerald-300 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-emerald-700">Delivered</span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedShipment(shipment);
+                  setShowDeliveryTrackingModal(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-white border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-50 transition"
+                title="View tracking & delivery info"
+              >
+                <Eye className="w-4 h-4" />
+                View Info
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -323,7 +399,7 @@ const ShipmentDispatchPage = () => {
   const ShipmentRow = ({ shipment }) => {
     const isSelected = selectedShipments.includes(shipment.id);
     const statusColors = getStatusColor(shipment.status);
-    
+
     return (
       <tr className={`border-b border-gray-200 hover:bg-blue-50 transition-colors ${isSelected ? 'bg-blue-100' : ''}`}>
         <td className="px-6 py-4">
@@ -364,32 +440,34 @@ const ShipmentDispatchPage = () => {
         </td>
         <td className="px-6 py-4">
           <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setSelectedShipment(shipment);
-                setShowDispatchModal(true);
-              }}
-              className="p-2 hover:bg-blue-100 rounded-lg text-blue-600 transition hover:scale-110 transform"
-              title="Dispatch"
-            >
-              <Send className="w-4 h-4" />
-            </button>
+            {shipment.status !== 'delivered' && (
+              <button
+                onClick={() => {
+                  setSelectedShipment(shipment);
+                  setShowDispatchModal(true);
+                }}
+                className="p-2 hover:bg-blue-100 rounded-lg text-blue-600 transition hover:scale-110 transform"
+                title="Dispatch"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => {
                 setSelectedShipment(shipment);
                 setShowDeliveryTrackingModal(true);
               }}
               className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition hover:scale-110 transform"
-              title="Track"
+              title={shipment.status === 'delivered' ? "View delivery info & tracking" : "Track"}
             >
               <Eye className="w-4 h-4" />
             </button>
-            <button
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition hover:scale-110 transform"
-              title="More options"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
+            {shipment.status === 'delivered' && (
+              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Delivered
+              </span>
+            )}
           </div>
         </td>
       </tr>
@@ -399,19 +477,41 @@ const ShipmentDispatchPage = () => {
   // ============ DISPATCH MODAL ============
   const DispatchModal = ({ shipment, onClose, onDispatch }) => {
     const [formData, setFormData] = useState({
-      courier_partner_id: '',
+      courier_agent_id: '',
       tracking_number: '',
       location: 'Warehouse',
       notes: ''
     });
 
+    // Prefill form data when shipment is loaded
+    useEffect(() => {
+      if (shipment) {
+        const prefillData = {
+          courier_agent_id: shipment.courier_agent_id || '',
+          tracking_number: shipment.tracking_number || '',
+          location: shipment.courier_company || 'Warehouse',
+          notes: shipment.special_instructions || ''
+        };
+
+        // If no tracking number but have order ID, generate one
+        if (!prefillData.tracking_number && shipment.sales_order_id) {
+          const timestamp = Date.now().toString().slice(-6);
+          const orderNum = shipment.sales_order_id;
+          prefillData.tracking_number = `TRK-${orderNum}-${timestamp}`;
+        }
+
+        setFormData(prefillData);
+      }
+    }, [shipment]);
+
     const handleSubmit = (e) => {
       e.preventDefault();
-      if (!formData.courier_partner_id || !formData.tracking_number) {
+      if (!formData.courier_agent_id || !formData.tracking_number) {
         toast.error('Please fill in all required fields');
         return;
       }
-      onDispatch(shipment.id, formData);
+      // Pass shipment object as third parameter to ensure correct status data
+      onDispatch(shipment.id, formData, shipment);
     };
 
     return (
@@ -439,29 +539,43 @@ const ShipmentDispatchPage = () => {
             {/* Shipment Summary */}
             <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
               <p className="text-xs font-bold text-blue-900 uppercase">Shipment Summary</p>
-              <p className="text-sm text-blue-800 mt-2">
-                📦 {shipment.salesOrder?.customer?.name} - {shipment.delivery_address?.substring(0, 35)}...
-              </p>
+              <div className="space-y-1 mt-2 text-sm text-blue-800">
+                <p>📦 <span className="font-semibold">{shipment.salesOrder?.customer?.name}</span></p>
+                <p>📍 {(shipment.shipping_address || shipment.delivery_address)?.substring(0, 50)}...</p>
+                {shipment.courier_company && (
+                  <p>🚚 <span className="font-semibold text-blue-900">{shipment.courier_company}</span></p>
+                )}
+              </div>
             </div>
 
-            {/* Courier Partner */}
+            {/* Courier Agent */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
                 <Truck className="w-4 h-4 text-blue-600" />
-                Courier Partner *
+                Courier Agent *
+                {shipment.courier_agent_id && (
+                  <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                    Prefilled from Order
+                  </span>
+                )}
               </label>
               <select
-                value={formData.courier_partner_id}
-                onChange={(e) => setFormData({...formData, courier_partner_id: e.target.value})}
+                value={formData.courier_agent_id}
+                onChange={(e) => setFormData({ ...formData, courier_agent_id: e.target.value })}
                 required
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none bg-white hover:border-gray-300 transition"
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:border-blue-500 focus:outline-none bg-white hover:border-gray-300 transition ${shipment.courier_agent_id ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                  }`}
               >
-                <option value="">Select a Courier...</option>
-                {courierPartners.map(courier => (
-                  <option key={courier.id} value={courier.id}>
-                    {courier.company_name}
-                  </option>
-                ))}
+                <option value="">Select a Courier Agent...</option>
+                {courierAgents.length > 0 ? (
+                  courierAgents.map(agent => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.agent_name} ({agent.courier_company})
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No agents available</option>
+                )}
               </select>
             </div>
 
@@ -470,14 +584,20 @@ const ShipmentDispatchPage = () => {
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
                 <Copy className="w-4 h-4 text-blue-600" />
                 Tracking Number *
+                {shipment.tracking_number && (
+                  <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                    From Shipment
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={formData.tracking_number}
-                onChange={(e) => setFormData({...formData, tracking_number: e.target.value.toUpperCase()})}
+                onChange={(e) => setFormData({ ...formData, tracking_number: e.target.value.toUpperCase() })}
                 required
                 placeholder="e.g., TRK123456789"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none hover:border-gray-300 transition font-mono"
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:border-blue-500 focus:outline-none hover:border-gray-300 transition font-mono ${shipment.tracking_number ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                  }`}
               />
             </div>
 
@@ -490,7 +610,7 @@ const ShipmentDispatchPage = () => {
               <input
                 type="text"
                 value={formData.location}
-                onChange={(e) => setFormData({...formData, location: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 placeholder="e.g., Main Warehouse"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none hover:border-gray-300 transition"
               />
@@ -504,7 +624,7 @@ const ShipmentDispatchPage = () => {
               </label>
               <textarea
                 value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Add any special instructions..."
                 rows="3"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none resize-none hover:border-gray-300 transition"
@@ -573,13 +693,12 @@ const ShipmentDispatchPage = () => {
                     <div key={stage.key} className="flex items-center">
                       <div className="flex flex-col items-center">
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center font-bold transition-all duration-300 transform ${
-                            isCompleted
+                          className={`w-12 h-12 rounded-full flex items-center justify-center font-bold transition-all duration-300 transform ${isCompleted
                               ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg scale-110'
                               : isCurrent
-                              ? 'bg-blue-500 text-white shadow-lg scale-110 animate-pulse'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}
+                                ? 'bg-blue-500 text-white shadow-lg scale-110 animate-pulse'
+                                : 'bg-gray-200 text-gray-600'
+                            }`}
                         >
                           <StageIcon className="w-5 h-5" />
                         </div>
@@ -716,7 +835,7 @@ const ShipmentDispatchPage = () => {
                 className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none hover:border-gray-300 transition"
               >
                 <option value="">All Couriers</option>
-                {courierPartners.map(courier => (
+                {courierAgents.map(courier => (
                   <option key={courier.id} value={courier.id}>
                     {courier.company_name}
                   </option>
@@ -730,11 +849,10 @@ const ShipmentDispatchPage = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`flex-1 px-3 py-2.5 rounded-lg font-bold text-sm transition transform hover:scale-105 flex items-center justify-center gap-1 ${
-                    viewMode === 'grid'
+                  className={`flex-1 px-3 py-2.5 rounded-lg font-bold text-sm transition transform hover:scale-105 flex items-center justify-center gap-1 ${viewMode === 'grid'
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                    }`}
                   title="Grid View"
                 >
                   <Grid3x3 className="w-4 h-4" />
@@ -742,11 +860,10 @@ const ShipmentDispatchPage = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`flex-1 px-3 py-2.5 rounded-lg font-bold text-sm transition transform hover:scale-105 flex items-center justify-center gap-1 ${
-                    viewMode === 'table'
+                  className={`flex-1 px-3 py-2.5 rounded-lg font-bold text-sm transition transform hover:scale-105 flex items-center justify-center gap-1 ${viewMode === 'table'
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                    }`}
                   title="Table View"
                 >
                   <List className="w-4 h-4" />
@@ -757,18 +874,39 @@ const ShipmentDispatchPage = () => {
 
             {/* Bulk Dispatch */}
             <div className="flex items-end">
-              <button
-                onClick={handleBulkDispatch}
-                disabled={selectedShipments.length === 0}
-                className={`w-full px-4 py-2.5 font-bold rounded-lg transition flex items-center justify-center gap-2 transform hover:scale-105 text-sm md:text-base ${
-                  selectedShipments.length > 0
-                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg hover:from-emerald-600 hover:to-emerald-700'
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <CheckCheck className="w-4 h-4" />
-                <span>Dispatch {selectedShipments.length > 0 ? `(${selectedShipments.length})` : ''}</span>
-              </button>
+              {(() => {
+                const dispatchableCount = selectedShipments.filter(shipmentId => {
+                  const shipment = shipments.find(s => s.id === shipmentId);
+                  return shipment && shipment.status !== 'delivered';
+                }).length;
+
+                const deliveredCount = selectedShipments.length - dispatchableCount;
+
+                return (
+                  <>
+                    <button
+                      onClick={handleBulkDispatch}
+                      disabled={selectedShipments.length === 0 || dispatchableCount === 0}
+                      className={`w-full px-4 py-2.5 font-bold rounded-lg transition flex items-center justify-center gap-2 transform hover:scale-105 text-sm md:text-base ${dispatchableCount > 0
+                          ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg hover:from-emerald-600 hover:to-emerald-700'
+                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
+                      title={deliveredCount > 0 ? `${deliveredCount} delivered shipments cannot be dispatched` : ''}
+                    >
+                      <CheckCheck className="w-4 h-4" />
+                      <span>
+                        Dispatch {dispatchableCount > 0 ? `(${dispatchableCount}${deliveredCount > 0 ? ` of ${selectedShipments.length}` : ''})` : ''}
+                      </span>
+                    </button>
+                    {deliveredCount > 0 && (
+                      <div className="ml-2 px-3 py-2.5 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs md:text-sm flex items-center gap-1 whitespace-nowrap">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>{deliveredCount} delivered</span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

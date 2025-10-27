@@ -221,6 +221,36 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
       comment: 'QR code data containing PO details'
+    },
+    version_number: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1,
+      comment: 'Current version number of the PO'
+    },
+    change_history: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+      comment: 'Array of all changes made to the PO with timestamps and user details'
+    },
+    last_edited_by: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      comment: 'User ID of the person who last edited the PO'
+    },
+    last_edited_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Timestamp of last edit'
+    },
+    requires_reapproval: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: 'Flag to indicate if PO requires re-approval after edits'
     }
   }, {
     tableName: 'purchase_orders',
@@ -235,7 +265,11 @@ module.exports = (sequelize) => {
       { fields: ['created_by'] },
       { fields: ['linked_sales_order_id'] },
       { fields: ['approval_status'] },
-      { fields: ['generated_from_sales_order'] }
+      { fields: ['generated_from_sales_order'] },
+      { fields: ['version_number'] },
+      { fields: ['last_edited_at'] },
+      { fields: ['requires_reapproval'] },
+      { fields: ['last_edited_by'] }
     ]
   });
 

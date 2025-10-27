@@ -155,9 +155,9 @@ const ShipmentDetailsDialog = ({ isOpen, onClose, shipment }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Courier Partner
+                    Courier Agent
                   </label>
-                  <p className="text-sm text-gray-900">{shipment.courierPartner?.name || shipment.courier_company || 'N/A'}</p>
+                  <p className="text-sm text-gray-900">{shipment.courierAgent?.name ? `${shipment.courierAgent.name} (${shipment.courierAgent.company_name || 'N/A'})` : shipment.courierPartner?.name || shipment.courier_company || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

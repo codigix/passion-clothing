@@ -82,6 +82,15 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    courier_agent_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'courier_agents',
+        key: 'id'
+      },
+      comment: 'Reference to courier_agents table'
+    },
     tracking_number: {
       type: DataTypes.STRING(100),
       allowNull: true
@@ -186,6 +195,7 @@ module.exports = (sequelize) => {
       { fields: ['shipment_date'] },
       { fields: ['expected_delivery_date'] },
       { fields: ['courier_company'] },
+      { fields: ['courier_agent_id'] },
       { fields: ['created_by'] }
     ]
   });

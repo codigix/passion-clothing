@@ -236,11 +236,15 @@ const defineAssociations = () => {
   Shipment.belongsTo(SalesOrder, { foreignKey: 'sales_order_id', as: 'salesOrder' });
   Shipment.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
   Shipment.belongsTo(CourierPartner, { foreignKey: 'courier_partner_id', as: 'courierPartner' });
+  Shipment.belongsTo(CourierAgent, { foreignKey: 'courier_agent_id', as: 'courierAgent' });
   Shipment.hasMany(ShipmentTracking, { foreignKey: 'shipment_id', as: 'trackingUpdates' });
 
   // Courier Partner associations
   CourierPartner.hasMany(Shipment, { foreignKey: 'courier_partner_id', as: 'shipments' });
   CourierPartner.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+  // Courier Agent associations
+  CourierAgent.hasMany(Shipment, { foreignKey: 'courier_agent_id', as: 'shipments' });
 
   // Notification associations
   Notification.belongsTo(User, { foreignKey: 'recipient_user_id', as: 'recipient' });

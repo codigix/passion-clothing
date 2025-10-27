@@ -724,6 +724,58 @@ const ProductionWizardPage = () => {
           console.warn('Failed to parse items:', e);
         }
 
+        // Determine final materials list with fallback logic
+        let finalMaterials = [];
+        if (receivedMaterials.length > 0) {
+          finalMaterials = receivedMaterials;
+          console.log(`✅ Using received materials: ${receivedMaterials.length} items`);
+        } else if (materialsRequested.length > 0) {
+          finalMaterials = materialsRequested;
+          console.log(`✅ Using MRN requested materials: ${materialsRequested.length} items`);
+        } else {
+          // Fallback 1: Try to extract materials from PO items
+          let poItems = [];
+          if (purchaseOrder.items) {
+            try {
+              poItems = typeof purchaseOrder.items === 'string' 
+                ? JSON.parse(purchaseOrder.items) 
+                : purchaseOrder.items;
+              if (Array.isArray(poItems) && poItems.length > 0) {
+                console.log(`📦 Fallback 1: Found ${poItems.length} items in Purchase Order`);
+              }
+            } catch (e) {
+              console.warn('Failed to parse PO items:', e);
+            }
+          }
+
+          // Fallback 2: Use SO items if PO items empty
+          if (poItems.length === 0 && items.length > 0) {
+            poItems = items;
+            console.log(`📦 Fallback 2: Using Sales Order items instead (${items.length} items)`);
+          }
+
+          // Convert items to materials format
+          if (poItems.length > 0) {
+            finalMaterials = poItems.map((item, idx) => ({
+              materialId: `M-${(idx + 1).toString().padStart(3, '0')}`,
+              description: item.material_name || item.name || item.description || item.product_name || `Material ${idx + 1}`,
+              requiredQuantity: item.quantity || item.quantity_required || 1,
+              unit: item.uom || item.unit || 'pieces',
+              status: 'pending',
+              barcode: '',
+              remarks: `Auto-populated from ${purchaseOrder.items && poItems === (typeof purchaseOrder.items === 'string' ? JSON.parse(purchaseOrder.items) : purchaseOrder.items) ? 'Purchase Order' : 'Sales Order'}`,
+              location: '',
+              color: item.color || '',
+              gsm: item.gsm || '',
+              width: item.width || '',
+              purpose: item.purpose || ''
+            }));
+            console.log(`✅ Fallback: Created ${finalMaterials.length} materials from items`);
+          } else {
+            console.warn('⚠️ No materials found in MRN, PO, or SO - materials will be empty');
+          }
+        }
+
         // Prepare transformed data for display
         const productName = items[0]?.product_name || 
                            items[0]?.name || 
@@ -744,7 +796,7 @@ const ProductionWizardPage = () => {
           product_id: items[0]?.product_id || null,
           sales_order_id: salesOrderId,
           special_instructions: salesOrder.special_instructions || salesOrder.notes || '',
-          materials: receivedMaterials.length > 0 ? receivedMaterials : materialsRequested
+          materials: finalMaterials
         };
 
         setSelectedOrderDetails(transformedData);
@@ -803,17 +855,32 @@ const ProductionWizardPage = () => {
           methods.setValue('orderDetails.specialInstructions', transformedData.special_instructions);
         }
 
-        // Auto-fill materials from MRN
+        // Auto-fill materials from various sources
         if (transformedData.materials && transformedData.materials.length > 0) {
-          const isFromReceipt = receivedMaterials.length > 0;
-          const source = isFromReceipt ? 'receipt' : 'MRN request';
-          console.log(`📦 Loading ${transformedData.materials.length} material(s) from ${source}`);
+          // Determine source of materials for better logging
+          let materialSource = 'Unknown Source';
+          if (receivedMaterials.length > 0) {
+            materialSource = `Material Receipt (${mrnRequest.request_number || 'MRN'})`;
+          } else if (materialsRequested.length > 0) {
+            materialSource = `MRN Request (${mrnRequest.request_number || 'N/A'})`;
+          } else if (purchaseOrder.items) {
+            materialSource = 'Purchase Order Items';
+          } else {
+            materialSource = 'Sales Order Items';
+          }
+          
+          console.log(`📦 Loading ${transformedData.materials.length} material(s) from ${materialSource}`);
           console.log('🔍 Materials data:', transformedData.materials);
           
-          // Map materials directly from MRN without inventory fetch
+          // Map materials - handles both MRN format and item format
           const loadedMaterials = transformedData.materials.map((m, idx) => {
-            // Enhanced debugging
-            console.log(`Material ${idx}:`, m);
+            // Material already has correct structure if from MRN/receipt
+            // or from our fallback mapping if from items
+            if (m.materialId) {
+              // Already properly formatted from fallback mapping
+              console.log(`✅ Material ${m.materialId}: ${m.description}`);
+              return m;
+            }
             
             // Generate auto-incremented material ID (M-001, M-002, etc.)
             const materialId = `M-${(idx + 1).toString().padStart(3, '0')}`;
@@ -837,7 +904,7 @@ const ProductionWizardPage = () => {
               status: m.status || 'available',
               condition: m.condition || '',
               barcode: m.barcode_scanned || m.barcode || '',
-              remarks: isFromReceipt ? m.remarks || '' : `From MRN ${mrnRequest.request_number || 'N/A'}`,
+              remarks: m.remarks || (mrnRequest.request_number ? `From MRN ${mrnRequest.request_number}` : ''),
               location: m.location || m.warehouse_location || '',
               color: m.color || '',
               gsm: m.gsm || '',
@@ -848,14 +915,16 @@ const ProductionWizardPage = () => {
           
           if (loadedMaterials.length > 0) {
             methods.setValue('materials.items', loadedMaterials);
-            console.log(`✅ Successfully loaded ${loadedMaterials.length} materials`);
-            toast.success(`✅ Loaded ${loadedMaterials.length} materials from MRN ${mrnRequest.request_number || 'project'}!`);
+            console.log(`✅ Successfully loaded ${loadedMaterials.length} materials from ${materialSource}`);
+            toast.success(`✅ Loaded ${loadedMaterials.length} materials from ${materialSource}!`);
           } else {
             console.warn('⚠️ No valid materials after mapping');
-            console.warn('⚠️ No valid materials found to load');
+            console.warn('⚠️ No valid materials found to load - please add materials manually');
+            toast.info('⚠️ No materials found - please add them manually in the Materials section');
           }
         } else {
-          console.log('ℹ️ No materials found in MRN request');
+          console.log('ℹ️ No materials found in any source (MRN, PO, or SO)');
+          console.log('ℹ️ You can add materials manually in the Materials section below');
         }
 
         methods.setValue('orderSelection.autoFilled', true);

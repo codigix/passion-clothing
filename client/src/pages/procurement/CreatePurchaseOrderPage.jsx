@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FaArrowLeft, FaQrcode, FaDownload, FaPaperPlane, FaTruck, FaCheck, FaPlus, FaTrash, FaCheckCircle } from 'react-icons/fa';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
 import { generateOrderQRData } from '../../utils/qrCode';
@@ -9,7 +9,9 @@ import toast from 'react-hot-toast';
 const CreatePurchaseOrderPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id: poId } = useParams(); // Get PO ID from URL for edit mode
   const linkedSalesOrderId = searchParams.get('from_sales_order');
+  const isEditMode = !!poId;
 
   // State for order data
   const [orderData, setOrderData] = useState({
@@ -59,6 +61,7 @@ const CreatePurchaseOrderPage = () => {
   const [createdOrder, setCreatedOrder] = useState(null);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrData, setQrData] = useState(null);
+  const [isLoading, setIsLoading] = useState(isEditMode);
 
   // Fetch vendors and customers
   useEffect(() => {
@@ -133,6 +136,66 @@ const CreatePurchaseOrderPage = () => {
       fetchSalesOrder();
     }
   }, [linkedSalesOrderId]);
+
+  // Load existing PO data when in edit mode
+  useEffect(() => {
+    if (isEditMode && poId) {
+      const fetchExistingPO = async () => {
+        try {
+          setIsLoading(true);
+          const response = await api.get(`/procurement/pos/${poId}`);
+          const po = response.data.purchaseOrder || response.data;
+          
+          // Parse items array if it's a string
+          const items = typeof po.items === 'string' ? JSON.parse(po.items) : (po.items || []);
+          
+          // Map PO data to form state
+          setOrderData({
+            vendor_id: po.vendor_id || '',
+            project_name: po.project_name || '',
+            customer_id: po.customer_id || '',
+            client_name: po.client_name || '',
+            po_date: po.po_date ? new Date(po.po_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            expected_delivery_date: po.expected_delivery_date ? new Date(po.expected_delivery_date).toISOString().split('T')[0] : '',
+            priority: po.priority || 'medium',
+            items: items.length > 0 ? items : [{
+              type: 'fabric',
+              fabric_name: '',
+              color: '',
+              hsn: '',
+              gsm: '',
+              width: '',
+              item_name: '',
+              description: '',
+              uom: 'Meters',
+              quantity: '',
+              rate: '',
+              total: 0,
+              supplier: '',
+              remarks: ''
+            }],
+            payment_terms: po.payment_terms || '',
+            delivery_address: po.delivery_address || '',
+            special_instructions: po.special_instructions || '',
+            terms_conditions: po.terms_conditions || '',
+            internal_notes: po.internal_notes || '',
+            discount_percentage: po.discount_percentage || 0,
+            tax_percentage: po.tax_percentage || 12,
+            freight: po.freight || 0
+          });
+          
+          setIsLoading(false);
+        } catch (error) {
+          console.error('Failed to fetch PO for editing:', error);
+          toast.error('Failed to load purchase order');
+          setIsLoading(false);
+          navigate('/procurement/purchase-orders');
+        }
+      };
+
+      fetchExistingPO();
+    }
+  }, [isEditMode, poId]);
 
   // Auto-fill supplier when vendor changes
   useEffect(() => {
@@ -273,26 +336,47 @@ const CreatePurchaseOrderPage = () => {
         payload.linked_sales_order_id = linkedSalesOrder.id;
       }
 
-      const response = await api.post('/procurement/pos', payload);
-      const newOrder = response.data.purchaseOrder; // Backend returns { purchaseOrder: {...} }
+      let response;
+      if (isEditMode) {
+        // Update existing PO
+        response = await api.put(`/procurement/pos/${poId}`, payload);
+        const updatedOrder = response.data.purchaseOrder; // Backend returns { purchaseOrder: {...} }
 
-      // Generate QR code data
-      const qrCodeData = generateOrderQRData(newOrder, 'purchase');
-      setQrData(qrCodeData);
-      setCreatedOrder(newOrder);
-      setShowQRCode(false);
+        // Generate QR code data
+        const qrCodeData = generateOrderQRData(updatedOrder, 'purchase');
+        setQrData(qrCodeData);
+        setCreatedOrder(updatedOrder);
+        setShowQRCode(false);
 
-      toast.success(`✅ Purchase Order ${newOrder.po_number} created successfully!`);
-
-      // If linked to a sales order, navigate back to dashboard to see the updated status
-      if (linkedSalesOrder) {
+        toast.success(`✅ Purchase Order ${updatedOrder.po_number} updated successfully!`);
+        
+        // Navigate back to details page
         setTimeout(() => {
-          navigate('/procurement/dashboard', { 
-            state: { 
-              message: `PO ${newOrder.po_number} created successfully for Sales Order ${linkedSalesOrder.order_number}` 
-            } 
-          });
+          navigate(`/procurement/purchase-orders/${updatedOrder.id}`);
         }, 1500);
+      } else {
+        // Create new PO
+        response = await api.post('/procurement/pos', payload);
+        const newOrder = response.data.purchaseOrder; // Backend returns { purchaseOrder: {...} }
+
+        // Generate QR code data
+        const qrCodeData = generateOrderQRData(newOrder, 'purchase');
+        setQrData(qrCodeData);
+        setCreatedOrder(newOrder);
+        setShowQRCode(false);
+
+        toast.success(`✅ Purchase Order ${newOrder.po_number} created successfully!`);
+
+        // If linked to a sales order, navigate back to dashboard to see the updated status
+        if (linkedSalesOrder) {
+          setTimeout(() => {
+            navigate('/procurement/dashboard', { 
+              state: { 
+                message: `PO ${newOrder.po_number} created successfully for Sales Order ${linkedSalesOrder.order_number}` 
+              } 
+            });
+          }, 1500);
+        }
       }
 
     } catch (err) {
@@ -303,10 +387,10 @@ const CreatePurchaseOrderPage = () => {
       } else if (Array.isArray(response?.errors)) {
         setSubmitError(response.errors.join(', '));
       } else {
-        setSubmitError('Failed to create purchase order. Please try again.');
+        setSubmitError(isEditMode ? 'Failed to update purchase order. Please try again.' : 'Failed to create purchase order. Please try again.');
       }
-      console.error('PO creation error:', err);
-      toast.error('Failed to create purchase order');
+      console.error(isEditMode ? 'PO update error:' : 'PO creation error:', err);
+      toast.error(isEditMode ? 'Failed to update purchase order' : 'Failed to create purchase order');
     } finally {
       setIsSubmitting(false);
     }
@@ -381,6 +465,18 @@ const CreatePurchaseOrderPage = () => {
 
   const uomOptions = ['Meters', 'Yards', 'Kilograms', 'Pieces', 'Sets', 'Dozens', 'Boxes'];
 
+  // Loading state for edit mode
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading purchase order...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-7xl">
@@ -389,13 +485,13 @@ const CreatePurchaseOrderPage = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/procurement/purchase-orders')}
+              onClick={() => navigate(isEditMode ? `/procurement/purchase-orders/${poId}` : '/procurement/purchase-orders')}
               className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
             >
               <FaArrowLeft className="h-4 w-4" />
               Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">Create Purchase Order</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Edit Purchase Order' : 'Create Purchase Order'}</h1>
           </div>
           
           {createdOrder && (
@@ -951,15 +1047,15 @@ const CreatePurchaseOrderPage = () => {
             </div>
 
             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {/* Create Purchase Order - Auto-sends for approval */}
-              {!createdOrder && (
+              {/* Create/Update Purchase Order */}
+              {(!createdOrder || isEditMode) && (
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="inline-flex items-center justify-center gap-1.5 rounded bg-gradient-to-r from-blue-600 to-indigo-600 px-2 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none"
                 >
                   <FaCheck className="h-4 w-4" />
-                  {isSubmitting ? 'Creating PO...' : 'Create PO & Send for Approval'}
+                  {isSubmitting ? (isEditMode ? 'Updating PO...' : 'Creating PO...') : (isEditMode ? 'Update PO' : 'Create PO & Send for Approval')}
                 </button>
               )}
 
