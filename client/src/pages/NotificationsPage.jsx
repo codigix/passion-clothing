@@ -1,113 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  FaBell,
-  FaBellSlash,
-  FaCheckCircle,
-  FaExclamationTriangle,
-  FaInfoCircle,
-  FaTrash,
-  FaEnvelopeOpenText,
-  FaCog,
-  FaShoppingCart,
-  FaTruck,
-  FaMoneyBillWave,
-  FaUser,
-  FaClipboardList,
-  FaCircle
-} from 'react-icons/fa';
+  Bell,
+  BellOff,
+  CheckCircle,
+  AlertCircle,
+  Info,
+  Trash2,
+  MoreHorizontal,
+  Settings,
+  RefreshCw,
+  Filter,
+  Search,
+  Archive,
+  Circle,
+  CheckCheck,
+  Clock,
+  ShoppingCart,
+  Truck,
+  DollarSign,
+  AlertTriangle,
+  Zap,
+  X
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import api from '../utils/api';
 
 const NotificationsPage = () => {
   const [tabValue, setTabValue] = useState(0);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'order',
-      title: 'New Sales Order Created',
-      message: 'Sales Order SO-2024-001 has been created for ABC School',
-      timestamp: '2024-12-01 10:30:15',
-      isRead: false,
-      priority: 'high',
-      icon: <FaShoppingCart />,
-      color: 'primary'
-    },
-    {
-      id: 2,
-      type: 'inventory',
-      title: 'Low Stock Alert',
-      message: 'Cotton Fabric - White is running low (15 units remaining)',
-      timestamp: '2024-12-01 09:45:22',
-      isRead: false,
-      priority: 'high',
-      icon: <FaExclamationTriangle />,
-      color: 'warning'
-    },
-    {
-      id: 3,
-      type: 'shipment',
-      title: 'Shipment Delivered',
-      message: 'Shipment SHP-2024-001 has been delivered to ABC School',
-      timestamp: '2024-12-01 08:20:10',
-      isRead: true,
-      priority: 'medium',
-      icon: <FaTruck />,
-      color: 'success'
-    },
-    {
-      id: 4,
-      type: 'finance',
-      title: 'Payment Received',
-      message: 'Payment of ₹4,25,000 received from ABC School',
-      timestamp: '2024-11-30 16:15:30',
-      isRead: true,
-      priority: 'medium',
-      icon: <FaMoneyBillWave />,
-      color: 'success'
-    },
-    {
-      id: 5,
-      type: 'system',
-      title: 'System Maintenance',
-      message: 'Scheduled maintenance will occur tonight from 2:00 AM to 4:00 AM',
-      timestamp: '2024-11-30 14:00:00',
-      isRead: false,
-      priority: 'low',
-      icon: <FaInfoCircle />,
-      color: 'info'
-    },
-    {
-      id: 6,
-      type: 'approval',
-      title: 'Purchase Order Pending Approval',
-      message: 'Purchase Order PO-2024-002 is waiting for your approval',
-      timestamp: '2024-11-30 11:30:45',
-      isRead: false,
-      priority: 'high',
-      icon: <FaClipboardList />,
-      color: 'warning'
-    },
-    {
-      id: 7,
-      type: 'user',
-      title: 'New User Added',
-      message: 'New user Amit Sharma has been added to Manufacturing department',
-      timestamp: '2024-11-29 15:20:18',
-      isRead: true,
-      priority: 'low',
-      icon: <FaUser />,
-      color: 'info'
-    },
-    {
-      id: 8,
-      type: 'error',
-      title: 'System Error',
-      message: 'Failed to sync data with external system. Please check logs.',
-      timestamp: '2024-11-29 12:45:33',
-      isRead: false,
-      priority: 'high',
-      icon: <FaExclamationTriangle />,
-      color: 'error'
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [filteredNotifications, setFilteredNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [showSettings, setShowSettings] = useState(false);
 
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
@@ -120,377 +46,364 @@ const NotificationsPage = () => {
     systemAlerts: true
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const [stats, setStats] = useState({
+    total: 0,
+    unread: 0,
+    read: 0,
+    high: 0
+  });
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === id
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
+  // Fetch notifications
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000); // Refresh every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Apply filters
+  useEffect(() => {
+    applyFilters();
+  }, [notifications, tabValue, searchTerm, priorityFilter]);
+
+  const fetchNotifications = async () => {
+    try {
+      if (!refreshing) setLoading(true);
+      setRefreshing(true);
+
+      const response = await api.get('/notifications', {
+        params: {
+          limit: 50,
+          page: 1
+        }
+      });
+
+      const notifs = response.data.notifications || [];
+      setNotifications(notifs);
+
+      // Fetch stats
+      try {
+        const statsResponse = await api.get('/notifications/stats');
+        setStats({
+          total: statsResponse.data.total || notifs.length,
+          unread: notifs.filter(n => n.status !== 'read').length,
+          read: notifs.filter(n => n.status === 'read').length,
+          high: notifs.filter(n => n.priority === 'high').length
+        });
+      } catch (err) {
+        console.log('Stats not available');
+      }
+
+      setLoading(false);
+      setRefreshing(false);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      toast.error('Failed to load notifications');
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notification => ({ ...notification, isRead: true }))
-    );
+  const applyFilters = () => {
+    let filtered = [...notifications];
+
+    // Apply tab filter
+    switch (tabValue) {
+      case 1: // Unread
+        filtered = filtered.filter(n => n.status !== 'read');
+        break;
+      case 2: // Read
+        filtered = filtered.filter(n => n.status === 'read');
+        break;
+      default: // All
+        break;
+    }
+
+    // Apply priority filter
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(n => n.priority === priorityFilter);
+    }
+
+    // Apply search
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(n =>
+        n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.message?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredNotifications(filtered);
   };
 
-  const handleDeleteNotification = (id) => {
-    setNotifications(prev =>
-      prev.filter(notification => notification.id !== id)
-    );
+  const handleMarkAsRead = async (id) => {
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, status: 'read' } : n)
+      );
+      toast.success('Notification marked as read');
+    } catch (error) {
+      toast.error('Failed to update notification');
+    }
   };
 
-  const handleSettingChange = (setting, value) => {
-    setNotificationSettings(prev => ({
-      ...prev,
-      [setting]: value
-    }));
+  const handleMarkAllAsRead = async () => {
+    try {
+      await api.put('/notifications/mark-all-read');
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, status: 'read' }))
+      );
+      toast.success('All notifications marked as read');
+    } catch (error) {
+      toast.error('Failed to update notifications');
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      toast.success('Notification deleted');
+    } catch (error) {
+      toast.error('Failed to delete notification');
+    }
   };
 
   const getPriorityColor = (priority) => {
     const colors = {
-      high: 'error',
-      medium: 'warning',
-      low: 'info'
+      high: { bg: 'bg-red-50', border: 'border-red-200', badge: 'bg-red-100 text-red-800', icon: AlertTriangle },
+      medium: { bg: 'bg-yellow-50', border: 'border-yellow-200', badge: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
+      low: { bg: 'bg-blue-50', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-800', icon: Info }
     };
-    return colors[priority] || 'default';
+    return colors[priority] || colors.low;
   };
 
-  const getFilteredNotifications = () => {
-    switch (tabValue) {
-      case 1:
-        return notifications.filter(n => !n.isRead);
-      case 2:
-        return notifications.filter(n => n.isRead);
-      default:
-        return notifications;
-    }
+  const getNotificationIcon = (type) => {
+    const icons = {
+      order: ShoppingCart,
+      shipment: Truck,
+      payment: DollarSign,
+      inventory: AlertTriangle,
+      approval: CheckCircle,
+      system: Zap,
+      default: Bell
+    };
+    return icons[type] || icons.default;
   };
 
-  const TabPanel = ({ children, value, index }) => (
-    <div hidden={value !== index}>
-      {value === index && <div className="pt-2">{children}</div>}
+  const StatCard = ({ icon: Icon, label, value, color = 'blue' }) => (
+    <div className={`bg-gradient-to-br from-${color}-50 to-${color}-100 rounded-xl p-6 border border-${color}-200 shadow-sm hover:shadow-md transition`}>
+      <div className="flex items-center gap-4">
+        <div className={`p-3 bg-${color}-200 rounded-lg`}>
+          <Icon className={`w-6 h-6 text-${color}-700`} />
+        </div>
+        <div>
+          <p className={`text-sm font-medium text-${color}-600`}>{label}</p>
+          <p className={`text-2xl font-bold text-${color}-900`}>{value}</p>
+        </div>
+      </div>
     </div>
   );
 
-  return (
-    <div className="p-4 md:p-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Notifications</h1>
-        <div className="flex gap-3">
-          <button
-            className={`border border-primary text-primary px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50`}
-            onClick={handleMarkAllAsRead}
-            disabled={unreadCount === 0}
-          >
-            <FaEnvelopeOpenText className="text-lg" />
-            Mark All as Read
-          </button>
-          <button
-            className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2"
-          >
-            <FaCog className="text-lg" />
-            Settings
-          </button>
-        </div>
-      </div>
+  const NotificationItem = ({ notification }) => {
+    const IconComponent = getNotificationIcon(notification.type);
+    const priorityColors = getPriorityColor(notification.priority);
+    const isUnread = notification.status !== 'read';
 
-      {/* Notification Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white shadow rounded p-4 text-center">
-          <div className="relative flex justify-center mb-2">
-            <FaBell className="text-4xl text-primary" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                {unreadCount}
-              </span>
-            )}
-          </div>
-          <div className="text-xl font-bold">{unreadCount}</div>
-          <div className="text-gray-500 text-sm">Unread Notifications</div>
+    return (
+      <div
+        className={`flex items-start gap-4 p-6 rounded-xl border-2 transition ${
+          isUnread
+            ? `${priorityColors.bg} ${priorityColors.border} bg-opacity-60`
+            : 'bg-gray-50 border-gray-200'
+        } hover:shadow-md`}
+      >
+        <div className={`p-3 rounded-lg flex-shrink-0 ${isUnread ? priorityColors.badge : 'bg-gray-200'}`}>
+          <IconComponent className={`w-5 h-5 ${isUnread ? 'text-inherit' : 'text-gray-600'}`} />
         </div>
-        <div className="bg-white shadow rounded p-4 text-center">
-          <FaBellSlash className="text-4xl text-blue-400 mb-2" />
-          <div className="text-xl font-bold">{notifications.length}</div>
-          <div className="text-gray-500 text-sm">Total Notifications</div>
-        </div>
-        <div className="bg-white shadow rounded p-4 text-center">
-          <FaExclamationTriangle className="text-4xl text-yellow-500 mb-2" />
-          <div className="text-xl font-bold">{notifications.filter(n => n.priority === 'high').length}</div>
-          <div className="text-gray-500 text-sm">High Priority</div>
-        </div>
-        <div className="bg-white shadow rounded p-4 text-center">
-          <FaCheckCircle className="text-4xl text-green-500 mb-2" />
-          <div className="text-xl font-bold">{notifications.filter(n => n.isRead).length}</div>
-          <div className="text-gray-500 text-sm">Read Notifications</div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white shadow rounded">
-        <div className="border-b flex">
-          {[
-            { label: `All (${notifications.length})`, icon: <FaBell /> },
-            { label: `Unread (${unreadCount})`, icon: <FaCircle className="text-red-500" /> },
-            { label: `Read (${notifications.filter(n => n.isRead).length})`, icon: <FaCheckCircle className="text-green-500" /> },
-            { label: 'Settings', icon: <FaCog /> }
-          ].map((tab, idx) => (
-            <button
-              key={tab.label}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${tabValue === idx ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-primary'}`}
-              onClick={() => setTabValue(idx)}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Panels */}
-        <div >
-          {/* All Notifications */}
-          {tabValue === 0 && (
-            <ul>
-              {getFilteredNotifications().map((notification, index) => (
-                <li
-                  key={notification.id}
-                  className={`flex items-start gap-4 p-4 rounded ${notification.isRead ? '' : 'bg-gray-50 border-l-4'} border-${notification.color}-500`}
-                >
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-${notification.color}-100`}>
-                    {getNotificationIcon(notification)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-semibold ${notification.isRead ? 'text-gray-700' : 'text-primary'}`}>{notification.title}</span>
-                      <span className={`px-2 py-0.5 rounded text-xs border border-${getPriorityColor(notification.priority)}-500 text-${getPriorityColor(notification.priority)}-500`}>{notification.priority}</span>
-                      {!notification.isRead && <FaCircle className="text-primary text-xs" />}
-                    </div>
-                    <div className="text-gray-500 text-sm mt-1">{notification.message}</div>
-                    <div className="text-gray-400 text-xs mt-1">{notification.timestamp}</div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {!notification.isRead && (
-                      <button
-                        className="text-green-500 hover:text-green-700"
-                        onClick={() => handleMarkAsRead(notification.id)}
-                        title="Mark as read"
-                      >
-                        <FaCheckCircle />
-                      </button>
-                    )}
-                    <button
-                      className="text-red-500 hover:text-red-700"
-                      onClick={() => handleDeleteNotification(notification.id)}
-                      title="Delete notification"
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Unread Notifications */}
-          {tabValue === 1 && (
-            <ul>
-              {getFilteredNotifications().map((notification, index) => (
-                <li
-                  key={notification.id}
-                  className={`flex items-start gap-4 p-4 rounded bg-gray-50 border-l-4 border-${notification.color}-500`}
-                >
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-${notification.color}-100`}>
-                    {getNotificationIcon(notification)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-primary">{notification.title}</span>
-                      <span className={`px-2 py-0.5 rounded text-xs border border-${getPriorityColor(notification.priority)}-500 text-${getPriorityColor(notification.priority)}-500`}>{notification.priority}</span>
-                      <FaCircle className="text-primary text-xs" />
-                    </div>
-                    <div className="text-gray-500 text-sm mt-1">{notification.message}</div>
-                    <div className="text-gray-400 text-xs mt-1">{notification.timestamp}</div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      className="text-green-500 hover:text-green-700"
-                      onClick={() => handleMarkAsRead(notification.id)}
-                      title="Mark as read"
-                    >
-                      <FaCheckCircle />
-                    </button>
-                    <button
-                      className="text-red-500 hover:text-red-700"
-                      onClick={() => handleDeleteNotification(notification.id)}
-                      title="Delete notification"
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Read Notifications */}
-          {tabValue === 2 && (
-            <ul>
-              {getFilteredNotifications().map((notification, index) => (
-                <li
-                  key={notification.id}
-                  className="flex items-start gap-4 p-4 rounded border-l-4 border-gray-200"
-                >
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-${notification.color}-100`}>
-                    {getNotificationIcon(notification)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-700">{notification.title}</span>
-                      <span className={`px-2 py-0.5 rounded text-xs border border-${getPriorityColor(notification.priority)}-500 text-${getPriorityColor(notification.priority)}-500`}>{notification.priority}</span>
-                    </div>
-                    <div className="text-gray-500 text-sm mt-1">{notification.message}</div>
-                    <div className="text-gray-400 text-xs mt-1">{notification.timestamp}</div>
-                  </div>
-                  <button
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => handleDeleteNotification(notification.id)}
-                    title="Delete notification"
-                  >
-                    <FaTrash />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Settings Tab */}
-          {tabValue === 3 && (
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Notification Settings</h2>
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded p-3 mb-4">
-                Configure how you want to receive notifications across different channels.
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-md font-semibold mb-2">Delivery Methods</h3>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.emailNotifications}
-                        onChange={e => handleSettingChange('emailNotifications', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      Email Notifications
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.pushNotifications}
-                        onChange={e => handleSettingChange('pushNotifications', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      Push Notifications
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.smsNotifications}
-                        onChange={e => handleSettingChange('smsNotifications', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      SMS Notifications
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-md font-semibold mb-2">Notification Types</h3>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.orderNotifications}
-                        onChange={e => handleSettingChange('orderNotifications', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      Order Updates
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.inventoryAlerts}
-                        onChange={e => handleSettingChange('inventoryAlerts', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      Inventory Alerts
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.shipmentUpdates}
-                        onChange={e => handleSettingChange('shipmentUpdates', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      Shipment Updates
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.paymentNotifications}
-                        onChange={e => handleSettingChange('paymentNotifications', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      Payment Notifications
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.systemAlerts}
-                        onChange={e => handleSettingChange('systemAlerts', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-primary"
-                      />
-                      System Alerts
-                    </label>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4">
-                <button className="bg-primary text-white px-6 py-2 rounded">Save Settings</button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <h3 className={`font-bold ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>
+                {notification.title}
+              </h3>
+              <p className="text-sm text-gray-600 mt-2 line-clamp-2">{notification.message}</p>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <span className={`text-xs px-2 py-1 rounded-full ${priorityColors.badge}`}>
+                  {notification.priority?.toUpperCase() || 'INFO'}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                {isUnread && <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">NEW</span>}
               </div>
             </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isUnread && (
+            <button
+              onClick={() => handleMarkAsRead(notification.id)}
+              className="p-2 hover:bg-white rounded-lg transition"
+              title="Mark as read"
+            >
+              <CheckCircle className="w-5 h-5 text-green-600 hover:text-green-700" />
+            </button>
+          )}
+          <button
+            onClick={() => handleDeleteNotification(notification.id)}
+            className="p-2 hover:bg-white rounded-lg transition"
+            title="Delete notification"
+          >
+            <Trash2 className="w-5 h-5 text-red-600 hover:text-red-700" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4 md:p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Notifications</h1>
+            <p className="text-gray-600 mt-2">Stay updated with real-time notifications</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={stats.unread === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              <CheckCheck className="w-4 h-4" />
+              Mark All Read
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-semibold"
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </button>
+          </div>
+        </div>
+
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={Bell} label="Total Notifications" value={stats.total} color="blue" />
+          <StatCard icon={Circle} label="Unread" value={stats.unread} color="red" />
+          <StatCard icon={CheckCircle} label="Read" value={stats.read} color="green" />
+          <StatCard icon={AlertTriangle} label="High Priority" value={stats.high} color="orange" />
+        </div>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="mb-6 flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search notifications..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <select
+          value={priorityFilter}
+          onChange={e => setPriorityFilter(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
+        >
+          <option value="all">All Priorities</option>
+          <option value="high">High Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="low">Low Priority</option>
+        </select>
+        <button
+          onClick={fetchNotifications}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-6 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 font-semibold"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="mb-6 bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-900">Notification Preferences</h3>
+            <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(notificationSettings).map(([key, value]) => (
+              <label key={key} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-blue-50 transition cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={e => setNotificationSettings(prev => ({ ...prev, [key]: e.target.checked }))}
+                  className="w-4 h-4 rounded border-2 border-gray-300 text-blue-600"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {key.replace(/([A-Z])/g, ' $1').charAt(0).toUpperCase() + key.replace(/([A-Z])/g, ' $1').slice(1)}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+        <div className="border-b border-gray-200 flex overflow-x-auto">
+          {[
+            { label: `All (${notifications.length})`, icon: Bell },
+            { label: `Unread (${stats.unread})`, icon: Circle },
+            { label: `Read (${stats.read})`, icon: CheckCircle }
+          ].map((tab, idx) => {
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={idx}
+                onClick={() => setTabValue(idx)}
+                className={`flex items-center gap-2 px-6 py-4 font-semibold text-sm border-b-2 transition whitespace-nowrap ${
+                  tabValue === idx
+                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                    : 'border-transparent text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                <TabIcon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Notifications List */}
+        <div className="p-6 space-y-4">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <p className="text-gray-600 mt-4">Loading notifications...</p>
+            </div>
+          ) : filteredNotifications.length === 0 ? (
+            <div className="text-center py-12">
+              <BellOff className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-600">No notifications found</p>
+            </div>
+          ) : (
+            filteredNotifications.map(notification => (
+              <NotificationItem key={notification.id} notification={notification} />
+            ))
           )}
         </div>
       </div>
     </div>
   );
-// Helper to get notification icon
-function getNotificationIcon(notification) {
-  switch (notification.type) {
-    case 'order':
-      return <FaShoppingCart className="text-primary text-2xl" />;
-    case 'inventory':
-      return <FaClipboardList className="text-yellow-500 text-2xl" />;
-    case 'shipment':
-      return <FaTruck className="text-green-500 text-2xl" />;
-    case 'finance':
-      return <FaMoneyBillWave className="text-green-500 text-2xl" />;
-    case 'system':
-      return <FaInfoCircle className="text-blue-500 text-2xl" />;
-    case 'approval':
-      return <FaClipboardList className="text-yellow-500 text-2xl" />;
-    case 'user':
-      return <FaUser className="text-blue-400 text-2xl" />;
-    case 'error':
-      return <FaExclamationTriangle className="text-red-500 text-2xl" />;
-    default:
-      return <FaBell className="text-primary text-2xl" />;
-  }
-}
 };
 
 export default NotificationsPage;

@@ -26,15 +26,31 @@ import {
   Zap,
   X,
   ChevronRight,
+  ChevronDown,
   Star,
   Box,
-  Zap as ZapIcon
+  Zap as ZapIcon,
+  Settings
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../../utils/api';
 import ShipmentDetailsDialog from '../../components/dialogs/ShipmentDetailsDialog';
 import MinimalStatCard from '../../components/common/MinimalStatCard';
+
+// Define all available columns for Active Shipments table
+const ACTIVE_SHIPMENTS_COLUMNS = [
+  { id: 'shipment_number', label: 'Shipment #', defaultVisible: true, alwaysVisible: true },
+  { id: 'order_number', label: 'Order #', defaultVisible: true },
+  { id: 'customer', label: 'Customer', defaultVisible: true },
+  { id: 'address', label: 'Address', defaultVisible: true },
+  { id: 'courier', label: 'Courier', defaultVisible: true },
+  { id: 'tracking', label: 'Tracking #', defaultVisible: false },
+  { id: 'delivery_date', label: 'Delivery Date', defaultVisible: true },
+  { id: 'time_taken', label: '⏱️ Time Taken', defaultVisible: true },
+  { id: 'status', label: 'Status', defaultVisible: true },
+  { id: 'actions', label: 'Actions', defaultVisible: true, alwaysVisible: true }
+];
 
 const ShipmentDashboard = () => {
   const navigate = useNavigate();
@@ -71,6 +87,19 @@ const ShipmentDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [courierFilter, setCourierFilter] = useState('');
+  
+  // State for column visibility
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('shipmentDashboardActiveShipmentsColumns');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return ACTIVE_SHIPMENTS_COLUMNS.filter(col => col.defaultVisible).map(col => col.id);
+  });
+  
+  // State for collapsible delivered section
+  const [showDeliveredOrders, setShowDeliveredOrders] = useState(false);
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -149,6 +178,48 @@ const ShipmentDashboard = () => {
       console.error('Error fetching incoming orders:', error);
     }
   };
+
+  // Column visibility functions
+  const isColumnVisible = (columnId) => {
+    return visibleColumns.includes(columnId);
+  };
+
+  const toggleColumn = (columnId) => {
+    const column = ACTIVE_SHIPMENTS_COLUMNS.find(col => col.id === columnId);
+    if (column?.alwaysVisible) return; // Don't toggle always-visible columns
+    
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId];
+      localStorage.setItem('shipmentDashboardActiveShipmentsColumns', JSON.stringify(newColumns));
+      return newColumns;
+    });
+  };
+
+  const resetColumns = () => {
+    const defaultCols = ACTIVE_SHIPMENTS_COLUMNS.filter(col => col.defaultVisible).map(col => col.id);
+    setVisibleColumns(defaultCols);
+    localStorage.setItem('shipmentDashboardActiveShipmentsColumns', JSON.stringify(defaultCols));
+  };
+
+  const showAllColumns = () => {
+    const allCols = ACTIVE_SHIPMENTS_COLUMNS.map(col => col.id);
+    setVisibleColumns(allCols);
+    localStorage.setItem('shipmentDashboardActiveShipmentsColumns', JSON.stringify(allCols));
+  };
+
+  // Click outside handler for column menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColumnMenu && !event.target.closest('.column-menu-container')) {
+        setShowColumnMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColumnMenu]);
 
   // Setup auto-refresh for incoming orders
   useEffect(() => {
@@ -674,6 +745,70 @@ const ShipmentDashboard = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h3 className="text-lg font-semibold text-gray-900">Active Shipments</h3>
               <div className="flex gap-2 flex-wrap">
+                <div className="relative column-menu-container">
+                  <button
+                    onClick={() => setShowColumnMenu(!showColumnMenu)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-sm font-medium"
+                    title="Manage columns"
+                  >
+                    <Settings size={16} />
+                    <span>Columns</span>
+                    <ChevronRight size={14} className={`transition-transform ${showColumnMenu ? 'rotate-90' : ''}`} />
+                  </button>
+                  
+                  {/* Column Menu Dropdown */}
+                  {showColumnMenu && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded shadow-xl z-50 border border-gray-200">
+                      <div className="p-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-gray-700 text-sm">Manage Columns</h4>
+                          <span className="text-xs text-gray-500">
+                            {visibleColumns.length} of {ACTIVE_SHIPMENTS_COLUMNS.length}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                          {ACTIVE_SHIPMENTS_COLUMNS.map(column => (
+                            <label
+                              key={column.id}
+                              className={`flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer ${
+                                column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isColumnVisible(column.id)}
+                                onChange={() => toggleColumn(column.id)}
+                                disabled={column.alwaysVisible}
+                                className="w-3 h-3 text-purple-600 rounded focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20"
+                              />
+                              <span className="text-xs text-gray-700">{column.label}</span>
+                              {column.alwaysVisible && (
+                                <span className="text-xs text-gray-400 ml-auto">(Required)</span>
+                              )}
+                            </label>
+                          ))}
+                        </div>
+                        
+                        <div className="flex gap-2 mt-3 pt-2 border-t">
+                          <button
+                            onClick={showAllColumns}
+                            className="flex-1 px-2 py-1.5 text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 rounded transition-colors"
+                          >
+                            Show All
+                          </button>
+                          <button
+                            onClick={resetColumns}
+                            className="flex-1 px-2 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <select
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={statusFilter}
@@ -702,113 +837,71 @@ const ShipmentDashboard = () => {
                 description="Create or track shipments from here"
               />
             ) : (
-              <div className="overflow-x-auto border-0">
-                <table className="w-full text-sm">
-                  <thead className="bg-gradient-to-r from-slate-900 via-blue-900 to-blue-800 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Shipment #</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Order #</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Customer</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Address</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Courier</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Tracking</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Delivery</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">⏱️ Time Taken</th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-blue-100 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-4 text-center text-xs font-bold text-blue-100 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {shipments.map((shipment) => {
-                      const isDelivered = shipment.status === 'delivered';
-                      return (
-                        <tr 
-                          key={shipment.id} 
-                          className={`transition-all duration-200 border-l-4 ${
-                            isDelivered 
-                              ? 'bg-emerald-50 hover:bg-emerald-100 border-l-emerald-500 hover:shadow-md' 
-                              : 'bg-white hover:bg-blue-50 border-l-blue-400 hover:shadow-md'
-                          }`}
-                        >
-                          <td className="px-4 py-3 font-semibold text-gray-900">{shipment.shipment_number || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-700">{shipment.salesOrder?.order_number || 'N/A'}</td>
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="font-medium text-gray-900">{shipment.salesOrder?.customer?.name || 'N/A'}</p>
-                              <p className="text-xs text-gray-500">{shipment.recipient_phone || 'N/A'}</p>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-start gap-1.5 text-gray-600 text-xs">
-                              <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                              <span>{shipment.shipping_address || 'N/A'}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">{shipment.courierAgent?.name ? `${shipment.courierAgent.name} (${shipment.courierAgent.company_name || 'N/A'})` : shipment.courier_company || 'N/A'}</td>
-                          <td className="px-4 py-3">
-                            <button
-                              className="text-blue-600 hover:text-blue-800 font-medium"
-                              onClick={() => handleTrackingClick(shipment.tracking_number)}
-                            >
-                              {shipment.tracking_number || 'Not assigned'}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">{shipment.expected_delivery_date ? new Date(shipment.expected_delivery_date).toLocaleDateString() : 'N/A'}</td>
-                          <td className="px-4 py-3">
-                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-sm w-fit ${
-                              isDelivered 
-                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                                : 'bg-amber-100 text-amber-700 border border-amber-200'
-                            }`}>
-                              <Clock size={16} />
-                              <span>
-                                {calculateDeliveryTime(shipment.created_at, shipment.delivered_at, shipment.status)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(shipment.status)}`}>
-                              {(shipment.status || 'unknown').replace('_', ' ').toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex justify-center gap-2">
-                              
-                              {!isDelivered && (
-                                <>
-                                  <ActionButton 
-                                    icon={TrendingUp}
-                                    color="blue"
-                                    onClick={() => handleViewTracking(shipment)}
-                                    title="Track"
-                                  />
-                                  <ActionButton 
-                                    icon={Edit}
-                                    color="amber"
-                                    onClick={() => handleEditShipment(shipment)}
-                                    title="Edit"
-                                  />
-                                  <ActionButton 
-                                    icon={Trash2}
-                                    color="red"
-                                    onClick={() => handleDeleteShipment(shipment.id)}
-                                    title="Delete"
-                                  />
-                                </>
-                              )}
-                              <ActionButton 
-                                icon={Eye}
-                                color="green"
-                                onClick={() => handleViewDetails(shipment)}
-                                title="View Details"
+              <div className="space-y-4">
+                {/* Active Shipments - Card Grid */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {shipments.filter(s => s.status !== 'delivered').map((shipment) => (
+                      <ActiveShipmentCard 
+                        key={shipment.id}
+                        shipment={shipment}
+                        onViewDetails={handleViewDetails}
+                        onViewTracking={handleViewTracking}
+                        onEdit={handleEditShipment}
+                        onDelete={handleDeleteShipment}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Delivered Orders - Collapsible Section */}
+                {shipments.filter(s => s.status === 'delivered').length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setShowDeliveredOrders(!showDeliveredOrders)}
+                      className="flex items-center gap-3 px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-semibold rounded-lg transition-all w-full"
+                    >
+                      <ChevronDown 
+                        size={20} 
+                        className={`transition-transform ${showDeliveredOrders ? 'rotate-180' : ''}`}
+                      />
+                      <span>
+                        Delivered Orders ({shipments.filter(s => s.status === 'delivered').length})
+                      </span>
+                    </button>
+
+                    {showDeliveredOrders && (
+                      <div className="mt-3 overflow-x-auto border border-gray-200 rounded-lg">
+                        <table className="w-full text-sm">
+                          <thead className="bg-emerald-50 border-b border-emerald-200">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Shipment #</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Order #</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Customer</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Address</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Courier</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Status</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-emerald-900 uppercase">Delivered</th>
+                              <th className="px-4 py-2 text-center text-xs font-semibold text-emerald-900 uppercase">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-emerald-100">
+                            {shipments.filter(s => s.status === 'delivered').map((shipment) => (
+                              <DeliveredShipmentRow
+                                key={shipment.id}
+                                shipment={shipment}
+                                onViewDetails={handleViewDetails}
+                                onViewTracking={handleViewTracking}
+                                onEdit={handleEditShipment}
+                                onDelete={handleDeleteShipment}
                               />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1011,6 +1104,148 @@ const EmptyState = ({ icon: Icon, title, description }) => (
     <p className="text-sm text-gray-600 max-w-md text-center">{description}</p>
   </div>
 );
+
+// Active Shipment Card Component - Full display for active orders
+const ActiveShipmentCard = ({ shipment, onViewDetails, onViewTracking, onEdit, onDelete }) => {
+  const calculateDeliveryTime = (createdAt, deliveredAt, status) => {
+    if (!createdAt) return 'N/A';
+    const created = new Date(createdAt);
+    const endDate = status === 'delivered' && deliveredAt ? new Date(deliveredAt) : new Date();
+    const diffMs = endDate - created;
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return status === 'delivered' ? `${diffDays} days` : `${diffDays} days (In progress)`;
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      shipped: 'bg-sky-100 text-sky-700 border border-sky-200',
+      in_transit: 'bg-blue-100 text-blue-700 border border-blue-200',
+      out_for_delivery: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+      preparing: 'bg-amber-100 text-amber-700 border border-amber-200',
+      packed: 'bg-cyan-100 text-cyan-700 border border-cyan-200'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700 border border-gray-200';
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-lg font-bold text-gray-900">{shipment.shipment_number}</h3>
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap ${getStatusColor(shipment.status)}`}>
+                {shipment.status?.replace(/_/g, ' ').toUpperCase()}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">Order: {shipment.salesOrder?.order_number || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* Customer & Address */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-gray-500 font-semibold mb-1">CUSTOMER</p>
+            <p className="text-sm font-medium text-gray-900">{shipment.salesOrder?.customer?.name || 'N/A'}</p>
+            <p className="text-xs text-gray-600">{shipment.recipient_phone || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 font-semibold mb-1">DELIVERY ADDRESS</p>
+            <p className="text-sm text-gray-700 line-clamp-2">{shipment.delivery_address || 'N/A'}</p>
+          </div>
+        </div>
+
+        {/* Courier & Tracking */}
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+          <div>
+            <p className="text-xs text-gray-500 font-semibold mb-1">COURIER</p>
+            <p className="text-sm font-medium text-gray-900">{shipment.courierPartner?.name || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 font-semibold mb-1">TRACKING #</p>
+            <p className="text-sm text-blue-600 font-mono cursor-pointer hover:underline" onClick={() => onViewTracking(shipment)}>
+              {shipment.tracking_number || 'Pending'}
+            </p>
+          </div>
+        </div>
+
+        {/* Time & Dates */}
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+          <div>
+            <p className="text-xs text-gray-500 font-semibold mb-1">DELIVERY TIME</p>
+            <div className="flex items-center gap-1 text-sm text-gray-700">
+              <Clock size={14} className="text-blue-500" />
+              <span>{calculateDeliveryTime(shipment.created_at, shipment.delivered_at, shipment.status)}</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 font-semibold mb-1">EXPECTED DELIVERY</p>
+            <p className="text-sm text-gray-700">{shipment.expected_delivery_date ? new Date(shipment.expected_delivery_date).toLocaleDateString() : 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex gap-2">
+        <button
+          onClick={() => onViewDetails(shipment)}
+          className="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+        >
+          <Eye size={14} className="inline mr-1" />
+          View Details
+        </button>
+        <button
+          onClick={() => onViewTracking(shipment)}
+          className="flex-1 px-3 py-2 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+        >
+          <TrendingUp size={14} className="inline mr-1" />
+          Track
+        </button>
+        <button
+          onClick={() => onEdit(shipment)}
+          className="flex-1 px-3 py-2 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+        >
+          <Edit size={14} className="inline mr-1" />
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(shipment.id)}
+          className="px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Delivered Shipment Compact Row Component
+const DeliveredShipmentRow = ({ shipment, onViewDetails, onViewTracking, onEdit, onDelete }) => {
+  return (
+    <tr className="bg-emerald-50 hover:bg-emerald-100 border-l-4 border-l-emerald-500 transition-colors">
+      <td className="px-4 py-2 text-sm font-semibold text-gray-900">{shipment.shipment_number}</td>
+      <td className="px-4 py-2 text-sm text-gray-700">{shipment.salesOrder?.order_number || 'N/A'}</td>
+      <td className="px-4 py-2 text-sm text-gray-700">{shipment.salesOrder?.customer?.name || 'N/A'}</td>
+      <td className="px-4 py-2 text-sm text-gray-700 truncate">{shipment.delivery_address || 'N/A'}</td>
+      <td className="px-4 py-2 text-sm text-gray-700">{shipment.courierPartner?.name || 'N/A'}</td>
+      <td className="px-4 py-2 text-sm">
+        <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-emerald-200 text-emerald-800">Delivered</span>
+      </td>
+      <td className="px-4 py-2 text-sm text-gray-700">{shipment.delivered_at ? new Date(shipment.delivered_at).toLocaleDateString() : 'N/A'}</td>
+      <td className="px-4 py-2 text-center">
+        <button
+          onClick={() => onViewDetails(shipment)}
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          title="View details"
+        >
+          <Eye size={16} />
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 // Courier Card Component
 const CourierCard = ({ courier, onDetails, onCreateShipment }) => (
