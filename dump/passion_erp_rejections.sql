@@ -25,22 +25,22 @@ DROP TABLE IF EXISTS `rejections`;
 CREATE TABLE `rejections` (
   `id` int NOT NULL AUTO_INCREMENT,
   `production_order_id` int NOT NULL,
-  `stage_name` enum('material_allocation','cutting','embroidery','printing','stitching','finishing','ironing','packing','quality_check') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stage_name` enum('material_allocation','cutting','embroidery','printing','stitching','finishing','ironing','packing','quality_check') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `rejected_quantity` int NOT NULL,
-  `rejection_reason` enum('material_defect','cutting_error','stitching_defect','size_mismatch','color_variation','embroidery_defect','printing_defect','finishing_issue','measurement_error','quality_standard_not_met','damage','other') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `detailed_reason` text COLLATE utf8mb4_unicode_ci,
-  `severity` enum('minor','major','critical') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `action_taken` enum('rework','scrap','downgrade','return_to_vendor','pending') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `rejection_reason` enum('material_defect','cutting_error','stitching_defect','size_mismatch','color_variation','embroidery_defect','printing_defect','finishing_issue','measurement_error','quality_standard_not_met','damage','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `detailed_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `severity` enum('minor','major','critical') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action_taken` enum('rework','scrap','downgrade','return_to_vendor','pending') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `rework_cost` decimal(10,2) DEFAULT '0.00',
   `scrap_value` decimal(10,2) DEFAULT '0.00',
   `loss_amount` decimal(10,2) DEFAULT '0.00',
-  `responsible_party` enum('internal','vendor','material_supplier','customer') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `responsible_party` enum('internal','vendor','material_supplier','customer') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `responsible_person` int DEFAULT NULL,
   `vendor_id` int DEFAULT NULL,
   `images` json DEFAULT NULL COMMENT 'Array of image URLs showing the defect',
-  `corrective_action` text COLLATE utf8mb4_unicode_ci,
-  `preventive_action` text COLLATE utf8mb4_unicode_ci,
-  `status` enum('open','in_progress','resolved','closed') COLLATE utf8mb4_unicode_ci DEFAULT 'open',
+  `corrective_action` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `preventive_action` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('open','in_progress','resolved','closed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'open',
   `resolution_date` datetime DEFAULT NULL,
   `reported_by` int NOT NULL,
   `approved_by` int DEFAULT NULL,
@@ -86,4 +86,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:23
+-- Dump completed on 2025-10-28 11:44:27

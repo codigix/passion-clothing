@@ -24,27 +24,27 @@ DROP TABLE IF EXISTS `courier_partners`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `courier_partners` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Short code for the courier partner',
-  `contact_person` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(15) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `address` text COLLATE utf8mb4_unicode_ci,
-  `website` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Short code for the courier partner',
+  `contact_person` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `website` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `service_areas` json DEFAULT NULL COMMENT 'Array of service areas/cities',
   `services_offered` json DEFAULT NULL COMMENT 'Array of services like Express, COD, etc.',
   `pricing_structure` json DEFAULT NULL COMMENT 'Pricing details for different services',
-  `api_endpoint` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'API endpoint for tracking integration',
-  `api_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'API key for tracking integration',
-  `tracking_url_template` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'URL template for tracking with {tracking_number} placeholder',
+  `api_endpoint` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'API endpoint for tracking integration',
+  `api_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'API key for tracking integration',
+  `tracking_url_template` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'URL template for tracking with {tracking_number} placeholder',
   `rating` decimal(2,1) DEFAULT '0.0',
   `on_time_delivery_rate` decimal(5,2) DEFAULT '0.00' COMMENT 'Percentage of on-time deliveries',
   `average_delivery_time` decimal(4,2) DEFAULT '0.00' COMMENT 'Average delivery time in days',
   `is_active` tinyint(1) DEFAULT '1',
   `contract_start_date` datetime DEFAULT NULL,
   `contract_end_date` datetime DEFAULT NULL,
-  `payment_terms` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `payment_terms` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_by` int NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
@@ -79,4 +79,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:21
+-- Dump completed on 2025-10-28 11:44:22

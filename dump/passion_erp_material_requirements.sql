@@ -25,14 +25,14 @@ DROP TABLE IF EXISTS `material_requirements`;
 CREATE TABLE `material_requirements` (
   `id` int NOT NULL AUTO_INCREMENT,
   `production_order_id` int NOT NULL,
-  `material_id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Material ID or inventory item code',
-  `description` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `material_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Material ID or inventory item code',
+  `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `required_quantity` decimal(10,3) NOT NULL,
   `allocated_quantity` decimal(10,3) DEFAULT '0.000',
   `consumed_quantity` decimal(10,3) DEFAULT '0.000',
-  `unit` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Meter, Kg, Pcs, etc.',
+  `unit` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Meter, Kg, Pcs, etc.',
   `status` enum('available','shortage','ordered','allocated','consumed') COLLATE utf8mb4_unicode_ci DEFAULT 'available',
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -40,7 +40,7 @@ CREATE TABLE `material_requirements` (
   KEY `material_requirements_material_id` (`material_id`),
   KEY `material_requirements_status` (`status`),
   CONSTRAINT `material_requirements_ibfk_1` FOREIGN KEY (`production_order_id`) REFERENCES `production_orders` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -49,7 +49,7 @@ CREATE TABLE `material_requirements` (
 
 LOCK TABLES `material_requirements` WRITE;
 /*!40000 ALTER TABLE `material_requirements` DISABLE KEYS */;
-INSERT INTO `material_requirements` VALUES (5,3,'N/A','cotton plain ',100.000,0.000,0.000,'PCS','available',NULL,'2025-10-14 13:42:13','2025-10-14 13:42:13'),(6,3,'N/A','Button',4.000,0.000,0.000,'PCS','available',NULL,'2025-10-14 13:42:13','2025-10-14 13:42:13');
+INSERT INTO `material_requirements` VALUES (5,3,'N/A','cotton plain ',100.000,0.000,0.000,'PCS','available',NULL,'2025-10-14 13:42:13','2025-10-14 13:42:13'),(6,3,'N/A','Button',4.000,0.000,0.000,'PCS','available',NULL,'2025-10-14 13:42:13','2025-10-14 13:42:13'),(43,23,'N/A','cotton plain fabric ',200.000,0.000,0.000,'PCS','available',NULL,'2025-10-15 12:46:40','2025-10-15 12:46:40'),(44,23,'N/A','Button',100.000,0.000,0.000,'PCS','available',NULL,'2025-10-15 12:46:40','2025-10-15 12:46:40'),(45,24,'M-001','cotton plain',100.000,0.000,0.000,'PCS','available',NULL,'2025-10-18 07:23:23','2025-10-18 07:23:23'),(46,24,'M-002','Button',600.000,0.000,0.000,'PCS','available',NULL,'2025-10-18 07:23:23','2025-10-18 07:23:23'),(47,25,'M-001','cotton plain',100.000,0.000,0.000,'PCS','available',NULL,'2025-10-18 08:07:06','2025-10-18 08:07:06'),(48,25,'M-002','Button',600.000,0.000,0.000,'PCS','available',NULL,'2025-10-18 08:07:06','2025-10-18 08:07:06'),(49,26,'M-001','T-shirt printing',100.000,0.000,0.000,'Meters','available',NULL,'2025-10-27 08:24:06','2025-10-27 08:24:06'),(50,26,'M-002','sdhjdg sdsjdhg sjdsjdgsj',10.000,0.000,0.000,'Boxes','available',NULL,'2025-10-27 08:24:06','2025-10-27 08:24:06'),(51,26,'M-003','sdsfes',10.000,0.000,0.000,'Yards','available',NULL,'2025-10-27 08:24:06','2025-10-27 08:24:06');
 /*!40000 ALTER TABLE `material_requirements` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -62,4 +62,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:24
+-- Dump completed on 2025-10-28 11:44:28

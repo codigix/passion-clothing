@@ -24,26 +24,26 @@ DROP TABLE IF EXISTS `payments`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `payments` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `payment_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Format: PAY-YYYYMMDD-XXXX',
+  `payment_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Format: PAY-YYYYMMDD-XXXX',
   `invoice_id` int NOT NULL,
   `payment_date` datetime NOT NULL,
   `amount` decimal(12,2) NOT NULL,
-  `payment_method` enum('cash','cheque','bank_transfer','upi','card','online_banking','wallet','credit_note','adjustment') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payment_mode` enum('inward','outward') COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'inward = received, outward = paid',
-  `reference_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Cheque number, transaction ID, etc.',
-  `bank_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `account_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_method` enum('cash','cheque','bank_transfer','upi','card','online_banking','wallet','credit_note','adjustment') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payment_mode` enum('inward','outward') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'inward = received, outward = paid',
+  `reference_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Cheque number, transaction ID, etc.',
+  `bank_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `account_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `cheque_date` datetime DEFAULT NULL,
-  `cheque_status` enum('pending','cleared','bounced','cancelled') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cheque_status` enum('pending','cleared','bounced','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `clearance_date` datetime DEFAULT NULL,
-  `status` enum('pending','completed','failed','cancelled') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
-  `currency` varchar(3) COLLATE utf8mb4_unicode_ci DEFAULT 'INR',
+  `status` enum('pending','completed','failed','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'INR',
   `exchange_rate` decimal(10,4) DEFAULT '1.0000',
   `base_amount` decimal(12,2) DEFAULT NULL COMMENT 'Amount in base currency',
   `charges` decimal(8,2) DEFAULT '0.00' COMMENT 'Bank charges, processing fees, etc.',
   `net_amount` decimal(12,2) NOT NULL COMMENT 'amount - charges',
-  `notes` text COLLATE utf8mb4_unicode_ci,
-  `receipt_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Path to payment receipt/proof',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `receipt_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Path to payment receipt/proof',
   `reconciled` tinyint(1) DEFAULT '0',
   `reconciled_date` datetime DEFAULT NULL,
   `reconciled_by` int DEFAULT NULL,
@@ -90,4 +90,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:22
+-- Dump completed on 2025-10-28 11:44:25

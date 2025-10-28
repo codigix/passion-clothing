@@ -24,50 +24,50 @@ DROP TABLE IF EXISTS `goods_receipt_notes`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `goods_receipt_notes` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `grn_number` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `grn_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `purchase_order_id` int NOT NULL,
   `bill_of_materials_id` int DEFAULT NULL,
   `sales_order_id` int DEFAULT NULL,
   `received_date` datetime NOT NULL,
-  `supplier_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `supplier_invoice_number` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `inward_challan_number` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplier_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `supplier_invoice_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `inward_challan_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `items_received` json NOT NULL,
   `total_received_value` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `status` enum('draft','received','inspected','approved','rejected','vendor_revert_requested') COLLATE utf8mb4_unicode_ci DEFAULT 'draft',
-  `inspection_notes` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('draft','received','inspected','approved','rejected','vendor_revert_requested') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'draft',
+  `inspection_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `quality_inspector` int DEFAULT NULL,
   `created_by` int NOT NULL,
   `approved_by` int DEFAULT NULL,
   `approval_date` datetime DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `attachments` json DEFAULT NULL,
-  `verification_status` enum('pending','verified','discrepancy','approved','rejected') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `verification_status` enum('pending','verified','discrepancy','approved','rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `verified_by` int DEFAULT NULL,
   `verification_date` datetime DEFAULT NULL,
-  `verification_notes` text COLLATE utf8mb4_unicode_ci,
+  `verification_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `discrepancy_details` json DEFAULT NULL,
   `discrepancy_approved_by` int DEFAULT NULL,
   `discrepancy_approval_date` datetime DEFAULT NULL,
-  `discrepancy_approval_notes` text COLLATE utf8mb4_unicode_ci,
+  `discrepancy_approval_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `inventory_added` tinyint(1) NOT NULL DEFAULT '0',
   `inventory_added_date` datetime DEFAULT NULL,
   `vendor_revert_requested` tinyint(1) NOT NULL DEFAULT '0',
-  `vendor_revert_reason` text COLLATE utf8mb4_unicode_ci,
+  `vendor_revert_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `vendor_revert_items` json DEFAULT NULL,
   `vendor_revert_requested_by` int DEFAULT NULL,
   `vendor_revert_requested_date` datetime DEFAULT NULL,
-  `vendor_response` text COLLATE utf8mb4_unicode_ci,
+  `vendor_response` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `vendor_response_date` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
   `vendor_revert_requested_at` datetime DEFAULT NULL COMMENT 'Timestamp when vendor revert was requested',
   `vendor_revert_approved_by` int DEFAULT NULL COMMENT 'User who approved/rejected the vendor revert',
   `vendor_revert_approved_at` datetime DEFAULT NULL COMMENT 'Timestamp when vendor revert was approved/rejected',
-  `vendor_revert_status` enum('pending','approved','rejected','completed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT 'Status of vendor revert request',
-  `vendor_revert_notes` text COLLATE utf8mb4_unicode_ci COMMENT 'Notes from approval/rejection of vendor revert',
+  `vendor_revert_status` enum('pending','approved','rejected','completed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT 'Status of vendor revert request',
+  `vendor_revert_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Notes from approval/rejection of vendor revert',
   `product_id` int DEFAULT NULL COMMENT 'Final product being manufactured',
-  `product_name` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Product name for quick reference',
+  `product_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Product name for quick reference',
   PRIMARY KEY (`id`),
   UNIQUE KEY `grn_number` (`grn_number`),
   KEY `quality_inspector` (`quality_inspector`),
@@ -96,7 +96,7 @@ CREATE TABLE `goods_receipt_notes` (
   CONSTRAINT `goods_receipt_notes_ibfk_9` FOREIGN KEY (`vendor_revert_requested_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `goods_receipt_notes_product_id_foreign_idx` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
   CONSTRAINT `goods_receipt_notes_vendor_revert_approved_by_foreign_idx` FOREIGN KEY (`vendor_revert_approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -105,7 +105,7 @@ CREATE TABLE `goods_receipt_notes` (
 
 LOCK TABLES `goods_receipt_notes` WRITE;
 /*!40000 ALTER TABLE `goods_receipt_notes` DISABLE KEYS */;
-INSERT INTO `goods_receipt_notes` VALUES (1,'GRN-20251014-00001',1,NULL,1,'2025-10-14 00:00:00','abhijit','INV-0001','DC-0001','[{\"gsm\": \"180\", \"hsn\": \"100\", \"uom\": \"Meters\", \"rate\": 500, \"color\": \"blue\", \"total\": 50000, \"width\": \"100\", \"weight\": null, \"remarks\": \"\", \"description\": \"Formal Shirt\", \"material_name\": \"cotton\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 100, \"overage_quantity\": 0, \"invoiced_quantity\": 100, \"received_quantity\": 100, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Boxes\", \"rate\": 100, \"color\": \"\", \"total\": 1000, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"green color \", \"material_name\": \"buttons\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 10, \"overage_quantity\": 0, \"invoiced_quantity\": 10, \"received_quantity\": 10, \"shortage_quantity\": 0}]',51000.00,'approved',NULL,NULL,5,NULL,NULL,'jdhfd','[]','verified',5,'2025-10-14 12:48:33','',NULL,NULL,NULL,NULL,1,'2025-10-14 12:48:33',0,NULL,NULL,NULL,NULL,NULL,NULL,'2025-10-14 12:48:29','2025-10-14 12:48:33',NULL,NULL,NULL,'pending',NULL,NULL,NULL);
+INSERT INTO `goods_receipt_notes` VALUES (1,'GRN-20251014-00001',1,NULL,1,'2025-10-14 00:00:00','abhijit','INV-0001','DC-0001','[{\"gsm\": \"180\", \"hsn\": \"100\", \"uom\": \"Meters\", \"rate\": 500, \"color\": \"blue\", \"total\": 50000, \"width\": \"100\", \"weight\": null, \"remarks\": \"\", \"description\": \"Formal Shirt\", \"material_name\": \"cotton\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 100, \"overage_quantity\": 0, \"invoiced_quantity\": 100, \"received_quantity\": 100, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Boxes\", \"rate\": 100, \"color\": \"\", \"total\": 1000, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"green color \", \"material_name\": \"buttons\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 10, \"overage_quantity\": 0, \"invoiced_quantity\": 10, \"received_quantity\": 10, \"shortage_quantity\": 0}]',51000.00,'approved',NULL,NULL,5,NULL,NULL,'jdhfd','[]','verified',5,'2025-10-14 12:48:33','',NULL,NULL,NULL,NULL,1,'2025-10-14 12:48:33',0,NULL,NULL,NULL,NULL,NULL,NULL,'2025-10-14 12:48:29','2025-10-14 12:48:33',NULL,NULL,NULL,'pending',NULL,NULL,NULL),(2,'GRN-20251015-00001',2,NULL,2,'2025-10-15 00:00:00','abhijit','INV-0001','DC-12345','[{\"gsm\": \"180\", \"hsn\": \"100\", \"uom\": \"Meters\", \"rate\": 500, \"color\": \"nevy blue\", \"total\": 100000, \"width\": \"200\", \"weight\": null, \"remarks\": \"\", \"description\": \"T-shirt printing\", \"material_name\": \"cotton\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 200, \"overage_quantity\": 0, \"invoiced_quantity\": 200, \"received_quantity\": 200, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Yards\", \"rate\": 10, \"color\": \"\", \"total\": 100, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"nevy blue color buttons\", \"material_name\": \"button\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 10, \"overage_quantity\": 0, \"invoiced_quantity\": 10, \"received_quantity\": 10, \"shortage_quantity\": 0}]',100100.00,'approved',NULL,NULL,5,NULL,NULL,'','[]','verified',5,'2025-10-15 06:31:00','',NULL,NULL,NULL,NULL,1,'2025-10-15 06:31:00',0,NULL,NULL,NULL,NULL,NULL,NULL,'2025-10-15 06:30:44','2025-10-15 06:31:00',NULL,NULL,NULL,'pending',NULL,NULL,NULL),(3,'GRN-20251016-00001',3,NULL,3,'2025-10-16 00:00:00','abhijit',NULL,NULL,'[{\"gsm\": \"180\", \"hsn\": \"100\", \"uom\": \"Meters\", \"rate\": 300, \"color\": \"yellow\", \"total\": 30000, \"width\": \"110\", \"weight\": null, \"remarks\": \"\", \"description\": \"T-shirt printing\", \"material_name\": \"cotton\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 100, \"overage_quantity\": 0, \"invoiced_quantity\": 100, \"received_quantity\": 100, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Pieces\", \"rate\": 2, \"color\": \"\", \"total\": 1320, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"detail buttons wit hdark yellow color \", \"material_name\": \"buttons\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 660, \"overage_quantity\": 0, \"invoiced_quantity\": 660, \"received_quantity\": 660, \"shortage_quantity\": 0}]',31320.00,'approved',NULL,NULL,5,NULL,NULL,'','[]','verified',5,'2025-10-16 12:53:40','',NULL,NULL,NULL,NULL,1,'2025-10-16 12:53:40',0,NULL,NULL,NULL,NULL,NULL,NULL,'2025-10-16 12:53:37','2025-10-16 12:53:40',NULL,NULL,NULL,'pending',NULL,NULL,NULL),(4,'GRN-20251017-00001',3,NULL,3,'2025-10-17 00:00:00','abhijit',NULL,NULL,'[{\"gsm\": \"180\", \"hsn\": \"100\", \"uom\": \"Meters\", \"rate\": 300, \"color\": \"yellow\", \"total\": 30000, \"width\": \"110\", \"weight\": null, \"remarks\": \"\", \"description\": \"T-shirt printing\", \"material_name\": \"cotton\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 100, \"overage_quantity\": 0, \"invoiced_quantity\": 100, \"received_quantity\": 100, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Pieces\", \"rate\": 2, \"color\": \"\", \"total\": 1320, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"detail buttons wit hdark yellow color \", \"material_name\": \"buttons\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 660, \"overage_quantity\": 0, \"invoiced_quantity\": 660, \"received_quantity\": 660, \"shortage_quantity\": 0}]',31320.00,'approved',NULL,NULL,5,NULL,NULL,'','[]','verified',5,'2025-10-17 05:05:28','',NULL,NULL,NULL,NULL,1,'2025-10-17 05:05:28',0,NULL,NULL,NULL,NULL,NULL,NULL,'2025-10-17 05:05:21','2025-10-17 05:05:28',NULL,NULL,NULL,'pending',NULL,NULL,NULL),(5,'GRN-20251027-00001',4,NULL,4,'2025-10-27 00:00:00','abhijit','INV-12345',NULL,'[{\"gsm\": \"180\", \"hsn\": \"100\", \"uom\": \"Meters\", \"rate\": 499.97, \"color\": \"yellow\", \"total\": 49997, \"width\": \"110\", \"weight\": null, \"remarks\": \"\", \"description\": \"T-shirt printing\", \"material_name\": \"cotton\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 100, \"overage_quantity\": 0, \"invoiced_quantity\": 100, \"received_quantity\": 100, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Boxes\", \"rate\": 1000, \"color\": \"\", \"total\": 10000, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"sdhjdg sdsjdhg sjdsjdgsj\", \"material_name\": \"button\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 10, \"overage_quantity\": 0, \"invoiced_quantity\": 10, \"received_quantity\": 10, \"shortage_quantity\": 0}, {\"gsm\": \"\", \"hsn\": \"\", \"uom\": \"Yards\", \"rate\": 10, \"color\": \"\", \"total\": 100, \"width\": \"\", \"weight\": null, \"remarks\": \"\", \"description\": \"sdsfes\", \"material_name\": \"thread\", \"quality_status\": \"pending_inspection\", \"discrepancy_flag\": false, \"ordered_quantity\": 10, \"overage_quantity\": 0, \"invoiced_quantity\": 10, \"received_quantity\": 10, \"shortage_quantity\": 0}]',60097.00,'approved',NULL,NULL,5,NULL,NULL,'','[]','verified',5,'2025-10-27 07:25:48','',NULL,NULL,NULL,NULL,1,'2025-10-27 07:25:48',0,NULL,NULL,NULL,NULL,NULL,NULL,'2025-10-27 07:25:43','2025-10-27 07:25:48',NULL,NULL,NULL,'pending',NULL,NULL,NULL);
 /*!40000 ALTER TABLE `goods_receipt_notes` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -118,4 +118,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:25
+-- Dump completed on 2025-10-28 11:44:26

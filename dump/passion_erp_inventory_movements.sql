@@ -28,16 +28,16 @@ CREATE TABLE `inventory_movements` (
   `purchase_order_id` int DEFAULT NULL,
   `sales_order_id` int DEFAULT NULL,
   `production_order_id` int DEFAULT NULL,
-  `movement_type` enum('inward','outward','transfer','adjustment','return','consume') COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Type of inventory movement',
+  `movement_type` enum('inward','outward','transfer','adjustment','return','consume') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Type of inventory movement',
   `quantity` decimal(10,2) NOT NULL COMMENT 'Quantity moved (positive for inward, negative for outward)',
   `previous_quantity` decimal(10,2) NOT NULL COMMENT 'Stock level before movement',
   `new_quantity` decimal(10,2) NOT NULL COMMENT 'Stock level after movement',
   `unit_cost` decimal(10,2) DEFAULT NULL COMMENT 'Cost per unit at time of movement',
   `total_cost` decimal(12,2) DEFAULT NULL COMMENT 'Total cost of movement',
-  `reference_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'External reference (GRN, invoice, etc.)',
-  `notes` text COLLATE utf8mb4_unicode_ci,
-  `location_from` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Source location for transfers',
-  `location_to` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Destination location',
+  `reference_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'External reference (GRN, invoice, etc.)',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `location_from` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Source location for transfers',
+  `location_to` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Destination location',
   `performed_by` int NOT NULL,
   `movement_date` datetime NOT NULL,
   `metadata` json DEFAULT NULL COMMENT 'Additional movement data',
@@ -56,7 +56,7 @@ CREATE TABLE `inventory_movements` (
   CONSTRAINT `inventory_movements_ibfk_3` FOREIGN KEY (`sales_order_id`) REFERENCES `sales_orders` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `inventory_movements_ibfk_4` FOREIGN KEY (`production_order_id`) REFERENCES `production_orders` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `inventory_movements_ibfk_5` FOREIGN KEY (`performed_by`) REFERENCES `users` (`id`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -65,7 +65,7 @@ CREATE TABLE `inventory_movements` (
 
 LOCK TABLES `inventory_movements` WRITE;
 /*!40000 ALTER TABLE `inventory_movements` DISABLE KEYS */;
-INSERT INTO `inventory_movements` VALUES (1,1,1,1,NULL,'inward',100.00,0.00,100.00,500.00,50000.00,'GRN-20251014-00001','Auto-added from verified GRN GRN-20251014-00001',NULL,'Main Warehouse',5,'2025-10-14 12:48:33',NULL,'2025-10-14 12:48:33','2025-10-14 12:48:33'),(2,2,1,1,NULL,'inward',10.00,0.00,10.00,100.00,1000.00,'GRN-20251014-00001','Auto-added from verified GRN GRN-20251014-00001',NULL,'Main Warehouse',5,'2025-10-14 12:48:33',NULL,'2025-10-14 12:48:33','2025-10-14 12:48:33');
+INSERT INTO `inventory_movements` VALUES (1,1,1,1,NULL,'inward',100.00,0.00,100.00,500.00,50000.00,'GRN-20251014-00001','Auto-added from verified GRN GRN-20251014-00001',NULL,'Main Warehouse',5,'2025-10-14 12:48:33',NULL,'2025-10-14 12:48:33','2025-10-14 12:48:33'),(2,2,1,1,NULL,'inward',10.00,0.00,10.00,100.00,1000.00,'GRN-20251014-00001','Auto-added from verified GRN GRN-20251014-00001',NULL,'Main Warehouse',5,'2025-10-14 12:48:33',NULL,'2025-10-14 12:48:33','2025-10-14 12:48:33'),(3,3,2,2,NULL,'inward',200.00,0.00,200.00,500.00,100000.00,'GRN-20251015-00001','Auto-added from verified GRN GRN-20251015-00001',NULL,'Main Warehouse',5,'2025-10-15 06:31:00',NULL,'2025-10-15 06:31:00','2025-10-15 06:31:00'),(4,4,2,2,NULL,'inward',10.00,0.00,10.00,10.00,100.00,'GRN-20251015-00001','Auto-added from verified GRN GRN-20251015-00001',NULL,'Main Warehouse',5,'2025-10-15 06:31:00',NULL,'2025-10-15 06:31:00','2025-10-15 06:31:00'),(5,5,3,3,NULL,'inward',100.00,0.00,100.00,300.00,30000.00,'GRN-20251016-00001','Auto-added from verified GRN GRN-20251016-00001',NULL,'Main Warehouse',5,'2025-10-16 12:53:40',NULL,'2025-10-16 12:53:40','2025-10-16 12:53:40'),(6,6,3,3,NULL,'inward',660.00,0.00,660.00,2.00,1320.00,'GRN-20251016-00001','Auto-added from verified GRN GRN-20251016-00001',NULL,'Main Warehouse',5,'2025-10-16 12:53:40',NULL,'2025-10-16 12:53:40','2025-10-16 12:53:40'),(7,7,3,3,NULL,'inward',100.00,0.00,100.00,300.00,30000.00,'GRN-20251017-00001','Auto-added from verified GRN GRN-20251017-00001',NULL,'Main Warehouse',5,'2025-10-17 05:05:28',NULL,'2025-10-17 05:05:28','2025-10-17 05:05:28'),(8,8,3,3,NULL,'inward',660.00,0.00,660.00,2.00,1320.00,'GRN-20251017-00001','Auto-added from verified GRN GRN-20251017-00001',NULL,'Main Warehouse',5,'2025-10-17 05:05:28',NULL,'2025-10-17 05:05:28','2025-10-17 05:05:28'),(9,9,4,4,NULL,'inward',100.00,0.00,100.00,499.97,49997.00,'GRN-20251027-00001','Auto-added from verified GRN GRN-20251027-00001',NULL,'Main Warehouse',5,'2025-10-27 07:25:48',NULL,'2025-10-27 07:25:48','2025-10-27 07:25:48'),(10,10,4,4,NULL,'inward',10.00,0.00,10.00,1000.00,10000.00,'GRN-20251027-00001','Auto-added from verified GRN GRN-20251027-00001',NULL,'Main Warehouse',5,'2025-10-27 07:25:48',NULL,'2025-10-27 07:25:48','2025-10-27 07:25:48'),(11,11,4,4,NULL,'inward',10.00,0.00,10.00,10.00,100.00,'GRN-20251027-00001','Auto-added from verified GRN GRN-20251027-00001',NULL,'Main Warehouse',5,'2025-10-27 07:25:48',NULL,'2025-10-27 07:25:48','2025-10-27 07:25:48');
 /*!40000 ALTER TABLE `inventory_movements` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -78,4 +78,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:22
+-- Dump completed on 2025-10-28 11:44:23

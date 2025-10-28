@@ -24,23 +24,23 @@ DROP TABLE IF EXISTS `bill_of_materials`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bill_of_materials` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `bom_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Format: BOM-YYYYMMDD-XXXX',
+  `bom_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Format: BOM-YYYYMMDD-XXXX',
   `sales_order_id` int NOT NULL,
   `product_id` int NOT NULL,
   `materials` json NOT NULL COMMENT 'Array of materials with product_id, quantity, unit, specifications',
   `total_material_cost` decimal(12,2) DEFAULT '0.00',
   `estimated_production_cost` decimal(12,2) DEFAULT '0.00',
-  `status` enum('draft','approved','procurement_created','materials_received','in_production','completed') COLLATE utf8mb4_unicode_ci DEFAULT 'draft',
-  `fabric_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('draft','approved','procurement_created','materials_received','in_production','completed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'draft',
+  `fabric_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `fabric_gsm` int DEFAULT NULL,
-  `fabric_color` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `thread_colors` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fabric_color` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `thread_colors` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `button_count` int DEFAULT '0',
   `printing_required` tinyint(1) DEFAULT '0',
   `embroidery_required` tinyint(1) DEFAULT '0',
   `production_requirements` json DEFAULT NULL COMMENT 'Cutting, stitching, finishing requirements',
-  `special_instructions` text COLLATE utf8mb4_unicode_ci,
-  `internal_notes` text COLLATE utf8mb4_unicode_ci,
+  `special_instructions` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `internal_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_by` int NOT NULL,
   `approved_by` int DEFAULT NULL,
   `approved_at` datetime DEFAULT NULL,
@@ -79,4 +79,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:24
+-- Dump completed on 2025-10-28 11:44:23

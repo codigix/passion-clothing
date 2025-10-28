@@ -32,19 +32,19 @@ CREATE TABLE `attendance` (
   `break_hours` decimal(4,2) DEFAULT '0.00' COMMENT 'Total break time in hours',
   `productive_hours` decimal(4,2) DEFAULT NULL COMMENT 'total_hours - break_hours',
   `overtime_hours` decimal(4,2) DEFAULT '0.00',
-  `status` enum('present','absent','half_day','late','early_leave','holiday','leave') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `attendance_type` enum('regular','overtime','holiday_work','night_shift') COLLATE utf8mb4_unicode_ci DEFAULT 'regular',
-  `location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Work location or department',
-  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('present','absent','half_day','late','early_leave','holiday','leave') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `attendance_type` enum('regular','overtime','holiday_work','night_shift') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'regular',
+  `location` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Work location or department',
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `device_info` json DEFAULT NULL COMMENT 'Device information for check-in/out',
   `geo_location` json DEFAULT NULL COMMENT 'GPS coordinates if available',
-  `notes` text COLLATE utf8mb4_unicode_ci,
-  `late_reason` text COLLATE utf8mb4_unicode_ci,
-  `early_leave_reason` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `late_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `early_leave_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `approved_by` int DEFAULT NULL,
   `approved_at` datetime DEFAULT NULL,
   `is_manual_entry` tinyint(1) DEFAULT '0',
-  `manual_entry_reason` text COLLATE utf8mb4_unicode_ci,
+  `manual_entry_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_by` int DEFAULT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE `attendance` (
   CONSTRAINT `attendance_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON UPDATE CASCADE,
   CONSTRAINT `attendance_ibfk_2` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`),
   CONSTRAINT `attendance_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,6 +70,7 @@ CREATE TABLE `attendance` (
 
 LOCK TABLES `attendance` WRITE;
 /*!40000 ALTER TABLE `attendance` DISABLE KEYS */;
+INSERT INTO `attendance` VALUES (1,7,'2025-10-28','10:41:14','11:26:00',0.75,0.00,0.75,0.00,'present','regular','Office','::1','{\"timestamp\": \"2025-10-28T05:11:14.178Z\", \"userAgent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"}',NULL,'Checked in via app\nCheckout: Checked out via app',NULL,NULL,NULL,NULL,0,NULL,NULL,'2025-10-28 05:11:14','2025-10-28 05:56:00');
 /*!40000 ALTER TABLE `attendance` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -82,4 +83,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:27
+-- Dump completed on 2025-10-28 11:44:28

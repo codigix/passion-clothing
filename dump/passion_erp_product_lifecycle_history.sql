@@ -25,15 +25,15 @@ DROP TABLE IF EXISTS `product_lifecycle_history`;
 CREATE TABLE `product_lifecycle_history` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_lifecycle_id` int NOT NULL,
-  `barcode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Product barcode for quick reference',
-  `stage_from` enum('created','material_allocated','in_production','cutting','embroidery','printing','stitching','finishing','ironing','quality_check','packing','ready_for_dispatch','dispatched','in_transit','delivered','returned','rejected') COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Previous stage (null for initial creation)',
-  `stage_to` enum('created','material_allocated','in_production','cutting','embroidery','printing','stitching','finishing','ironing','quality_check','packing','ready_for_dispatch','dispatched','in_transit','delivered','returned','rejected') COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'New stage',
-  `status_from` enum('active','on_hold','completed','cancelled','returned') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status_to` enum('active','on_hold','completed','cancelled','returned') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `barcode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Product barcode for quick reference',
+  `stage_from` enum('created','material_allocated','in_production','cutting','embroidery','printing','stitching','finishing','ironing','quality_check','packing','ready_for_dispatch','dispatched','in_transit','delivered','returned','rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Previous stage (null for initial creation)',
+  `stage_to` enum('created','material_allocated','in_production','cutting','embroidery','printing','stitching','finishing','ironing','quality_check','packing','ready_for_dispatch','dispatched','in_transit','delivered','returned','rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'New stage',
+  `status_from` enum('active','on_hold','completed','cancelled','returned') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status_to` enum('active','on_hold','completed','cancelled','returned') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `transition_time` datetime NOT NULL,
   `duration_in_previous_stage_hours` decimal(8,2) DEFAULT NULL COMMENT 'Time spent in the previous stage',
-  `location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Location where transition occurred',
-  `machine_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Machine or workstation where transition occurred',
+  `location` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Location where transition occurred',
+  `machine_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Machine or workstation where transition occurred',
   `operator_id` int DEFAULT NULL COMMENT 'User who performed the operation',
   `quantity_processed` int DEFAULT NULL COMMENT 'Quantity processed in this transition',
   `quantity_approved` int DEFAULT NULL COMMENT 'Quantity approved in quality check',
@@ -42,7 +42,7 @@ CREATE TABLE `product_lifecycle_history` (
   `quality_parameters` json DEFAULT NULL COMMENT 'Quality check results',
   `cost_incurred` decimal(10,2) DEFAULT '0.00' COMMENT 'Cost incurred in this stage',
   `materials_consumed` json DEFAULT NULL COMMENT 'Materials consumed in this stage',
-  `notes` text COLLATE utf8mb4_unicode_ci COMMENT 'Additional notes for this transition',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Additional notes for this transition',
   `images` json DEFAULT NULL COMMENT 'Images captured during this stage',
   `scan_data` json DEFAULT NULL COMMENT 'Barcode scan data and metadata',
   `created_by` int NOT NULL,
@@ -81,4 +81,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:27
+-- Dump completed on 2025-10-28 11:44:24

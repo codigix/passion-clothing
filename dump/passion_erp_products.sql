@@ -24,22 +24,22 @@ DROP TABLE IF EXISTS `products`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `products` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `product_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
-  `category` enum('fabric','thread','button','zipper','elastic','lace','uniform','shirt','trouser','skirt','blazer','tie','belt','shoes','socks','accessories','raw_material','finished_goods') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `sub_category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `product_type` enum('raw_material','semi_finished','finished_goods','accessory') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `unit_of_measurement` enum('piece','meter','yard','kg','gram','liter','dozen','set') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `hsn_code` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `brand` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `color` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `size` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `material` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `category` enum('fabric','thread','button','zipper','elastic','lace','uniform','shirt','trouser','skirt','blazer','tie','belt','shoes','socks','accessories','raw_material','finished_goods') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sub_category` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_type` enum('raw_material','semi_finished','finished_goods','accessory') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_of_measurement` enum('piece','meter','yard','kg','gram','liter','dozen','set') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hsn_code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `brand` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `color` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `size` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `material` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `specifications` json DEFAULT NULL COMMENT 'Detailed specifications like dimensions, weight, etc.',
   `images` json DEFAULT NULL COMMENT 'Array of image URLs',
-  `barcode` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `qr_code` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `barcode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `qr_code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `cost_price` decimal(10,2) DEFAULT '0.00',
   `selling_price` decimal(10,2) DEFAULT '0.00',
   `mrp` decimal(10,2) DEFAULT '0.00',
@@ -51,7 +51,7 @@ CREATE TABLE `products` (
   `shelf_life_days` int DEFAULT NULL,
   `weight` decimal(8,3) DEFAULT NULL COMMENT 'Weight in kg',
   `dimensions` json DEFAULT NULL COMMENT 'Length, width, height in cm',
-  `status` enum('active','inactive','discontinued') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `status` enum('active','inactive','discontinued') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'active',
   `is_serialized` tinyint(1) DEFAULT '0',
   `is_batch_tracked` tinyint(1) DEFAULT '0',
   `quality_parameters` json DEFAULT NULL COMMENT 'Quality check parameters for this product',
@@ -75,7 +75,7 @@ CREATE TABLE `products` (
   KEY `products_color` (`color`),
   KEY `products_size` (`size`),
   CONSTRAINT `products_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -84,7 +84,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'PRD-1760446113384-337','cotton','Formal Shirt','fabric',NULL,'raw_material','meter','100',NULL,'blue',NULL,NULL,'{\"gsm\": \"180\", \"width\": \"100\", \"source\": \"grn_auto_created\"}',NULL,NULL,NULL,500.00,600.00,0.00,0.00,10,0,20,0,NULL,NULL,NULL,'active',0,1,NULL,NULL,NULL,5,'2025-10-14 12:48:33','2025-10-14 12:48:33'),(2,'PRD-1760446113417-86','buttons','green color ','accessories',NULL,'accessory','meter',NULL,NULL,NULL,NULL,NULL,'{\"gsm\": null, \"width\": null, \"source\": \"grn_auto_created\"}',NULL,NULL,NULL,100.00,120.00,0.00,0.00,10,0,20,0,NULL,NULL,NULL,'active',0,1,NULL,NULL,NULL,5,'2025-10-14 12:48:33','2025-10-14 12:48:33');
+INSERT INTO `products` VALUES (1,'PRD-1760446113384-337','cotton','Formal Shirt','fabric',NULL,'raw_material','meter','100',NULL,'blue',NULL,NULL,'{\"gsm\": \"180\", \"width\": \"100\", \"source\": \"grn_auto_created\"}',NULL,NULL,NULL,500.00,600.00,0.00,0.00,10,0,20,0,NULL,NULL,NULL,'active',0,1,NULL,NULL,NULL,5,'2025-10-14 12:48:33','2025-10-14 12:48:33'),(2,'PRD-1760446113417-86','buttons','green color ','accessories',NULL,'accessory','meter',NULL,NULL,NULL,NULL,NULL,'{\"gsm\": null, \"width\": null, \"source\": \"grn_auto_created\"}',NULL,NULL,NULL,100.00,120.00,0.00,0.00,10,0,20,0,NULL,NULL,NULL,'active',0,1,NULL,NULL,NULL,5,'2025-10-14 12:48:33','2025-10-14 12:48:33'),(3,'PRD-1760509860788-286','button','nevy blue color buttons','accessories',NULL,'accessory','yard',NULL,NULL,NULL,NULL,NULL,'{\"gsm\": null, \"width\": null, \"source\": \"grn_auto_created\"}',NULL,NULL,NULL,10.00,12.00,0.00,0.00,10,0,20,0,NULL,NULL,NULL,'active',0,1,NULL,NULL,NULL,5,'2025-10-15 06:31:00','2025-10-15 06:31:00'),(4,'PRD-1761549948811-423','thread','sdsfes','accessories',NULL,'accessory','yard',NULL,NULL,NULL,NULL,NULL,'{\"gsm\": null, \"width\": null, \"source\": \"grn_auto_created\"}',NULL,NULL,NULL,10.00,12.00,0.00,0.00,10,0,20,0,NULL,NULL,NULL,'active',0,1,NULL,NULL,NULL,5,'2025-10-27 07:25:48','2025-10-27 07:25:48');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -97,4 +97,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:27
+-- Dump completed on 2025-10-28 11:44:26

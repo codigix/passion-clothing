@@ -26,7 +26,7 @@ CREATE TABLE `material_allocations` (
   `id` int NOT NULL AUTO_INCREMENT,
   `production_order_id` int NOT NULL,
   `inventory_id` int NOT NULL,
-  `barcode` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Barcode of the inventory item being allocated',
+  `barcode` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Barcode of the inventory item being allocated',
   `quantity_allocated` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT 'Total quantity allocated from inventory',
   `quantity_consumed` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT 'Quantity consumed in production',
   `quantity_returned` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT 'Unused quantity returned to inventory',
@@ -35,11 +35,11 @@ CREATE TABLE `material_allocations` (
   `allocated_by` int DEFAULT NULL COMMENT 'User who allocated the material',
   `current_stage_id` int DEFAULT NULL COMMENT 'Current production stage using this material',
   `consumption_log` json DEFAULT NULL COMMENT 'Array of consumption records: [{stage_id, stage_name, quantity, consumed_at, consumed_by, barcode_scan}]',
-  `return_barcode` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'New barcode generated for returned unused materials (INV-RET-YYYYMMDD-XXXXX)',
+  `return_barcode` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'New barcode generated for returned unused materials (INV-RET-YYYYMMDD-XXXXX)',
   `return_date` datetime DEFAULT NULL COMMENT 'When unused material was returned to inventory',
   `returned_by` int DEFAULT NULL COMMENT 'User who returned the material',
-  `status` enum('allocated','in_use','consumed','partially_returned','fully_returned','wasted') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'allocated' COMMENT 'Current status of allocated material',
-  `notes` text COLLATE utf8mb4_unicode_ci COMMENT 'Additional notes about material usage',
+  `status` enum('allocated','in_use','consumed','partially_returned','fully_returned','wasted') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'allocated' COMMENT 'Current status of allocated material',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Additional notes about material usage',
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
@@ -77,4 +77,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:26
+-- Dump completed on 2025-10-28 11:44:25

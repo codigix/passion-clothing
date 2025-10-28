@@ -25,11 +25,11 @@ DROP TABLE IF EXISTS `sales_order_history`;
 CREATE TABLE `sales_order_history` (
   `id` int NOT NULL AUTO_INCREMENT,
   `sales_order_id` int NOT NULL COMMENT 'Sales order associated with this lifecycle event',
-  `status_from` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Previous status before transition',
-  `status_to` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Status after transition',
-  `approval_status_from` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Previous approval status before transition',
-  `approval_status_to` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Approval status after transition',
-  `note` text COLLATE utf8mb4_unicode_ci COMMENT 'Additional context or remarks for the transition',
+  `status_from` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Previous status before transition',
+  `status_to` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Status after transition',
+  `approval_status_from` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Previous approval status before transition',
+  `approval_status_to` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Approval status after transition',
+  `note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Additional context or remarks for the transition',
   `performed_by` int DEFAULT NULL COMMENT 'User who performed the action',
   `performed_at` datetime NOT NULL COMMENT 'Timestamp when the transition occurred',
   `metadata` json DEFAULT NULL COMMENT 'Serialized metadata describing the lifecycle event',
@@ -42,7 +42,7 @@ CREATE TABLE `sales_order_history` (
   KEY `sales_order_history_performed_by_idx` (`performed_by`),
   CONSTRAINT `sales_order_history_ibfk_1` FOREIGN KEY (`sales_order_id`) REFERENCES `sales_orders` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `sales_order_history_ibfk_2` FOREIGN KEY (`performed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -51,6 +51,7 @@ CREATE TABLE `sales_order_history` (
 
 LOCK TABLES `sales_order_history` WRITE;
 /*!40000 ALTER TABLE `sales_order_history` DISABLE KEYS */;
+INSERT INTO `sales_order_history` VALUES (1,2,'in_production','on_hold',NULL,NULL,'Status updated from in_production to on_hold',6,'2025-10-18 07:57:10',NULL,'2025-10-18 07:57:10','2025-10-18 07:57:10'),(2,2,'on_hold','on_hold',NULL,NULL,'Status updated from on_hold to on_hold',6,'2025-10-18 07:57:11',NULL,'2025-10-18 07:57:11','2025-10-18 07:57:11'),(3,3,'in_production','on_hold',NULL,NULL,'Status updated from in_production to on_hold',6,'2025-10-18 08:08:21',NULL,'2025-10-18 08:08:21','2025-10-18 08:08:21');
 /*!40000 ALTER TABLE `sales_order_history` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -63,4 +64,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:27
+-- Dump completed on 2025-10-28 11:44:27

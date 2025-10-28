@@ -28,12 +28,12 @@ CREATE TABLE `material_consumptions` (
   `production_stage_id` int DEFAULT NULL,
   `stage_operation_id` int DEFAULT NULL,
   `inventory_id` int NOT NULL,
-  `barcode` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `barcode` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `quantity_used` decimal(10,2) NOT NULL,
-  `unit` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `consumed_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `consumed_by` int DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -70,4 +70,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:25
+-- Dump completed on 2025-10-28 11:44:23

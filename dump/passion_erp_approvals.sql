@@ -24,15 +24,15 @@ DROP TABLE IF EXISTS `approvals`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `approvals` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `entity_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Type of entity tied to this approval (sales_order, purchase_order, etc.)',
+  `entity_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Type of entity tied to this approval (sales_order, purchase_order, etc.)',
   `entity_id` int NOT NULL COMMENT 'Identifier of the entity requiring approval',
-  `stage_key` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Stable key identifying the approval stage',
-  `stage_label` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Human readable label for the stage',
+  `stage_key` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Stable key identifying the approval stage',
+  `stage_label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Human readable label for the stage',
   `sequence` int NOT NULL DEFAULT '1' COMMENT 'Ordering of the stage within the workflow',
-  `status` enum('pending','in_progress','approved','rejected','skipped','canceled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT 'Current status of this approval stage',
+  `status` enum('pending','in_progress','approved','rejected','skipped','canceled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT 'Current status of this approval stage',
   `assigned_to_user_id` int DEFAULT NULL COMMENT 'Specific user responsible for this stage (if applicable)',
   `reviewer_id` int DEFAULT NULL COMMENT 'User who issued the decision for this stage',
-  `decision_note` text COLLATE utf8mb4_unicode_ci COMMENT 'Reviewer notes captured at decision time',
+  `decision_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Reviewer notes captured at decision time',
   `decided_at` datetime DEFAULT NULL COMMENT 'Timestamp when the decision was recorded',
   `metadata` json DEFAULT NULL COMMENT 'Serialized data for workflow orchestration',
   `due_at` datetime DEFAULT NULL COMMENT 'Optional due date for this approval stage',
@@ -54,7 +54,7 @@ CREATE TABLE `approvals` (
   CONSTRAINT `approvals_ibfk_1` FOREIGN KEY (`assigned_to_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `approvals_ibfk_2` FOREIGN KEY (`reviewer_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `approvals_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -63,7 +63,7 @@ CREATE TABLE `approvals` (
 
 LOCK TABLES `approvals` WRITE;
 /*!40000 ALTER TABLE `approvals` DISABLE KEYS */;
-INSERT INTO `approvals` VALUES (1,'purchase_order',1,'admin_approval','Admin Approval Required',1,'pending',NULL,NULL,NULL,NULL,'{\"priority\": \"medium\", \"po_number\": \"PO-20251014-0001\", \"vendor_name\": \"abhijit\", \"project_name\": \"Insurance Management Platform\", \"total_amount\": \"52408.00\", \"customer_name\": \"nitin kamble\", \"expected_delivery\": \"2025-10-30T00:00:00.000Z\"}',NULL,3,'2025-10-14 12:46:39','2025-10-14 12:46:39',NULL),(2,'grn_creation',1,'grn_creation_request','GRN Creation Request - Materials Received',1,'pending',5,NULL,NULL,NULL,'{\"po_details\": {\"po_number\": \"PO-20251014-0001\", \"items_count\": 2, \"vendor_name\": \"abhijit\", \"project_name\": \"Insurance Management Platform\", \"customer_name\": \"nitin kamble\", \"expected_delivery_date\": \"2025-10-30T00:00:00.000Z\"}, \"received_at\": \"2025-10-14T12:47:19.635Z\", \"request_notes\": \"Materials received at warehouse - ready for GRN creation\"}',NULL,3,'2025-10-14 12:47:19','2025-10-14 12:47:19',NULL);
+INSERT INTO `approvals` VALUES (1,'purchase_order',1,'admin_approval','Admin Approval Required',1,'pending',NULL,NULL,NULL,NULL,'{\"priority\": \"medium\", \"po_number\": \"PO-20251014-0001\", \"vendor_name\": \"abhijit\", \"project_name\": \"Insurance Management Platform\", \"total_amount\": \"52408.00\", \"customer_name\": \"nitin kamble\", \"expected_delivery\": \"2025-10-30T00:00:00.000Z\"}',NULL,3,'2025-10-14 12:46:39','2025-10-14 12:46:39',NULL),(2,'grn_creation',1,'grn_creation_request','GRN Creation Request - Materials Received',1,'pending',5,NULL,NULL,NULL,'{\"po_details\": {\"po_number\": \"PO-20251014-0001\", \"items_count\": 2, \"vendor_name\": \"abhijit\", \"project_name\": \"Insurance Management Platform\", \"customer_name\": \"nitin kamble\", \"expected_delivery_date\": \"2025-10-30T00:00:00.000Z\"}, \"received_at\": \"2025-10-14T12:47:19.635Z\", \"request_notes\": \"Materials received at warehouse - ready for GRN creation\"}',NULL,3,'2025-10-14 12:47:19','2025-10-14 12:47:19',NULL),(3,'purchase_order',2,'admin_approval','Admin Approval Required',1,'pending',NULL,NULL,NULL,NULL,'{\"priority\": \"medium\", \"po_number\": \"PO-20251015-0001\", \"vendor_name\": \"abhijit\", \"project_name\": \"techchallenger\", \"total_amount\": \"101900.80\", \"customer_name\": \"Ashwini Khedekar\", \"expected_delivery\": \"2025-10-30T00:00:00.000Z\"}',NULL,3,'2025-10-15 06:21:25','2025-10-15 06:21:25',NULL),(4,'grn_creation',2,'grn_creation_request','GRN Creation Request - Materials Received',1,'pending',5,NULL,NULL,NULL,'{\"po_details\": {\"po_number\": \"PO-20251015-0001\", \"items_count\": 2, \"vendor_name\": \"abhijit\", \"project_name\": \"techchallenger\", \"customer_name\": \"Ashwini Khedekar\", \"expected_delivery_date\": \"2025-10-30T00:00:00.000Z\"}, \"received_at\": \"2025-10-15T06:29:07.068Z\", \"request_notes\": \"Materials received at warehouse - ready for GRN creation\"}',NULL,3,'2025-10-15 06:29:07','2025-10-15 06:29:07',NULL),(5,'purchase_order',3,'admin_approval','Admin Approval Required',1,'pending',NULL,NULL,NULL,NULL,'{\"priority\": \"medium\", \"po_number\": \"PO-20251016-0001\", \"vendor_name\": \"abhijit\", \"project_name\": \"employee printed T-shirts\", \"total_amount\": \"32570.56\", \"customer_name\": \"sanika mote\", \"expected_delivery\": \"2025-10-24T00:00:00.000Z\"}',NULL,3,'2025-10-16 12:48:19','2025-10-16 12:48:19',NULL),(6,'grn_creation',3,'grn_creation_request','GRN Creation Request - Materials Received',1,'pending',5,NULL,NULL,NULL,'{\"po_details\": {\"po_number\": \"PO-20251016-0001\", \"items_count\": 2, \"vendor_name\": \"abhijit\", \"project_name\": \"employee printed T-shirts\", \"customer_name\": \"sanika mote\", \"expected_delivery_date\": \"2025-10-24T00:00:00.000Z\"}, \"received_at\": \"2025-10-16T12:49:11.300Z\", \"request_notes\": \"Materials received at warehouse - ready for GRN creation\"}',NULL,3,'2025-10-16 12:49:11','2025-10-16 12:49:11',NULL),(7,'purchase_order',4,'admin_approval','Admin Approval Required',1,'pending',NULL,NULL,NULL,NULL,'{\"priority\": \"medium\", \"po_number\": \"PO-20251027-0001\", \"vendor_name\": \"abhijit\", \"project_name\": \"Winter Uniforms – XYZ Pvt Ltd\", \"total_amount\": \"56791.67\", \"customer_name\": \"Ashwini Khedekar\", \"expected_delivery\": \"2025-10-31T00:00:00.000Z\"}',NULL,3,'2025-10-27 07:22:12','2025-10-27 07:22:12',NULL),(8,'grn_creation',4,'grn_creation_request','GRN Creation Request',1,'pending',5,NULL,NULL,NULL,'{\"po_details\": {\"po_number\": \"PO-20251027-0001\", \"items_count\": 3, \"vendor_name\": \"abhijit\", \"project_name\": \"Winter Uniforms – XYZ Pvt Ltd\", \"customer_name\": \"Ashwini Khedekar\", \"expected_delivery_date\": \"2025-10-31T00:00:00.000Z\"}, \"request_notes\": \"Requesting GRN creation from procurement\"}',NULL,3,'2025-10-27 07:23:31','2025-10-27 07:23:31',NULL);
 /*!40000 ALTER TABLE `approvals` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -76,4 +76,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:23
+-- Dump completed on 2025-10-28 11:44:24

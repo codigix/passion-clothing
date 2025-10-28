@@ -29,15 +29,15 @@ CREATE TABLE `material_consumption` (
   `stage_operation_id` int DEFAULT NULL,
   `inventory_id` int DEFAULT NULL,
   `material_id` int NOT NULL,
-  `material_barcode` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Barcode of the material item',
+  `material_barcode` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Barcode of the material item',
   `quantity_allocated` decimal(10,2) DEFAULT '0.00',
   `quantity_used` decimal(10,2) DEFAULT '0.00',
   `quantity_returned` decimal(10,2) DEFAULT '0.00',
-  `unit` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pcs',
-  `status` enum('allocated','consumed','partially_consumed','returned') COLLATE utf8mb4_unicode_ci DEFAULT 'allocated',
+  `unit` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pcs',
+  `status` enum('allocated','consumed','partially_consumed','returned') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'allocated',
   `consumed_at` datetime DEFAULT NULL,
   `consumed_by` int DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -77,4 +77,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:23
+-- Dump completed on 2025-10-28 11:44:22

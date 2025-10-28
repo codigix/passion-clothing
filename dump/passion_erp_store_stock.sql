@@ -25,7 +25,7 @@ DROP TABLE IF EXISTS `store_stock`;
 CREATE TABLE `store_stock` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
-  `store_location` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'School store location or branch',
+  `store_location` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'School store location or branch',
   `issued_quantity` int DEFAULT '0' COMMENT 'Quantity issued to store from main inventory',
   `sold_quantity` int DEFAULT '0' COMMENT 'Quantity sold by the store',
   `returned_quantity` int DEFAULT '0' COMMENT 'Quantity returned to main inventory',
@@ -45,11 +45,11 @@ CREATE TABLE `store_stock` (
   `last_sale_date` datetime DEFAULT NULL,
   `last_return_date` datetime DEFAULT NULL,
   `expiry_date` datetime DEFAULT NULL,
-  `season` enum('summer','winter','monsoon','all_season') COLLATE utf8mb4_unicode_ci DEFAULT 'all_season',
+  `season` enum('summer','winter','monsoon','all_season') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'all_season',
   `size_breakdown` json DEFAULT NULL COMMENT 'Size-wise stock breakdown',
   `color_breakdown` json DEFAULT NULL COMMENT 'Color-wise stock breakdown',
-  `status` enum('active','inactive','discontinued') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('active','inactive','discontinued') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `store_manager_id` int DEFAULT NULL,
   `last_audit_date` datetime DEFAULT NULL,
   `audit_variance` int DEFAULT '0' COMMENT 'Difference found during last audit',
@@ -93,4 +93,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:27
+-- Dump completed on 2025-10-28 11:44:23

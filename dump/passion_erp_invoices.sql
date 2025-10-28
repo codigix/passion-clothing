@@ -24,8 +24,8 @@ DROP TABLE IF EXISTS `invoices`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `invoices` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `invoice_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Format: INV-YYYYMMDD-XXXX',
-  `invoice_type` enum('sales','purchase','service','credit_note','debit_note') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `invoice_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Format: INV-YYYYMMDD-XXXX',
+  `invoice_type` enum('sales','purchase','service','credit_note','debit_note') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `vendor_id` int DEFAULT NULL,
   `customer_id` int DEFAULT NULL,
   `challan_id` int DEFAULT NULL,
@@ -44,18 +44,18 @@ CREATE TABLE `invoices` (
   `total_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
   `paid_amount` decimal(12,2) DEFAULT '0.00',
   `outstanding_amount` decimal(12,2) DEFAULT '0.00',
-  `status` enum('draft','sent','viewed','partial_paid','paid','overdue','cancelled') COLLATE utf8mb4_unicode_ci DEFAULT 'draft',
-  `payment_status` enum('unpaid','partial','paid','overpaid') COLLATE utf8mb4_unicode_ci DEFAULT 'unpaid',
-  `payment_terms` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `currency` varchar(3) COLLATE utf8mb4_unicode_ci DEFAULT 'INR',
+  `status` enum('draft','sent','viewed','partial_paid','paid','overdue','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'draft',
+  `payment_status` enum('unpaid','partial','paid','overpaid') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'unpaid',
+  `payment_terms` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'INR',
   `exchange_rate` decimal(10,4) DEFAULT '1.0000',
-  `billing_address` text COLLATE utf8mb4_unicode_ci,
-  `shipping_address` text COLLATE utf8mb4_unicode_ci,
-  `notes` text COLLATE utf8mb4_unicode_ci,
-  `terms_conditions` text COLLATE utf8mb4_unicode_ci,
-  `internal_notes` text COLLATE utf8mb4_unicode_ci,
-  `reference_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'External reference like PO number, etc.',
-  `pdf_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billing_address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `shipping_address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `terms_conditions` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `internal_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `reference_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'External reference like PO number, etc.',
+  `pdf_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sent_date` datetime DEFAULT NULL,
   `viewed_date` datetime DEFAULT NULL,
   `last_payment_date` datetime DEFAULT NULL,
@@ -107,4 +107,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:20
+-- Dump completed on 2025-10-28 11:44:27

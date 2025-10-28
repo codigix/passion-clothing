@@ -30,16 +30,16 @@ CREATE TABLE `production_completion` (
   `approved_quantity` int NOT NULL COMMENT 'Quantity approved in QC',
   `rejected_quantity` int DEFAULT '0' COMMENT 'Quantity rejected in QC',
   `all_quantity_received` tinyint(1) DEFAULT '0' COMMENT 'Whether all required quantity was produced',
-  `quantity_shortage_reason` text COLLATE utf8mb4_unicode_ci COMMENT 'Reason if quantity is short',
+  `quantity_shortage_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Reason if quantity is short',
   `all_materials_used` tinyint(1) DEFAULT '0' COMMENT 'Whether all allocated materials were used',
   `material_return_summary` json DEFAULT NULL COMMENT 'Summary of materials returned to inventory',
-  `material_return_notes` text COLLATE utf8mb4_unicode_ci,
+  `material_return_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `completion_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `completed_by` int NOT NULL,
   `shipment_id` int DEFAULT NULL,
   `sent_to_shipment` tinyint(1) DEFAULT '0',
   `shipment_date` datetime DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -73,4 +73,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:26
+-- Dump completed on 2025-10-28 11:44:24

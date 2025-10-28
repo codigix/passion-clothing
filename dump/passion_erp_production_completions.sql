@@ -30,7 +30,7 @@ CREATE TABLE `production_completions` (
   `approved_quantity` int NOT NULL,
   `rejected_quantity` int NOT NULL,
   `all_quantity_received` tinyint(1) DEFAULT '0',
-  `quantity_shortfall_reason` text COLLATE utf8mb4_unicode_ci,
+  `quantity_shortfall_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `all_materials_used` tinyint(1) DEFAULT '1',
   `remaining_materials` json DEFAULT NULL,
   `material_returned_to_inventory` tinyint(1) DEFAULT '0',
@@ -40,11 +40,11 @@ CREATE TABLE `production_completions` (
   `completed_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `completed_by` int NOT NULL,
   `quality_passed` tinyint(1) DEFAULT '0',
-  `quality_notes` text COLLATE utf8mb4_unicode_ci,
+  `quality_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `ready_for_shipment` tinyint(1) DEFAULT '0',
   `sent_to_shipment_at` datetime DEFAULT NULL,
   `shipment_id` int DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -78,4 +78,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 23:25:26
+-- Dump completed on 2025-10-28 11:44:25
