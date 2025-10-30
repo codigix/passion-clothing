@@ -12,6 +12,8 @@ import {
   FaClipboardList
 } from 'react-icons/fa';
 import api from '../../utils/api';
+import { formatDate, safePath } from '../../utils/procurementFormatters';
+import { MATERIAL_REQUEST_STATUS_BADGES, PRIORITY_BADGES } from '../../constants/procurementStatus';
 import toast from 'react-hot-toast';
 
 const MaterialRequestsPage = () => {
@@ -51,37 +53,19 @@ const MaterialRequestsPage = () => {
   };
 
   const getStatusBadge = (status) => {
-    const badges = {
-      pending: { color: 'bg-yellow-100 text-yellow-700', icon: <FaClock />, text: 'Pending Review' },
-      reviewed: { color: 'bg-blue-100 text-blue-700', icon: <FaCheckCircle />, text: 'Reviewed' },
-      forwarded_to_inventory: { color: 'bg-purple-100 text-purple-700', icon: <FaBox />, text: 'Forwarded to Inventory' },
-      stock_checking: { color: 'bg-indigo-100 text-indigo-700', icon: <FaClock />, text: 'Checking Stock' },
-      stock_available: { color: 'bg-green-100 text-green-700', icon: <FaCheckCircle />, text: 'Stock Available' },
-      partial_available: { color: 'bg-orange-100 text-orange-700', icon: <FaExclamationTriangle />, text: 'Partial Stock' },
-      stock_unavailable: { color: 'bg-red-100 text-red-700', icon: <FaExclamationTriangle />, text: 'Stock Unavailable' },
-      materials_reserved: { color: 'bg-emerald-100 text-emerald-700', icon: <FaCheckCircle />, text: 'Materials Reserved' },
-      materials_issued: { color: 'bg-teal-100 text-teal-700', icon: <FaCheckCircle />, text: 'Materials Issued' },
-      completed: { color: 'bg-gray-100 text-gray-700', icon: <FaCheckCircle />, text: 'Completed' },
-      cancelled: { color: 'bg-red-100 text-red-700', icon: <FaExclamationTriangle />, text: 'Cancelled' },
-    };
-    const badge = badges[status] || badges.pending;
+    const badge = MATERIAL_REQUEST_STATUS_BADGES[status] || MATERIAL_REQUEST_STATUS_BADGES.pending;
     return (
-      <span className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${badge.color}`}>
-        {badge.icon} {badge.text}
+      <span className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${badge.color} ${badge.text}`} title={badge.label}>
+        {badge.label}
       </span>
     );
   };
 
   const getPriorityBadge = (priority) => {
-    const colors = {
-      low: 'bg-gray-100 text-gray-600',
-      medium: 'bg-blue-100 text-blue-600',
-      high: 'bg-orange-100 text-orange-600',
-      urgent: 'bg-red-100 text-red-600'
-    };
+    const badge = PRIORITY_BADGES[priority?.toLowerCase()] || PRIORITY_BADGES.medium;
     return (
-      <span className={`px-2 py-1 rounded text-xs font-semibold ${colors[priority]}`}>
-        {priority.toUpperCase()}
+      <span className={`px-2 py-1 rounded text-xs font-semibold ${badge.color} ${badge.text}`}>
+        {badge.label}
       </span>
     );
   };
@@ -218,11 +202,11 @@ const MaterialRequestsPage = () => {
                     <td className="px-2 py-2 text-sm text-gray-600">
                       <div className="flex items-center gap-1">
                         <FaCalendar className="text-gray-400" />
-                        {new Date(request.required_date).toLocaleDateString()}
+                        {formatDate(request.required_date)}
                       </div>
                     </td>
                     <td className="px-2 py-2 text-sm text-gray-500">
-                      {new Date(request.created_at).toLocaleDateString()}
+                      {formatDate(request.created_at)}
                     </td>
                     <td className="px-2 py-2">
                       <button
@@ -247,7 +231,7 @@ const MaterialRequestsPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Material Request #{selectedRequest.id}</h2>
-                <p className="text-sm text-gray-500 mt-1">Created on {new Date(selectedRequest.created_at).toLocaleString()}</p>
+                <p className="text-sm text-gray-500 mt-1">Created on {formatDate(selectedRequest.created_at, 'datetime')}</p>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}
@@ -279,12 +263,12 @@ const MaterialRequestsPage = () => {
                 <label className="text-xs text-gray-500 uppercase font-semibold">Required Date</label>
                 <p className="font-medium text-gray-900 mt-1 flex items-center gap-1.5">
                   <FaCalendar className="text-blue-500" />
-                  {new Date(selectedRequest.required_date).toLocaleDateString()}
+                  {formatDate(selectedRequest.required_date)}
                 </p>
               </div>
               <div>
                 <label className="text-xs text-gray-500 uppercase font-semibold">Created By</label>
-                <p className="font-medium text-gray-900 mt-1">{selectedRequest.creator?.name || 'N/A'}</p>
+                <p className="font-medium text-gray-900 mt-1">{safePath(selectedRequest, 'creator.name', 'Unknown User')}</p>
               </div>
             </div>
 

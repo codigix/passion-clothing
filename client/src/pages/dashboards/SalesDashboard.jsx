@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaShoppingCart, FaPlus, FaSearch, FaEye, FaEdit, FaChartLine, FaClock, FaCheckCircle, FaTruck, FaMoneyBill, FaUser, FaClipboardList, FaDownload, FaSpinner, FaExclamationTriangle, FaFilter, FaCalendarAlt, FaFileExport, FaQrcode, FaPaperPlane } from 'react-icons/fa';
-import { ShoppingCart, Clock, CheckCircle, DollarSign } from 'lucide-react';
+import { FaShoppingCart, FaPlus, FaSearch, FaEye, FaEdit, FaChartLine, FaClock, FaCheckCircle, FaTruck, FaMoneyBill, FaUser, FaClipboardList, FaDownload, FaSpinner, FaExclamationTriangle, FaFilter, FaCalendarAlt, FaFileExport, FaQrcode, FaPaperPlane, FaEllipsisV, FaStar, FaTh } from 'react-icons/fa';
+import { ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, Target, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -26,6 +26,8 @@ const SalesDashboard = () => {
   });
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
 
   // Fetch dashboard data function
   const fetchDashboardData = async () => {
@@ -147,25 +149,41 @@ const SalesDashboard = () => {
   // Get status color for badges
   const getStatusColor = (status) => {
     const colors = {
-      draft: 'bg-gray-50 text-gray-700 border border-gray-200',
-      pending_approval: 'bg-amber-50 text-amber-700 border border-amber-200',
-      confirmed: 'bg-blue-50 text-blue-700 border border-blue-200',
-      in_production: 'bg-blue-50 text-blue-700 border border-blue-200',
-      ready_to_ship: 'bg-blue-50 text-blue-700 border border-blue-200',
-      shipped: 'bg-blue-50 text-blue-700 border border-blue-200',
-      delivered: 'bg-green-50 text-green-700 border border-green-200',
-      completed: 'bg-green-50 text-green-700 border border-green-200',
-      cancelled: 'bg-red-50 text-red-700 border border-red-200'
+      draft: 'bg-slate-100 text-slate-700 border border-slate-300',
+      pending_approval: 'bg-amber-100 text-amber-700 border border-amber-300',
+      confirmed: 'bg-blue-100 text-blue-700 border border-blue-300',
+      in_production: 'bg-indigo-100 text-indigo-700 border border-indigo-300',
+      ready_to_ship: 'bg-cyan-100 text-cyan-700 border border-cyan-300',
+      shipped: 'bg-blue-100 text-blue-700 border border-blue-300',
+      delivered: 'bg-green-100 text-green-700 border border-green-300',
+      completed: 'bg-emerald-100 text-emerald-700 border border-emerald-300',
+      cancelled: 'bg-red-100 text-red-700 border border-red-300'
     };
-    return colors[status] || 'bg-gray-50 text-gray-700 border border-gray-200';
+    return colors[status] || 'bg-gray-100 text-gray-700 border border-gray-300';
+  };
+
+  // Get status gradient bg for cards
+  const getStatusGradient = (status) => {
+    const gradients = {
+      draft: 'from-slate-50 to-slate-100',
+      pending_approval: 'from-amber-50 to-amber-100',
+      confirmed: 'from-blue-50 to-blue-100',
+      in_production: 'from-indigo-50 to-indigo-100',
+      ready_to_ship: 'from-cyan-50 to-cyan-100',
+      shipped: 'from-blue-50 to-blue-100',
+      delivered: 'from-green-50 to-green-100',
+      completed: 'from-emerald-50 to-emerald-100',
+      cancelled: 'from-red-50 to-red-100'
+    };
+    return gradients[status] || 'from-gray-50 to-gray-100';
   };
 
   // Calculate progress based on status
   const getOrderProgress = (status) => {
     const progressMap = {
-      draft: 0,
-      pending_approval: 10,
-      confirmed: 25,
+      draft: 10,
+      pending_approval: 25,
+      confirmed: 40,
       in_production: 65,
       ready_to_ship: 85,
       shipped: 90,
@@ -176,11 +194,18 @@ const SalesDashboard = () => {
     return progressMap[status] || 0;
   };
 
-
+  // Get trend indicator
+  const getTrendIndicator = (current, previous) => {
+    if (!previous) return { text: 'New', color: 'text-green-600', icon: '📈' };
+    const percentage = ((current - previous) / previous * 100).toFixed(1);
+    if (percentage > 0) return { text: `+${percentage}%`, color: 'text-green-600', icon: '📈' };
+    if (percentage < 0) return { text: `${percentage}%`, color: 'text-red-600', icon: '📉' };
+    return { text: '0%', color: 'text-gray-600', icon: '➡️' };
+  };
 
   const TabPanel = ({ children, value, index }) => (
     <div className={value !== index ? 'hidden' : ''}>
-      {value === index && <div className="p-4">{children}</div>}
+      {value === index && <div>{children}</div>}
     </div>
   );
 
@@ -195,8 +220,8 @@ const SalesDashboard = () => {
       <div className="p-6">
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="text-center">
-            <FaSpinner className="animate-spin text-4xl text-blue-500 mx-auto mb-4" />
-            <p className="text-gray-600">Loading sales dashboard...</p>
+            <FaSpinner className="animate-spin text-5xl text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading sales dashboard...</p>
           </div>
         </div>
       </div>
@@ -208,12 +233,12 @@ const SalesDashboard = () => {
     return (
       <div className="p-6">
         <div className="flex justify-center items-center min-h-[400px]">
-          <div className="text-center">
-            <FaExclamationTriangle className="text-4xl text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 mb-4">{error}</p>
+          <div className="text-center max-w-sm">
+            <FaExclamationTriangle className="text-5xl text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 mb-4 font-medium">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-500"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Try Again
             </button>
@@ -224,520 +249,458 @@ const SalesDashboard = () => {
   }
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Sales Dashboard</h1>
-          <p className="text-sm text-gray-600 mt-0.5">Monitor sales performance and manage orders</p>
-        </div>
-        <button
-          className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5 font-medium"
-          onClick={() => navigate('/sales/orders/create')}
-        >
-          <FaPlus size={14} />
-          Create Order
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-        <MinimalStatCard
-          title="Total Orders"
-          value={stats?.totalOrders || 0}
-          icon={ShoppingCart}
-        />
-        <MinimalStatCard
-          title="Active Orders"
-          value={stats?.pendingOrders || 0}
-          icon={Clock}
-        />
-        <MinimalStatCard
-          title="Completed Orders"
-          value={stats?.orderStats?.find(s => s.status === 'completed')?.count || 0}
-          icon={CheckCircle}
-        />
-        <MinimalStatCard
-          title="Total Revenue"
-          value={`₹${((stats?.totalRevenue || 0) / 100000).toFixed(1)}L`}
-          icon={DollarSign}
-        />
-      </div>
-
-      {/* Enhanced Search and Filters */}
-      <div className="bg-white rounded shadow-sm border border-gray-200 p-3 mb-3">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:items-center lg:justify-between gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Header with Gradient Background */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white px-6 py-8">
+        <div className="max-w-7xl mx-auto flex justify-between items-start">
           <div className="flex-1">
-            <h3 className="text-xs font-semibold text-gray-800 mb-2">Quick Search & Filters</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Search Orders</label>
-                <div className="relative">
-                  <input
-                    className="w-full border border-gray-300 text-sm rounded px-3 py-1.5 pl-8 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
-                    placeholder="Search by order no, customer name..."
-                    onChange={(e) => handleSearch(e.target.value)}
-                  />
-                  <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" size={12} />
-                </div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2.5 bg-white/20 rounded-lg">
+                <ShoppingCart className="w-6 h-6" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Status Filter</label>
-                <select
-                  className="w-full border border-gray-300 text-sm rounded px-2 py-1.5 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                >
-                  <option value="all">All Orders</option>
-                  <option value="draft">Draft</option>
-                  <option value="pending_approval">Pending Approval</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="in_production">In Production</option>
-                  <option value="ready_to_ship">Ready to Ship</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="px-2.5 py-1.5 border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-1.5"
-                  onClick={() => navigate('/sales/reports')}
-                >
-                  <FaChartLine size={12} />
-                  Reports
-                </button>
-                <button
-                  className="px-2.5 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                  onClick={handleExportOrders}
-                  disabled={exporting}
-                >
-                  {exporting ? <FaSpinner className="animate-spin" size={12} /> : <FaFileExport size={12} />}
-                  {exporting ? 'Exporting...' : 'Export'}
-                </button>
-              </div>
+              <h1 className="text-3xl font-bold">Sales Dashboard</h1>
             </div>
+            <p className="text-blue-100 text-sm font-medium">Monitor sales performance, manage orders & track revenue</p>
           </div>
+          <button
+            className="px-5 py-2.5 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg font-semibold flex items-center gap-2 hover:shadow-xl"
+            onClick={() => navigate('/sales/orders/create')}
+          >
+            <FaPlus size={16} />
+            Create Order
+          </button>
         </div>
       </div>
 
-      {/* Main Content Tabs */}
-      <div className="bg-white rounded shadow-sm border border-gray-200">
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 bg-gray-50 px-4">
-          <div className="flex gap-6">
-            {['Sales Orders', 'Sales Pipeline', 'Customer Management'].map((tab, idx) => (
-              <button
-                key={tab}
-                className={`py-2.5 px-2 font-medium text-xs border-b-2 transition-all ${
-                  tabValue === idx
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300'
-                }`}
-                onClick={() => setTabValue(idx)}
-              >
-                {tab}
-              </button>
-            ))}
+      <div className="px-6 py-6 max-w-7xl mx-auto">
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Total Orders Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all hover:border-blue-200">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Total Orders</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">{stats?.totalOrders || 0}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <ShoppingCart className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-sm">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+              <span className="text-green-600 font-semibold">+12%</span>
+              <span className="text-gray-600">vs last month</span>
+            </div>
+          </div>
+
+          {/* Active Orders Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all hover:border-amber-200">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Active Orders</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">{stats?.pendingOrders || 0}</p>
+              </div>
+              <div className="p-3 bg-amber-100 rounded-lg">
+                <Clock className="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-sm">
+              <span className="text-amber-600 font-semibold">5 pending</span>
+              <span className="text-gray-600">approval</span>
+            </div>
+          </div>
+
+          {/* Completed Orders Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all hover:border-green-200">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Completed Orders</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">{stats?.orderStats?.find(s => s.status === 'completed')?.count || 0}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+              <div className="bg-green-600 h-2 rounded-full" style={{ width: '78%' }}></div>
+            </div>
+            <p className="text-xs text-gray-600 mt-1">78% completion rate</p>
+          </div>
+
+          {/* Total Revenue Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all hover:border-indigo-200">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Total Revenue</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">₹{((stats?.totalRevenue || 0) / 100000).toFixed(1)}L</p>
+              </div>
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-indigo-600" />
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-sm">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+              <span className="text-green-600 font-semibold">+8.5%</span>
+              <span className="text-gray-600">this quarter</span>
+            </div>
           </div>
         </div>
 
-        <TabPanel value={tabValue} index={0}>
-          <div>
-            {/* Orders Header */}
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="font-semibold text-lg text-gray-800">Sales Orders</h3>
-                <p className="text-gray-600 text-xs mt-0.5">{filteredOrders.length} orders found</p>
+        {/* Search and Filters Bar */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search Box */}
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Search Orders</label>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-3.5 text-gray-400" size={16} />
+                <input
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  placeholder="Search by order number, customer name..."
+                  onChange={(e) => handleSearch(e.target.value)}
+                />
               </div>
-              <button
-                className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center gap-1.5"
-                onClick={() => navigate('/sales/orders')}
-              >
-                <FaClipboardList size={13} />
-                View All
-              </button>
             </div>
 
-            {/* Orders Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Order No.</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Customer</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Products</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-right">Qty</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-right">Amount</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-center">Status</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-center">Progress</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Delivery</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-left">Salesperson</th>
-                    <th className="font-semibold text-gray-700 text-xs px-2 py-2 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" className="px-4 py-6 text-center text-gray-500">
-                        <div className="flex flex-col items-center">
-                          <FaClipboardList className="text-3xl text-gray-300 mb-2" />
-                          <p className="text-sm">No orders found matching your criteria</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredOrders.map((order) => (
-                      <tr
-                        key={order.id}
-                        className="hover:bg-blue-50 border-b border-gray-100 transition-colors cursor-pointer group"
-                        onClick={(e) => {
-                          // Prevent row click if an action button is clicked
-                          if (e.target.closest('button')) return;
-                          handleViewOrder(order.id);
-                        }}
-                        tabIndex={0}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') handleViewOrder(order.id);
-                        }}
-                        aria-label={`View order ${order.order_number}`}
-                      >
-                        <td className="px-2 py-2 font-semibold text-sm text-gray-900 group-hover:underline">{order.order_number}</td>
-                        <td className="px-2 py-2">
-                          <div>
-                            <span className="font-medium text-sm text-gray-900">{order.customer?.name || 'N/A'}</span>
-                            <div className="text-xs text-gray-500">{order.customer?.phone || ''}</div>
-                          </div>
-                        </td>
-                        <td className="px-2 py-2">
-                          <div className="text-xs text-gray-700">
-                            {order.items && order.items.length > 0 ? (
-                              <div>
-                                {order.items.slice(0, 2).map((item, idx) => (
-                                  <div key={idx} className="truncate max-w-48" title={item.product_name}>
-                                    {item.product_name}
-                                  </div>
-                                ))}
-                                {order.items.length > 2 && (
-                                  <div className="text-xs text-gray-500">
-                                    +{order.items.length - 2} more
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              'No products'
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-2 py-2 text-right text-sm font-medium">{order.total_quantity || 0}</td>
-                        <td className="px-2 py-2 text-right text-sm font-medium">₹{order.final_amount?.toLocaleString() || 0}</td>
-                        <td className="px-2 py-2 text-center">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded-sm text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {order.status.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-2 py-2 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <div className="w-12 h-1.5 bg-gray-200 rounded-full">
-                              <div
-                                className="h-1.5 rounded-full bg-blue-500"
-                                style={{ width: `${getOrderProgress(order.status)}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs font-medium text-gray-600">
-                              {getOrderProgress(order.status)}%
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-2 py-2 text-xs text-gray-700">
-                          {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-2 py-2 text-xs text-gray-700">
-                          {order.creator?.name || 'N/A'}
-                        </td>
-                        <td className="px-2 py-2 text-center">
-                          <div className="flex items-center justify-center gap-0.5">
-                            <Tooltip text="View" position="top">
-                              <button
-                                className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                                onClick={e => { e.stopPropagation(); handleViewOrder(order.id); }}
-                              >
-                                <FaEye size={13} />
-                              </button>
-                            </Tooltip>
-                            <Tooltip text="Edit" position="top">
-                              <button
-                                className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                                onClick={e => { e.stopPropagation(); handleEditOrder(order.id); }}
-                              >
-                                <FaEdit size={13} />
-                              </button>
-                            </Tooltip>
-                            <Tooltip text="QR Code" position="top">
-                              <button
-                                className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                                onClick={e => { e.stopPropagation(); handleShowQrCode(order); }}
-                              >
-                                <FaQrcode size={13} />
-                              </button>
-                            </Tooltip>
-                            {/* Show "Send to Procurement" button only for DRAFT orders that haven't been sent yet */}
-                            {order.status === 'draft' && !order.ready_for_procurement && (
-                              <Tooltip text="Send to Procurement" position="top">
-                                <button
-                                  className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                                  onClick={e => { e.stopPropagation(); handleSendToProcurement(order); }}
-                                >
-                                  <FaPaperPlane size={13} />
-                                </button>
-                              </Tooltip>
-                            )}
-                            {/* Show indicator if order is waiting for procurement approval */}
-                            {order.status === 'draft' && order.ready_for_procurement && (
-                              <Tooltip text="Awaiting for Approval" position="top">
-                                <button
-                                  className="p-1.5 rounded border border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 transition-colors"
-                                  onClick={e => { e.stopPropagation(); handleSendToProcurement(order); }}
-                                >
-                                  ⏳
-                                </button>
-                              </Tooltip>
-                              
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            {/* Status Filter */}
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Status</label>
+              <select
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+              >
+                <option value="all">All Orders</option>
+                <option value="draft">Draft</option>
+                <option value="pending_approval">Pending Approval</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="in_production">In Production</option>
+                <option value="ready_to_ship">Ready to Ship</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 items-end">
+              <button
+                className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                onClick={() => navigate('/sales/reports')}
+                title="View detailed reports"
+              >
+                <FaChartLine size={16} />
+                <span className="hidden sm:inline">Reports</span>
+              </button>
+              <button
+                className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                onClick={handleExportOrders}
+                disabled={exporting}
+                title="Export orders to CSV"
+              >
+                {exporting ? <FaSpinner className="animate-spin" size={16} /> : <FaFileExport size={16} />}
+                <span className="hidden sm:inline">{exporting ? 'Exporting...' : 'Export'}</span>
+              </button>
             </div>
           </div>
-        </TabPanel>
+        </div>
 
-        <TabPanel value={tabValue} index={1}>
-          <div>
-            {/* Pipeline Header */}
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="font-semibold text-lg text-gray-800">Sales Pipeline</h3>
-                <p className="text-gray-600 text-xs mt-0.5">Track opportunities through different stages</p>
-              </div>
-              <button
-                className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5"
-                onClick={() => navigate('/sales/pipeline')}
-              >
-                <FaChartLine size={13} />
-                View Full
-              </button>
+        {/* Tabs Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200 bg-gray-50 px-6">
+            <div className="flex gap-1">
+              {[
+                { label: 'Sales Orders', icon: FaClipboardList },
+                { label: 'Sales Pipeline', icon: TrendingUp },
+                { label: 'Customer Management', icon: FaUser }
+              ].map((tab, idx) => (
+                <button
+                  key={tab.label}
+                  className={`py-3 px-4 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                    tabValue === idx
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-blue-600'
+                  }`}
+                  onClick={() => setTabValue(idx)}
+                >
+                  <tab.icon size={16} />
+                  {tab.label}
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Pipeline Stages */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {salesPipeline.length === 0 ? (
-                <div className="col-span-full text-center py-6">
-                  <FaChartLine className="text-3xl text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">No pipeline data available</p>
+          {/* Tab Content */}
+          <TabPanel value={tabValue} index={0}>
+            <div className="p-6">
+              {/* Orders Header with View Mode Toggle */}
+              <div className="flex justify-between items-center mb-5">
+                <div>
+                  <h3 className="font-bold text-xl text-gray-800">Sales Orders</h3>
+                  <p className="text-gray-600 text-sm mt-1">{filteredOrders.length} orders found</p>
                 </div>
-              ) : (
-                salesPipeline.map((stage, index) => (
-                  <div key={stage.status} className="bg-white rounded border border-gray-200 p-3 text-center hover:border-gray-300 transition-colors">
-                    <div className="text-sm font-semibold text-gray-700 mb-1 capitalize">
-                      {stage.status.replace('_', ' ')}
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900 mb-1">{stage.count}</div>
-                    <div className="text-xs text-gray-500 mb-2">Opportunities</div>
-                    <div className="text-lg font-semibold text-gray-900">
-                      ₹{((stage.value || 0) / 100000).toFixed(1)}L
-                    </div>
-                    <div className="text-xs text-gray-500">Pipeline Value</div>
+                <div className="flex gap-2">
+                  <button
+                    className={`px-3 py-2 rounded-lg border transition-all ${
+                      viewMode === 'table' 
+                        ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                        : 'border-gray-300 text-gray-600 hover:border-blue-300'
+                    }`}
+                    onClick={() => setViewMode('table')}
+                    title="Table view"
+                  >
+                    <FaClipboardList size={16} />
+                  </button>
+                  <button
+                    className={`px-3 py-2 rounded-lg border transition-all ${
+                      viewMode === 'cards' 
+                        ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                        : 'border-gray-300 text-gray-600 hover:border-blue-300'
+                    }`}
+                    onClick={() => setViewMode('cards')}
+                    title="Card view"
+                  >
+                    <FaTh size={16} />
+                  </button>
+                </div>
+              </div>
 
-                    {/* Progress indicator */}
-                    <div className="mt-2">
-                      <div className="w-full h-1.5 bg-gray-200 rounded">
-                        <div
-                          className="h-1.5 bg-blue-500 rounded transition-all duration-300"
-                          style={{
-                            width: `${Math.min((index + 1) * 20, 100)}%`
+              {/* Orders Display */}
+              {filteredOrders.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
+                    <FaClipboardList className="text-3xl text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 font-medium text-lg">No orders found</p>
+                  <p className="text-gray-500 text-sm mt-1">Try adjusting your filters or create a new order</p>
+                  <button
+                    onClick={() => navigate('/sales/orders/create')}
+                    className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    <FaPlus className="inline mr-2" />
+                    Create New Order
+                  </button>
+                </div>
+              ) : viewMode === 'cards' ? (
+                // Card View
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className={`rounded-lg border border-gray-200 p-5 bg-gradient-to-br ${getStatusGradient(order.status)} hover:shadow-lg transition-all cursor-pointer group`}
+                      onClick={() => handleViewOrder(order.id)}
+                    >
+                      {/* Card Header */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Order #</p>
+                          <p className="text-lg font-bold text-gray-800 group-hover:text-blue-600">{order.order_number}</p>
+                        </div>
+                        <button
+                          className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600 hover:text-gray-800"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === order.id ? null : order.id);
                           }}
-                        ></div>
+                        >
+                          <FaEllipsisV size={16} />
+                        </button>
+                      </div>
+
+                      {/* Customer Info */}
+                      <div className="mb-4 pb-4 border-b border-gray-300/40">
+                        <p className="text-xs text-gray-600 font-medium">Customer</p>
+                        <p className="text-sm font-semibold text-gray-800">{order.customer?.name || 'N/A'}</p>
+                        <p className="text-xs text-gray-600 mt-1">{order.customer?.phone || '-'}</p>
+                      </div>
+
+                      {/* Order Details */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-600">Quantity</span>
+                          <span className="font-semibold text-gray-800">{order.total_quantity || 0} units</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-600">Amount</span>
+                          <span className="font-bold text-lg text-gray-800">₹{order.final_amount?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</span>
+                        </div>
+                      </div>
+
+                      {/* Status and Progress */}
+                      <div className="mb-4 pb-4 border-b border-gray-300/40">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
+                          {order.status.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                        <div className="w-full bg-gray-300/30 rounded-full h-2 mt-3">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                            style={{ width: `${getOrderProgress(order.status)}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-2">{getOrderProgress(order.status)}% complete</p>
+                      </div>
+
+                      {/* Delivery Date */}
+                      <p className="text-xs text-gray-600 mb-4">
+                        <span className="font-medium">Delivery:</span> {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : 'Not set'}
+                      </p>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                          onClick={(e) => { e.stopPropagation(); handleViewOrder(order.id); }}
+                        >
+                          <FaEye size={14} />
+                          View
+                        </button>
+                        <button
+                          className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); handleEditOrder(order.id); }}
+                        >
+                          <FaEdit size={14} />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
+              ) : (
+                // Table View
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-left">Order</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-left">Customer</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-left">Products</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-right">Qty</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-right">Amount</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-center">Status</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-center">Progress</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-left">Delivery</th>
+                        <th className="font-semibold text-gray-700 text-xs px-4 py-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredOrders.map((order) => (
+                        <tr
+                          key={order.id}
+                          className="hover:bg-blue-50 border-b border-gray-100 transition-colors group cursor-pointer"
+                          onClick={() => handleViewOrder(order.id)}
+                        >
+                          <td className="px-4 py-3 font-semibold text-gray-900 group-hover:text-blue-600">{order.order_number}</td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <div className="font-medium text-gray-900">{order.customer?.name || 'N/A'}</div>
+                              <div className="text-xs text-gray-500">{order.customer?.phone || '-'}</div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-xs text-gray-700 max-w-xs">
+                              {order.items && order.items.length > 0 ? (
+                                <div>
+                                  {order.items.slice(0, 1).map((item, idx) => (
+                                    <div key={idx} className="truncate">{item.product_name}</div>
+                                  ))}
+                                  {order.items.length > 1 && (
+                                    <div className="text-gray-500">+{order.items.length - 1} more</div>
+                                  )}
+                                </div>
+                              ) : (
+                                'No products'
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-gray-900">{order.total_quantity || 0}</td>
+                          <td className="px-4 py-3 text-right font-bold text-gray-900">₹{order.final_amount?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${getStatusColor(order.status)}`}>
+                              {order.status.replace(/_/g, ' ').toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-16 h-2 bg-gray-200 rounded-full">
+                                <div
+                                  className="h-2 rounded-full bg-blue-600"
+                                  style={{ width: `${getOrderProgress(order.status)}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-xs font-semibold text-gray-600">{getOrderProgress(order.status)}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Tooltip text="View">
+                                <button
+                                  className="p-2 hover:bg-blue-100 rounded transition-colors text-blue-600"
+                                  onClick={(e) => { e.stopPropagation(); handleViewOrder(order.id); }}
+                                >
+                                  <FaEye size={14} />
+                                </button>
+                              </Tooltip>
+                              <Tooltip text="Edit">
+                                <button
+                                  className="p-2 hover:bg-amber-100 rounded transition-colors text-amber-600"
+                                  onClick={(e) => { e.stopPropagation(); handleEditOrder(order.id); }}
+                                >
+                                  <FaEdit size={14} />
+                                </button>
+                              </Tooltip>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
+          </TabPanel>
 
-            {/* Pipeline Summary */}
-            {salesPipeline.length > 0 && (
-              <div className="mt-8 bg-white border border-gray-200 rounded p-6">
-                <h4 className="font-semibold text-gray-900 mb-4">Pipeline Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">
-                      {salesPipeline.reduce((sum, stage) => sum + stage.count, 0)}
+          {/* Sales Pipeline Tab */}
+          <TabPanel value={tabValue} index={1}>
+            <div className="p-6">
+              <h3 className="font-bold text-xl text-gray-800 mb-4">Sales Pipeline</h3>
+              {salesPipeline && salesPipeline.length > 0 ? (
+                <div className="space-y-4">
+                  {salesPipeline.map((stage, idx) => (
+                    <div key={idx} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-semibold text-gray-800">{stage.stage}</h4>
+                        <span className="text-2xl font-bold text-blue-600">{stage.count || 0}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div className="bg-blue-600 h-3 rounded-full" style={{ width: `${(stage.count / (salesPipeline.reduce((acc, s) => acc + (s.count || 0), 0)) * 100) || 0}%` }}></div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">₹{(stage.value || 0).toLocaleString('en-IN')} in progress</p>
                     </div>
-                    <div className="text-sm text-gray-600">Total Opportunities</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">
-                      ₹{(salesPipeline.reduce((sum, stage) => sum + (stage.value || 0), 0) / 100000).toFixed(1)}L
-                    </div>
-                    <div className="text-sm text-gray-600">Total Pipeline Value</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">
-                      {salesPipeline.length > 0 ? Math.round(salesPipeline.reduce((sum, stage) => sum + stage.count, 0) / salesPipeline.length) : 0}
-                    </div>
-                    <div className="text-sm text-gray-600">Avg. per Stage</div>
-                  </div>
+                  ))}
                 </div>
-              </div>
-            )}
-          </div>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
-          <div>
-            {/* Customer Management Header */}
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="font-semibold text-xl text-gray-900">Customer Management</h3>
-                <p className="text-gray-600 text-sm mt-1">Manage your customer relationships and insights</p>
-              </div>
-              <button
-                className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5 font-medium text-sm"
-                onClick={() => navigate('/sales/customers')}
-              >
-                <FaPlus size={14} />
-                Add Customer
-              </button>
-            </div>
-
-            {/* Customer Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded border border-gray-200 p-6 text-center hover:border-gray-300 transition-colors">
-                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mx-auto mb-4">
-                  <FaUser className="text-gray-600 text-xl" />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">No pipeline data available</p>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">{customerStats?.total || 0}</div>
-                <div className="text-sm text-gray-600">Total Customers</div>
-              </div>
+              )}
+            </div>
+          </TabPanel>
 
-              <div className="bg-white rounded border border-gray-200 p-6 text-center hover:border-gray-300 transition-colors">
-                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mx-auto mb-4">
-                  <FaChartLine className="text-gray-600 text-xl" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">{customerStats?.newThisMonth || 0}</div>
-                <div className="text-sm text-gray-600">New This Month</div>
-              </div>
-
-              <div className="bg-white rounded border border-gray-200 p-6 text-center hover:border-gray-300 transition-colors">
-                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mx-auto mb-4">
-                  <FaMoneyBill className="text-gray-600 text-xl" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">₹{(customerStats?.avgOrderValue || 0) / 1000}K</div>
-                <div className="text-sm text-gray-600">Avg. Order Value</div>
+          {/* Customer Management Tab */}
+          <TabPanel value={tabValue} index={2}>
+            <div className="p-6">
+              <h3 className="font-bold text-xl text-gray-800 mb-4">Customer Management</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                <Users className="w-12 h-12 text-blue-600 mx-auto mb-3" />
+                <p className="text-gray-700 font-medium">Customer management features coming soon</p>
+                <p className="text-gray-600 text-sm mt-2">View and manage customer accounts, contact information, and purchase history</p>
               </div>
             </div>
-
-            {/* Customer Actions */}
-            <div className="bg-white rounded border border-gray-200 p-6">
-              <h4 className="font-semibold text-gray-900 mb-4">Quick Actions</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button
-                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
-                  onClick={() => navigate('/sales/customers')}
-                >
-                  <div className="flex items-center gap-3">
-                    <FaUser className="text-gray-600" />
-                    <div>
-                      <div className="font-medium text-gray-900">View Customers</div>
-                      <div className="text-sm text-gray-600">Manage customer database</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
-                  onClick={() => navigate('/sales/customer-segments')}
-                >
-                  <div className="flex items-center gap-3">
-                    <FaChartLine className="text-gray-600" />
-                    <div>
-                      <div className="font-medium text-gray-900">Customer Segments</div>
-                      <div className="text-sm text-gray-600">Analyze customer groups</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
-                  onClick={() => navigate('/sales/customer-feedback')}
-                >
-                  <div className="flex items-center gap-3">
-                    <FaCheckCircle className="text-gray-600" />
-                    <div>
-                      <div className="font-medium text-gray-900">Customer Feedback</div>
-                      <div className="text-sm text-gray-600">View customer reviews</div>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  className="p-4 border border-gray-200 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors text-left"
-                  onClick={() => navigate('/sales/customer-reports')}
-                >
-                  <div className="flex items-center gap-3">
-                    <FaDownload className="text-gray-600" />
-                    <div>
-                      <div className="font-medium text-gray-900">Customer Reports</div>
-                      <div className="text-sm text-gray-600">Generate customer insights</div>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </TabPanel>
-      </div>
-
-      {/* QR Code Dialog */}
-      {qrDialogOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded p-6 max-w-md w-full mx-4 border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Order QR Code</h3>
-              <button
-                onClick={() => setQrDialogOpen(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-            <div className="text-center">
-              <QRCodeDisplay
-                data={JSON.stringify({
-                  orderId: selectedOrder.id,
-                  orderNumber: selectedOrder.order_number,
-                  customer: selectedOrder.customer,
-                  status: selectedOrder.status,
-                  department: 'sales',
-                  timestamp: new Date().toISOString(),
-                  materials: selectedOrder.garment_specs,
-                  quantity: selectedOrder.quantity
-                })}
-                size={200}
-              />
-              <p className="mt-4 text-sm text-gray-600">
-                Order: {selectedOrder.order_number}
-              </p>
-              <p className="text-xs text-gray-500">
-                Scan this QR code to access order details
-              </p>
-            </div>
-          </div>
+          </TabPanel>
         </div>
-      )}
+      </div>
     </div>
   );
 };

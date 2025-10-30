@@ -256,6 +256,37 @@ const ShipmentDispatchPage = () => {
     }
   };
 
+  const getNextStatusOptions = (currentStatus) => {
+    // Map current status to available next statuses
+    const statusMap = {
+      'preparing': ['packed', 'ready_to_ship'],
+      'packed': ['ready_to_ship'],
+      'ready_to_ship': ['shipped', 'dispatched'],
+      'shipped': ['in_transit'],
+      'dispatched': ['in_transit'],
+      'in_transit': ['out_for_delivery'],
+      'out_for_delivery': ['delivered'],
+      'delivered': [],
+      'failed_delivery': ['pending'],
+      'returned': ['pending'],
+      'cancelled': []
+    };
+    return statusMap[currentStatus] || [];
+  };
+
+  const handleQuickStatusUpdate = async (shipmentId, newStatus) => {
+    try {
+      await api.patch(`/shipments/${shipmentId}/status`, {
+        status: newStatus
+      });
+      toast.success(`Status updated to ${newStatus.replace('_', ' ')} ✓`);
+      fetchShipments();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update status');
+    }
+  };
+
   const handleBulkDispatch = async () => {
     // Filter out delivered shipments
     const dispatchableShipments = selectedShipments.filter(shipmentId => {
@@ -411,12 +442,35 @@ const ShipmentDispatchPage = () => {
 
         {/* Content */}
         <div className="p-3 space-y-2">
-          {/* Status Badge */}
-          <div className="flex items-center gap-2">
-            <StatusIcon className="w-3.5 h-3.5" />
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColors.badge}`}>
-              {shipment.status?.replace('_', ' ').toUpperCase()}
-            </span>
+          {/* Status Badge and Quick Update */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <StatusIcon className="w-3.5 h-3.5" />
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColors.badge}`}>
+                {shipment.status?.replace('_', ' ').toUpperCase()}
+              </span>
+            </div>
+            
+            {/* Quick Status Update Dropdown */}
+            {getNextStatusOptions(shipment.status).length > 0 && (
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleQuickStatusUpdate(shipment.id, e.target.value);
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-blue-500 cursor-pointer bg-white hover:bg-gray-50"
+              >
+                <option value="">Update Status...</option>
+                {getNextStatusOptions(shipment.status).map(status => (
+                  <option key={status} value={status}>
+                    → {status.replace('_', ' ')}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Customer Info */}
@@ -584,6 +638,26 @@ const ShipmentDispatchPage = () => {
 
             {/* Content */}
             <div className="p-3 space-y-2">
+              {/* Quick Status Update Dropdown */}
+              {getNextStatusOptions(shipment.status).length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleQuickStatusUpdate(shipment.id, e.target.value);
+                    }
+                  }}
+                  className="w-full px-2 py-1.5 border border-emerald-300 rounded text-xs font-medium focus:outline-none focus:border-emerald-600 cursor-pointer bg-white hover:bg-gray-50"
+                >
+                  <option value="">Update Status...</option>
+                  {getNextStatusOptions(shipment.status).map(status => (
+                    <option key={status} value={status}>
+                      → {status.replace('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              )}
+
               {/* Customer Info */}
               <div className="bg-gray-50 rounded-lg p-2.5">
                 <p className="text-xs text-gray-600 font-medium">CUSTOMER</p>
@@ -706,9 +780,29 @@ const ShipmentDispatchPage = () => {
         )}
         {isColumnVisible('status') && (
           <td className="px-4 py-3">
-            <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors.badge}`}>
-              {shipment.status?.replace('_', ' ').toUpperCase()}
-            </span>
+            <div className="space-y-1.5">
+              <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors.badge} block`}>
+                {shipment.status?.replace('_', ' ').toUpperCase()}
+              </span>
+              {getNextStatusOptions(shipment.status).length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleQuickStatusUpdate(shipment.id, e.target.value);
+                    }
+                  }}
+                  className="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-blue-500 cursor-pointer bg-white"
+                >
+                  <option value="">Update...</option>
+                  {getNextStatusOptions(shipment.status).map(status => (
+                    <option key={status} value={status}>
+                      {status.replace('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </td>
         )}
         {isColumnVisible('date') && (

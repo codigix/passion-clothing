@@ -294,7 +294,7 @@ const calculateDeliveryTime = (createdAt, deliveredAt, status) => {
 
 ### Colors Applied
 ```
-🔷 Slate-900: #0f172a (Dark backgrounds)
+🔷 Slate-900: #ffff (Dark backgrounds)
 🔵 Blue-900: #111e3f (Gradient middle)
 🔵 Blue-800: #1e3a8a (Gradient end)
 🟢 Emerald-500: #10b981 (Delivered indicator)

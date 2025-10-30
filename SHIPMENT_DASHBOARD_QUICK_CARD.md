@@ -104,7 +104,7 @@ In-Progress (Amber)
 └─ Border: #fde68a (Amber-200)
 
 Header (Dark Blue)
-├─ Start: #0f172a (Slate-900)
+├─ Start: #ffff (Slate-900)
 ├─ Middle: #111e3f (Blue-900)
 └─ End: #1e3a8a (Blue-800)
 ```

@@ -819,7 +819,10 @@ router.put('/orders/:id/confirm', authenticateToken, checkDepartment(['sales', '
     await order.update({
       status: 'confirmed',
       approved_by: req.user.id,
-      approved_at: new Date()
+      approved_at: new Date(),
+      ready_for_procurement: true,
+      ready_for_procurement_by: req.user.id,
+      ready_for_procurement_at: new Date()
     });
 
     // Send notification to procurement department

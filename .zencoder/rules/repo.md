@@ -29,6 +29,15 @@
 - **DB**: MySQL via Sequelize; Migrations-based schema management
 
 ## Recent Enhancements
+- **Production-to-Shipment Handoff Fixed - shipment_id Column**: Fixed critical workflow break where completed production orders weren't appearing in Shipment Department's Incoming Orders (Jan 2025) ⭐ NEW
+  - Added missing `shipment_id` column to production_orders table
+  - Links ProductionOrder directly to Shipment record (foreign key with cascade)
+  - Indexed for performance optimization
+  - Updated ProductionOrder Sequelize model with field definition
+  - Optimized incoming orders endpoint to use direct shipment_id lookup
+  - Linked 5 existing shipments to their production orders
+  - Complete end-to-end workflow now functional: Manufacturing → Ready for Shipment → Shipment Department Incoming Orders
+  - See: `SHIPMENT_HANDOFF_FIX_COMPLETE.md`, `SHIPMENT_HANDOFF_QUICK_START.md`
 - **Production Order Flow Restructure - Missing Endpoint Fixed**: Critical fix for missing POST /manufacturing/orders endpoint and project-based tracking implementation (Jan 2025) ⭐ NEW
   - Fixed missing POST endpoint that prevented production order creation (404 errors)
   - Added project_reference field for grouping production orders and MRNs

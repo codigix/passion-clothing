@@ -44,6 +44,15 @@ module.exports = (sequelize) => {
       },
       comment: 'Product ID (optional - materials fetched from MRN/Sales Order instead)'
     },
+    shipment_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'shipments',
+        key: 'id'
+      },
+      comment: 'Reference to shipment when production order is ready for shipment'
+    },
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false
@@ -187,6 +196,7 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['production_number'] },
       { fields: ['sales_order_id'] },
+      { fields: ['shipment_id'] },
       { fields: ['project_reference'] },
       { fields: ['product_id'] },
       { fields: ['status'] },

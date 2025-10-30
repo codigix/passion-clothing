@@ -29,7 +29,7 @@ This document provides a unified design system for all 15 Manufacturing Departme
 ## 🎨 Color Palette (Minimal & Professional)
 
 ### Primary Colors
-- **Slate-900**: `#0F172A` - Main text, headers
+- **Slate-900**: `#ffff` - Main text, headers
 - **Slate-700**: `#334155` - Secondary text
 - **Slate-100**: `#F1F5F9` - Light backgrounds
 - **Slate-50**: `#F8FAFC` - Very light backgrounds

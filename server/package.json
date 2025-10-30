@@ -9,7 +9,11 @@
     "seed": "node scripts/seed.js",
     "seed-sample": "node scripts/seedSampleData.js",
     "reset-db": "node scripts/resetDatabase.js",
-    "reset-all": "node scripts/completeReset.js"
+    "reset-all": "node scripts/completeReset.js",
+    "truncate-db": "node ../truncate-database.js",
+    "truncate-verify": "node ../verify-truncation.js",
+    "reset-entire-db": "node ../reset-entire-database.js",
+    "reset-verify": "node ../verify-all-tables-empty.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

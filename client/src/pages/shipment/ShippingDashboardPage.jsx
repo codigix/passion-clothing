@@ -64,9 +64,9 @@ const ShippingDashboardPage = () => {
     try {
       setLoading(true);
 
-      // Fetch orders ready to ship
-      const ordersResponse = await api.get('/sales?page=1&limit=50&status=ready_to_ship,qc_passed');
-      setOrdersReadyToShip(ordersResponse.data.salesOrders);
+      // Fetch incoming orders from production (ready to ship)
+      const incomingResponse = await api.get('/shipments/orders/incoming?limit=50&exclude_delivered=true');
+      setOrdersReadyToShip(incomingResponse.data.orders || []);
 
       // Fetch recent shipments
       const shipmentsResponse = await api.get('/shipments?page=1&limit=100');
@@ -74,8 +74,9 @@ const ShippingDashboardPage = () => {
 
       // Calculate stats
       const shipmentList = shipmentsResponse.data.shipments || [];
+      const incomingOrders = incomingResponse.data.orders || [];
       setStats({
-        totalOrders: ordersResponse.data.salesOrders?.length || 0,
+        totalOrders: incomingOrders.length,
         totalShipments: shipmentList.length,
         delivered: shipmentList.filter(s => s.status === 'delivered').length,
         inTransit: shipmentList.filter(s => ['in_transit', 'dispatched'].includes(s.status)).length,
@@ -83,12 +84,23 @@ const ShippingDashboardPage = () => {
         failed: shipmentList.filter(s => s.status === 'failed_delivery').length
       });
 
-      // Create a map of order_id -> shipment
+      // Create a map of production_order_id -> shipment
       const shipmentMap = {};
-      if (shipmentList) {
+      if (shipmentList && incomingOrders) {
+        // Map shipments by sales_order_id for backward compatibility
         shipmentList.forEach(shipment => {
           if (shipment.sales_order_id) {
             shipmentMap[shipment.sales_order_id] = shipment;
+          }
+        });
+        
+        // Also map by production order id directly
+        incomingOrders.forEach(order => {
+          if (order.shipment_id) {
+            const shipment = shipmentList.find(s => s.id === order.shipment_id);
+            if (shipment) {
+              shipmentMap[order.id] = shipment;
+            }
           }
         });
       }
@@ -144,7 +156,9 @@ const ShippingDashboardPage = () => {
 
     setCreatingShipment(true);
     try {
-      await api.post(`/shipments/create-from-order/${selectedOrder.id}`, shipmentForm);
+      // Use sales_order_id from production order (not production order id)
+      const salesOrderId = selectedOrder.sales_order_id;
+      await api.post(`/shipments/create-from-order/${salesOrderId}`, shipmentForm);
       setShowCreateShipment(false);
       setSelectedOrder(null);
       setShipmentForm({ courier_company: '', tracking_number: '', expected_delivery_date: '', notes: '' });
@@ -201,6 +215,40 @@ const ShippingDashboardPage = () => {
     }
   };
 
+  const getNextStatusOptions = (currentStatus) => {
+    // Map current status to available next statuses
+    const statusMap = {
+      'preparing': ['packed', 'ready_to_ship'],
+      'packed': ['ready_to_ship'],
+      'ready_to_ship': ['shipped', 'dispatched'],
+      'shipped': ['in_transit'],
+      'dispatched': ['in_transit'],
+      'in_transit': ['out_for_delivery'],
+      'out_for_delivery': ['delivered'],
+      'delivered': [],
+      'failed_delivery': ['pending'],
+      'returned': ['pending'],
+      'cancelled': []
+    };
+    return statusMap[currentStatus] || [];
+  };
+
+  const handleQuickStatusUpdate = async (shipmentId, newStatus) => {
+    try {
+      setUpdatingStatus(true);
+      await api.patch(`/shipments/${shipmentId}/status`, {
+        status: newStatus
+      });
+      toast.success(`Status updated to ${newStatus.replace('_', ' ')} ✓`);
+      fetchData();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   // Stats Card Component
   const StatCard = ({ icon: Icon, label, value, trend, color = 'blue', onClick }) => {
     const colorVariants = {
@@ -247,8 +295,8 @@ const ShippingDashboardPage = () => {
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-gray-200 p-4">
           <div className="flex justify-between items-start gap-3">
             <div className="flex-1">
-              <h3 className="font-bold text-lg text-gray-900">#{order.sales_order_number}</h3>
-              <p className="text-sm text-gray-600 mt-1">{order.customer?.name || 'N/A'}</p>
+              <h3 className="font-bold text-lg text-gray-900">#{order.sales_order_number || order.order_number || 'N/A'}</h3>
+              <p className="text-sm text-gray-600 mt-1">{order.customer_name || order.customer?.name || 'N/A'}</p>
             </div>
             <span className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full">
               Ready
@@ -265,8 +313,8 @@ const ShippingDashboardPage = () => {
               <p className="text-2xl font-bold text-gray-900">{order.quantity || 0}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-              <p className="text-xs text-gray-600 font-semibold uppercase mb-1">Amount</p>
-              <p className="text-lg font-bold text-gray-900">₹{order.total_amount?.toFixed(2) || '0.00'}</p>
+              <p className="text-xs text-gray-600 font-semibold uppercase mb-1">Production</p>
+              <p className="text-lg font-bold text-gray-900">{order.production_number || 'N/A'}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
               <p className="text-xs text-gray-600 font-semibold uppercase mb-1">Status</p>
@@ -278,17 +326,42 @@ const ShippingDashboardPage = () => {
           <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-600">
             <div className="flex items-start gap-2">
               <MapPin className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-700 line-clamp-2">{order.delivery_address || 'N/A'}</p>
+              <p className="text-sm text-gray-700 line-clamp-2">{order.shipping_address || order.delivery_address || 'N/A'}</p>
             </div>
           </div>
 
-          {/* Shipment Status */}
+          {/* Shipment Status with Update Options */}
           {hasShipment && (
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold ${getStatusColor(existingShipment.status)}`}>
-              {getStatusIcon(existingShipment.status)}
-              <span className="capitalize">
-                {existingShipment.status?.replace('_', ' ')}
-              </span>
+            <div className="space-y-2">
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold ${getStatusColor(existingShipment.status)}`}>
+                {getStatusIcon(existingShipment.status)}
+                <span className="capitalize">
+                  {existingShipment.status?.replace('_', ' ')}
+                </span>
+              </div>
+              
+              {/* Quick Status Update */}
+              {getNextStatusOptions(existingShipment.status).length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-2 border border-gray-200">
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleQuickStatusUpdate(existingShipment.id, e.target.value);
+                      }
+                    }}
+                    disabled={updatingStatus}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-medium focus:outline-none focus:border-blue-500 disabled:opacity-50 cursor-pointer bg-white"
+                  >
+                    <option value="">Update Status...</option>
+                    {getNextStatusOptions(existingShipment.status).map(status => (
+                      <option key={status} value={status}>
+                        → {status.replace('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -391,7 +464,30 @@ const ShippingDashboardPage = () => {
             <span className="text-sm font-medium">{new Date(shipment.created_at).toLocaleDateString()}</span>
           </div>
 
-          <div className="pt-2">
+          {/* Quick Status Update Dropdown */}
+          {getNextStatusOptions(status).length > 0 && (
+            <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleQuickStatusUpdate(shipment.id, e.target.value);
+                  }
+                }}
+                disabled={updatingStatus}
+                className="w-full px-2 py-1.5 border border-blue-300 rounded text-xs font-medium focus:outline-none focus:border-blue-600 disabled:opacity-50 cursor-pointer bg-white text-gray-700 hover:bg-gray-50"
+              >
+                <option value="">Update Status...</option>
+                {getNextStatusOptions(status).map(nextStatus => (
+                  <option key={nextStatus} value={nextStatus}>
+                    → {nextStatus.replace('_', ' ')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="pt-2 space-y-2">
             <button
               onClick={() => {
                 setSelectedShipment(shipment);
@@ -415,7 +511,7 @@ const ShippingDashboardPage = () => {
         {/* Header */}
         <div className="bg-blue-600 p-4 text-white">
           <h3 className="font-bold text-lg">Create Shipment</h3>
-          <p className="text-blue-100 text-xs mt-0.5">#{selectedOrder?.sales_order_number}</p>
+          <p className="text-blue-100 text-xs mt-0.5">#{selectedOrder?.sales_order_number || selectedOrder?.order_number || selectedOrder?.production_number}</p>
         </div>
 
         {/* Form */}

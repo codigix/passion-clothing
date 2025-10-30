@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, ShoppingCart, Plus, Search, Eye, Edit, Building, Receipt, Truck, DollarSign, Calendar, CheckCircle, AlertTriangle, Download, Star, Phone, Mail, QrCode, MessageSquare, Package, Factory, RefreshCw } from 'lucide-react';
-// ...existing code...
+import { ShoppingBag, ShoppingCart, Plus, Search, Eye, Edit, Building, Receipt, Truck, DollarSign, Calendar, CheckCircle, AlertTriangle, Download, Star, Phone, Mail, QrCode, MessageSquare, Package, Factory, RefreshCw, TrendingUp, BarChart3, Clock, Box } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import QRCodeScanner from '../../components/manufacturing/QRCodeScanner';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
 import PurchaseOrderForm from '../../components/procurement/PurchaseOrderForm';
-import MinimalStatCard from '../../components/common/MinimalStatCard';
-import Tooltip from '../../components/common/Tooltip';
-import '../../styles/compactDashboard.css';
 
 const ProcurementDashboard = () => {
   const navigate = useNavigate();
@@ -38,7 +34,6 @@ const ProcurementDashboard = () => {
   useEffect(() => {
     if (location.state?.message) {
       toast.success(location.state.message);
-      // Clear the state after showing the message
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, location.pathname, navigate]);
@@ -48,7 +43,7 @@ const ProcurementDashboard = () => {
   }, []);
 
   const fetchDashboardData = async () => {
-    if (isFetching) return; // Prevent multiple simultaneous calls
+    if (isFetching) return;
 
     try {
       setIsFetching(true);
@@ -61,31 +56,29 @@ const ProcurementDashboard = () => {
         ...statsRes.data
       }));
 
-      // Fetch recent purchase orders (limit to 10 for dashboard)
+      // Fetch recent purchase orders
       const poRes = await api.get('/procurement/pos?limit=10');
       setPurchaseOrders(poRes.data.purchaseOrders || []);
 
-      // Fetch incoming orders from sales (sent to procurement)
-      // Query for orders where ready_for_procurement=true (both draft and confirmed)
+      // Fetch incoming orders from sales
       const incomingRes = await api.get('/sales/orders?limit=50');
-      // Filter for orders that are ready for procurement (draft = pending approval, confirmed = ready for PO creation)
       const ordersForProcurement = (incomingRes.data.orders || []).filter(order => 
         order.ready_for_procurement === true && (order.status === 'draft' || order.status === 'confirmed')
       );
       setIncomingOrders(ordersForProcurement);
 
-      // Fetch incoming purchase orders (draft, pending_approval, sent status)
+      // Fetch incoming purchase orders
       const incomingPORes = await api.get('/procurement/pos?status=draft,pending_approval,sent&limit=20');
       setIncomingPurchaseOrders(incomingPORes.data.purchaseOrders || []);
 
-      // Update pending orders count (both sales orders and incoming POs)
+      // Update pending orders count
       const totalIncoming = (incomingRes.data.orders?.length || 0) + (incomingPORes.data.purchaseOrders?.length || 0);
       setStats(prevStats => ({
         ...prevStats,
         pendingOrders: totalIncoming
       }));
 
-      // Fetch vendors (limit to 10 for dashboard)
+      // Fetch vendors
       const vendorsRes = await api.get('/procurement/vendors?limit=10');
       setVendors(vendorsRes.data.vendors || []);
 
@@ -111,18 +104,16 @@ const ProcurementDashboard = () => {
 
   // Handle creating purchase order from sales order
   const handleCreatePO = (salesOrder) => {
-    // Navigate to Create Purchase Order page with sales order ID pre-filled
     navigate(`/procurement/purchase-orders/create?from_sales_order=${salesOrder.id}`);
   };
 
-  // Handle accepting incoming order request (Procurement Only)
+  // Handle accepting incoming order request
   const handleAcceptOrder = async (order) => {
     if (!order) {
       toast.error('Order details are unavailable. Please refresh and try again.');
       return;
     }
 
-    // Ensure the order is in the correct lifecycle state before attempting acceptance
     const isDraft = order.status === 'draft';
     const isReady = order.ready_for_procurement === true;
 
@@ -138,9 +129,7 @@ const ProcurementDashboard = () => {
     }
 
     try {
-      // Use dedicated procurement endpoint
       const response = await api.put(`/procurement/sales-orders/${order.id}/accept`);
-      
       toast.success('Order confirmed successfully. Sales department has been notified.');
       fetchDashboardData();
     } catch (error) {
@@ -156,14 +145,13 @@ const ProcurementDashboard = () => {
     }
   };
 
-  // Send order to inventory (when stock is received)
+  // Send order to inventory
   const handleSendToInventory = async (orderId) => {
     if (!window.confirm('Mark materials as received and send to inventory?')) {
       return;
     }
 
     try {
-      // Use proper status update endpoint (procurement has access)
       await api.put(`/sales/orders/${orderId}/status`, {
         status: 'materials_received',
         notes: 'Materials received by procurement and sent to inventory'
@@ -189,734 +177,449 @@ const ProcurementDashboard = () => {
     return colors[status] || 'default';
   };
 
-  const getDeliveryStatusColor = (status) => {
-    const colors = {
-      not_started: 'default',
-      pending: 'warning',
-      in_transit: 'info',
-      delivered: 'success',
-      delayed: 'error'
-    };
-    return colors[status] || 'default';
-  };
-
-  const TabPanel = ({ children, value, index }) => (
-    <div className={value !== index ? 'hidden' : 'pt-3'}>
-      {value === index && children}
-    </div>
-  );
-
   const filteredPOs = filterStatus === 'all' 
     ? purchaseOrders 
     : purchaseOrders.filter(po => po.status === filterStatus);
 
+  const StatCard = ({ icon: Icon, label, value, color, subtitle }) => (
+    <div className="bg-white rounded-lg border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide font-semibold text-slate-500 mb-2">{label}</p>
+          <p className="text-3xl font-bold text-slate-800">{value}</p>
+          {subtitle && <p className="text-xs text-slate-500 mt-2">{subtitle}</p>}
+        </div>
+        <div className="p-3 rounded-lg" style={{ backgroundColor: color + '15' }}>
+          <Icon size={24} style={{ color }} />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="compact-dashboard-container">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Procurement Dashboard</h1>
-        <div className="flex gap-2">
-          <button className="btn btn-outline flex items-center gap-1.5" onClick={() => navigate('/procurement/vendor-management')}>
-            <Building size={16} /> Vendor Management
-          </button>
-          <button className="btn btn-primary flex items-center gap-1.5" onClick={() => navigate('/procurement/purchase-orders')}>
-            <Plus size={16} /> Create Purchase Order
-          </button>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: '#0f172a15' }}>
+                <ShoppingBag size={28} style={{ color: '#0f172a' }} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800">Procurement Dashboard</h1>
+                <p className="text-sm text-slate-500 mt-0.5">Manage orders, vendors & supply chain</p>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button 
+                onClick={() => navigate('/procurement/vendor-management')}
+                className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition font-medium text-sm"
+              >
+                <Building size={18} /> Vendors
+              </button>
+              <button 
+                onClick={() => navigate('/procurement/purchase-orders')}
+                className="flex items-center gap-2 px-4 py-2.5 text-white rounded-lg transition font-medium text-sm shadow-sm"
+                style={{ backgroundColor: '#0f172a' }}
+              >
+                <Plus size={18} /> Create PO
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <MinimalStatCard title="Total Purchase Orders" value={stats.totalPOs} icon={ShoppingBag} />
-        <MinimalStatCard title="Pending Approval" value={stats.pendingPOs} icon={Calendar} />
-        <MinimalStatCard title="Completed Orders" value={stats.completedPOs} icon={CheckCircle} />
-        <MinimalStatCard title="Total Spend" value={`₹${(stats.totalSpend / 100000).toFixed(1)}L`} icon={DollarSign} subtitle="This month" />
-      </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* KPI Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <StatCard
+            icon={ShoppingCart}
+            label="Total Purchase Orders"
+            value={stats.totalPOs}
+            color="#3b82f6"
+            subtitle="All time"
+          />
+          <StatCard
+            icon={Clock}
+            label="Pending Orders"
+            value={stats.pendingOrders}
+            color="#f59e0b"
+            subtitle="Awaiting action"
+          />
+          <StatCard
+            icon={CheckCircle}
+            label="Completed POs"
+            value={stats.completedPOs || 0}
+            color="#10b981"
+            subtitle="This month"
+          />
+          <StatCard
+            icon={DollarSign}
+            label="Total Spend"
+            value={`₹${(stats.totalSpend / 100000).toFixed(1)}L`}
+            color="#8b5cf6"
+            subtitle="YTD"
+          />
+        </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
-        >
-          <option value="all">All Orders</option>
-          <option value="pending_approval">Pending Approval</option>
-          <option value="approved">Approved</option>
-          <option value="sent_to_vendor">Sent to Vendor</option>
-          <option value="completed">Completed</option>
-        </select>
-        <button
-          onClick={() => navigate('/procurement/reports')}
-          className="px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50"
-        >
-          View Reports
-        </button>
-        <button
-          onClick={() => navigate('/procurement/reports')}
-          className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 flex items-center gap-1.5"
-        >
-          <Download size={14} /> Export Data
-        </button>
-      </div>
+        {/* Filter & Controls Bar */}
+        <div className="flex gap-3 mb-6 flex-wrap items-center">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium bg-white"
+          >
+            <option value="all">All Orders</option>
+            <option value="pending_approval">Pending Approval</option>
+            <option value="approved">Approved</option>
+            <option value="sent_to_vendor">Sent to Vendor</option>
+            <option value="completed">Completed</option>
+          </select>
+          <button
+            onClick={() => navigate('/procurement/reports')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition font-medium text-sm"
+          >
+            <BarChart3 size={18} /> Reports
+          </button>
+          <button
+            onClick={() => fetchDashboardData()}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-white transition font-medium text-sm disabled:opacity-50"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw size={18} />}
+            Refresh
+          </button>
+          <button
+            onClick={() => navigate('/procurement/reports')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-white transition font-medium text-sm ml-auto"
+            style={{ backgroundColor: '#06b6d4' }}
+          >
+            <Download size={18} /> Export
+          </button>
+        </div>
 
-      {/* Main Content Tabs */}
-      <div className="bg-white rounded shadow">
-        <div className="border-b border-gray-200">
-          <div className="flex">
-            <button
-              className={`px-2 py-2 text-sm font-medium border-b-2 ${
-                tabValue === 0
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setTabValue(0)}
-            >
-              Incoming Orders ({incomingOrders.length + incomingPurchaseOrders.length})
-            </button>
-            <button
-              className={`px-2 py-2 text-sm font-medium border-b-2 ${
-                tabValue === 1
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setTabValue(1)}
-            >
-              Purchase Orders
-            </button>
-            <button
-              className={`px-2 py-2 text-sm font-medium border-b-2 ${
-                tabValue === 2
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setTabValue(2)}
-            >
-              Vendor Management
-            </button>
-            <button
-              className={`px-2 py-2 text-sm font-medium border-b-2 ${
-                tabValue === 3
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setTabValue(3)}
-            >
-              Goods Receipt
-            </button>
-            <button
-              className={`px-2 py-2 text-sm font-medium border-b-2 ${
-                tabValue === 4
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setTabValue(4)}
-            >
-              Vendor Performance
-            </button>
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-0 mb-6 border-b border-slate-200">
+          {[
+            { label: 'Incoming', count: incomingOrders.length + incomingPurchaseOrders.length, icon: TrendingUp },
+            { label: 'Purchase Orders', count: purchaseOrders.length, icon: Receipt },
+            { label: 'Vendors', count: vendors.length, icon: Building }
+          ].map((tab, idx) => {
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={idx}
+                onClick={() => setTabValue(idx)}
+                className={`flex items-center gap-2 px-6 py-4 font-semibold text-sm transition border-b-2 whitespace-nowrap ${
+                  tabValue === idx
+                    ? 'border-blue-500 text-slate-800'
+                    : 'border-transparent text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                <TabIcon size={18} />
+                {tab.label} <span className="ml-2 px-2.5 py-0.5 bg-slate-100 rounded-full text-xs font-bold text-slate-600">{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Content */}
-        {tabValue === 0 && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Incoming Orders (Sales Orders & Purchase Orders)
-              </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setQrScannerOpen(true)}
-                  className="px-2.5 py-1.5 border border-gray text-xs-300 rounded hover:bg-gray-50 flex items-center gap-1.5"
-                >
-                  <QrCode size={14} /> Scan QR Code
-                </button>
-                <button
-                  onClick={fetchDashboardData}
-                  disabled={loading}
-                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw size={14} />}
-                  {loading ? 'Loading...' : 'Refresh'}
-                </button>
-              </div>
-            </div>
-
-            {incomingOrders.length === 0 && incomingPurchaseOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No incoming orders
-                </h3>
-                <p className="text-gray-500">
-                  Sales orders and purchase orders will appear here
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Sales Orders Section */}
-                {incomingOrders.length > 0 && (
-                  <div className="mb-8">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-1.5">
-                      <ShoppingCart size={16} />
-                      Sales Orders Requiring Material Procurement ({incomingOrders.length})
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Order #
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Customer
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Product
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Quantity
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Material Requirements
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {incomingOrders.map((order) => (
-                            <tr key={order.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {order.order_number}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {new Date(order.created_at).toLocaleDateString()}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {typeof order.customer === 'object' ? order.customer?.name : order.customer}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {typeof order.customer === 'object' ? order.customer?.phone : order.customer_phone}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {order.garment_specifications?.product_name || 
-                                   order.product_name || 
-                                   (order.items && order.items[0]?.description) ||
-                                   'N/A'}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {order.garment_specifications?.product_type || 
-                                   (order.items && order.items[0]?.product_type) ||
-                                   'N/A'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-semibold text-gray-900">
-                                  {order.total_quantity || 
-                                   (order.items && order.items.reduce((sum, item) => sum + (item.quantity || 0), 0)) ||
-                                   0} pcs
-                                </div>
-                                {order.garment_specifications?.size_details && order.garment_specifications.size_details.length > 0 && (
-                                  <div className="text-xs text-gray-500">
-                                    {order.garment_specifications.size_details.map(sd => `${sd.size}: ${sd.quantity}`).join(', ')}
+        <div>
+          {/* Incoming Orders Tab */}
+          {tabValue === 0 && (
+            <div className="space-y-6">
+              {incomingOrders.length === 0 && incomingPurchaseOrders.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 border border-slate-200 rounded-lg">
+                  <Package className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-lg font-semibold text-slate-800 mb-2">No Incoming Orders</p>
+                  <p className="text-slate-500">Check back later or create a new purchase order</p>
+                </div>
+              ) : (
+                <>
+                  {/* Sales Orders Section */}
+                  {incomingOrders.length > 0 && (
+                    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: '#3b82f615' }}>
+                            <ShoppingCart size={20} style={{ color: '#3b82f6' }} />
+                          </div>
+                          <h3 className="text-lg font-bold text-slate-800">
+                            Sales Orders <span className="text-sm text-slate-500">({incomingOrders.length})</span>
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">#</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Customer</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Product</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Qty</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Material</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Status</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {incomingOrders.map((order) => (
+                              <tr key={order.id} className="hover:bg-slate-50 transition">
+                                <td className="px-6 py-4 text-sm font-bold text-slate-800">{order.order_number}</td>
+                                <td className="px-6 py-4 text-sm">
+                                  <p className="font-semibold text-slate-800">{typeof order.customer === 'object' ? order.customer?.name : order.customer}</p>
+                                  <p className="text-xs text-slate-500 mt-0.5">{new Date(order.created_at).toLocaleDateString()}</p>
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <p className="text-slate-800">{order.garment_specifications?.product_name || order.product_name || 'N/A'}</p>
+                                  <p className="text-xs text-slate-500 mt-0.5">{order.garment_specifications?.product_type || 'N/A'}</p>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-bold text-slate-800">{order.total_quantity || 0}</td>
+                                <td className="px-6 py-4 text-sm">
+                                  <div className="space-y-1">
+                                    {order.garment_specifications?.fabric_type && (
+                                      <p className="text-slate-800"><span className="text-slate-500">Fabric:</span> {order.garment_specifications.fabric_type}</p>
+                                    )}
+                                    {order.garment_specifications?.color && (
+                                      <p className="text-slate-800"><span className="text-slate-500">Color:</span> {order.garment_specifications.color}</p>
+                                    )}
                                   </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="text-sm text-gray-900 space-y-1">
-                                  {order.garment_specifications?.fabric_type && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="font-medium">Fabric:</span> {order.garment_specifications.fabric_type}
-                                    </div>
-                                  )}
-                                  {order.garment_specifications?.color && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="font-medium">Color:</span> {order.garment_specifications.color}
-                                    </div>
-                                  )}
-                                  {order.items && order.items.length > 0 && (
-                                    <div className="text-xs text-blue-600">
-                                      {order.items.length} item(s) to procure
-                                    </div>
-                                  )}
-                                  {(!order.garment_specifications?.fabric_type && !order.items?.length) && (
-                                    <span className="text-gray-400 text-xs">No requirements specified</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex flex-col gap-1">
-                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full font-semibold text-xs ${
                                     order.status === 'confirmed'
-                                      ? 'bg-green-100 text-green-800'
-                                      : order.status === 'draft'
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : order.status === 'accepted_by_procurement'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : 'bg-gray-100 text-gray-800'
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-amber-100 text-amber-700'
                                   }`}>
-                                    {order.status === 'draft' ? '⏳ PENDING APPROVAL' : order.status === 'confirmed' ? '✅ APPROVED' : order.status.replace(/_/g, ' ').toUpperCase()}
+                                    {order.status === 'confirmed' ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                    {order.status === 'draft' ? 'Pending' : 'Approved'}
                                   </span>
-                                  {order.linkedPurchaseOrder && (
-                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                      📦 PO: {order.linkedPurchaseOrder.po_number}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex gap-2">
-                                  <Tooltip text="View Details" position="top">
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <div className="flex gap-2">
                                     <button
                                       onClick={() => navigate(`/sales/orders/${order.id}`)}
-                                      className="p-2 rounded text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                                      className="p-2 rounded-lg hover:bg-slate-100 transition text-blue-600"
+                                      title="View"
                                     >
-                                      <Eye size={14} />
+                                      <Eye size={16} />
                                     </button>
-                                  </Tooltip>
-                                  <Tooltip text="View QR Code" position="top">
-                                    <button
-                                      onClick={() => {
-                                        setSelectedOrder(order);
-                                        setQrDialogOpen(true);
-                                      }}
-                                      className="p-2 rounded text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-colors"
-                                    >
-                                      <QrCode size={14} />
-                                    </button>
-                                  </Tooltip>
-                                  
-                                  {/* Show Accept button only for DRAFT orders (pending approval) */}
-                                  {order.status === 'draft' && (
-                                    <Tooltip text="Accept Order" position="top">
+                                    {order.status === 'draft' && (
                                       <button
                                         onClick={() => handleAcceptOrder(order)}
-                                        className="inline-flex items-center justify-center p-2 bg-green-500 text-white rounded hover:bg-green-500 transition-colors"
+                                        className="p-2 rounded-lg hover:bg-slate-100 transition text-green-600"
+                                        title="Accept"
                                       >
-                                        <CheckCircle size={14} />
+                                        <CheckCircle size={16} />
                                       </button>
-                                    </Tooltip>
-                                  )}
-                                  
-                                  {/* Show Create PO button OR PO Created status for CONFIRMED orders */}
-                                  {order.status === 'confirmed' && (
-                                    <>
-                                      {order.linkedPurchaseOrder ? (
-                                        // PO already created - show success status and allow navigation
-                                        <Tooltip text={`View PO: ${order.linkedPurchaseOrder.po_number}`} position="top">
-                                          <button
-                                            onClick={() => navigate(`/procurement/purchase-orders/${order.linkedPurchaseOrder.id}`)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 text-xs rounded border border-green-300 hover:bg-green-200 transition-colors"
-                                          >
-                                            <CheckCircle className="w-3 h-3" />
-                                            PO Created ✓
-                                          </button>
-                                        </Tooltip>
-                                      ) : (
-                                        // No PO created yet - show create button
-                                        <Tooltip text="Create Purchase Order" position="top">
-                                          <button
-                                            onClick={() => handleCreatePO(order)}
-                                            className="inline-flex items-center justify-center p-2 bg-blue-500 text-white rounded hover:bg-blue-500 transition-colors"
-                                          >
-                                            <Plus size={14} />
-                                          </button>
-                                        </Tooltip>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Purchase Orders Section */}
-                {incomingPurchaseOrders.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-1.5">
-                      <Receipt size={16} />
-                      Incoming Purchase Orders ({incomingPurchaseOrders.length})
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              PO Number
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Vendor
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              PO Date
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Expected Delivery
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Total Amount
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {incomingPurchaseOrders.map((po) => (
-                            <tr key={po.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {po.po_number}
-                                </div>
-                                {po.linked_sales_order_id && (
-                                  <div className="text-xs text-blue-600">
-                                    Linked to SO-{po.linked_sales_order_id}
+                                    )}
+                                    {order.status === 'confirmed' && (
+                                      <button
+                                        onClick={() => handleCreatePO(order)}
+                                        className="p-2 rounded-lg hover:bg-slate-100 transition text-slate-600"
+                                        title="Create PO"
+                                      >
+                                        <Plus size={16} />
+                                      </button>
+                                    )}
                                   </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{po.vendor?.name || 'N/A'}</div>
-                                <div className="text-xs text-gray-500">{po.vendor?.vendor_code || ''}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {po.po_date ? new Date(po.po_date).toLocaleDateString() : 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                ₹{po.total_amount ? parseFloat(po.total_amount).toLocaleString() : '0'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  po.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                                  po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-                                  po.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {(po.status || '').replace('_', ' ').toUpperCase()}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex gap-2">
-                                  <Tooltip text="View Purchase Order" position="top">
-                                    <button
-                                      onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
-                                      className="p-2 rounded text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-colors"
-                                    >
-                                      <Eye size={14} />
-                                    </button>
-                                  </Tooltip>
-                                  <Tooltip text="Edit Purchase Order" position="top">
-                                    <button
-                                      onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
-                                      className="p-2 rounded text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 transition-colors"
-                                    >
-                                      <Edit size={14} />
-                                    </button>
-                                  </Tooltip>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
+                  )}
 
-        {/* Purchase Orders Tab */}
-        {tabValue === 1 && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">All Purchase Orders</h2>
-              <button
-                onClick={() => navigate('/procurement/purchase-orders/create')}
-                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500 flex items-center gap-1.5"
-              >
-                <Plus size={14} /> Create New PO
-              </button>
+                  {/* Purchase Orders Section */}
+                  {incomingPurchaseOrders.length > 0 && (
+                    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: '#8b5cf615' }}>
+                            <Receipt size={20} style={{ color: '#8b5cf6' }} />
+                          </div>
+                          <h3 className="text-lg font-bold text-slate-800">
+                            Incoming Purchase Orders <span className="text-sm text-slate-500">({incomingPurchaseOrders.length})</span>
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">PO #</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Vendor</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Amount</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Status</th>
+                              <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {incomingPurchaseOrders.map((po) => (
+                              <tr key={po.id} className="hover:bg-slate-50 transition">
+                                <td className="px-6 py-4 text-sm font-bold text-slate-800">{po.po_number}</td>
+                                <td className="px-6 py-4 text-sm text-slate-800">{po.vendor?.vendor_name || po.vendor_id}</td>
+                                <td className="px-6 py-4 text-sm font-bold text-slate-800">₹{(po.total_amount / 100).toFixed(0)}</td>
+                                <td className="px-6 py-4 text-sm">
+                                  <span className={`inline-flex px-3 py-1 rounded-full font-semibold text-xs ${
+                                    po.status === 'draft'
+                                      ? 'bg-slate-100 text-slate-700'
+                                      : po.status === 'pending_approval'
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {po.status.replace(/_/g, ' ')}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <button
+                                    onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                                    className="p-2 rounded-lg hover:bg-slate-100 transition text-blue-600"
+                                    title="View"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
+          )}
 
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading...</p>
-              </div>
-            ) : purchaseOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No Purchase Orders Yet
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Create your first purchase order to start tracking procurement
-                </p>
-                <button
-                  onClick={() => navigate('/procurement/purchase-orders/create')}
-                  className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
-                >
-                  Create Purchase Order
-                </button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        PO Number
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Vendor
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Items
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Quantity
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Amount
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        PO Date
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Expected Delivery
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {purchaseOrders.map((po) => {
-                      const totalQty = po.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-                      const itemCount = po.items?.length || 0;
-                      
-                      return (
-                        <tr key={po.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
-                              className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                            >
-                              {po.po_number}
-                            </button>
-                            {po.linked_sales_order_id && (
-                              <div className="text-xs text-gray-500">
-                                From SO #{po.linked_sales_order_id}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {po.vendor?.name || 'N/A'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {po.vendor?.vendor_code || ''}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {itemCount} {itemCount === 1 ? 'item' : 'items'}
-                            </div>
-                            {po.items && po.items[0] && (
-                              <div className="text-xs text-gray-500">
-                                {po.items[0].item_name || po.items[0].description || 'N/A'}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {totalQty} {po.items?.[0]?.unit || 'pcs'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              ₹{po.total_amount ? parseFloat(po.total_amount).toLocaleString() : '0'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {po.po_date ? new Date(po.po_date).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              po.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                              po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-                              po.status === 'approved' ? 'bg-green-100 text-green-800' :
-                              po.status === 'sent_to_vendor' ? 'bg-blue-100 text-blue-800' :
-                              po.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {(po.status || 'draft').replace(/_/g, ' ').toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex gap-2">
+          {/* Purchase Orders Tab */}
+          {tabValue === 1 && (
+            <div>
+              {filteredPOs.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 border border-slate-200 rounded-lg">
+                  <Receipt className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-lg font-semibold text-slate-800 mb-2">No Purchase Orders</p>
+                  <p className="text-slate-500">Create your first purchase order to get started</p>
+                  <button 
+                    onClick={() => navigate('/procurement/purchase-orders/create')}
+                    className="mt-4 px-6 py-2.5 text-white rounded-lg transition font-semibold text-sm"
+                    style={{ backgroundColor: '#0f172a' }}
+                  >
+                    Create PO
+                  </button>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">PO #</th>
+                          <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Vendor</th>
+                          <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Amount</th>
+                          <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Created</th>
+                          <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Status</th>
+                          <th className="px-6 py-3 text-left text-sm font-bold text-slate-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {filteredPOs.map((po) => (
+                          <tr key={po.id} className="hover:bg-slate-50 transition">
+                            <td className="px-6 py-4 text-sm font-bold text-slate-800">{po.po_number}</td>
+                            <td className="px-6 py-4 text-sm text-slate-800">{po.vendor?.vendor_name || 'N/A'}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-slate-800">₹{(po.total_amount / 100).toFixed(0)}</td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{new Date(po.created_at).toLocaleDateString()}</td>
+                            <td className="px-6 py-4 text-sm">
+                              <span className={`inline-flex px-3 py-1 rounded-full font-semibold text-xs ${
+                                po.status === 'draft'
+                                  ? 'bg-slate-100 text-slate-700'
+                                  : po.status === 'pending_approval'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : po.status === 'approved'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {po.status.replace(/_/g, ' ')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm">
                               <button
                                 onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
-                                className="text-blue-600 hover:text-blue-900"
-                                title="View PO"
+                                className="p-2 rounded-lg hover:bg-slate-100 transition text-blue-600"
+                                title="View"
                               >
-                                <Eye size={14} />
+                                <Eye size={16} />
                               </button>
-                              <button
-                                onClick={() => navigate(`/procurement/purchase-orders/${po.id}/edit`)}
-                                className="text-indigo-600 hover:text-indigo-900"
-                                title="Edit PO"
-                              >
-                                <Edit size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Vendor Management Tab - Navigate to dedicated page */}
-        {tabValue === 2 && (
-          <div className="p-6">
-            <div className="text-center py-8">
-              <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Vendor Management
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Manage your vendors, view performance metrics, and maintain supplier relationships.
-              </p>
-              <button
-                onClick={() => navigate('/procurement/vendors')}
-                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
-              >
-                Go to Vendor Management
-              </button>
-            </div>
-          </div>
-        )}
+          {/* Vendors Tab */}
+          {tabValue === 2 && (
+            <div>
+              {vendors.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 border border-slate-200 rounded-lg">
+                  <Building className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-lg font-semibold text-slate-800 mb-2">No Vendors Found</p>
+                  <p className="text-slate-500">Add vendors to manage procurement</p>
+                  <button 
+                    onClick={() => navigate('/procurement/vendor-management')}
+                    className="mt-4 px-6 py-2.5 text-white rounded-lg transition font-semibold text-sm"
+                    style={{ backgroundColor: '#0f172a' }}
+                  >
+                    Manage Vendors
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {vendors.map((vendor) => (
+                    <div key={vendor.id} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h4 className="text-lg font-bold text-slate-800">{vendor.vendor_name}</h4>
+                          <p className="text-sm text-slate-500">{vendor.vendor_code}</p>
+                        </div>
+                        <Star size={20} className="text-amber-500" />
+                      </div>
+                      
+                      <div className="space-y-2 mb-4 text-sm">
+                        {vendor.contact_person && (
+                          <p className="text-slate-700"><span className="text-slate-500">Contact:</span> {vendor.contact_person}</p>
+                        )}
+                        {vendor.email && (
+                          <p className="text-slate-700 flex items-center gap-2"><Mail size={14} className="text-slate-400" /> {vendor.email}</p>
+                        )}
+                        {vendor.phone && (
+                          <p className="text-slate-700 flex items-center gap-2"><Phone size={14} className="text-slate-400" /> {vendor.phone}</p>
+                        )}
+                      </div>
 
-        {/* Goods Receipt Tab - Navigate to dedicated page */}
-        {tabValue === 3 && (
-          <div className="p-6">
-            <div className="text-center py-8">
-              <Truck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Goods Receipt
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Receive and inspect incoming materials from vendors.
-              </p>
-              <button
-                onClick={() => navigate('/procurement/goods-receipt')}
-                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
-              >
-                Go to Goods Receipt
-              </button>
+                      <button
+                        onClick={() => navigate('/procurement/vendor-management')}
+                        className="w-full py-2 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition font-medium text-sm"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* Vendor Performance Tab - Navigate to dedicated page */}
-        {tabValue === 4 && (
-          <div className="p-6">
-            <div className="text-center py-8">
-              <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Vendor Performance
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Analyze vendor performance metrics and delivery statistics.
-              </p>
-              <button
-                onClick={() => navigate('/procurement/vendor-performance')}
-                className="px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-500"
-              >
-                Go to Vendor Performance
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* QR Code Dialog */}
-      {qrDialogOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded p-6 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Order QR Code</h3>
-              <button
-                onClick={() => setQrDialogOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            <div className="text-center">
-              <QRCodeDisplay
-                data={JSON.stringify({
-                  orderId: selectedOrder.id,
-                  orderNumber: selectedOrder.order_number,
-                  customer: selectedOrder.customer,
-                  status: selectedOrder.status,
-                  department: 'procurement',
-                  timestamp: new Date().toISOString(),
-                  materials: selectedOrder.garment_specs,
-                  quantity: selectedOrder.quantity
-                })}
-                size={200}
-              />
-              <p className="mt-4 text-sm text-gray-600">
-                Order: {selectedOrder.order_number}
-              </p>
-              <p className="text-xs text-gray-500">
-                Scan this QR code to access procurement details
-              </p>
-            </div>
-          </div>
+          )}
         </div>
-      )}
-
-      {/* QR Code Scanner */}
-      {qrScannerOpen && (
-        <QRCodeScanner
-          onScanSuccess={handleQrScanSuccess}
-          onClose={() => setQrScannerOpen(false)}
-        />
-      )}
+      </div>
     </div>
   );
 };

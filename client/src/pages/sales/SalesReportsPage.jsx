@@ -377,10 +377,10 @@ const SalesReportsPage = () => {
                   ) : (
                     detailedReport.map((order) => (
                       <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-2 py-2 text-sm font-medium text-blue-600">{order.order_number}</td>
+                        <td className="px-2 py-2 text-sm font-medium text-blue-600">{order.order_number || 'N/A'}</td>
                         <td className="px-2 py-2 text-sm text-gray-900">{order.customer?.name || 'N/A'}</td>
-                        <td className="px-2 py-2 text-sm text-gray-600">{new Date(order.order_date).toLocaleDateString('en-IN')}</td>
-                        <td className="px-2 py-2 text-sm text-gray-600">{new Date(order.delivery_date).toLocaleDateString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-gray-600">{order.order_date ? new Date(order.order_date).toLocaleDateString('en-IN') : 'N/A'}</td>
+                        <td className="px-2 py-2 text-sm text-gray-600">{order.delivery_date ? new Date(order.delivery_date).toLocaleDateString('en-IN') : 'N/A'}</td>
                         <td className="px-2 py-2 text-sm">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
                             order.status === 'delivered' ? 'bg-green-100 text-green-700' :
@@ -388,13 +388,13 @@ const SalesReportsPage = () => {
                             order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {order.status?.replace('_', ' ').toUpperCase()}
+                            {order.status?.replace('_', ' ').toUpperCase() || 'N/A'}
                           </span>
                         </td>
                         <td className="px-2 py-2 text-sm text-right text-gray-900">{order.total_quantity || 0}</td>
-                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{parseFloat(order.final_amount || 0).toLocaleString('en-IN')}</td>
-                        <td className="px-2 py-2 text-sm text-right text-green-600">₹{parseFloat(order.advance_paid || 0).toLocaleString('en-IN')}</td>
-                        <td className="px-2 py-2 text-sm text-right text-red-600">₹{parseFloat(order.balance_amount || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{(order.final_amount ? parseFloat(order.final_amount) : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-green-600">₹{(order.advance_paid ? parseFloat(order.advance_paid) : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-red-600">₹{(order.balance_amount ? parseFloat(order.balance_amount) : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   )}
@@ -428,11 +428,11 @@ const SalesReportsPage = () => {
                   ) : (
                     customerReport.map((customer, index) => (
                       <tr key={customer.id} className="hover:bg-gray-50">
-                        <td className="px-2 py-2 text-sm font-medium text-gray-900">{customer.name}</td>
-                        <td className="px-2 py-2 text-sm text-right text-gray-900">{customer.totalOrders}</td>
-                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{customer.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-2 py-2 text-sm text-right text-red-600">₹{customer.pendingAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-2 py-2 text-sm text-right text-blue-600">₹{(customer.totalAmount / customer.totalOrders).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 py-2 text-sm font-medium text-gray-900">{customer.name || 'N/A'}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{customer.totalOrders || 0}</td>
+                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{(customer.totalAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-red-600">₹{(customer.pendingAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-blue-600">₹{(customer.totalOrders > 0 ? (customer.totalAmount / customer.totalOrders) : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   )}
@@ -466,11 +466,11 @@ const SalesReportsPage = () => {
                   ) : (
                     productReport.map((product, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-2 py-2 text-sm font-medium text-gray-900">{product.product}</td>
-                        <td className="px-2 py-2 text-sm text-right text-gray-900">{product.totalQuantity.toLocaleString('en-IN')}</td>
-                        <td className="px-2 py-2 text-sm text-right text-gray-900">{product.totalOrders}</td>
-                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{product.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                        <td className="px-2 py-2 text-sm text-right text-blue-600">₹{(product.totalAmount / product.totalQuantity).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm font-medium text-gray-900">{product.product || 'N/A'}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{(product.totalQuantity || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-2 py-2 text-sm text-right text-gray-900">{product.totalOrders || 0}</td>
+                        <td className="px-2 py-2 text-sm text-right font-medium text-gray-900">₹{(product.totalAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-2 py-2 text-sm text-right text-blue-600">₹{(product.totalQuantity > 0 ? (product.totalAmount / product.totalQuantity) : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   )}

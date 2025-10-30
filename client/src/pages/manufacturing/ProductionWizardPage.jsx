@@ -1154,6 +1154,23 @@ const ProductionWizardPage = () => {
       availableProductIds: productOptions.map(p => p.value)
     }, null, 2));
     
+    // ✅ NEW VALIDATION: Check that form has either product info OR materials
+    const hasProductInfo = values.orderDetails.productId && values.orderDetails.quantity;
+    const hasMaterials = values.materials.items && Array.isArray(values.materials.items) && values.materials.items.length > 0;
+    const hasSalesOrder = values.orderSelection.salesOrderId;
+    
+    if (!hasProductInfo && (!hasSalesOrder || !hasMaterials)) {
+      console.warn('❌ Validation failed: Missing required information');
+      toast.error(
+        'Please provide either:\n' +
+        '1) A product + quantity, OR\n' +
+        '2) A sales order + add materials in the Materials section',
+        { duration: 5000 }
+      );
+      setSubmitting(false);
+      return;
+    }
+    
     // Validate product_id is numeric
     if (values.orderDetails.productId && isNaN(Number(values.orderDetails.productId))) {
       console.error('Invalid product_id detected:', values.orderDetails.productId);
@@ -1228,7 +1245,29 @@ const ProductionWizardPage = () => {
       navigate('/manufacturing/orders');
     } catch (error) {
       console.error('create production order error', error);
-      toast.error(error.response?.data?.message || 'Failed to create production order');
+      
+      // Enhanced error diagnostics
+      let errorMessage = 'Failed to create production order';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 400) {
+        errorMessage = 'Invalid order data: ' + (error.response.data?.message || 'Please check all required fields');
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to create production orders';
+      } else if (!error.response) {
+        // Network error
+        errorMessage = 'Network error: Could not reach backend. Is the server running?';
+        console.error('Network error details:', {
+          message: error.message,
+          code: error.code,
+          isAxiosError: error.isAxiosError
+        });
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

@@ -110,6 +110,190 @@ router.get('/', authenticateToken, checkDepartment(['shipment', 'admin', 'sales'
   }
 });
 
+// Get incoming production orders ready for shipment
+// IMPORTANT: This route must be defined BEFORE /:id to prevent "incoming" being matched as an ID
+router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
+  try {
+    const { status = 'completed', limit = 20, exclude_delivered = 'true' } = req.query;
+
+    // Map generic status to valid ProductionOrder ENUM values
+    let statusFilter = status;
+    if (status === 'ready_for_shipment') {
+      // Map ready_for_shipment to completed (explicitly marked ready) or quality_check (in QC)
+      // Also include finishing stage as orders there are likely complete
+      statusFilter = ['completed', 'quality_check', 'finishing'];
+    } else if (Array.isArray(status)) {
+      statusFilter = status;
+    }
+
+    // Build filter for production orders nearing completion
+    let productionWhere;
+    
+    if (status === 'ready_for_shipment') {
+      // For ready_for_shipment: include these statuses but exclude cancelled/on_hold
+      const validReadyStatuses = statusFilter.filter(s => s !== 'on_hold' && s !== 'cancelled');
+      productionWhere = { 
+        status: { [Op.in]: validReadyStatuses }
+      };
+    } else if (Array.isArray(statusFilter)) {
+      productionWhere = { status: { [Op.in]: statusFilter } };
+    } else {
+      productionWhere = { status: statusFilter };
+    }
+
+    const productionOrders = await ProductionOrder.findAll({
+      where: productionWhere,
+      include: [
+        {
+          model: SalesOrder,
+          as: 'salesOrder',
+          include: [{ model: Customer, as: 'customer' }]
+        },
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name', 'product_code', 'description', 'status', 'barcode']
+        }
+      ],
+      order: [['updated_at', 'DESC']],
+      attributes: [
+        'id',
+        'production_number',
+        'status',
+        'production_type',
+        'priority',
+        'quantity',
+        'planned_end_date',
+        'actual_end_date',
+        'sales_order_id',
+        'shipment_id',
+        'product_id',
+        'specifications',
+        'updated_at'
+      ],
+      limit: parseInt(limit, 10)
+    });
+
+    const formattedOrders = await Promise.all(productionOrders.map(async (order) => {
+      const items = Array.isArray(order.salesOrder?.items)
+        ? order.salesOrder.items
+        : (() => {
+            try {
+              return order.salesOrder?.items ? JSON.parse(order.salesOrder.items) : [];
+            } catch (err) {
+              console.warn('Failed to parse sales order items for production order', order.id, err);
+              return [];
+            }
+          })();
+
+      const computedQuantity = (() => {
+        const firstItemQuantity = items?.[0]?.quantity || 0;
+        if (firstItemQuantity) return firstItemQuantity;
+
+        const materialQuantity = Array.isArray(order.materialRequirements)
+          ? order.materialRequirements[0]?.required_quantity
+          : null;
+        if (materialQuantity) return materialQuantity;
+
+        const receiptQuantity = Array.isArray(order.receipts)
+          ? order.receipts[0]?.total_items_received
+          : null;
+
+        return receiptQuantity || order.quantity;
+      })();
+
+      // Get shipment details - use shipment_id if available (optimized), fallback to sales_order_id
+      let shipment = null;
+      if (order.shipment_id) {
+        // Direct lookup using shipment_id (faster)
+        shipment = await Shipment.findOne({
+          where: { id: order.shipment_id },
+          attributes: ['id', 'shipment_number', 'status', 'tracking_number', 'created_at']
+        });
+      } else if (order.sales_order_id) {
+        // Fallback: lookup by sales_order_id for orders without shipment_id yet
+        shipment = await Shipment.findOne({
+          where: { sales_order_id: order.sales_order_id },
+          attributes: ['id', 'shipment_number', 'status', 'tracking_number', 'created_at']
+        });
+      }
+
+      return {
+        // Production order identifiers
+        id: order.id,
+        production_number: order.production_number,
+        production_status: order.status,
+        status: order.status, // For compatibility with UI
+        production_type: order.production_type,
+        priority: order.priority,
+        quantity: computedQuantity,
+        planned_completion: order.planned_end_date,
+        actual_completion: order.actual_end_date,
+        
+        // Sales order linkage
+        sales_order_id: order.sales_order_id,
+        sales_order_number: order.salesOrder?.order_number || null,
+        order_number: order.salesOrder?.order_number || null, // For compatibility
+        sales_order_status: order.salesOrder?.status || null,
+        
+        // Customer information
+        customer_name: order.salesOrder?.customer?.name || 'N/A',
+        customer_phone: order.salesOrder?.customer?.phone || order.salesOrder?.customer?.mobile || null,
+        customer_email: order.salesOrder?.customer?.email || null,
+        
+        // Delivery information
+        shipping_address: order.salesOrder?.shipping_address || order.salesOrder?.delivery_address || null,
+        
+        // Product information
+        product_id: order.product_id,
+        product_name:
+          order.product?.name ||
+          items[0]?.product_name ||
+          items[0]?.name ||
+          order.specifications?.product_name ||
+          (order.product_id ? `Product #${order.product_id}` : 'N/A'),
+        product_code: order.product?.product_code || null,
+        product_status: order.product?.status || null,
+        product_barcode: order.product?.barcode || null,
+        product_description: order.product?.description || null,
+        
+        // Items and specifications
+        items,
+        specifications: order.specifications || null,
+        
+        // Shipment information
+        has_shipment: !!shipment,
+        shipment_id: shipment?.id || null,
+        shipment_number: shipment?.shipment_number || null,
+        shipment_status: shipment?.status || null,
+        shipment_tracking: shipment?.tracking_number || null,
+        shipment_created_at: shipment?.created_at || null,
+        can_create_shipment: !shipment, // Can only create if no shipment exists
+        is_dispatched: shipment && shipment.status !== 'preparing', // Once any status beyond preparing
+        is_delivered: shipment && shipment.status === 'delivered', // Only if delivered
+        
+        // Timestamps
+        last_updated: order.updated_at,
+        updated_at: order.updated_at // For compatibility
+      };
+    }));
+
+    // Filter out delivered orders if requested
+    const shouldExcludeDelivered = exclude_delivered === 'true' || exclude_delivered === true;
+    const filteredOrders = shouldExcludeDelivered 
+      ? formattedOrders.filter(order => !order.is_delivered)
+      : formattedOrders;
+
+    res.json({
+      orders: filteredOrders,
+      total: filteredOrders.length
+    });
+  } catch (error) {
+    console.error('Incoming orders fetch error:', error);
+    res.status(500).json({ message: 'Failed to fetch incoming orders' });
+  }
+});
+
 // Get single shipment by ID
 router.get('/:id', authenticateToken, checkDepartment(['shipment', 'admin', 'sales']), async (req, res) => {
   try {
@@ -458,180 +642,6 @@ router.delete('/:id', authenticateToken, checkDepartment(['shipment', 'admin']),
   } catch (error) {
     console.error('Shipment deletion error:', error);
     res.status(500).json({ message: 'Failed to delete shipment' });
-  }
-});
-
-// Incoming orders ready for shipment
-router.get('/orders/incoming', authenticateToken, checkDepartment(['shipment', 'admin']), async (req, res) => {
-  try {
-    const { status = 'completed', limit = 20, exclude_delivered = 'true' } = req.query;
-
-    // Map generic status to valid ProductionOrder ENUM values
-    let statusFilter = status;
-    if (status === 'ready_for_shipment') {
-      // Map ready_for_shipment to completed (explicitly marked ready) or quality_check (in QC)
-      // Also include finishing stage as orders there are likely complete
-      statusFilter = ['completed', 'quality_check', 'finishing'];
-    } else if (Array.isArray(status)) {
-      statusFilter = status;
-    }
-
-    // Build filter for production orders nearing completion
-    let productionWhere;
-    
-    if (status === 'ready_for_shipment') {
-      // For ready_for_shipment: include these statuses but exclude cancelled/on_hold
-      const validReadyStatuses = statusFilter.filter(s => s !== 'on_hold' && s !== 'cancelled');
-      productionWhere = { 
-        status: { [Op.in]: validReadyStatuses }
-      };
-    } else if (Array.isArray(statusFilter)) {
-      productionWhere = { status: { [Op.in]: statusFilter } };
-    } else {
-      productionWhere = { status: statusFilter };
-    }
-
-    const productionOrders = await ProductionOrder.findAll({
-      where: productionWhere,
-      include: [
-        {
-          model: SalesOrder,
-          as: 'salesOrder',
-          include: [{ model: Customer, as: 'customer' }]
-        },
-        {
-          model: Product,
-          as: 'product',
-          attributes: ['id', 'name', 'product_code', 'description', 'status', 'barcode']
-        }
-      ],
-      order: [['updated_at', 'DESC']],
-      attributes: [
-        'id',
-        'production_number',
-        'status',
-        'production_type',
-        'priority',
-        'quantity',
-        'planned_end_date',
-        'actual_end_date',
-        'sales_order_id',
-        'product_id',
-        'specifications',
-        'updated_at'
-      ],
-      limit: parseInt(limit, 10)
-    });
-
-    const formattedOrders = await Promise.all(productionOrders.map(async (order) => {
-      const items = Array.isArray(order.salesOrder?.items)
-        ? order.salesOrder.items
-        : (() => {
-            try {
-              return order.salesOrder?.items ? JSON.parse(order.salesOrder.items) : [];
-            } catch (err) {
-              console.warn('Failed to parse sales order items for production order', order.id, err);
-              return [];
-            }
-          })();
-
-      const computedQuantity = (() => {
-        const firstItemQuantity = items?.[0]?.quantity || 0;
-        if (firstItemQuantity) return firstItemQuantity;
-
-        const materialQuantity = Array.isArray(order.materialRequirements)
-          ? order.materialRequirements[0]?.required_quantity
-          : null;
-        if (materialQuantity) return materialQuantity;
-
-        const receiptQuantity = Array.isArray(order.receipts)
-          ? order.receipts[0]?.total_items_received
-          : null;
-
-        return receiptQuantity || order.quantity;
-      })();
-
-      // Check if shipment exists for this sales order
-      const shipment = await Shipment.findOne({
-        where: { 
-          sales_order_id: order.sales_order_id 
-        },
-        attributes: ['id', 'shipment_number', 'status', 'tracking_number', 'created_at']
-      });
-
-      return {
-        // Production order identifiers
-        id: order.id,
-        production_number: order.production_number,
-        production_status: order.status,
-        status: order.status, // For compatibility with UI
-        production_type: order.production_type,
-        priority: order.priority,
-        quantity: computedQuantity,
-        planned_completion: order.planned_end_date,
-        actual_completion: order.actual_end_date,
-        
-        // Sales order linkage
-        sales_order_id: order.sales_order_id,
-        sales_order_number: order.salesOrder?.order_number || null,
-        order_number: order.salesOrder?.order_number || null, // For compatibility
-        sales_order_status: order.salesOrder?.status || null,
-        
-        // Customer information
-        customer_name: order.salesOrder?.customer?.name || 'N/A',
-        customer_phone: order.salesOrder?.customer?.phone || order.salesOrder?.customer?.mobile || null,
-        customer_email: order.salesOrder?.customer?.email || null,
-        
-        // Delivery information
-        shipping_address: order.salesOrder?.shipping_address || order.salesOrder?.delivery_address || null,
-        
-        // Product information
-        product_id: order.product_id,
-        product_name:
-          order.product?.name ||
-          items[0]?.product_name ||
-          items[0]?.name ||
-          order.specifications?.product_name ||
-          (order.product_id ? `Product #${order.product_id}` : 'N/A'),
-        product_code: order.product?.product_code || null,
-        product_status: order.product?.status || null,
-        product_barcode: order.product?.barcode || null,
-        product_description: order.product?.description || null,
-        
-        // Items and specifications
-        items,
-        specifications: order.specifications || null,
-        
-        // Shipment information
-        has_shipment: !!shipment,
-        shipment_id: shipment?.id || null,
-        shipment_number: shipment?.shipment_number || null,
-        shipment_status: shipment?.status || null,
-        shipment_tracking: shipment?.tracking_number || null,
-        shipment_created_at: shipment?.created_at || null,
-        can_create_shipment: !shipment, // Can only create if no shipment exists
-        is_dispatched: shipment && shipment.status !== 'preparing', // Once any status beyond preparing
-        is_delivered: shipment && shipment.status === 'delivered', // Only if delivered
-        
-        // Timestamps
-        last_updated: order.updated_at,
-        updated_at: order.updated_at // For compatibility
-      };
-    }));
-
-    // Filter out delivered orders if requested
-    const shouldExcludeDelivered = exclude_delivered === 'true' || exclude_delivered === true;
-    const filteredOrders = shouldExcludeDelivered 
-      ? formattedOrders.filter(order => !order.is_delivered)
-      : formattedOrders;
-
-    res.json({
-      orders: filteredOrders,
-      total: filteredOrders.length
-    });
-  } catch (error) {
-    console.error('Incoming orders fetch error:', error);
-    res.status(500).json({ message: 'Failed to fetch incoming orders' });
   }
 });
 

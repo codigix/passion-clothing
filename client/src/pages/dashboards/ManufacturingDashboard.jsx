@@ -280,7 +280,21 @@ const ManufacturingDashboard = () => {
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
-      toast.error('Failed to load products.');
+      
+      // Enhanced error diagnostics
+      if (error.response?.status === 401) {
+        console.error('❌ Authentication failed - token may be expired. Please log in again.');
+        toast.error('Session expired. Please log in again.');
+      } else if (error.response?.status === 403) {
+        console.error('❌ Access denied - you may not have Manufacturing department access.');
+        toast.error('You do not have permission to view products. Contact your administrator.');
+      } else if (error.message?.includes('Network connection failed')) {
+        console.error('❌ Network error - backend may be offline or unreachable.');
+        toast.error('Cannot reach backend. Is the server running on localhost:5000?');
+      } else {
+        console.error('❌ Unknown error:', error.response?.data || error.message);
+        toast.error('Failed to load products: ' + (error.response?.data?.message || error.message));
+      }
     }
   }, []);
 

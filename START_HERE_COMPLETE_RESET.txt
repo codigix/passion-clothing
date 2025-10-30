@@ -1,0 +1,298 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    ⚠️  COMPLETE DATABASE RESET                             ║
+║                       START HERE - READ FIRST!                             ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+WHAT IS THIS?
+=============
+A system to PERMANENTLY DELETE ALL DATA from your AWS database and start fresh.
+
+⚠️  WARNING: THIS IS DESTRUCTIVE
+================================
+This will DELETE:
+  ✗ ALL USERS (login credentials are gone)
+  ✗ ALL SALES ORDERS
+  ✗ ALL PURCHASE ORDERS
+  ✗ ALL PRODUCTION DATA
+  ✗ ALL SHIPMENTS
+  ✗ ALL INVENTORY
+  ✗ ALL FINANCIAL DATA
+  ✗ ALL MASTER DATA (customers, vendors, products)
+  ✗ EVERYTHING ELSE (~10,000+ records)
+
+Nothing is preserved. Everything is gone.
+
+WHEN TO USE THIS?
+=================
+✓ You want a completely fresh database for testing
+✓ You have accumulated junk/demo data
+✓ You want to restart from scratch
+✓ You have a good backup and want to wipe everything
+
+DO NOT USE IF:
+==============
+✗ This is production with real customer data
+✗ You don't have a recent backup
+✗ You're not sure what you're doing
+✗ You just need to clear some test data (use truncate-db instead)
+
+THREE WAYS TO RESET
+===================
+
+OPTION A: Interactive Node.js (⭐ RECOMMENDED)
+--------------------------------------------
+Safest method - requires explicit confirmation
+
+Step 1: Make sure you have backup
+  mysqldump -h passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com \
+            -u admin -pC0digix$309 passion_erp > backup.sql
+
+Step 2: Run reset
+  node reset-entire-database.js
+
+Step 3: Answer prompts
+  → Type: DELETE ALL DATA
+  → Type: YES I AM SURE
+
+Step 4: Verify success
+  node verify-all-tables-empty.js
+
+Step 5: Recreate admin user
+  npm run seed
+
+
+OPTION B: npm Script (SIMPLE)
+---------------------------
+Quick method using npm convenience scripts
+
+Step 1: Backup first!
+  mysqldump -h passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com \
+            -u admin -pC0digix$309 passion_erp > backup.sql
+
+Step 2: Run reset
+  npm run reset-entire-db
+
+Step 3: Answer prompts (same as Option A)
+
+Step 4: Verify
+  npm run reset-verify
+
+Step 5: Create users
+  npm run seed
+
+
+OPTION C: Direct SQL (FASTEST)
+----------------------------
+For MySQL Workbench or automated CI/CD
+
+MySQL Workbench:
+  1. Open reset-entire-database.sql
+  2. Review the warnings at the top
+  3. Make a backup first
+  4. Click Execute (lightning bolt)
+  5. All tables truncated
+
+Command Line:
+  mysql -h passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com \
+        -u admin -pC0digix$309 passion_erp < reset-entire-database.sql
+
+Then verify:
+  node verify-all-tables-empty.js
+
+
+RECOMMENDED WORKFLOW
+====================
+
+1. 📋 Create Backup (10 seconds)
+   mysqldump -h passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com \
+             -u admin -pC0digix$309 passion_erp > backup-$(date +%Y%m%d-%H%M%S).sql
+
+2. 🗑️  Execute Reset (1-2 minutes)
+   npm run reset-entire-db
+
+3. ✅ Verify Clean Database (30 seconds)
+   npm run reset-verify
+   ↓ Should show: "All tables are empty!"
+
+4. 👤 Create Admin User (10 seconds)
+   npm run seed
+   ↓ Creates default admin account
+
+5. 🚀 Start Server (5 seconds)
+   npm start
+   ↓ Server runs on http://localhost:5000
+
+6. 🔐 Login to System
+   Browser: http://localhost:3000
+   Username: admin
+   Password: password
+
+TOTAL TIME: ~3 minutes
+
+WHAT GETS DELETED - 63 TABLES
+=============================
+
+System Tables (6):
+  ✗ users - ALL accounts deleted
+  ✗ roles - Role definitions deleted
+  ✗ permissions - Permission definitions deleted
+  ✗ user_roles - User-role mappings deleted
+  ✗ role_permissions - Role-permission mappings deleted
+  ✗ user_permissions - User-permission mappings deleted
+
+Sales Department (5):
+  ✗ sales_order - All sales orders deleted
+  ✗ sales_order_history - All history deleted
+  ✗ customer - All customer records deleted
+  ✗ product - All products deleted
+  ✗ sample - All samples deleted
+
+Procurement Department (4):
+  ✗ purchase_order - All POs deleted
+  ✗ vendor - All vendors deleted
+  ✗ goods_receipt_note - All GRNs deleted
+  ✗ bill_of_materials - All BOMs deleted
+
+Manufacturing Department (10):
+  ✗ production_order - All production orders deleted
+  ✗ production_request - All requests deleted
+  ✗ production_approval - All approvals deleted
+  ✗ production_stage - All stages deleted
+  ✗ production_completion - All completions deleted
+  ✗ stage_operations - All operations deleted
+  ✗ quality_checkpoint - All QC records deleted
+  ✗ rejection - All rejections deleted
+  ✗ material_consumption - All consumption data deleted
+  ✗ material_requirement - All requirements deleted
+
+Inventory & Store (8):
+  ✗ inventory - All stock records deleted
+  ✗ store_stock - All store inventory deleted
+  ✗ inventory_movement - All movements deleted
+  ✗ material_allocation - All allocations deleted
+  ✗ material_dispatch - All dispatches deleted
+  ✗ material_receipt - All receipts deleted
+  ✗ material_verification - All verifications deleted
+  ✗ vendor_return - All returns deleted
+
+Shipment Department (3):
+  ✗ shipment - All shipments deleted
+  ✗ shipment_tracking - All tracking records deleted
+  ✗ courier_agent - All courier agents deleted
+
+Finance Department (3):
+  ✗ invoice - All invoices deleted
+  ✗ payment - All payments deleted
+  ✗ notification - All notifications deleted
+
+Other (7):
+  ✗ challan - All challans deleted
+  ✗ attendance - All attendance deleted
+  ✗ product_lifecycle - All PLCs deleted
+  ✗ product_lifecycle_history - All PLC history deleted
+  ✗ project_material_request - All PMRs deleted
+  ✗ course_partner - All partners deleted
+  ✗ approval - All approvals deleted
+
+... and more
+
+AFTER RESET - WHAT'S NEXT?
+==========================
+
+After all data is deleted, you need to recreate the admin user to login:
+
+Option 1: Create admin only
+  npm run seed
+  ↓ Creates one admin account
+
+Option 2: Load full demo data
+  npm run seed-sample
+  ↓ Creates admin + sample data for all departments
+
+Default Admin Account:
+  Username: admin
+  Password: password
+
+RECOVERY - IF YOU MADE A MISTAKE
+=================================
+
+If you accidentally reset when you didn't want to:
+
+Restore from Backup:
+  mysql -h passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com \
+        -u admin -pC0digix$309 passion_erp < backup-YYYYMMDD-HHMMSS.sql
+
+Everything will be restored to the backup point.
+
+FILES INCLUDED
+==============
+
+Scripts:
+  1. reset-entire-database.js ............ Interactive Node.js script
+  2. verify-all-tables-empty.js ......... Verification script
+  3. reset-entire-database.sql .......... Raw SQL for MySQL Workbench
+
+Documentation:
+  1. START_HERE_COMPLETE_RESET.txt ...... This file
+  2. COMPLETE_RESET_QUICK_START.md ..... Quick reference
+  3. COMPLETE_RESET_DETAILED_GUIDE.md .. Detailed documentation
+  4. COMPLETE_RESET_RECOVERY_GUIDE.md .. Recovery procedures
+
+Updated:
+  5. server/package.json ............... New npm scripts added
+
+npm COMMANDS AVAILABLE
+======================
+
+npm run reset-entire-db    = Run complete database reset
+npm run reset-verify       = Verify all tables are empty
+npm run seed               = Create admin user only
+npm run seed-sample        = Create admin + demo data
+npm run start              = Start the server
+
+TROUBLESHOOTING
+===============
+
+Connection Failed?
+  Check .env file:
+    DB_HOST=passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com
+    DB_USER=admin
+    DB_PASSWORD=C0digix$309
+    DB_NAME=passion_erp
+
+Reset Didn't Work?
+  1. Check console output for errors
+  2. Try verify script: npm run reset-verify
+  3. Check database directly in AWS console
+  4. Restore from backup if needed
+
+Still Have Data?
+  Tables might be locked. Try:
+    - Restart database connection
+    - Kill other connections to database
+    - Try reset again
+
+FOR MORE DETAILS
+================
+Read: COMPLETE_RESET_DETAILED_GUIDE.md for comprehensive documentation
+
+QUICK START COMMANDS
+====================
+
+# Backup
+mysqldump -h passion-erp.cxqc440y2mz9.eu-north-1.rds.amazonaws.com \
+          -u admin -pC0digix$309 passion_erp > backup.sql
+
+# Reset
+npm run reset-entire-db
+
+# Verify
+npm run reset-verify
+
+# Create Users
+npm run seed
+
+# Start
+npm start
+
+Ready? Start with Option A or B above! 🚀

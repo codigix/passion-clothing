@@ -15,6 +15,8 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import api from '../../utils/api';
+import { formatINR, formatDate, safePath } from '../../utils/procurementFormatters';
+import { PRIORITY_BADGES } from '../../constants/procurementStatus';
 import { useAuth } from '../../contexts/AuthContext';
 
 const PendingApprovalsPage = () => {
@@ -22,8 +24,6 @@ const PendingApprovalsPage = () => {
   const { user } = useAuth();
   const [pendingPOs, setPendingPOs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPO, setSelectedPO] = useState(null);
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     totalValue: 0,
@@ -63,11 +63,6 @@ const PendingApprovalsPage = () => {
     }
   };
 
-  const handleApprove = (po) => {
-    setSelectedPO(po);
-    setShowApprovalModal(true);
-  };
-
   const handleReject = async (poId) => {
     const reason = prompt('Enter rejection reason:');
     if (!reason) return;
@@ -91,30 +86,8 @@ const PendingApprovalsPage = () => {
   };
 
   const getPriorityBadge = (priority) => {
-    const badges = {
-      urgent: 'bg-red-100 text-red-800 border-red-200',
-      high: 'bg-orange-100 text-orange-800 border-orange-200',
-      medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      low: 'bg-green-100 text-green-800 border-green-200'
-    };
-    return badges[priority] || badges.medium;
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    const badge = PRIORITY_BADGES[priority?.toLowerCase()] || PRIORITY_BADGES.medium;
+    return `${badge.color} ${badge.text} border-2 ${badge.border}`;
   };
 
   if (loading) {
@@ -164,7 +137,7 @@ const PendingApprovalsPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue)}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatINR(stats.totalValue)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-green-600" />
@@ -205,19 +178,19 @@ const PendingApprovalsPage = () => {
                       {po.po_number || `PO-${po.id}`}
                     </h3>
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getPriorityBadge(po.priority)}`}>
-                      {(po.priority || 'medium').toUpperCase()}
+                      {PRIORITY_BADGES[po.priority?.toLowerCase()]?.label || 'Medium'}
                     </span>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 mb-2">
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
                       <Building2 size={14} />
-                      <span className="truncate">{po.vendor?.name || 'Unknown Vendor'}</span>
+                      <span className="truncate">{safePath(po, 'vendor.name', 'Unknown Vendor')}</span>
                     </div>
                     
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
                       <User size={14} />
-                      <span className="truncate">{po.customer?.name || po.client_name || 'N/A'}</span>
+                      <span className="truncate">{safePath(po, 'customer.name', safePath(po, 'client_name', 'Unknown Customer'))}</span>
                     </div>
                     
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -241,7 +214,7 @@ const PendingApprovalsPage = () => {
                 <div className="text-right ml-4">
                   <p className="text-sm text-gray-600 mb-1">Total Amount</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(po.final_amount)}
+                    {formatINR(po.final_amount)}
                   </p>
                 </div>
               </div>
@@ -250,34 +223,26 @@ const PendingApprovalsPage = () => {
               <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => handleViewDetails(po.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                  className="flex items-center gap-1.5 px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors flex-1"
                 >
                   <Eye size={14} />
-                  View Details
+                  View Order Details to Approve
                 </button>
 
-                {isAdmin ? (
-                  <>
-                    <button
-                      onClick={() => handleApprove(po)}
-                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors"
-                    >
-                      <CheckCircle size={14} />
-                      Approve Order
-                    </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleReject(po.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
+                  >
+                    <XCircle size={14} />
+                    Reject
+                  </button>
+                )}
 
-                    <button
-                      onClick={() => handleReject(po.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
-                    >
-                      <XCircle size={14} />
-                      Reject
-                    </button>
-                  </>
-                ) : (
+                {!isAdmin && (
                   <div className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500 bg-gray-50 rounded border border-gray-200">
                     <ShieldAlert size={12} />
-                    <span>Admin approval required</span>
+                    <span>Admin only</span>
                   </div>
                 )}
               </div>
@@ -286,153 +251,6 @@ const PendingApprovalsPage = () => {
         </div>
       )}
 
-      {/* Approval Modal */}
-      {showApprovalModal && selectedPO && (
-        <ApprovalModal
-          po={selectedPO}
-          onClose={() => {
-            setShowApprovalModal(false);
-            setSelectedPO(null);
-          }}
-          onSuccess={() => {
-            setShowApprovalModal(false);
-            setSelectedPO(null);
-            fetchPendingApprovals();
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
-// Approval Modal Component - UPDATED FOR NEW GRN WORKFLOW
-const ApprovalModal = ({ po, onClose, onSuccess }) => {
-  const navigate = useNavigate();
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleApprove = async () => {
-    try {
-      setSubmitting(true);
-      
-      const response = await api.post(
-        `/procurement/pos/${po.id}/approve`,
-        {
-          notes: notes || `Approved via Pending Approvals on ${new Date().toLocaleDateString()}`
-        }
-      );
-
-      alert(`✅ Purchase Order approved and automatically sent to vendor! When materials arrive, create a GRN for quality verification.`);
-      onSuccess();
-    } catch (error) {
-      console.error('Error approving PO:', error);
-      alert(`❌ Error: ${error.response?.data?.message || 'Failed to approve PO'}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-white rounded shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-green-50 to-blue-50 px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Approve Purchase Order</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            PO: {po.po_number || `PO-${po.id}`} • {po.vendor?.name}
-          </p>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {/* Items Preview */}
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Order Items</h3>
-            <div className="bg-gray-50 rounded p-4 space-y-2 max-h-60 overflow-y-auto">
-              {po.items?.map((item, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {item.fabric_name || item.item_name || item.description || 'Unnamed Item'}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {item.color && `Color: ${item.color} • `}
-                      {item.gsm && `GSM: ${item.gsm} • `}
-                      Qty: {item.quantity} {item.uom}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">
-                      ₹{(parseFloat(item.total) || 0).toLocaleString('en-IN')}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes Input */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Approval Notes (Optional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about this approval..."
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Summary - Automated workflow */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded p-4 mb-4 border-l-4 border-blue-600">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-900">
-                <p className="font-semibold mb-2">🔄 Automated Workflow - What happens when you approve:</p>
-                <ul className="list-disc list-inside space-y-1.5 text-blue-800">
-                  <li><strong>✅ Instant:</strong> PO automatically sent to vendor (status: "Sent")</li>
-                  <li><strong>📦 When materials arrive:</strong> Store team creates GRN (Goods Receipt Note)</li>
-                  <li><strong>🔍 Quality Check:</strong> GRN verified for quantity, weight, and quality</li>
-                  <li><strong>💾 Final Step:</strong> Verified materials added to inventory</li>
-                </ul>
-                <p className="mt-3 px-3 py-2 bg-white/70 rounded text-xs text-blue-800 font-medium border border-blue-200">
-                  💡 <strong>Note:</strong> Materials will NOT be added to inventory immediately. They'll be added only after GRN quality verification is complete.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              disabled={submitting}
-              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleApprove}
-              disabled={submitting}
-              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                  Approving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={14} />
-                  Approve Purchase Order
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

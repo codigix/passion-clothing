@@ -19,13 +19,21 @@ import {
   FaCogs,
   FaCheck,
   FaMoneyBillWave,
-  FaColumns
+  FaColumns,
+  FaEllipsisV,
+  FaThLarge,
+  FaTh,
+  FaChartBar,
+  FaExclamationCircle,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaSpinner,
+  FaEye
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
 
-// Define all available columns with their properties
 const AVAILABLE_COLUMNS = [
   { id: 'order_number', label: 'SO Number', defaultVisible: true, alwaysVisible: true },
   { id: 'order_date', label: 'Order Date', defaultVisible: true },
@@ -52,26 +60,27 @@ const SalesOrdersPage = () => {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
-  const [shipmentMap, setShipmentMap] = useState({}); // Map order_id -> shipment status
-  
+  const [shipmentMap, setShipmentMap] = useState({});
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [procurementFilter, setProcurementFilter] = useState('all');
-  const [invoiceFilter, setInvoiceFilter] = useState('all');
-  const [challanFilter, setChallanFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
+
+  // View modes
+  const [viewMode, setViewMode] = useState('table'); // 'table', 'cards', 'kanban'
+  const [expandedOrder, setExpandedOrder] = useState(null);
+
   // Modal states
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrOrder, setQrOrder] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({});
-  
-  // Column visibility state
+
+  // Column visibility
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('salesOrdersVisibleColumns');
     if (saved) {
@@ -88,9 +97,8 @@ const SalesOrdersPage = () => {
 
   useEffect(() => {
     applyFilters();
-  }, [orders, searchTerm, statusFilter, procurementFilter, invoiceFilter, challanFilter, dateFrom, dateTo]);
+  }, [orders, searchTerm, statusFilter, procurementFilter, dateFrom, dateTo]);
 
-  // Click outside handler for column menu
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showColumnMenu && !event.target.closest('.column-menu-container')) {
@@ -98,7 +106,6 @@ const SalesOrdersPage = () => {
       }
       if (showActionMenu && !event.target.closest('.action-menu-container')) {
         setShowActionMenu(null);
-        setMenuPosition({});
       }
     };
 
@@ -122,8 +129,6 @@ const SalesOrdersPage = () => {
     try {
       const response = await api.get('/shipments?limit=500');
       const shipments = response.data.shipments || [];
-      
-      // Create a map of sales_order_id -> shipment status
       const map = {};
       shipments.forEach(shipment => {
         if (shipment.sales_order_id) {
@@ -148,114 +153,40 @@ const SalesOrdersPage = () => {
   const applyFilters = () => {
     let filtered = [...orders];
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(order =>
         order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.items?.some(item => 
+        order.items?.some(item =>
           item.product_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.description?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     }
 
-    // Status filter
     if (statusFilter && statusFilter !== 'all') {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
 
-    // Procurement filter
     if (procurementFilter && procurementFilter !== 'all') {
       filtered = filtered.filter(order => order.procurement_status === procurementFilter);
     }
 
-    // Invoice filter
-    if (invoiceFilter && invoiceFilter !== 'all') {
-      filtered = filtered.filter(order => order.invoice_status === invoiceFilter);
-    }
-
-    // Challan filter
-    if (challanFilter && challanFilter !== 'all') {
-      filtered = filtered.filter(order => order.challan_status === challanFilter);
-    }
-
-    // Date range filter
     if (dateFrom) {
-      filtered = filtered.filter(order => 
-        new Date(order.order_date) >= new Date(dateFrom)
-      );
+      filtered = filtered.filter(order => new Date(order.order_date) >= new Date(dateFrom));
     }
     if (dateTo) {
-      filtered = filtered.filter(order => 
-        new Date(order.order_date) <= new Date(dateTo + 'T23:59:59')
-      );
+      filtered = filtered.filter(order => new Date(order.order_date) <= new Date(dateTo + 'T23:59:59'));
     }
 
     setFilteredOrders(filtered);
   };
 
-  // Column visibility functions
-  const isColumnVisible = (columnId) => {
-    return visibleColumns.includes(columnId);
-  };
-
-  const toggleColumn = (columnId) => {
-    const column = AVAILABLE_COLUMNS.find(col => col.id === columnId);
-    if (column?.alwaysVisible) return; // Don't toggle always-visible columns
-    
-    setVisibleColumns(prev => {
-      const newColumns = prev.includes(columnId)
-        ? prev.filter(id => id !== columnId)
-        : [...prev, columnId];
-      localStorage.setItem('salesOrdersVisibleColumns', JSON.stringify(newColumns));
-      return newColumns;
-    });
-  };
-
-  const resetColumns = () => {
-    const defaultCols = AVAILABLE_COLUMNS.filter(col => col.defaultVisible).map(col => col.id);
-    setVisibleColumns(defaultCols);
-    localStorage.setItem('salesOrdersVisibleColumns', JSON.stringify(defaultCols));
-  };
-
-  const showAllColumns = () => {
-    const allCols = AVAILABLE_COLUMNS.map(col => col.id);
-    setVisibleColumns(allCols);
-    localStorage.setItem('salesOrdersVisibleColumns', JSON.stringify(allCols));
-  };
-
-  // Smart menu positioning
-  const handleActionMenuToggle = (orderId, event) => {
-    if (showActionMenu === orderId) {
-      setShowActionMenu(null);
-      setMenuPosition({});
-    } else {
-      const button = event.currentTarget;
-      const rect = button.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const menuHeight = 350; // Approximate height of dropdown menu
-      const spaceBelow = viewportHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      
-      // If not enough space below and more space above, open upward
-      const openUpward = spaceBelow < menuHeight && spaceAbove > spaceBelow;
-      
-      setMenuPosition({ [orderId]: openUpward });
-      setShowActionMenu(orderId);
-    }
-  };
-
-  const closeActionMenu = () => {
-    setShowActionMenu(null);
-    setMenuPosition({});
-  };
-
   const handleSendToProcurement = async (order) => {
-    if (window.confirm(`Send order ${order.order_number} to procurement department?`)) {
+    if (window.confirm(`Send order ${order.order_number} to procurement?`)) {
       try {
         await api.put(`/sales/orders/${order.id}/send-to-procurement`);
-        alert('Order sent to procurement successfully!');
+        alert('Order sent successfully!');
         fetchOrders();
         fetchSummary();
       } catch (error) {
@@ -264,64 +195,11 @@ const SalesOrdersPage = () => {
     }
   };
 
-  const handleSendToProduction = async (order) => {
-    if (window.confirm(`Create a production request for ${order.order_number}?`)) {
-      try {
-        await api.post(`/sales/orders/${order.id}/request-production`);
-        alert('Production request sent to Manufacturing successfully!');
-        fetchOrders();
-      } catch (error) {
-        alert(error.response?.data?.message || 'Failed to send production request');
-      }
-    }
-  };
-
-  const handleGenerateInvoice = async (order) => {
-    if (window.confirm(`Generate invoice for order ${order.order_number}?`)) {
-      try {
-        const response = await api.post(`/sales/orders/${order.id}/generate-invoice`);
-        alert('Invoice generated successfully!');
-        console.log('Invoice data:', response.data.invoice);
-        fetchOrders();
-        fetchSummary();
-      } catch (error) {
-        alert(error.response?.data?.message || 'Failed to generate invoice');
-      }
-    }
-  };
-
-  const handleCreateChallan = async (order) => {
-    // Navigate to challan creation page with pre-filled order data
-    navigate(`/challans/create?order_id=${order.id}`);
-  };
-
-  const handleViewPOStatus = (order) => {
-    navigate(`/sales/orders/${order.id}?tab=procurement`);
-  };
-
-
-
-  const handleUpdateStatus = async (order, newStatus) => {
-    try {
-      await api.put(`/sales/orders/${order.id}/status`, { status: newStatus });
-      alert('Order status updated successfully!');
-      fetchOrders();
-      fetchSummary();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update status');
-    }
-  };
-
-  const handleShowQR = (order) => {
-    setQrOrder(order);
-    setShowQRModal(true);
-  };
-
   const handleDelete = async (order) => {
-    if (window.confirm(`Are you sure you want to delete order ${order.order_number}?`)) {
+    if (window.confirm(`Delete order ${order.order_number}?`)) {
       try {
         await api.delete(`/sales/orders/${order.id}`);
-        alert('Order deleted successfully!');
+        alert('Order deleted!');
         fetchOrders();
         fetchSummary();
       } catch (error) {
@@ -330,685 +208,617 @@ const SalesOrdersPage = () => {
     }
   };
 
+  const handleShowQR = (order) => {
+    setQrOrder(order);
+    setShowQRModal(true);
+  };
+
   const getStatusBadge = (status) => {
-    const statusConfig = {
-      draft: { color: 'bg-gray-100 text-gray-700', label: 'Draft' },
-      confirmed: { color: 'bg-blue-100 text-blue-700', label: 'Confirmed' },
-      in_production: { color: 'bg-orange-100 text-orange-700', label: 'In Production' },
-      materials_received: { color: 'bg-yellow-100 text-yellow-700', label: 'Materials Received' },
-      completed: { color: 'bg-green-100 text-green-700', label: 'Completed' },
-      shipped: { color: 'bg-purple-100 text-purple-700', label: 'Shipped' },
-      delivered: { color: 'bg-green-100 text-green-700', label: 'Delivered' },
-      cancelled: { color: 'bg-red-100 text-red-700', label: 'Cancelled' }
-    };
-    const config = statusConfig[status] || statusConfig.draft;
-    return <span className={`px-2 py-1 rounded text-xs font-medium ${config.color}`}>{config.label}</span>;
-  };
-
-  const getProcurementBadge = (status) => {
     const config = {
-      not_requested: { color: 'bg-gray-100 text-gray-600', label: 'Not Requested' },
-      requested: { color: 'bg-blue-100 text-blue-600', label: 'Requested' },
-      po_created: { color: 'bg-purple-100 text-purple-600', label: 'PO Created' },
-      materials_ordered: { color: 'bg-yellow-100 text-yellow-600', label: 'Materials Ordered' },
-      materials_received: { color: 'bg-green-100 text-green-600', label: 'Materials Received' },
-      completed: { color: 'bg-green-100 text-green-700', label: 'Completed' }
+      draft: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300', icon: FaClock },
+      confirmed: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', icon: FaCheckCircle },
+      in_production: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', icon: FaCog },
+      ready_to_ship: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300', icon: FaTruck },
+      shipped: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-300', icon: FaTruck },
+      delivered: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', icon: FaCheckCircle },
+      completed: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', icon: FaCheck },
+      cancelled: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', icon: FaTimesCircle }
     };
-    const badge = config[status] || config.not_requested;
-    return <span className={`px-2 py-1 rounded text-xs ${badge.color}`}>{badge.label}</span>;
+    const cfg = config[status] || config.draft;
+    const Icon = cfg.icon;
+    return (
+      <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${cfg.bg} ${cfg.text} ${cfg.border} text-xs font-semibold`}>
+        <Icon size={14} />
+        {status?.replace(/_/g, ' ').toUpperCase()}
+      </div>
+    );
   };
 
-  const getInvoiceBadge = (status) => {
-    const config = {
-      pending: { color: 'bg-gray-100 text-gray-600', label: 'Pending' },
-      generated: { color: 'bg-green-100 text-green-600', label: 'Generated' },
-      sent: { color: 'bg-blue-100 text-blue-600', label: 'Sent' },
-      paid: { color: 'bg-green-100 text-green-700', label: 'Paid' }
+  const groupOrdersByStatus = () => {
+    const groups = {
+      draft: [],
+      confirmed: [],
+      in_production: [],
+      ready_to_ship: [],
+      shipped: [],
+      delivered: [],
+      completed: [],
+      cancelled: []
     };
-    const badge = config[status] || config.pending;
-    return <span className={`px-2 py-1 rounded text-xs ${badge.color}`}>{badge.label}</span>;
+
+    filteredOrders.forEach(order => {
+      if (groups[order.status] !== undefined) {
+        groups[order.status].push(order);
+      }
+    });
+
+    return groups;
   };
 
-  const getChallanBadge = (status) => {
-    const config = {
-      pending: { color: 'bg-gray-100 text-gray-600', label: 'Pending' },
-      created: { color: 'bg-blue-100 text-blue-600', label: 'Created' },
-      dispatched: { color: 'bg-orange-100 text-orange-600', label: 'Dispatched' },
-      delivered: { color: 'bg-green-100 text-green-700', label: 'Delivered' }
-    };
-    const badge = config[status] || config.pending;
-    return <span className={`px-2 py-1 rounded text-xs ${badge.color}`}>{badge.label}</span>;
-  };
+  if (loading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex justify-center items-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-5xl text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const getShipmentStatusBadge = (orderId) => {
-    const shipmentStatus = shipmentMap[orderId];
-    if (!shipmentStatus) {
-      return <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">Not Created</span>;
-    }
-    
-    const config = {
-      pending: { color: 'bg-red-100 text-red-600', label: 'Pending' },
-      dispatched: { color: 'bg-blue-100 text-blue-600', label: 'Dispatched' },
-      in_transit: { color: 'bg-yellow-100 text-yellow-600', label: 'In Transit' },
-      out_for_delivery: { color: 'bg-orange-100 text-orange-600', label: 'Out for Delivery' },
-      delivered: { color: 'bg-green-100 text-green-700', label: 'Delivered' },
-      failed_delivery: { color: 'bg-red-100 text-red-700', label: 'Failed Delivery' }
+  // Get status icon color
+  const getStatusColor = (status) => {
+    const colors = {
+      draft: 'from-slate-500 to-slate-600',
+      confirmed: 'from-blue-500 to-blue-600',
+      in_production: 'from-orange-500 to-orange-600',
+      ready_to_ship: 'from-purple-500 to-purple-600',
+      shipped: 'from-indigo-500 to-indigo-600',
+      delivered: 'from-green-500 to-green-600',
+      completed: 'from-emerald-500 to-emerald-600',
+      cancelled: 'from-red-500 to-red-600'
     };
-    
-    const badge = config[shipmentStatus] || config.pending;
-    return <span className={`px-2 py-1 rounded text-xs ${badge.color}`}>{badge.label}</span>;
-  };
-
-  // Get first item details for display
-  const getOrderItemSummary = (items) => {
-    if (!items || items.length === 0) return { product: 'N/A', type: 'N/A', code: 'N/A' };
-    const firstItem = items[0];
-    return {
-      product: firstItem.description || firstItem.product_id || 'N/A',
-      type: firstItem.product_type || 'N/A',
-      code: firstItem.item_code || firstItem.product_id || 'N/A'
-    };
+    return colors[status] || colors.draft;
   };
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen max-w-full">
-      {/* Page Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Sales Orders</h1>
-          <p className="text-gray-600 mt-1">Manage and track all sales orders</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white px-6 py-8 shadow-lg">
+        <div className="max-w-7xl mx-auto flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2.5 bg-white/20 rounded-lg">
+                <FaShoppingCart className="w-6 h-6" />
+              </div>
+              <h1 className="text-3xl font-bold">Sales Orders</h1>
+            </div>
+            <p className="text-blue-100 text-sm font-medium">Manage and track all sales orders efficiently</p>
+          </div>
+          <button
+            onClick={() => navigate('/sales/orders/create')}
+            className="px-5 py-2.5 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg font-semibold flex items-center gap-2 hover:shadow-xl"
+          >
+            <FaPlus size={16} />
+            Create Order
+          </button>
         </div>
-        <button
-          className="bg-blue-500 text-white px-2 py-2 rounded hover:bg-blue-600 flex items-center gap-1.5 shadow-md transition-colors"
-          onClick={() => navigate('/sales/orders/create')}
-        >
-          <FaPlus size={16} /> Create New Order
-        </button>
       </div>
 
-      {/* Summary Widgets */}
-      {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
-          <div className="bg-white p-6 rounded shadow-md border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-800">{summary.total_orders}</p>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-full">
-                <FaShoppingCart size={24} className="text-blue-600" />
-              </div>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Summary Cards */}
+        {summary && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {[
+              { label: 'Total Orders', value: summary.total_orders, icon: FaShoppingCart, color: 'blue' },
+              { label: 'Pending', value: summary.pending_orders, icon: FaClock, color: 'amber' },
+              { label: 'In Production', value: summary.in_production_orders, icon: FaCog, color: 'orange' },
+              { label: 'Delivered', value: summary.delivered_orders, icon: FaCheck, color: 'green' }
+            ].map((card, idx) => {
+              const Icon = card.icon;
+              const bgColor = { blue: 'bg-blue-50', amber: 'bg-amber-50', orange: 'bg-orange-50', green: 'bg-green-50' }[card.color];
+              const iconBg = { blue: 'bg-blue-100', amber: 'bg-amber-100', orange: 'bg-orange-100', green: 'bg-green-100' }[card.color];
+              const iconColor = { blue: 'text-blue-600', amber: 'text-amber-600', orange: 'text-orange-600', green: 'text-green-600' }[card.color];
 
-          <div className="bg-white p-6 rounded shadow-md border-l-4 border-yellow-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Pending Orders</p>
-                <p className="text-2xl font-bold text-gray-800">{summary.pending_orders}</p>
-              </div>
-              <div className="bg-yellow-100 p-3 rounded-full">
-                <FaClock size={24} className="text-yellow-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded shadow-md border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">In Production</p>
-                <p className="text-2xl font-bold text-gray-800">{summary.in_production_orders}</p>
-              </div>
-              <div className="bg-orange-100 p-3 rounded-full">
-                <FaCog size={24} className="text-orange-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded shadow-md border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Delivered Orders</p>
-                <p className="text-2xl font-bold text-gray-800">{summary.delivered_orders}</p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <FaCheck size={24} className="text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded shadow-md col-span-1 md:col-span-2 lg:col-span-2 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Value</p>
-                <p className="text-2xl font-bold text-gray-800">₹{summary.total_value?.toLocaleString()}</p>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-full">
-                <FaMoneyBillWave size={24} className="text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded shadow-md border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Advance Collected</p>
-                <p className="text-2xl font-bold text-green-600">₹{summary.advance_collected?.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded shadow-md border-l-4 border-red-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Balance Due</p>
-                <p className="text-2xl font-bold text-red-600">₹{summary.balance_due?.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters Section */}
-      <div className="bg-white p-4 rounded shadow-md mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1 relative mr-4">
-            <input
-              type="text"
-              placeholder="Search by SO Number, Customer, or Product..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-3 border rounded pl-10 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
-            />
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          </div>
-          <div className="flex gap-2">
-            <div className="relative column-menu-container">
-              <button
-                onClick={() => setShowColumnMenu(!showColumnMenu)}
-                className="flex items-center gap-1.5 px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors"
-              >
-                <FaColumns size={16} />
-                <span>Columns</span>
-                <FaChevronDown size={14} className={`transition-transform ${showColumnMenu ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {/* Column Menu Dropdown */}
-              {showColumnMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded shadow-xl z-50 border">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-gray-700">Manage Columns</h3>
-                      <span className="text-xs text-gray-500">
-                        {visibleColumns.length} of {AVAILABLE_COLUMNS.length}
-                      </span>
+              return (
+                <div key={idx} className={`${bgColor} rounded-xl p-6 border border-${card.color}-200 shadow-sm hover:shadow-md transition-all`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-gray-600 text-sm font-medium mb-1">{card.label}</p>
+                      <p className="text-3xl font-bold text-gray-800">{card.value}</p>
                     </div>
-                    
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {AVAILABLE_COLUMNS.map(column => (
-                        <label
-                          key={column.id}
-                          className={`flex items-center gap-1.5 p-2 rounded hover:bg-gray-50 cursor-pointer ${
-                            column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isColumnVisible(column.id)}
-                            onChange={() => toggleColumn(column.id)}
-                            disabled={column.alwaysVisible}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-                          />
-                          <span className="text-sm text-gray-700">{column.label}</span>
-                          {column.alwaysVisible && (
-                            <span className="text-xs text-gray-400 ml-auto">(Required)</span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                    
-                    <div className="flex gap-2 mt-4 pt-3 border-t">
-                      <button
-                        onClick={showAllColumns}
-                        className="flex-1 px-3 py-2 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition-colors"
-                      >
-                        Show All
-                      </button>
-                      <button
-                        onClick={resetColumns}
-                        className="flex-1 px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 text-gray-700 rounded transition-colors"
-                      >
-                        Reset
-                      </button>
+                    <div className={`${iconBg} p-3 rounded-lg`}>
+                      <Icon className={`${iconColor} text-lg`} />
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-            
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-1.5 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-            >
-              <FaFilter size={16} />
-              <span>Filters</span>
-              <FaChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-        {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 pt-4 border-t">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-              >
-                <option value="all">All Statuses</option>
-                <option value="draft">Draft</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="in_production">In Production</option>
-                <option value="ready_to_ship">Ready to Ship</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Procurement Status</label>
-              <select
-                value={procurementFilter}
-                onChange={(e) => setProcurementFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-              >
-                <option value="all">All</option>
-                <option value="not_requested">Not Requested</option>
-                <option value="requested">Requested</option>
-                <option value="po_created">PO Created</option>
-                <option value="materials_received">Materials Received</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Status</label>
-              <select
-                value={invoiceFilter}
-                onChange={(e) => setInvoiceFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="generated">Generated</option>
-                <option value="paid">Paid</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Challan Status</label>
-              <select
-                value={challanFilter}
-                onChange={(e) => setChallanFilter(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="created">Created</option>
-                <option value="dispatched">Dispatched</option>
-                <option value="delivered">Delivered</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-              />
-            </div>
+              );
+            })}
           </div>
         )}
-      </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded shadow-md">
-        <div className=" w-full">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {isColumnVisible('order_number') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SO Number</th>
-                )}
-                {isColumnVisible('order_date') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
-                )}
-                {isColumnVisible('customer') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                )}
-                {isColumnVisible('product_info') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Info</th>
-                )}
-                {isColumnVisible('quantity') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                )}
-                {isColumnVisible('rate') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                )}
-                {isColumnVisible('total_amount') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-                )}
-                {isColumnVisible('advance_paid') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Advance Paid</th>
-                )}
-                {isColumnVisible('balance') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                )}
-                {isColumnVisible('delivery_date') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
-                )}
-                {isColumnVisible('status') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                )}
-                {isColumnVisible('shipment_status') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipment Status</th>
-                )}
-                {isColumnVisible('procurement') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Procurement</th>
-                )}
-                {isColumnVisible('invoice') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
-                )}
-                {isColumnVisible('challan') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Challan</th>
-                )}
-                {isColumnVisible('created_by') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
-                )}
-                {isColumnVisible('actions') && (
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] min-w-[100px]">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={16} className="px-4 py-8 text-center text-gray-500">
-                    Loading orders...
-                  </td>
-                </tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={16} className="px-4 py-8 text-center text-gray-500">
-                    No orders found
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((order) => {
-                  const itemSummary = getOrderItemSummary(order.items);
-                  const firstItem = order.items?.[0];
-                  const ratePerPiece = firstItem ? firstItem.unit_price : 0;
+        {/* Filter & View Mode Bar */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            {/* Search */}
+            <div className="flex-1 relative w-full lg:w-auto">
+              <FaSearch className="absolute left-3 top-3.5 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search by order, customer, product..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
 
-                  return (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors group">
-                      {isColumnVisible('order_number') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
+            {/* View Mode Toggle */}
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2.5 rounded-lg border transition-all ${viewMode === 'table' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                title="Table View"
+              >
+                <FaTh size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`p-2.5 rounded-lg border transition-all ${viewMode === 'cards' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                title="Card View"
+              >
+                <FaThLarge size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`p-2.5 rounded-lg border transition-all ${viewMode === 'kanban' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                title="Kanban View"
+              >
+                <FaChartBar size={18} />
+              </button>
+
+              {/* Filter Toggle */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2.5 rounded-lg border transition-all ${showFilters ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                title="Toggle Filters"
+              >
+                <FaFilter size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Advanced Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5 pt-5 border-t border-gray-200">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="draft">Draft</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="in_production">In Production</option>
+                  <option value="ready_to_ship">Ready to Ship</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Procurement Status</label>
+                <select
+                  value={procurementFilter}
+                  onChange={(e) => setProcurementFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="not_requested">Not Requested</option>
+                  <option value="requested">Requested</option>
+                  <option value="po_created">PO Created</option>
+                  <option value="materials_ordered">Materials Ordered</option>
+                  <option value="materials_received">Materials Received</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Table View */}
+        {viewMode === 'table' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">SO Number</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Customer</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Order Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Total Amount</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Delivery Date</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <FaExclamationCircle className="text-4xl text-gray-400" />
+                          <p className="text-gray-500 font-medium">No orders found</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
                           <button
                             onClick={() => navigate(`/sales/orders/${order.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
+                            className="text-blue-600 hover:text-blue-800 font-semibold hover:underline"
                           >
                             {order.order_number}
                           </button>
                         </td>
-                      )}
-                      {isColumnVisible('order_date') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
-                          {new Date(order.order_date).toLocaleDateString()}
-                        </td>
-                      )}
-                      {isColumnVisible('customer') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{order.customer?.name}</div>
-                          <div className="text-xs text-gray-500">{order.customer?.customer_code}</div>
-                        </td>
-                      )}
-                      {isColumnVisible('product_info') && (
-                        <td className="px-2 py-2">
-                          <div className="text-sm font-medium text-gray-900">{itemSummary.product}</div>
-                          <div className="text-xs text-gray-500">
-                            Type: {itemSummary.type} | Code: {itemSummary.code}
+                        <td className="px-6 py-4 text-sm text-gray-700">{order.customer?.name || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{new Date(order.order_date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-800">₹{order.total_amount?.toLocaleString()}</td>
+                        <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{new Date(order.delivery_date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">
+                          <div className="action-menu-container relative flex justify-center gap-2">
+                            <button
+                              onClick={() => navigate(`/sales/orders/${order.id}`)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View Details"
+                            >
+                              <FaEye size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleShowQR(order)}
+                              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Show QR Code"
+                            >
+                              <FaQrcode size={16} />
+                            </button>
+                            <button
+                              onClick={() => setShowActionMenu(showActionMenu === order.id ? null : order.id)}
+                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              <FaEllipsisV size={16} />
+                            </button>
+
+                            {/* Action Menu */}
+                            {showActionMenu === order.id && (
+                              <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-48">
+                                <button
+                                  onClick={() => {
+                                    navigate(`/sales/orders/edit/${order.id}`);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-100"
+                                >
+                                  <FaEdit size={14} /> Edit
+                                </button>
+                                {order.status === 'draft' && (
+                                  <button
+                                    onClick={() => {
+                                      handleSendToProcurement(order);
+                                      setShowActionMenu(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 hover:bg-green-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-100"
+                                  >
+                                    <FaTruck size={14} /> Send to Procurement
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    handleShowQR(order);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 hover:bg-purple-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-100"
+                                >
+                                  <FaQrcode size={14} /> QR Code
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleDelete(order);
+                                    setShowActionMenu(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm flex items-center gap-2"
+                                >
+                                  <FaTrash size={14} /> Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
-                      )}
-                      {isColumnVisible('quantity') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
-                          {order.total_quantity} pcs
-                        </td>
-                      )}
-                      {isColumnVisible('rate') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
-                          ₹{ratePerPiece?.toLocaleString()}
-                        </td>
-                      )}
-                      {isColumnVisible('total_amount') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                          ₹{order.final_amount?.toLocaleString()}
-                        </td>
-                      )}
-                      {isColumnVisible('advance_paid') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-green-600 font-medium">
-                          ₹{order.advance_paid?.toLocaleString() || '0'}
-                        </td>
-                      )}
-                      {isColumnVisible('balance') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-red-600 font-medium">
-                          ₹{order.balance_amount?.toLocaleString() || order.final_amount?.toLocaleString()}
-                        </td>
-                      )}
-                      {isColumnVisible('delivery_date') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
-                          {new Date(order.delivery_date).toLocaleDateString()}
-                        </td>
-                      )}
-                      {isColumnVisible('status') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          {getStatusBadge(order.status)}
-                        </td>
-                      )}
-                      {isColumnVisible('shipment_status') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          {getShipmentStatusBadge(order.id)}
-                        </td>
-                      )}
-                      {isColumnVisible('procurement') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          {getProcurementBadge(order.procurement_status)}
-                        </td>
-                      )}
-                      {isColumnVisible('invoice') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          {getInvoiceBadge(order.invoice_status)}
-                        </td>
-                      )}
-                      {isColumnVisible('challan') && (
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          {getChallanBadge(order.challan_status)}
-                        </td>
-                      )}
-                      {isColumnVisible('created_by') && (
-                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700">
-                          {order.creator?.name || 'N/A'}
-                        </td>
-                      )}
-                      {isColumnVisible('actions') && (
-                        <td className="px-2 py-2 whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.1)] transition-colors">
-                        <div className="relative action-menu-container flex items-center gap-1">
-                          <button
-                            onClick={(e) => handleActionMenuToggle(order.id, e)}
-                            className="p-2 hover:bg-gray-100 rounded transition-colors"
-                            title="More Actions"
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Card View */}
+        {viewMode === 'cards' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredOrders.length === 0 ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-12">
+                <FaExclamationCircle className="text-4xl text-gray-400 mb-2" />
+                <p className="text-gray-500 font-medium">No orders found</p>
+              </div>
+            ) : (
+              filteredOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className={`bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all overflow-hidden cursor-pointer`}
+                  onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                >
+                  <div className={`h-1 bg-gradient-to-r ${getStatusColor(order.status)}`}></div>
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">SO Number</p>
+                        <p className="text-lg font-bold text-gray-800">{order.order_number}</p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShowQR(order);
+                        }}
+                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg"
+                      >
+                        <FaQrcode />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 mb-4">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Customer</p>
+                        <p className="text-sm font-semibold text-gray-800">{order.customer?.name || 'N/A'}</p>
+                      </div>
+                      <div className="flex gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Amount</p>
+                          <p className="text-sm font-bold text-blue-600">₹{order.total_amount?.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Order Date</p>
+                          <p className="text-sm text-gray-700">{new Date(order.order_date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">{getStatusBadge(order.status)}</div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/sales/orders/${order.id}`);
+                        }}
+                        className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
+                      >
+                        <FaEye size={14} /> View
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/sales/orders/edit/${order.id}`);
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
+                      >
+                        <FaEdit size={14} /> Edit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Kanban View */}
+        {viewMode === 'kanban' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto pb-4">
+            {Object.entries(groupOrdersByStatus()).map(([status, statusOrders]) => {
+              const statusConfig = {
+                draft: { gradient: 'from-slate-400 to-slate-600', icon: FaClock, lightBg: 'bg-slate-50' },
+                confirmed: { gradient: 'from-blue-400 to-blue-600', icon: FaCheckCircle, lightBg: 'bg-blue-50' },
+                in_production: { gradient: 'from-orange-400 to-orange-600', icon: FaCogs, lightBg: 'bg-orange-50' },
+                ready_to_ship: { gradient: 'from-purple-400 to-purple-600', icon: FaTruck, lightBg: 'bg-purple-50' },
+                shipped: { gradient: 'from-indigo-400 to-indigo-600', icon: FaTruck, lightBg: 'bg-indigo-50' },
+                delivered: { gradient: 'from-green-400 to-green-600', icon: FaCheckCircle, lightBg: 'bg-green-50' },
+                completed: { gradient: 'from-emerald-400 to-emerald-600', icon: FaCheck, lightBg: 'bg-emerald-50' },
+                cancelled: { gradient: 'from-red-400 to-red-600', icon: FaTimesCircle, lightBg: 'bg-red-50' }
+              };
+              const config = statusConfig[status] || statusConfig.draft;
+              const HeaderIcon = config.icon;
+
+              return (
+                <div key={status} className="flex flex-col">
+                  {/* Column Header */}
+                  <div className={`bg-gradient-to-r ${config.gradient} text-white px-4 py-4 rounded-t-xl shadow-md`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <HeaderIcon className="text-lg" />
+                        <h3 className="font-bold text-sm">{status.replace(/_/g, ' ').toUpperCase()}</h3>
+                      </div>
+                      <span className="bg-white/25 backdrop-blur px-3 py-1 rounded-full text-sm font-bold">{statusOrders.length}</span>
+                    </div>
+                    <div className="text-white/80 text-xs font-medium">
+                      {statusOrders.length} {statusOrders.length === 1 ? 'order' : 'orders'}
+                    </div>
+                  </div>
+
+                  {/* Column Content */}
+                  <div className="bg-gray-50 rounded-b-xl flex-1 min-h-[600px] max-h-[600px] overflow-y-auto p-3 space-y-3 border border-t-0 border-gray-200">
+                    {statusOrders.length === 0 ? (
+                      <div className="py-12 text-center text-gray-400">
+                        <FaShoppingCart className="text-3xl mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm font-medium">No orders</p>
+                        <p className="text-xs mt-1">Drag orders here to update status</p>
+                      </div>
+                    ) : (
+                      statusOrders.map((order) => {
+                        const daysLeft = order.expected_delivery_date 
+                          ? Math.ceil((new Date(order.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24))
+                          : null;
+                        const isOverdue = daysLeft !== null && daysLeft < 0;
+                        const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3;
+
+                        return (
+                          <div
+                            key={order.id}
+                            onClick={() => navigate(`/sales/orders/${order.id}`)}
+                            className="group bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-lg transition-all cursor-pointer hover:border-blue-400 overflow-hidden"
                           >
-                            <FaChevronDown size={14} />
-                          </button>
-                          {showActionMenu === order.id && (
-                            <div className={`absolute right-0 w-56 bg-white rounded shadow-xl z-[100] border ${
-                              menuPosition[order.id] ? 'bottom-full mb-2' : 'top-full mt-2'
-                            }`}>
+                            {/* Card Header */}
+                            <div className="px-3 pt-3 pb-2 border-b border-gray-100">
+                              <div className="flex justify-between items-start gap-2 mb-2">
+                                <div className="flex-1">
+                                  <p className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
+                                    {order.order_number}
+                                  </p>
+                                </div>
+                                {isOverdue && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Overdue</span>
+                                )}
+                                {isUrgent && !isOverdue && (
+                                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">Urgent</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 truncate">{order.customer?.name || 'N/A'}</p>
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="px-3 py-3 space-y-2">
+                              {/* Product Info */}
+                              {order.items?.[0]?.product_type && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs text-gray-500 font-medium">Product:</span>
+                                  <span className="text-xs text-gray-700 font-medium truncate">{order.items[0].product_type}</span>
+                                </div>
+                              )}
+
+                              {/* Quantity */}
+                              {order.items?.[0]?.quantity && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-gray-500">Qty:</span>
+                                  <span className="font-semibold text-gray-700">{order.items[0].quantity} pcs</span>
+                                </div>
+                              )}
+
+                              {/* Price */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                                <span className="text-xs text-gray-500">Total:</span>
+                                <span className="text-sm font-bold text-blue-600">₹{order.total_amount?.toLocaleString()}</span>
+                              </div>
+
+                              {/* Delivery Info */}
+                              {order.expected_delivery_date && (
+                                <div className="flex items-center gap-2 text-xs mt-2">
+                                  <FaCalendarAlt className="text-gray-400" size={12} />
+                                  <span className={isOverdue ? 'text-red-600 font-semibold' : isUrgent ? 'text-amber-600 font-semibold' : 'text-gray-600'}>
+                                    {new Date(order.expected_delivery_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                                    {daysLeft !== null && ` (${Math.abs(daysLeft)} days ${isOverdue ? 'ago' : 'left'})`}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Procurement Status Badge */}
+                              {order.procurement_status && (
+                                <div className="pt-2">
+                                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                    order.procurement_status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                    order.procurement_status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    Proc: {order.procurement_status?.replace(/_/g, ' ').toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Card Footer - Actions (visible on hover) */}
+                            <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-transparent border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
-                                onClick={() => {
-                                  handleSendToProcurement(order);
-                                  closeActionMenu();
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/sales/orders/${order.id}`);
                                 }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                className="w-full text-center px-2 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 rounded hover:bg-blue-100 transition-colors"
                               >
-                                <FaClipboardList /> Send to Procurement
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleSendToProduction(order);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
-                              >
-                                <FaCogs /> Request Production
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleGenerateInvoice(order);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                              >
-                                <FaFileInvoice /> Generate Invoice
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleCreateChallan(order);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                              >
-                                <FaTruck /> Create Challan
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleViewPOStatus(order);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                              >
-                                <FaIndustry /> View PO Status
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleShowQR(order);
-                                  closeActionMenu();
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                              >
-                                <FaQrcode /> Generate QR Code
-                              </button>
-                              <button
-                                onClick={() => {
-                                  window.print();
-                                  setShowActionMenu(null);
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                              >
-                                <FaPrint /> Print SO
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleDelete(order);
-                                  setShowActionMenu(null);
-                                }}
-                                className="flex items-center gap-1.5 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t"
-                              >
-                                <FaTrash /> Delete Order
+                                View Details
                               </button>
                             </div>
-                          )}
-                        </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* QR Code Modal */}
       {showQRModal && qrOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded shadow-xl max-w-md w-full mx-4">
-            <div className="px-6 py-4 border-b">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Order QR Code</h3>
-                <button
-                  onClick={() => setShowQRModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">QR Code</h2>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
             </div>
-
-            <div className="px-6 py-4">
-              <div className="text-center mb-4">
-                <QRCodeDisplay
-                  data={JSON.stringify({
-                    order_number: qrOrder.order_number,
-                    customer: qrOrder.customer?.name,
-                    status: qrOrder.status,
-                    track_url: `${window.location.origin}/sales/track/${qrOrder.order_number}`
-                  })}
-                  size={200}
-                />
-              </div>
-
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                <div><strong>Order:</strong> {qrOrder.order_number}</div>
-                <div><strong>Customer:</strong> {qrOrder.customer?.name}</div>
-                <div><strong>Status:</strong> {qrOrder.status}</div>
-                <div><strong>Amount:</strong> ₹{qrOrder.final_amount?.toLocaleString()}</div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowQRModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors text-sm"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="bg-gray-50 p-6 rounded-lg mb-4 flex justify-center">
+              <QRCodeDisplay value={qrOrder.order_number} />
             </div>
+            <p className="text-center text-gray-600 mb-4 font-semibold">{qrOrder.order_number}</p>
+            <button
+              onClick={() => setShowQRModal(false)}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
-
-      {/* Floating Action Button */}
-      <button
-        className="fixed bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
-        onClick={() => navigate('/sales/orders/create')}
-      >
-        <FaPlus size={24} />
-      </button>
     </div>
   );
 };
