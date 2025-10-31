@@ -128,7 +128,7 @@ const StockVerificationPage = () => {
           navigate('/manufacturing/mrm-list');
         }
       } else {
-        toast.warning('Verification failed. Materials need to be rejected or addressed.');
+        toast.error('Verification failed. Materials need to be rejected or addressed.');
         navigate('/manufacturing/mrm-list');
       }
     } catch (error) {

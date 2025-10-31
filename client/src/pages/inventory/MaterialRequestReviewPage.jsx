@@ -80,7 +80,7 @@ const MaterialRequestReviewPage = () => {
         if (forceDispatch) {
           toast.success(`✅ Partial dispatch created! Dispatch #: ${result.dispatch?.dispatch_number}`);
         } else {
-          toast.warning('⚠️ Partial stock available. Use "Force Dispatch" to proceed.');
+          toast.error('⚠️ Partial stock available. Use "Force Dispatch" to proceed.');
         }
       } else {
         toast.error('❌ Materials unavailable. Forward to procurement.');

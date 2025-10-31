@@ -88,88 +88,88 @@ const MaterialRequestsPage = () => {
   const statusCounts = getStatusCounts();
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/procurement/dashboard')}
-            className="flex items-center gap-1.5 text-gray-600 hover:text-gray-800 transition"
+            className="flex items-center gap-1 text-gray-600 hover:text-gray-800 transition text-sm"
           >
-            <FaArrowLeft /> Back to Dashboard
+            <FaArrowLeft size={12} /> Back
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Material Requests</h1>
-            <p className="text-sm text-gray-500 mt-1">Track and manage project material requests</p>
+            <h1 className="text-xl font-semibold text-gray-900">Material Requests</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Track and manage project material requests</p>
           </div>
         </div>
         <button
           onClick={fetchRequests}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition flex items-center gap-1.5"
+          className="bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition flex items-center gap-1 text-xs font-normal"
         >
-          <FaClipboardList /> Refresh
+          <FaClipboardList size={12} /> Refresh
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
-        <div className="bg-white p-4 rounded shadow border-l-4 border-gray-400">
-          <div className="text-2xl font-bold text-gray-900">{statusCounts.all}</div>
-          <div className="text-xs text-gray-600">Total Requests</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-3">
+        <div className="bg-white p-2.5 rounded shadow-sm border-l-4 border-gray-400 hover:shadow-md transition-shadow">
+          <div className="text-lg font-bold text-gray-900">{statusCounts.all}</div>
+          <div className="text-xs text-gray-600">Total</div>
         </div>
-        <div className="bg-white p-4 rounded shadow border-l-4 border-yellow-400">
-          <div className="text-2xl font-bold text-yellow-700">{statusCounts.pending}</div>
+        <div className="bg-white p-2.5 rounded shadow-sm border-l-4 border-yellow-400 hover:shadow-md transition-shadow">
+          <div className="text-lg font-bold text-yellow-700">{statusCounts.pending}</div>
           <div className="text-xs text-gray-600">Pending</div>
         </div>
-        <div className="bg-white p-4 rounded shadow border-l-4 border-blue-400">
-          <div className="text-2xl font-bold text-blue-700">{statusCounts.reviewed}</div>
+        <div className="bg-white p-2.5 rounded shadow-sm border-l-4 border-blue-400 hover:shadow-md transition-shadow">
+          <div className="text-lg font-bold text-blue-700">{statusCounts.reviewed}</div>
           <div className="text-xs text-gray-600">Reviewed</div>
         </div>
-        <div className="bg-white p-4 rounded shadow border-l-4 border-purple-400">
-          <div className="text-2xl font-bold text-purple-700">{statusCounts.forwarded_to_inventory}</div>
+        <div className="bg-white p-2.5 rounded shadow-sm border-l-4 border-purple-400 hover:shadow-md transition-shadow">
+          <div className="text-lg font-bold text-purple-700">{statusCounts.forwarded_to_inventory}</div>
           <div className="text-xs text-gray-600">Forwarded</div>
         </div>
-        <div className="bg-white p-4 rounded shadow border-l-4 border-green-400">
-          <div className="text-2xl font-bold text-green-700">{statusCounts.stock_available}</div>
+        <div className="bg-white p-2.5 rounded shadow-sm border-l-4 border-green-400 hover:shadow-md transition-shadow">
+          <div className="text-lg font-bold text-green-700">{statusCounts.stock_available}</div>
           <div className="text-xs text-gray-600">Available</div>
         </div>
-        <div className="bg-white p-4 rounded shadow border-l-4 border-emerald-400">
-          <div className="text-2xl font-bold text-emerald-700">{statusCounts.materials_reserved}</div>
+        <div className="bg-white p-2.5 rounded shadow-sm border-l-4 border-emerald-400 hover:shadow-md transition-shadow">
+          <div className="text-lg font-bold text-emerald-700">{statusCounts.materials_reserved}</div>
           <div className="text-xs text-gray-600">Reserved</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded shadow mb-4">
+      <div className="bg-white p-2.5 rounded shadow-sm mb-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <label className="font-medium text-gray-700">Filter by Status:</label>
+          <label className="font-medium text-gray-700 text-xs">Filter:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
+            className="border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 text-xs"
           >
-            <option value="all">All Requests ({statusCounts.all})</option>
+            <option value="all">All ({statusCounts.all})</option>
             <option value="pending">Pending ({statusCounts.pending})</option>
             <option value="reviewed">Reviewed ({statusCounts.reviewed})</option>
-            <option value="forwarded_to_inventory">Forwarded to Inventory ({statusCounts.forwarded_to_inventory})</option>
-            <option value="stock_available">Stock Available ({statusCounts.stock_available})</option>
-            <option value="materials_reserved">Materials Reserved ({statusCounts.materials_reserved})</option>
+            <option value="forwarded_to_inventory">Forwarded ({statusCounts.forwarded_to_inventory})</option>
+            <option value="stock_available">Available ({statusCounts.stock_available})</option>
+            <option value="materials_reserved">Reserved ({statusCounts.materials_reserved})</option>
           </select>
         </div>
       </div>
 
       {/* Requests Table */}
-      <div className="bg-white rounded shadow overflow-hidden">
+      <div className="bg-white rounded shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-gray-600">Loading material requests...</p>
+          <div className="p-4 text-center">
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <p className="mt-1.5 text-gray-600 text-xs">Loading material requests...</p>
           </div>
         ) : filteredRequests.length === 0 ? (
-          <div className="p-8 text-center">
-            <FaBoxOpen className="mx-auto text-gray-400 text-5xl mb-4" />
-            <p className="text-gray-500 text-lg">No material requests found</p>
-            <p className="text-gray-400 text-sm mt-2">
+          <div className="p-6 text-center">
+            <FaBoxOpen className="mx-auto text-gray-400 text-4xl mb-2" />
+            <p className="text-gray-500 text-sm font-medium">No material requests found</p>
+            <p className="text-gray-400 text-xs mt-1">
               {statusFilter === 'all' 
                 ? 'Create a material request from a Purchase Order details page'
                 : `No requests with status: ${statusFilter.replace(/_/g, ' ')}`
@@ -178,42 +178,40 @@ const MaterialRequestsPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-100 border-b border-slate-200">
                 <tr>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Number</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required Date</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">ID</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">Project</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">PO</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">Priority</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">Status</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">Req. Date</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">Created</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-gray-700">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-slate-200 bg-white">
                 {filteredRequests.map((request) => (
                   <tr key={request.id} className="hover:bg-gray-50 transition">
-                    <td className="px-2 py-2 text-sm font-mono text-blue-600">#{request.id}</td>
-                    <td className="px-2 py-2 text-sm font-medium text-gray-900">{request.project_name}</td>
-                    <td className="px-2 py-2 text-sm text-gray-600">{request.purchaseOrder?.po_number || 'N/A'}</td>
-                    <td className="px-2 py-2">{getPriorityBadge(request.priority)}</td>
-                    <td className="px-2 py-2">{getStatusBadge(request.status)}</td>
-                    <td className="px-2 py-2 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <FaCalendar className="text-gray-400" />
-                        {formatDate(request.required_date)}
-                      </div>
+                    <td className="px-2 py-1.5 font-mono text-blue-600">#{request.id}</td>
+                    <td className="px-2 py-1.5 font-medium text-gray-900 max-w-xs truncate">{request.project_name}</td>
+                    <td className="px-2 py-1.5 text-gray-600">{request.purchaseOrder?.po_number || '-'}</td>
+                    <td className="px-2 py-1.5">{getPriorityBadge(request.priority)}</td>
+                    <td className="px-2 py-1.5">{getStatusBadge(request.status)}</td>
+                    <td className="px-2 py-1.5 text-gray-600 flex items-center gap-0.5">
+                      <FaCalendar size={10} className="text-gray-400" />
+                      {formatDate(request.required_date)}
                     </td>
-                    <td className="px-2 py-2 text-sm text-gray-500">
+                    <td className="px-2 py-1.5 text-gray-500 text-xs">
                       {formatDate(request.created_at)}
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-2 py-1.5">
                       <button
                         onClick={() => viewDetails(request.id)}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium transition"
+                        className="flex items-center gap-0.5 text-blue-600 hover:text-blue-800 font-normal transition text-xs"
                       >
-                        <FaEye /> View
+                        <FaEye size={11} /> View
                       </button>
                     </td>
                   </tr>
@@ -226,71 +224,71 @@ const MaterialRequestsPage = () => {
 
       {/* Detail Modal */}
       {showDetailModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-start mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded p-4 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-start mb-3">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Material Request #{selectedRequest.id}</h2>
-                <p className="text-sm text-gray-500 mt-1">Created on {formatDate(selectedRequest.created_at, 'datetime')}</p>
+                <h2 className="text-lg font-semibold text-gray-900">Material Request #{selectedRequest.id}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Created on {formatDate(selectedRequest.created_at, 'datetime')}</p>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold transition"
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold transition"
               >
                 ×
               </button>
             </div>
 
             {/* Request Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 bg-gray-50 p-4 rounded-md">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 bg-gray-50 p-3 rounded-md">
               <div>
-                <label className="text-xs text-gray-500 uppercase font-semibold">Project Name</label>
-                <p className="font-medium text-gray-900 mt-1">{selectedRequest.project_name}</p>
+                <label className="text-xs text-gray-500 font-medium">Project Name</label>
+                <p className="font-medium text-gray-900 mt-0.5 text-sm">{selectedRequest.project_name}</p>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase font-semibold">PO Number</label>
-                <p className="font-medium text-gray-900 mt-1">{selectedRequest.purchaseOrder?.po_number || 'N/A'}</p>
+                <label className="text-xs text-gray-500 font-medium">PO Number</label>
+                <p className="font-medium text-gray-900 mt-0.5 text-sm">{selectedRequest.purchaseOrder?.po_number || '-'}</p>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase font-semibold">Priority</label>
-                <div className="mt-1">{getPriorityBadge(selectedRequest.priority)}</div>
+                <label className="text-xs text-gray-500 font-medium">Priority</label>
+                <div className="mt-0.5">{getPriorityBadge(selectedRequest.priority)}</div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase font-semibold">Status</label>
-                <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+                <label className="text-xs text-gray-500 font-medium">Status</label>
+                <div className="mt-0.5">{getStatusBadge(selectedRequest.status)}</div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase font-semibold">Required Date</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-1.5">
-                  <FaCalendar className="text-blue-500" />
+                <label className="text-xs text-gray-500 font-medium">Required Date</label>
+                <p className="font-medium text-gray-900 mt-0.5 flex items-center gap-1 text-sm">
+                  <FaCalendar size={12} className="text-blue-500" />
                   {formatDate(selectedRequest.required_date)}
                 </p>
               </div>
               <div>
-                <label className="text-xs text-gray-500 uppercase font-semibold">Created By</label>
-                <p className="font-medium text-gray-900 mt-1">{safePath(selectedRequest, 'creator.name', 'Unknown User')}</p>
+                <label className="text-xs text-gray-500 font-medium">Created By</label>
+                <p className="font-medium text-gray-900 mt-0.5 text-sm">{safePath(selectedRequest, 'creator.name', 'Unknown User')}</p>
               </div>
             </div>
 
             {/* Materials Requested */}
-            <div className="mb-4">
-              <h3 className="font-semibold text-lg mb-3 flex items-center gap-1.5">
-                <FaBox className="text-blue-500" /> Materials Requested
+            <div className="mb-3">
+              <h3 className="font-medium text-sm mb-2 flex items-center gap-1 text-gray-800">
+                <FaBox size={12} className="text-blue-500" /> Materials Requested
               </h3>
-              <div className="border rounded overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
+              <div className="border border-slate-200 rounded overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-700">#</th>
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-700">Material</th>
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-700">Qty</th>
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-700">Unit</th>
                       {selectedRequest.stock_availability && (
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Availability</th>
+                        <th className="px-2 py-1.5 text-left font-medium text-gray-700">Availability</th>
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-200">
                     {selectedRequest.materials_requested?.map((material, index) => {
                       const availability = Array.isArray(selectedRequest.stock_availability)
                         ? selectedRequest.stock_availability.find(
@@ -299,12 +297,12 @@ const MaterialRequestsPage = () => {
                         : undefined;
                       return (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-2 py-2 text-sm text-gray-500">{index + 1}</td>
-                          <td className="px-2 py-2 text-sm font-medium text-gray-900">{material.product_name}</td>
-                          <td className="px-2 py-2 text-sm text-gray-600">{material.quantity}</td>
-                          <td className="px-2 py-2 text-sm text-gray-600">{material.unit}</td>
+                          <td className="px-2 py-1.5 text-gray-500">{index + 1}</td>
+                          <td className="px-2 py-1.5 font-medium text-gray-900 max-w-xs truncate">{material.product_name}</td>
+                          <td className="px-2 py-1.5 text-gray-600">{material.quantity}</td>
+                          <td className="px-2 py-1.5 text-gray-600">{material.unit}</td>
                           {availability && (
-                            <td className="px-2 py-2 text-sm">
+                            <td className="px-2 py-1.5 text-xs">
                               {availability.is_available ? (
                                 <span className="text-green-600 font-medium">✓ Available ({availability.available_quantity})</span>
                               ) : availability.available_quantity > 0 ? (
@@ -323,27 +321,27 @@ const MaterialRequestsPage = () => {
             </div>
 
             {/* Notes Section */}
-            <div className="space-y-4 mb-4">
+            <div className="space-y-2 mb-3">
               {selectedRequest.procurement_notes && (
                 <div>
-                  <h3 className="font-semibold text-sm mb-2 text-gray-700">Procurement Notes</h3>
-                  <p className="text-gray-700 bg-blue-50 p-3 rounded border border-blue-200">
+                  <h3 className="font-medium text-xs mb-1 text-gray-700">Procurement Notes</h3>
+                  <p className="text-gray-700 bg-blue-50 p-2 rounded border border-blue-200 text-xs">
                     {selectedRequest.procurement_notes}
                   </p>
                 </div>
               )}
               {selectedRequest.manufacturing_notes && (
                 <div>
-                  <h3 className="font-semibold text-sm mb-2 text-gray-700">Manufacturing Notes</h3>
-                  <p className="text-gray-700 bg-purple-50 p-3 rounded border border-purple-200">
+                  <h3 className="font-medium text-xs mb-1 text-gray-700">Manufacturing Notes</h3>
+                  <p className="text-gray-700 bg-purple-50 p-2 rounded border border-purple-200 text-xs">
                     {selectedRequest.manufacturing_notes}
                   </p>
                 </div>
               )}
               {selectedRequest.inventory_notes && (
                 <div>
-                  <h3 className="font-semibold text-sm mb-2 text-gray-700">Inventory Notes</h3>
-                  <p className="text-gray-700 bg-green-50 p-3 rounded border border-green-200">
+                  <h3 className="font-medium text-xs mb-1 text-gray-700">Inventory Notes</h3>
+                  <p className="text-gray-700 bg-green-50 p-2 rounded border border-green-200 text-xs">
                     {selectedRequest.inventory_notes}
                   </p>
                 </div>
@@ -352,30 +350,30 @@ const MaterialRequestsPage = () => {
 
             {/* Reserved Materials */}
             {selectedRequest.status === 'materials_reserved' && selectedRequest.reserved_inventory_items && selectedRequest.reserved_inventory_items.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-lg mb-3 flex items-center gap-1.5 text-green-600">
-                  <FaCheckCircle /> Reserved Materials
+              <div className="mb-3">
+                <h3 className="font-medium text-sm mb-2 flex items-center gap-1 text-green-700">
+                  <FaCheckCircle size={12} /> Reserved Materials
                 </h3>
-                <div className="bg-green-50 p-4 rounded border border-green-200">
-                  <div className="space-y-3">
+                <div className="bg-green-50 p-2.5 rounded border border-green-200">
+                  <div className="space-y-2">
                     {selectedRequest.reserved_inventory_items.map((item, index) => (
-                      <div key={index} className="bg-white p-3 rounded border border-green-300">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div key={index} className="bg-white p-2 rounded border border-green-300">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
-                            <span className="text-gray-500">Barcode:</span>
-                            <span className="ml-2 font-mono font-semibold text-gray-900">{item.barcode}</span>
+                            <span className="text-gray-500 text-xs">Barcode:</span>
+                            <span className="ml-1 font-mono font-medium text-gray-900 text-xs">{item.barcode}</span>
                           </div>
                           <div>
-                            <span className="text-gray-500">Location:</span>
-                            <span className="ml-2 font-medium text-gray-900">{item.location}</span>
+                            <span className="text-gray-500 text-xs">Location:</span>
+                            <span className="ml-1 font-medium text-gray-900 text-xs">{item.location}</span>
                           </div>
                           <div>
-                            <span className="text-gray-500">Quantity:</span>
-                            <span className="ml-2 font-medium text-gray-900">{item.quantity} {item.unit}</span>
+                            <span className="text-gray-500 text-xs">Qty:</span>
+                            <span className="ml-1 font-medium text-gray-900 text-xs">{item.quantity} {item.unit}</span>
                           </div>
                           <div>
-                            <span className="text-gray-500">Product:</span>
-                            <span className="ml-2 font-medium text-gray-900">{item.product_name}</span>
+                            <span className="text-gray-500 text-xs">Product:</span>
+                            <span className="ml-1 font-medium text-gray-900 text-xs">{item.product_name}</span>
                           </div>
                         </div>
                       </div>
@@ -387,16 +385,16 @@ const MaterialRequestsPage = () => {
 
             {/* Timeline */}
             {selectedRequest.timeline && selectedRequest.timeline.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-lg mb-3">Timeline</h3>
-                <div className="space-y-2">
+              <div className="mb-3">
+                <h3 className="font-medium text-sm mb-2 text-gray-800">Timeline</h3>
+                <div className="space-y-1.5">
                   {selectedRequest.timeline.map((event, index) => (
-                    <div key={index} className="flex items-start gap-3 text-sm">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>
+                    <div key={index} className="flex items-start gap-2 text-xs">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{event.status.replace(/_/g, ' ').toUpperCase()}</p>
+                        <p className="font-medium text-gray-900 text-xs">{event.status.replace(/_/g, ' ').toUpperCase()}</p>
                         <p className="text-gray-500 text-xs">{new Date(event.timestamp).toLocaleString()}</p>
-                        {event.notes && <p className="text-gray-600 text-xs mt-1">{event.notes}</p>}
+                        {event.notes && <p className="text-gray-600 text-xs mt-0.5">{event.notes}</p>}
                       </div>
                     </div>
                   ))}
@@ -407,7 +405,7 @@ const MaterialRequestsPage = () => {
             {/* Close Button */}
             <button
               onClick={() => setShowDetailModal(false)}
-              className="w-full bg-gray-600 text-white px-4 py-3 rounded hover:bg-gray-700 transition font-medium"
+              className="w-full bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition font-normal text-sm"
             >
               Close
             </button>

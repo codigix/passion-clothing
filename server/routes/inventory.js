@@ -106,6 +106,181 @@ router.get('/projects-summary', authenticateToken, checkDepartment(['inventory',
   }
 });
 
+// =================== MATERIAL ALLOCATION ANALYTICS ===================
+
+// Get material allocation overview - Budget vs Actual across all projects
+router.get('/material-allocation/overview', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement', 'manufacturing']), async (req, res) => {
+  try {
+    const [allocationData] = await sequelize.query(`
+      SELECT 
+        i.sales_order_id,
+        so.order_number,
+        so.customer_name,
+        so.project_name,
+        so.order_date,
+        COUNT(DISTINCT i.id) as total_materials,
+        SUM(i.current_stock) as remaining_in_warehouse,
+        SUM(i.consumed_quantity) as total_consumed,
+        SUM(i.total_value) as total_value,
+        SUM(CASE WHEN i.current_stock > 0 THEN i.current_stock ELSE 0 END) as allocated_available,
+        SUM(CASE WHEN i.current_stock <= 0 THEN ABS(i.current_stock) ELSE 0 END) as over_consumed
+      FROM inventory i
+      LEFT JOIN sales_orders so ON i.sales_order_id = so.id
+      WHERE i.stock_type = 'project_specific' 
+        AND i.is_active = 1 
+        AND i.sales_order_id IS NOT NULL
+        AND i.purchase_order_id IS NOT NULL
+      GROUP BY i.sales_order_id, so.id, so.order_number, so.customer_name, so.project_name, so.order_date
+      ORDER BY so.order_date DESC
+    `);
+
+    const overview = allocationData.map(project => {
+      const allocated = parseFloat(project.allocated_available) || 0;
+      const consumed = parseFloat(project.total_consumed) || 0;
+      const remaining = parseFloat(project.remaining_in_warehouse) || 0;
+      const budget = allocated + consumed + parseFloat(project.over_consumed || 0);
+      
+      return {
+        sales_order_id: project.sales_order_id,
+        order_number: project.order_number,
+        customer_name: project.customer_name,
+        project_name: project.project_name,
+        order_date: project.order_date,
+        total_materials: parseInt(project.total_materials) || 0,
+        budget_quantity: budget,
+        allocated_quantity: allocated,
+        consumed_quantity: consumed,
+        remaining_quantity: remaining,
+        variance: budget - (consumed + remaining),
+        utilization_percentage: budget > 0 ? ((consumed / budget) * 100).toFixed(2) : 0,
+        total_value: parseFloat(project.total_value) || 0,
+        status: consumed > budget * 1.1 ? 'over_consumed' : consumed > budget * 0.9 ? 'high_usage' : 'normal'
+      };
+    });
+
+    res.json({ success: true, overview });
+  } catch (error) {
+    console.error('Material allocation overview error:', error);
+    res.status(500).json({ message: 'Failed to fetch allocation overview', error: error.message });
+  }
+});
+
+// Get detailed material allocation for a specific project
+router.get('/material-allocation/project/:salesOrderId', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement', 'manufacturing']), async (req, res) => {
+  try {
+    const { salesOrderId } = req.params;
+
+    const [projectMaterials] = await sequelize.query(`
+      SELECT 
+        i.id,
+        i.product_name,
+        i.product_code,
+        i.barcode,
+        i.category,
+        i.unit_of_measurement,
+        i.current_stock as remaining_quantity,
+        i.consumed_quantity as allocated_and_consumed,
+        i.total_value as material_value,
+        po.po_number,
+        po.vendor_id,
+        COUNT(CASE WHEN ma.status = 'in_use' THEN 1 END) as currently_in_use,
+        SUM(CASE WHEN ma.status = 'consumed' THEN ma.quantity_consumed ELSE 0 END) as total_consumed_allocated,
+        SUM(CASE WHEN ma.status = 'partially_returned' OR ma.status = 'fully_returned' THEN ma.quantity_returned ELSE 0 END) as total_returned
+      FROM inventory i
+      LEFT JOIN purchase_orders po ON i.purchase_order_id = po.id
+      LEFT JOIN material_allocations ma ON i.id = ma.inventory_id
+      WHERE i.sales_order_id = ? 
+        AND i.stock_type = 'project_specific'
+        AND i.is_active = 1
+      GROUP BY i.id, i.product_name, i.product_code, i.barcode, i.category, 
+               i.unit_of_measurement, i.current_stock, i.consumed_quantity, i.total_value,
+               po.po_number, po.vendor_id
+      ORDER BY i.product_name
+    `, { replacements: [salesOrderId] });
+
+    const [projectInfo] = await sequelize.query(`
+      SELECT id, order_number, customer_name, project_name, status, order_date
+      FROM sales_orders
+      WHERE id = ?
+    `, { replacements: [salesOrderId] });
+
+    const summary = {
+      total_materials: projectMaterials.length,
+      total_remaining: projectMaterials.reduce((sum, m) => sum + (parseFloat(m.remaining_quantity) || 0), 0),
+      total_consumed: projectMaterials.reduce((sum, m) => sum + (parseFloat(m.allocated_and_consumed) || 0), 0),
+      total_value: projectMaterials.reduce((sum, m) => sum + (parseFloat(m.material_value) || 0), 0),
+      items_in_use: projectMaterials.filter(m => parseInt(m.currently_in_use) > 0).length
+    };
+
+    res.json({ 
+      success: true, 
+      project: projectInfo[0] || { id: salesOrderId, order_number: 'Unknown' },
+      summary,
+      materials: projectMaterials
+    });
+  } catch (error) {
+    console.error('Project materials error:', error);
+    res.status(500).json({ message: 'Failed to fetch project materials', error: error.message });
+  }
+});
+
+// Cross-project material allocation comparison
+router.get('/material-allocation/comparison', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement']), async (req, res) => {
+  try {
+    const [comparisonData] = await sequelize.query(`
+      SELECT 
+        i.sales_order_id,
+        so.order_number,
+        so.customer_name,
+        i.category,
+        i.product_name,
+        COUNT(DISTINCT i.id) as material_variants,
+        SUM(i.current_stock) as remaining_qty,
+        SUM(i.consumed_quantity) as consumed_qty,
+        SUM(i.total_value) as total_allocated_value,
+        AVG((i.consumed_quantity / (i.current_stock + i.consumed_quantity)) * 100) as avg_consumption_rate
+      FROM inventory i
+      LEFT JOIN sales_orders so ON i.sales_order_id = so.id
+      WHERE i.stock_type = 'project_specific'
+        AND i.is_active = 1
+        AND i.sales_order_id IS NOT NULL
+      GROUP BY i.sales_order_id, so.id, so.order_number, so.customer_name, i.category, i.product_name
+      ORDER BY so.order_number, i.category, i.product_name
+    `);
+
+    // Group by project and category
+    const grouped = {};
+    comparisonData.forEach(row => {
+      const soKey = `${row.order_number}_${row.sales_order_id}`;
+      if (!grouped[soKey]) {
+        grouped[soKey] = {
+          order_number: row.order_number,
+          customer_name: row.customer_name,
+          categories: {}
+        };
+      }
+      if (!grouped[soKey].categories[row.category]) {
+        grouped[soKey].categories[row.category] = [];
+      }
+      grouped[soKey].categories[row.category].push({
+        product_name: row.product_name,
+        material_variants: parseInt(row.material_variants) || 0,
+        remaining_qty: parseFloat(row.remaining_qty) || 0,
+        consumed_qty: parseFloat(row.consumed_qty) || 0,
+        total_value: parseFloat(row.total_allocated_value) || 0,
+        consumption_rate: parseFloat(row.avg_consumption_rate) || 0
+      });
+    });
+
+    const comparison = Object.values(grouped);
+
+    res.json({ success: true, comparison });
+  } catch (error) {
+    console.error('Comparison data error:', error);
+    res.status(500).json({ message: 'Failed to fetch comparison data', error: error.message });
+  }
+});
+
 // Lookup inventory by barcode
 router.get('/lookup/barcode/:barcode', authenticateToken, checkDepartment(['inventory', 'admin', 'manufacturing', 'procurement']), async (req, res) => {
   try {
@@ -2265,6 +2440,301 @@ router.get('/:id/stock-history', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching stock history:', error);
     res.status(500).json({ message: 'Failed to fetch stock history', error: error.message });
+  }
+});
+
+// =================== MATERIAL ALLOCATION SYSTEM ===================
+
+// GET: Projects Overview - All projects with allocation summary
+router.get('/allocations/projects-overview', authenticateToken, checkDepartment(['inventory', 'admin', 'manufacturing', 'procurement']), async (req, res) => {
+  try {
+    const { search = '', sort = 'latest', status_filter = 'all' } = req.query;
+
+    const projectsData = await sequelize.query(`
+      SELECT 
+        so.id as sales_order_id,
+        so.order_number,
+        so.status as order_status,
+        c.company_name as customer_name,
+        COUNT(DISTINCT CASE WHEN inv.stock_type='project_specific' THEN inv.id END) as material_count,
+        SUM(CASE WHEN inv.stock_type='project_specific' THEN inv.current_stock ELSE 0 END) as total_allocated,
+        SUM(CASE WHEN inv.stock_type='project_specific' THEN inv.reserved_stock ELSE 0 END) as total_reserved,
+        SUM(CASE WHEN inv.stock_type='project_specific' THEN inv.consumed_quantity ELSE 0 END) as total_consumed,
+        SUM(CASE WHEN inv.stock_type='project_specific' THEN (inv.current_stock - inv.consumed_quantity) ELSE 0 END) as remaining_quantity,
+        so.created_at,
+        so.final_amount,
+        so.total_quantity as order_quantity
+      FROM sales_orders so
+      LEFT JOIN customers c ON so.customer_id = c.id
+      LEFT JOIN inventory inv ON so.id = inv.sales_order_id AND inv.is_active = 1
+      WHERE (so.order_number LIKE :search1 OR c.company_name LIKE :search2 OR so.status LIKE :search3)
+      GROUP BY so.id, so.order_number, so.status, c.company_name, so.created_at, so.final_amount, so.total_quantity
+      ORDER BY 
+        CASE WHEN :sort = 'latest' THEN so.created_at END DESC,
+        CASE WHEN :sort = 'high_value' THEN so.final_amount END DESC,
+        CASE WHEN :sort = 'high_usage' THEN total_consumed END DESC
+      LIMIT 100
+    `, {
+      replacements: {
+        search1: `%${search}%`,
+        search2: `%${search}%`,
+        search3: `%${search}%`,
+        sort: sort
+      },
+      type: require('sequelize').QueryTypes.SELECT
+    });
+
+    // Enrich with health status
+    const projects = projectsData.map(p => {
+      const totalAllocated = parseFloat(p.total_allocated) || 0;
+      const consumed = parseFloat(p.total_consumed) || 0;
+      const utilization = totalAllocated > 0 ? (consumed / totalAllocated) * 100 : 0;
+      
+      let healthStatus = 'normal';
+      if (utilization > 110) healthStatus = 'over_consumed';
+      else if (utilization >= 90) healthStatus = 'high_usage';
+
+      return {
+        sales_order_id: p.sales_order_id,
+        order_number: p.order_number,
+        order_status: p.order_status,
+        customer_name: p.customer_name,
+        material_count: parseInt(p.material_count) || 0,
+        total_allocated: parseFloat(p.total_allocated) || 0,
+        total_reserved: parseFloat(p.total_reserved) || 0,
+        total_consumed: parseFloat(p.total_consumed) || 0,
+        remaining_quantity: parseFloat(p.remaining_quantity) || 0,
+        utilization_percent: parseFloat(utilization.toFixed(1)),
+        health_status: healthStatus,
+        created_at: p.created_at,
+        order_value: parseFloat(p.final_amount) || 0,
+        order_quantity: parseFloat(p.order_quantity) || 0
+      };
+    });
+
+    res.json({
+      success: true,
+      projects,
+      total_count: projects.length,
+      summary: {
+        total_projects: projects.length,
+        total_allocated: projects.reduce((sum, p) => sum + p.total_allocated, 0),
+        total_consumed: projects.reduce((sum, p) => sum + p.total_consumed, 0)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching projects overview:', error);
+    res.status(500).json({ message: 'Failed to fetch projects overview', error: error.message });
+  }
+});
+
+// GET: Project Material Details - Drill-down into specific project
+router.get('/allocations/project/:salesOrderId', authenticateToken, checkDepartment(['inventory', 'admin', 'manufacturing', 'procurement']), async (req, res) => {
+  try {
+    const { salesOrderId } = req.params;
+
+    // Get sales order details
+    const soDdata = await sequelize.query(`
+      SELECT 
+        so.id,
+        so.order_number,
+        so.status,
+        so.final_amount,
+        so.total_quantity as order_quantity,
+        c.company_name,
+        c.contact_person,
+        so.created_at as order_date
+      FROM sales_orders so
+      LEFT JOIN customers c ON so.customer_id = c.id
+      WHERE so.id = :id
+    `, {
+      replacements: { id: salesOrderId },
+      type: require('sequelize').QueryTypes.SELECT
+    });
+
+    if (!soDdata || soDdata.length === 0) {
+      return res.status(404).json({ message: 'Sales order not found' });
+    }
+
+    const salesOrder = soDdata[0];
+
+    // Get materials for project
+    const materialsData = await sequelize.query(`
+      SELECT 
+        inv.id as inventory_id,
+        inv.product_name,
+        inv.category,
+        inv.current_stock as allocated_quantity,
+        inv.reserved_stock,
+        inv.consumed_quantity,
+        inv.current_stock - inv.consumed_quantity as remaining_quantity,
+        inv.unit_of_measurement,
+        inv.unit_cost,
+        inv.location,
+        inv.batch_number,
+        inv.created_at as allocation_date
+      FROM inventory inv
+      WHERE inv.sales_order_id = :id AND inv.stock_type = 'project_specific' AND inv.is_active = 1
+      ORDER BY inv.created_at ASC
+    `, {
+      replacements: { id: salesOrderId },
+      type: require('sequelize').QueryTypes.SELECT
+    });
+
+    // Get material requests for project
+    const requestsData = await sequelize.query(`
+      SELECT 
+        pmr.id,
+        pmr.request_number,
+        pmr.status,
+        pmr.total_items,
+        pmr.total_value,
+        pmr.created_at as request_date
+      FROM project_material_requests pmr
+      WHERE pmr.sales_order_id = :id
+      ORDER BY pmr.created_at DESC
+    `, {
+      replacements: { id: salesOrderId },
+      type: require('sequelize').QueryTypes.SELECT
+    });
+
+    // Calculate consumption analysis
+    const totalAllocated = materialsData.reduce((sum, m) => sum + parseFloat(m.allocated_quantity || 0), 0);
+    const totalConsumed = materialsData.reduce((sum, m) => sum + parseFloat(m.consumed_quantity || 0), 0);
+    const totalRemaining = materialsData.reduce((sum, m) => sum + parseFloat(m.remaining_quantity || 0), 0);
+    const consumptionPercent = totalAllocated > 0 ? (totalConsumed / totalAllocated) * 100 : 0;
+
+    res.json({
+      success: true,
+      project: {
+        sales_order_id: salesOrder.id,
+        order_number: salesOrder.order_number,
+        customer_name: salesOrder.company_name,
+        order_status: salesOrder.status,
+        order_date: salesOrder.order_date,
+        order_value: parseFloat(salesOrder.final_amount) || 0,
+        materials: materialsData.map(m => ({
+          inventory_id: m.inventory_id,
+          product_name: m.product_name,
+          category: m.category,
+          allocated_quantity: parseFloat(m.allocated_quantity) || 0,
+          reserved_stock: parseFloat(m.reserved_stock) || 0,
+          consumed_quantity: parseFloat(m.consumed_quantity) || 0,
+          remaining_quantity: parseFloat(m.remaining_quantity) || 0,
+          unit_of_measurement: m.unit_of_measurement,
+          unit_cost: parseFloat(m.unit_cost) || 0,
+          location: m.location,
+          batch_number: m.batch_number,
+          allocation_date: m.allocation_date,
+          material_value: (parseFloat(m.allocated_quantity) || 0) * (parseFloat(m.unit_cost) || 0)
+        })),
+        material_requests: requestsData.map(r => ({
+          request_id: r.id,
+          request_number: r.request_number,
+          status: r.status,
+          items_count: parseInt(r.total_items) || 0,
+          total_value: parseFloat(r.total_value) || 0,
+          request_date: r.request_date
+        })),
+        consumption_analysis: {
+          total_allocated: totalAllocated,
+          total_consumed: totalConsumed,
+          total_remaining: totalRemaining,
+          consumption_percent: parseFloat(consumptionPercent.toFixed(1)),
+          variance: totalAllocated - totalConsumed,
+          material_count: materialsData.length,
+          total_value: materialsData.reduce((sum, m) => sum + (parseFloat(m.allocated_quantity || 0) * parseFloat(m.unit_cost || 0)), 0)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching project details:', error);
+    res.status(500).json({ message: 'Failed to fetch project details', error: error.message });
+  }
+});
+
+// GET: Warehouse Stock (Unallocated) - General stock not tied to projects
+router.get('/allocations/warehouse-stock', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement']), async (req, res) => {
+  try {
+    const { search = '', category = 'all', sort = 'latest' } = req.query;
+
+    // Build replacements object for parameterized query
+    const replacements = {
+      search: `%${search}%`,
+      sort: sort
+    };
+
+    // Build dynamic WHERE clause with parameter binding
+    let whereCondition = `WHERE (sales_order_id IS NULL OR stock_type = 'general_extra') 
+      AND is_active = 1 
+      AND (product_name LIKE :search OR category LIKE :search OR batch_number LIKE :search)`;
+    
+    if (category !== 'all') {
+      whereCondition += ` AND category = :category`;
+      replacements.category = category;
+    }
+    
+    const stockData = await sequelize.query(`
+      SELECT 
+        id,
+        product_name,
+        category,
+        current_stock,
+        reserved_stock,
+        current_stock - reserved_stock as available_stock,
+        unit_of_measurement,
+        unit_cost,
+        total_value,
+        location,
+        batch_number,
+        reorder_level,
+        last_movement_date,
+        movement_type
+      FROM inventory
+      ${whereCondition}
+      ORDER BY 
+        CASE WHEN :sort = 'latest' THEN last_movement_date END DESC,
+        CASE WHEN :sort = 'high_value' THEN total_value END DESC,
+        CASE WHEN :sort = 'low_stock' THEN current_stock END ASC
+      LIMIT 200
+    `, {
+      replacements: replacements,
+      type: require('sequelize').QueryTypes.SELECT
+    });
+
+    const summary = {
+      total_items: stockData.length,
+      total_current_stock: stockData.reduce((sum, s) => sum + parseFloat(s.current_stock || 0), 0),
+      total_reserved: stockData.reduce((sum, s) => sum + parseFloat(s.reserved_stock || 0), 0),
+      total_available: stockData.reduce((sum, s) => sum + parseFloat(s.available_stock || 0), 0),
+      total_value: stockData.reduce((sum, s) => sum + parseFloat(s.total_value || 0), 0),
+      low_stock_items: stockData.filter(s => parseFloat(s.current_stock) <= parseFloat(s.reorder_level)).length
+    };
+
+    res.json({
+      success: true,
+      stock: stockData.map(s => ({
+        id: s.id,
+        product_name: s.product_name,
+        category: s.category,
+        current_stock: parseFloat(s.current_stock) || 0,
+        reserved_stock: parseFloat(s.reserved_stock) || 0,
+        available_stock: parseFloat(s.available_stock) || 0,
+        unit_of_measurement: s.unit_of_measurement,
+        unit_cost: parseFloat(s.unit_cost) || 0,
+        total_value: parseFloat(s.total_value) || 0,
+        location: s.location,
+        batch_number: s.batch_number,
+        reorder_level: parseFloat(s.reorder_level) || 0,
+        last_movement_date: s.last_movement_date,
+        movement_type: s.movement_type,
+        is_low_stock: parseFloat(s.current_stock) <= parseFloat(s.reorder_level)
+      })),
+      summary
+    });
+  } catch (error) {
+    console.error('Error fetching warehouse stock:', error);
+    res.status(500).json({ message: 'Failed to fetch warehouse stock', error: error.message });
   }
 });
 

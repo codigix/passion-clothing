@@ -2339,4 +2339,86 @@ router.post('/purchase-orders/:poId/request-grn', authenticateToken, checkDepart
   }
 });
 
+// Update Purchase Order Status
+router.put('/pos/:id/status', authenticateToken, checkDepartment(['procurement', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    // Validate status
+    const validStatuses = ['draft', 'sent', 'acknowledged', 'partial_received', 'received', 'completed', 'cancelled', 'grn_requested'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Get PO
+    const po = await PurchaseOrder.findByPk(id, {
+      include: [
+        { model: Vendor, as: 'vendor' },
+        { model: Customer, as: 'customer' },
+        { model: SalesOrder, as: 'salesOrder' }
+      ]
+    });
+
+    if (!po) {
+      return res.status(404).json({ message: 'Purchase Order not found' });
+    }
+
+    // Track status change history
+    const statusHistory = po.status_history || [];
+    statusHistory.push({
+      timestamp: new Date(),
+      previous_status: po.status,
+      new_status: status,
+      changed_by: req.user.id,
+      changed_by_name: req.user.name,
+      notes: notes || ''
+    });
+
+    // Update PO status
+    await po.update({
+      status: status,
+      status_history: statusHistory,
+      updated_at: new Date()
+    });
+
+    // Send notifications based on new status
+    if (status === 'received') {
+      await NotificationService.sendToDepartment('procurement', {
+        type: 'purchase_order',
+        title: `Purchase Order Received: ${po.po_number}`,
+        message: `Purchase Order ${po.po_number} has been marked as received`,
+        priority: 'medium',
+        related_order_id: po.id,
+        action_url: `/procurement/purchase-orders/${po.id}`,
+        metadata: {
+          po_number: po.po_number,
+          vendor_name: po.vendor?.name,
+          updated_by: req.user.name
+        }
+      });
+    }
+
+    res.json({
+      message: 'Purchase Order status updated successfully',
+      purchase_order: {
+        id: po.id,
+        po_number: po.po_number,
+        status: po.status,
+        previous_status: statusHistory[statusHistory.length - 2]?.new_status,
+        updated_at: po.updated_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating PO status:', error);
+    res.status(500).json({
+      message: 'Failed to update Purchase Order status',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

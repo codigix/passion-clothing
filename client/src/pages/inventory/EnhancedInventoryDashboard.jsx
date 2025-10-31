@@ -118,150 +118,150 @@ const EnhancedInventoryDashboard = () => {
   };
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="p-3 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Inventory Management</h1>
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-xl font-semibold text-gray-800">Inventory Management</h1>
         <button
           onClick={() => navigate('/inventory/add-item')}
-          className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+          className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition text-xs font-normal"
         >
-          <FaPlus /> Add Item
+          <FaPlus size={12} /> Add Item
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
-        <div className="bg-white p-6 rounded shadow">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+        <div className="bg-white p-2.5 rounded shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">Total Items</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalItems}</p>
+              <p className="text-gray-500 text-xs">Total Items</p>
+              <p className="text-lg font-bold text-gray-800 mt-0.5">{stats.totalItems}</p>
             </div>
-            <FaBoxOpen className="text-4xl text-blue-500" />
+            <FaBoxOpen className="text-2xl text-blue-500" />
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded shadow">
+        <div className="bg-white p-2.5 rounded shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">Factory Stock</p>
-              <p className="text-2xl font-bold text-green-600">{stats.factoryStock.toFixed(2)}</p>
+              <p className="text-gray-500 text-xs">Factory</p>
+              <p className="text-lg font-bold text-green-600 mt-0.5">{stats.factoryStock.toFixed(2)}</p>
             </div>
-            <FaIndustry className="text-4xl text-green-500" />
+            <FaIndustry className="text-2xl text-green-500" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded shadow">
+        <div className="bg-white p-2.5 rounded shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">Project Stock</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.projectStock.toFixed(2)}</p>
+              <p className="text-gray-500 text-xs">Project</p>
+              <p className="text-lg font-bold text-purple-600 mt-0.5">{stats.projectStock.toFixed(2)}</p>
             </div>
-            <FaProjectDiagram className="text-4xl text-purple-500" />
+            <FaProjectDiagram className="text-2xl text-purple-500" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded shadow">
+        <div className="bg-white p-2.5 rounded shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">Total Value</p>
-              <p className="text-2xl font-bold text-indigo-600">₹{stats.totalValue.toFixed(2)}</p>
+              <p className="text-gray-500 text-xs">Total Value</p>
+              <p className="text-lg font-bold text-indigo-600 mt-0.5">₹{stats.totalValue.toFixed(2)}</p>
             </div>
-            <FaTruck className="text-4xl text-indigo-500" />
+            <FaTruck className="text-2xl text-indigo-500" />
           </div>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded shadow mb-4">
+      <div className="bg-white p-2.5 rounded shadow-sm mb-3">
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <input
               type="text"
-              placeholder="Search by name, code, or barcode..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full px-2.5 py-1.5 border border-gray text-xs-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
+              className="w-full px-2.5 py-1.5 border border-gray-300 text-xs rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
             />
           </div>
           <button
             onClick={handleSearch}
-            className="flex items-center gap-1.5 bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition"
+            className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition text-xs font-normal"
           >
-            <FaSearch /> Search
+            <FaSearch size={12} /> Search
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded shadow mb-4">
+      <div className="bg-white rounded shadow-sm mb-3">
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('all')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition ${
+            className={`flex-1 px-3 py-2 text-center font-medium text-xs transition ${
               activeTab === 'all'
                 ? 'border-b-2 border-blue-600 text-blue-600'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <FaBoxOpen className="inline mr-2" />
-            All Stock
+            <FaBoxOpen className="inline mr-1" size={12} />
+            All
           </button>
           <button
             onClick={() => setActiveTab('factory')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition ${
+            className={`flex-1 px-3 py-2 text-center font-medium text-xs transition ${
               activeTab === 'factory'
                 ? 'border-b-2 border-green-600 text-green-600'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <FaIndustry className="inline mr-2" />
-            Factory Stock
+            <FaIndustry className="inline mr-1" size={12} />
+            Factory
           </button>
           <button
             onClick={() => setActiveTab('project')}
-            className={`flex-1 px-6 py-4 text-center font-semibold transition ${
+            className={`flex-1 px-3 py-2 text-center font-medium text-xs transition ${
               activeTab === 'project'
                 ? 'border-b-2 border-purple-600 text-purple-600'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <FaProjectDiagram className="inline mr-2" />
-            Project Stock
+            <FaProjectDiagram className="inline mr-1" size={12} />
+            Project
           </button>
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-3">
           {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading...</p>
+            <div className="text-center py-4">
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <p className="mt-1.5 text-gray-600 text-xs">Loading...</p>
             </div>
           ) : activeTab === 'project' && projects.length > 0 ? (
             // Project Summary View
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold mb-4">Projects with Materials</h3>
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold mb-2 text-gray-800">Projects</h3>
               {projects.map((project) => (
                 <div
                   key={project.sales_order_id}
-                  className="border border-gray-200 rounded p-4 hover:shadow-md transition cursor-pointer"
+                  className="border border-gray-200 rounded p-2.5 hover:shadow-md transition cursor-pointer"
                   onClick={() => navigate(`/inventory/project/${project.sales_order_id}`)}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{project.order_number}</h4>
-                      <p className="text-sm text-gray-600">{project.customer_name}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Order Date: {new Date(project.order_date).toLocaleDateString()}
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800 text-sm">{project.order_number}</h4>
+                      <p className="text-xs text-gray-600">{project.customer_name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {new Date(project.order_date).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600">Materials: {project.material_count}</p>
-                      <p className="text-sm text-green-600">In Stock: {parseFloat(project.current_stock).toFixed(2)}</p>
-                      <p className="text-sm text-orange-600">Sent: {parseFloat(project.sent_to_manufacturing).toFixed(2)}</p>
+                      <p className="text-xs text-gray-600">Materials: {project.material_count}</p>
+                      <p className="text-xs text-green-600">In: {parseFloat(project.current_stock).toFixed(2)}</p>
+                      <p className="text-xs text-orange-600">Sent: {parseFloat(project.sent_to_manufacturing).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -270,73 +270,61 @@ const EnhancedInventoryDashboard = () => {
           ) : (
             // Inventory List View
             <div className="overflow-x-auto">
-              <table className="min-w-full">
+              <table className="min-w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product
-                    </th>
-                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Barcode
-                    </th>
-                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Stock
-                    </th>
-                    <th className="px-2 py-2 text-xs text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                  <tr className="bg-slate-100 border-b border-slate-200">
+                    <th className="px-2 py-1.5 text-left font-medium text-gray-700">Product</th>
+                    <th className="px-2 py-1.5 text-left font-medium text-gray-700">Barcode</th>
+                    <th className="px-2 py-1.5 text-left font-medium text-gray-700">Category</th>
+                    <th className="px-2 py-1.5 text-left font-medium text-gray-700">Location</th>
+                    <th className="px-2 py-1.5 text-left font-medium text-gray-700">Stock</th>
+                    <th className="px-2 py-1.5 text-left font-medium text-gray-700">Action</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-200">
                   {inventory.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan="6" className="px-2 py-4 text-center text-gray-500">
                         No inventory items found
                       </td>
                     </tr>
                   ) : (
                     inventory.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4">
-                          <div className="font-medium text-gray-900">{item.product_name || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{item.product_code || 'N/A'}</div>
+                        <td className="px-2 py-1.5">
+                          <div className="font-medium text-gray-900 max-w-xs truncate">{item.product_name || '-'}</div>
+                          <div className="text-xs text-gray-500">{item.product_code || '-'}</div>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="text-sm font-mono text-gray-700">{item.barcode || 'N/A'}</div>
+                        <td className="px-2 py-1.5">
+                          <div className="text-xs font-mono text-gray-700">{item.barcode || '-'}</div>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="text-sm text-gray-900">{item.category || 'N/A'}</div>
+                        <td className="px-2 py-1.5">
+                          <div className="text-xs text-gray-900">{item.category || '-'}</div>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="text-sm text-gray-900">{item.location || 'N/A'}</div>
+                        <td className="px-2 py-1.5">
+                          <div className="text-xs text-gray-900">{item.location || '-'}</div>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="text-sm font-semibold text-gray-900">
+                        <td className="px-2 py-1.5">
+                          <div className="text-xs font-medium text-gray-900">
                             {parseFloat(item.current_stock || 0).toFixed(2)} {item.unit_of_measurement || ''}
                           </div>
                           {item.available_stock !== item.current_stock && (
                             <div className="text-xs text-gray-500">
-                              Available: {parseFloat(item.available_stock || 0).toFixed(2)}
+                              Avail: {parseFloat(item.available_stock || 0).toFixed(2)}
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="flex gap-2">
+                        <td className="px-2 py-1.5">
+                          <div className="flex gap-1.5">
                             <button
                               onClick={() => {
                                 setSelectedItem(item);
                                 setShowBarcodeModal(true);
                               }}
                               className="text-blue-600 hover:text-blue-800"
-                              title="View Barcode"
+                              title="Barcode"
                             >
-                              <FaBarcode size={18} />
+                              <FaBarcode size={12} />
                             </button>
                             <button
                               onClick={() => {
@@ -344,16 +332,16 @@ const EnhancedInventoryDashboard = () => {
                                 setShowSendToMfgModal(true);
                               }}
                               className="text-green-600 hover:text-green-800"
-                              title="Send to Manufacturing"
+                              title="Send"
                             >
-                              <FaTruck size={18} />
+                              <FaTruck size={12} />
                             </button>
                             <button
                               onClick={() => navigate(`/inventory/${item.id}/history`)}
                               className="text-purple-600 hover:text-purple-800"
-                              title="View History"
+                              title="History"
                             >
-                              <FaHistory size={18} />
+                              <FaHistory size={12} />
                             </button>
                           </div>
                         </td>
@@ -369,25 +357,25 @@ const EnhancedInventoryDashboard = () => {
 
       {/* Barcode Modal */}
       {showBarcodeModal && selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Barcode</h3>
-            <div className="text-center mb-4">
-              <p className="font-medium text-gray-800 mb-2">{selectedItem.product_name}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded p-4 max-w-md w-full shadow-2xl">
+            <h3 className="text-sm font-semibold mb-3 text-gray-800">Barcode</h3>
+            <div className="text-center mb-3">
+              <p className="font-medium text-gray-800 mb-1.5 text-xs">{selectedItem.product_name}</p>
               <div className="flex justify-center">
-                <Barcode value={selectedItem.barcode} />
+                <Barcode value={selectedItem.barcode} width={1.5} height={50} />
               </div>
             </div>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={printBarcode}
-                className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 text-xs font-normal"
               >
-                <FaPrint /> Print
+                <FaPrint size={12} /> Print
               </button>
               <button
                 onClick={() => setShowBarcodeModal(false)}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                className="bg-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-400 text-xs font-normal"
               >
                 Close
               </button>
@@ -398,42 +386,42 @@ const EnhancedInventoryDashboard = () => {
 
       {/* Send to Manufacturing Modal */}
       {showSendToMfgModal && selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Send to Manufacturing</h3>
-            <div className="mb-4">
-              <p className="font-medium text-gray-800">{selectedItem.product_name}</p>
-              <p className="text-sm text-gray-600">Available: {selectedItem.available_stock} {selectedItem.unit_of_measurement}</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded p-4 max-w-md w-full shadow-2xl">
+            <h3 className="text-sm font-semibold mb-3 text-gray-800">Send to Manufacturing</h3>
+            <div className="mb-3">
+              <p className="font-medium text-gray-800 text-xs">{selectedItem.product_name}</p>
+              <p className="text-xs text-gray-600 mt-0.5">Available: {selectedItem.available_stock} {selectedItem.unit_of_measurement}</p>
             </div>
-            <div className="mb-4">
+            <div className="mb-3">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Quantity to Send
+                Quantity
               </label>
               <input
                 type="number"
                 value={sendQty}
                 onChange={(e) => setSendQty(e.target.value)}
                 max={selectedItem.available_stock}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 text-xs"
                 placeholder="Enter quantity"
               />
             </div>
-            <div className="mb-4">
+            <div className="mb-3">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Notes (Optional)
               </label>
               <textarea
                 value={sendNotes}
                 onChange={(e) => setSendNotes(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-                rows="3"
+                className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 text-xs"
+                rows="2"
                 placeholder="Add notes..."
               />
             </div>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleSendToManufacturing}
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                className="bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600 text-xs font-normal"
               >
                 Send
               </button>
@@ -443,7 +431,7 @@ const EnhancedInventoryDashboard = () => {
                   setSendQty('');
                   setSendNotes('');
                 }}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                className="bg-gray-300 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-400 text-xs font-normal"
               >
                 Cancel
               </button>

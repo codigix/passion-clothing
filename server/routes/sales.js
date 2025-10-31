@@ -377,6 +377,9 @@ router.get(
       console.log('Fetching sales orders...');
       const { count, rows } = await SalesOrder.findAndCountAll({
         where,
+        attributes: {
+          include: ['id', 'order_number', 'customer_id', 'product_id', 'product_name', 'order_date', 'delivery_date', 'buyer_reference', 'order_type', 'items', 'qr_code', 'garment_specifications', 'total_quantity', 'total_amount', 'discount_percentage', 'discount_amount', 'tax_percentage', 'tax_amount', 'final_amount', 'status', 'priority', 'payment_terms', 'shipping_address', 'billing_address', 'special_instructions', 'internal_notes', 'created_by', 'approved_by', 'approved_at', 'created_at', 'updated_at']
+        },
         include: [
           {
             model: Customer,

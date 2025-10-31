@@ -171,10 +171,10 @@ const PurchaseOrderDetailsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
+      <div className="flex justify-center items-center min-h-screen bg-white">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-purple-600 mb-3"></div>
-          <p className="text-lg font-semibold text-gray-700">Loading order...</p>
+          <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-600 mb-2"></div>
+          <p className="text-sm font-medium text-gray-700">Loading order...</p>
         </div>
       </div>
     );
@@ -182,14 +182,14 @@ const PurchaseOrderDetailsPage = () => {
 
   if (error) {
     return (
-      <div className="p-4 min-h-screen bg-gradient-to-br from-red-50 to-pink-100">
-        <div className="max-w-2xl mx-auto mt-10">
-          <div className="bg-white rounded shadow-xl p-6 border-l-4 border-red-500">
-            <div className="flex items-center gap-3">
-              <FaExclamationTriangle className="text-red-500 text-3xl" />
+      <div className="p-2 min-h-screen bg-white">
+        <div className="max-w-2xl mx-auto mt-5">
+          <div className="bg-white rounded shadow-sm p-3 border-l-4 border-red-500">
+            <div className="flex items-center gap-2">
+              <FaExclamationTriangle className="text-red-500 text-2xl flex-shrink-0" />
               <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-1">Error Loading Order</h2>
-                <p className="text-red-600 text-sm">{error}</p>
+                <h2 className="text-sm font-semibold text-gray-800">Error Loading Order</h2>
+                <p className="text-red-600 text-xs mt-0.5">{error}</p>
               </div>
             </div>
           </div>
@@ -200,14 +200,14 @@ const PurchaseOrderDetailsPage = () => {
 
   if (!order) {
     return (
-      <div className="p-4 min-h-screen bg-gradient-to-br from-yellow-50 to-orange-100">
-        <div className="max-w-2xl mx-auto mt-10">
-          <div className="bg-white rounded shadow-xl p-6 border-l-4 border-yellow-500">
-            <div className="flex items-center gap-3">
-              <FaExclamationTriangle className="text-yellow-500 text-3xl" />
+      <div className="p-2 min-h-screen bg-white">
+        <div className="max-w-2xl mx-auto mt-5">
+          <div className="bg-white rounded shadow-sm p-3 border-l-4 border-yellow-500">
+            <div className="flex items-center gap-2">
+              <FaExclamationTriangle className="text-yellow-500 text-2xl flex-shrink-0" />
               <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-1">Order Not Found</h2>
-                <p className="text-gray-600 text-sm">The requested purchase order could not be found.</p>
+                <h2 className="text-sm font-semibold text-gray-800">Order Not Found</h2>
+                <p className="text-gray-600 text-xs mt-0.5">The requested purchase order could not be found.</p>
               </div>
             </div>
           </div>
@@ -221,51 +221,53 @@ const PurchaseOrderDetailsPage = () => {
   const orderStages = getOrderStages();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-4">
+    <div className="min-h-screen bg-white p-2">
       <div className="max-w-7xl mx-auto">
         {/* Compact Header */}
-        <div className="mb-4">
+        <div className="mb-2">
           <button
             onClick={() => navigate('/procurement/purchase-orders')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-3 transition-all text-sm"
+            className="flex items-center gap-1 text-gray-600 hover:text-gray-900 mb-2 transition-all text-xs"
           >
             <FaArrowLeft className="w-3 h-3" />
-            <span className="font-medium">Back to Purchase Orders</span>
+            <span className="font-normal">Back</span>
           </button>
 
-          <div className="bg-white rounded shadow-lg p-4 border border-gray-100">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="bg-white rounded shadow-sm p-2 border border-gray-100">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h1 className="text-2xl font-bold text-gray-900">{order.po_number}</h1>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${statusConfig.color} shadow-md flex items-center gap-1.5`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-lg font-semibold text-gray-900">{order.po_number}</h1>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${statusConfig.color} shadow-sm flex items-center gap-1`}>
                     {statusConfig.icon}
-                    {statusConfig.label}
+                    <span className="text-xs">{statusConfig.label}</span>
                   </span>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  <div className="flex items-center gap-1">
                     <FaCalendar className="text-gray-400 w-3 h-3" />
-                    <span className="text-gray-600">Order: <span className="font-semibold text-gray-900">{new Date(order.order_date).toLocaleDateString()}</span></span>
+                    <span>{new Date(order.order_date).toLocaleDateString()}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <span>•</span>
+                  <div className="flex items-center gap-1">
                     <FaTruck className="text-gray-400 w-3 h-3" />
-                    <span className="text-gray-600">Expected: <span className="font-semibold text-gray-900">{new Date(order.expected_delivery_date).toLocaleDateString()}</span></span>
+                    <span>{new Date(order.expected_delivery_date).toLocaleDateString()}</span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityConfig.color} flex items-center gap-1`}>
+                  <span>•</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${priorityConfig.color} flex items-center gap-0.5`}>
                     <span>{priorityConfig.icon}</span>
                     <span className="capitalize">{order.priority}</span>
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded hover:from-blue-700 hover:to-blue-800 transition-all shadow-md text-sm">
+              <div className="flex items-center gap-1">
+                <button className="flex items-center gap-1 bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-all shadow-sm text-xs">
                   <FaPrint className="w-3 h-3" />
                   <span>Print</span>
                 </button>
-                <button className="flex items-center gap-1.5 bg-gradient-to-r from-green-600 to-green-700 text-white px-3 py-2 rounded hover:from-green-700 hover:to-green-800 transition-all shadow-md text-sm">
+                <button className="flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 transition-all shadow-sm text-xs">
                   <FaDownload className="w-3 h-3" />
                   <span>Export</span>
                 </button>
@@ -275,32 +277,32 @@ const PurchaseOrderDetailsPage = () => {
         </div>
 
         {/* Compact Progress Timeline */}
-        <div className="bg-white rounded shadow-lg p-4 mb-4 border border-gray-100">
-          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <FaChartLine className="text-purple-600 w-4 h-4" />
-            Purchase Order Progress
+        <div className="bg-white rounded shadow-sm p-2 mb-2 border border-gray-100">
+          <h2 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+            <FaChartLine className="text-purple-600 w-3 h-3" />
+            Progress
           </h2>
           <div className="relative">
             <div className="flex justify-between items-center">
               {orderStages.map((stage, index) => (
                 <div key={stage.key} className="flex flex-col items-center flex-1 relative">
                   {index < orderStages.length - 1 && (
-                    <div className={`absolute top-4 left-1/2 w-full h-0.5 ${
-                      stage.completed ? 'bg-gradient-to-r from-purple-500 to-purple-400' : 'bg-gray-200'
+                    <div className={`absolute top-3 left-1/2 w-full h-0.5 ${
+                      stage.completed ? 'bg-purple-500' : 'bg-gray-200'
                     }`} style={{ zIndex: 0 }}></div>
                   )}
                   
-                  <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-1.5 transition-all duration-300 ${
+                  <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center mb-1 transition-all duration-300 ${
                     stage.completed 
-                      ? 'bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-md scale-105' 
+                      ? 'bg-purple-500 text-white shadow-sm' 
                       : stage.active 
-                      ? 'bg-gradient-to-br from-pink-500 to-pink-600 text-white shadow-lg scale-110 animate-pulse' 
+                      ? 'bg-pink-500 text-white shadow-md' 
                       : 'bg-gray-200 text-gray-400'
                   }`}>
-                    {stage.completed ? <FaCheckCircle className="w-4 h-4" /> : React.cloneElement(stage.icon, { className: 'w-3.5 h-3.5' })}
+                    {stage.completed ? <FaCheckCircle className="w-3 h-3" /> : React.cloneElement(stage.icon, { className: 'w-3 h-3' })}
                   </div>
                   
-                  <span className={`text-xs font-semibold text-center ${
+                  <span className={`text-xs font-normal text-center ${
                     stage.active ? 'text-pink-700' : stage.completed ? 'text-purple-700' : 'text-gray-500'
                   }`}>
                     {stage.label}
@@ -311,47 +313,47 @@ const PurchaseOrderDetailsPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-2">
             {/* Compact Summary Cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded shadow-lg p-3 text-white">
-                <div className="flex items-center justify-between mb-1">
-                  <FaBox className="w-5 h-5 opacity-80" />
-                  <span className="text-2xl font-bold">{order.items?.length || 0}</span>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-purple-500 rounded shadow-sm p-2 text-white">
+                <div className="flex items-center justify-between mb-0.5">
+                  <FaBox className="w-4 h-4 opacity-80" />
+                  <span className="text-base font-semibold">{order.items?.length || 0}</span>
                 </div>
-                <p className="text-purple-100 text-xs font-medium">Total Items</p>
+                <p className="text-purple-100 text-xs font-normal">Items</p>
               </div>
 
-              <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded shadow-lg p-3 text-white">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-lg">₹</span>
-                  <span className="text-2xl font-bold">{(order.total_amount / 1000).toFixed(1)}K</span>
+              <div className="bg-pink-500 rounded shadow-sm p-2 text-white">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs">₹</span>
+                  <span className="text-base font-semibold">{(order.total_amount / 1000).toFixed(1)}K</span>
                 </div>
-                <p className="text-pink-100 text-xs font-medium">Total Amount</p>
+                <p className="text-pink-100 text-xs font-normal">Amount</p>
               </div>
 
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded shadow-lg p-3 text-white">
-                <div className="flex items-center justify-between mb-1">
-                  <FaCalendar className="w-5 h-5 opacity-80" />
-                  <span className="text-2xl font-bold">
+              <div className="bg-orange-500 rounded shadow-sm p-2 text-white">
+                <div className="flex items-center justify-between mb-0.5">
+                  <FaCalendar className="w-4 h-4 opacity-80" />
+                  <span className="text-base font-semibold">
                     {Math.ceil((new Date(order.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24))}
                   </span>
                 </div>
-                <p className="text-orange-100 text-xs font-medium">Days Left</p>
+                <p className="text-orange-100 text-xs font-normal">Days</p>
               </div>
             </div>
 
             {/* Compact Tabs */}
-            <div className="bg-white rounded shadow-lg border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
               <div className="border-b border-gray-200 bg-gray-50">
                 <nav className="flex">
                   {['details', 'items', 'vendor', 'timeline', 'actions'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`flex-1 px-4 py-2.5 font-semibold text-xs capitalize transition-all ${
+                      className={`flex-1 px-2 py-1.5 font-medium text-xs capitalize transition-all ${
                         activeTab === tab
                           ? 'bg-white text-purple-600 border-b-2 border-purple-600'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -363,29 +365,29 @@ const PurchaseOrderDetailsPage = () => {
                 </nav>
               </div>
 
-              <div className="p-4">
+              <div className="p-2">
                 {activeTab === 'details' && (
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded p-3 border border-purple-100">
-                    <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-1.5">
-                      <FaFileAlt className="text-purple-600 w-3.5 h-3.5" />
-                      Order Information
+                  <div className="bg-purple-50 rounded p-2 border border-purple-100">
+                    <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1">
+                      <FaFileAlt className="text-purple-600 w-3 h-3" />
+                      Information
                     </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white rounded p-2.5 shadow-sm">
-                        <span className="text-xs text-gray-500 uppercase">PO Number</span>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">{order.po_number}</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="bg-white rounded p-1.5 shadow-sm">
+                        <span className="text-xs text-gray-500">PO Number</span>
+                        <p className="text-xs font-semibold text-gray-900 mt-0.5">{order.po_number}</p>
                       </div>
-                      <div className="bg-white rounded p-2.5 shadow-sm">
-                        <span className="text-xs text-gray-500 uppercase">Order Date</span>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">{new Date(order.order_date).toLocaleDateString()}</p>
+                      <div className="bg-white rounded p-1.5 shadow-sm">
+                        <span className="text-xs text-gray-500">Order Date</span>
+                        <p className="text-xs font-semibold text-gray-900 mt-0.5">{new Date(order.order_date).toLocaleDateString()}</p>
                       </div>
-                      <div className="bg-white rounded p-2.5 shadow-sm">
-                        <span className="text-xs text-gray-500 uppercase">Expected Delivery</span>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">{new Date(order.expected_delivery_date).toLocaleDateString()}</p>
+                      <div className="bg-white rounded p-1.5 shadow-sm">
+                        <span className="text-xs text-gray-500">Expected Delivery</span>
+                        <p className="text-xs font-semibold text-gray-900 mt-0.5">{new Date(order.expected_delivery_date).toLocaleDateString()}</p>
                       </div>
-                      <div className="bg-white rounded p-2.5 shadow-sm">
-                        <span className="text-xs text-gray-500 uppercase">Payment Terms</span>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">{order.payment_terms || 'N/A'}</p>
+                      <div className="bg-white rounded p-1.5 shadow-sm">
+                        <span className="text-xs text-gray-500">Payment Terms</span>
+                        <p className="text-xs font-semibold text-gray-900 mt-0.5">{order.payment_terms || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -393,29 +395,29 @@ const PurchaseOrderDetailsPage = () => {
 
                 {activeTab === 'items' && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                      <FaBox className="text-purple-600 w-3.5 h-3.5" />
-                      Order Items
+                    <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1">
+                      <FaBox className="text-purple-600 w-3 h-3" />
+                      Items
                     </h3>
                     <div className="overflow-x-auto rounded border border-gray-200">
                       <table className="min-w-full divide-y divide-gray-200 text-xs">
-                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                        <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 uppercase">Material</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 uppercase">Description</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 uppercase">Quantity</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 uppercase">Unit Price</th>
-                            <th className="px-3 py-2 text-left font-bold text-gray-700 uppercase">Total</th>
+                            <th className="px-2 py-1 text-left font-semibold text-gray-700">Material</th>
+                            <th className="px-2 py-1 text-left font-semibold text-gray-700">Description</th>
+                            <th className="px-2 py-1 text-left font-semibold text-gray-700">Qty</th>
+                            <th className="px-2 py-1 text-left font-semibold text-gray-700">Unit Price</th>
+                            <th className="px-2 py-1 text-left font-semibold text-gray-700">Total</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {order.items?.map((item, index) => (
                             <tr key={index} className="hover:bg-purple-50 transition-colors">
-                              <td className="px-3 py-2 font-semibold text-gray-900">{item.material_name}</td>
-                              <td className="px-3 py-2 text-gray-700">{item.description}</td>
-                              <td className="px-3 py-2 font-semibold text-gray-900">{item.quantity} {item.unit}</td>
-                              <td className="px-3 py-2 text-gray-700">₹{item.unit_price}</td>
-                              <td className="px-3 py-2 font-bold text-green-600">₹{item.total_price?.toLocaleString()}</td>
+                              <td className="px-2 py-1 font-medium text-gray-900">{item.material_name}</td>
+                              <td className="px-2 py-1 text-gray-700">{item.description}</td>
+                              <td className="px-2 py-1 font-medium text-gray-900">{item.quantity} {item.unit}</td>
+                              <td className="px-2 py-1 text-gray-700">₹{item.unit_price}</td>
+                              <td className="px-2 py-1 font-semibold text-green-600">₹{item.total_price?.toLocaleString()}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -425,28 +427,28 @@ const PurchaseOrderDetailsPage = () => {
                 )}
 
                 {activeTab === 'vendor' && (
-                  <div className="bg-gradient-to-br from-orange-50 to-pink-50 rounded p-3 border border-orange-100">
-                    <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-1.5">
-                      <FaStore className="text-orange-600 w-3.5 h-3.5" />
-                      Vendor Information
+                  <div className="bg-orange-50 rounded p-2 border border-orange-100">
+                    <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1">
+                      <FaStore className="text-orange-600 w-3 h-3" />
+                      Vendor
                     </h3>
-                    <div className="bg-white rounded p-3 shadow-sm space-y-2">
-                      <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                    <div className="bg-white rounded p-2 shadow-sm space-y-1.5">
+                      <div className="flex items-center gap-2 pb-1.5 border-b border-gray-100">
+                        <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white font-medium text-xs">
                           {order.vendor?.name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900">{order.vendor?.name}</p>
+                          <p className="text-xs font-medium text-gray-900">{order.vendor?.name}</p>
                           <p className="text-xs text-gray-500">{order.vendor?.vendor_code}</p>
                         </div>
                       </div>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex items-center gap-2 text-gray-700">
-                          <FaEnvelope className="text-orange-500 w-3 h-3" />
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-center gap-1.5 text-gray-700">
+                          <FaEnvelope className="text-orange-500 w-3 h-3 flex-shrink-0" />
                           <span className="truncate">{order.vendor?.email}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-gray-700">
-                          <FaPhone className="text-orange-500 w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-gray-700">
+                          <FaPhone className="text-orange-500 w-3 h-3 flex-shrink-0" />
                           <span>{order.vendor?.phone}</span>
                         </div>
                       </div>
@@ -456,26 +458,26 @@ const PurchaseOrderDetailsPage = () => {
 
                 {activeTab === 'timeline' && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                      <FaClock className="text-purple-600 w-3.5 h-3.5" />
+                    <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1">
+                      <FaClock className="text-purple-600 w-3 h-3" />
                       Timeline
                     </h3>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {order.timeline?.map((event, index) => (
-                        <div key={index} className="flex gap-2 items-start">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white flex-shrink-0">
-                            <FaCheckCircle className="w-3 h-3" />
+                        <div key={index} className="flex gap-1.5 items-start">
+                          <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center text-white flex-shrink-0 mt-0.5">
+                            <FaCheckCircle className="w-2.5 h-2.5" />
                           </div>
-                          <div className="flex-1 bg-white rounded p-2.5 shadow-sm border border-gray-100">
-                            <p className="font-bold text-gray-900 text-xs mb-0.5">{event.event}</p>
-                            <p className="text-xs text-gray-600 mb-1">{event.details}</p>
-                            <p className="text-xs text-gray-400">{new Date(event.timestamp).toLocaleString()}</p>
+                          <div className="flex-1 bg-white rounded p-1.5 shadow-sm border border-gray-100">
+                            <p className="font-medium text-gray-900 text-xs">{event.event}</p>
+                            <p className="text-xs text-gray-600">{event.details}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{new Date(event.timestamp).toLocaleString()}</p>
                           </div>
                         </div>
                       )) || (
-                        <div className="text-center py-8 bg-gray-50 rounded">
-                          <FaClock className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                          <p className="text-gray-500 text-sm">No events</p>
+                        <div className="text-center py-4 bg-gray-50 rounded">
+                          <FaClock className="w-8 h-8 text-gray-300 mx-auto mb-1" />
+                          <p className="text-gray-500 text-xs">No events</p>
                         </div>
                       )}
                     </div>
@@ -484,86 +486,68 @@ const PurchaseOrderDetailsPage = () => {
 
                 {activeTab === 'actions' && (
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                      <FaCog className="text-purple-600 w-3.5 h-3.5" />
+                    <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1">
+                      <FaCog className="text-purple-600 w-3 h-3" />
                       Actions
                     </h3>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-1 gap-1.5">
                       {order.status === 'draft' && (
                         <button
                           onClick={() => handleStatusUpdate('send_for_approval')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-3 rounded hover:from-yellow-600 hover:to-yellow-700 transition-all shadow-md text-sm"
+                          className="flex items-center gap-2 bg-yellow-500 text-white p-2 rounded hover:bg-yellow-600 transition-all shadow-sm text-xs"
                         >
-                          <FaPaperPlane className="w-4 h-4" />
-                          <div className="text-left">
-                            <p className="font-bold">Send for Approval</p>
-                            <p className="text-xs text-yellow-100">Submit for review</p>
-                          </div>
+                          <FaPaperPlane className="w-3 h-3" />
+                          <span className="font-medium">Send for Approval</span>
                         </button>
                       )}
                       
                       {order.status === 'pending_approval' && (
                         <button
                           onClick={() => handleStatusUpdate('approve')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded hover:from-green-600 hover:to-green-700 transition-all shadow-md text-sm"
+                          className="flex items-center gap-2 bg-green-500 text-white p-2 rounded hover:bg-green-600 transition-all shadow-sm text-xs"
                         >
-                          <FaCheckCircle className="w-4 h-4" />
-                          <div className="text-left">
-                            <p className="font-bold">Approve Order</p>
-                            <p className="text-xs text-green-100">Approve and proceed</p>
-                          </div>
+                          <FaCheckCircle className="w-3 h-3" />
+                          <span className="font-medium">Approve Order</span>
                         </button>
                       )}
                       
                       {order.status === 'approved' && (
                         <button
                           onClick={() => handleStatusUpdate('send_to_vendor')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded hover:from-blue-600 hover:to-blue-700 transition-all shadow-md text-sm"
+                          className="flex items-center gap-2 bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-all shadow-sm text-xs"
                         >
-                          <FaPaperPlane className="w-4 h-4" />
-                          <div className="text-left">
-                            <p className="font-bold">Send to Vendor</p>
-                            <p className="text-xs text-blue-100">Notify vendor</p>
-                          </div>
+                          <FaPaperPlane className="w-3 h-3" />
+                          <span className="font-medium">Send to Vendor</span>
                         </button>
                       )}
                       
                       {order.status === 'sent' && (
                         <button
                           onClick={() => handleStatusUpdate('mark_as_ordered')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-3 rounded hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-md text-sm"
+                          className="flex items-center gap-2 bg-indigo-500 text-white p-2 rounded hover:bg-indigo-600 transition-all shadow-sm text-xs"
                         >
-                          <FaClipboardCheck className="w-4 h-4" />
-                          <div className="text-left">
-                            <p className="font-bold">Mark as Acknowledged</p>
-                            <p className="text-xs text-indigo-100">Vendor confirmed</p>
-                          </div>
+                          <FaClipboardCheck className="w-3 h-3" />
+                          <span className="font-medium">Mark as Acknowledged</span>
                         </button>
                       )}
                       
                       {order.status === 'acknowledged' && (
                         <button
                           onClick={() => handleStatusUpdate('mark_as_received')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white p-3 rounded hover:from-purple-600 hover:to-purple-700 transition-all shadow-md text-sm"
+                          className="flex items-center gap-2 bg-purple-500 text-white p-2 rounded hover:bg-purple-600 transition-all shadow-sm text-xs"
                         >
-                          <FaTruck className="w-4 h-4" />
-                          <div className="text-left">
-                            <p className="font-bold">Mark as Received</p>
-                            <p className="text-xs text-purple-100">Materials received</p>
-                          </div>
+                          <FaTruck className="w-3 h-3" />
+                          <span className="font-medium">Mark as Received</span>
                         </button>
                       )}
                       
                       {order.status === 'received' && (
                         <button
                           onClick={() => handleStatusUpdate('complete')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white p-3 rounded hover:from-teal-600 hover:to-teal-700 transition-all shadow-md text-sm"
+                          className="flex items-center gap-2 bg-teal-500 text-white p-2 rounded hover:bg-teal-600 transition-all shadow-sm text-xs"
                         >
-                          <FaCheckCircle className="w-4 h-4" />
-                          <div className="text-left">
-                            <p className="font-bold">Complete Order</p>
-                            <p className="text-xs text-teal-100">Finalize order</p>
-                          </div>
+                          <FaCheckCircle className="w-3 h-3" />
+                          <span className="font-medium">Complete Order</span>
                         </button>
                       )}
                     </div>
@@ -574,19 +558,19 @@ const PurchaseOrderDetailsPage = () => {
           </div>
 
           {/* Compact Sidebar */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* QR Code */}
-            <div className="bg-white rounded shadow-lg p-4 border border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                  <FaQrcode className="text-purple-600 w-3.5 h-3.5" />
+            <div className="bg-white rounded shadow-sm p-2 border border-gray-100">
+              <div className="flex items-center justify-between mb-1.5">
+                <h2 className="text-xs font-semibold text-gray-900 flex items-center gap-1">
+                  <FaQrcode className="text-purple-600 w-3 h-3" />
                   QR Code
                 </h2>
                 <button className="text-purple-600 hover:text-purple-800">
-                  <FaDownload className="w-4 h-4" />
+                  <FaDownload className="w-3 h-3" />
                 </button>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded p-3 flex justify-center border border-dashed border-purple-200">
+              <div className="bg-purple-50 rounded p-1.5 flex justify-center border border-dashed border-purple-200">
                 <QRCodeDisplay
                   data={order.qr_code || JSON.stringify({
                     po_number: order.po_number,
@@ -595,46 +579,46 @@ const PurchaseOrderDetailsPage = () => {
                     expected_delivery: order.expected_delivery_date,
                     status: order.status
                   })}
-                  size={150}
+                  size={120}
                 />
               </div>
-              <p className="text-center text-xs text-gray-500 mt-2">Scan for live status</p>
+              <p className="text-center text-xs text-gray-500 mt-1">Scan status</p>
             </div>
 
             {/* Quick Stats */}
-            <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded shadow-lg p-4 text-white">
-              <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                <FaStar className="w-3.5 h-3.5" />
-                Quick Stats
+            <div className="bg-purple-500 rounded shadow-sm p-2 text-white">
+              <h3 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                <FaStar className="w-3 h-3" />
+                Stats
               </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between items-center pb-2 border-b border-white/20">
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between items-center pb-1 border-b border-white/20">
                   <span className="text-purple-100">Status</span>
-                  <span className="font-bold">{statusConfig.label}</span>
+                  <span className="font-semibold">{statusConfig.label}</span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-white/20">
+                <div className="flex justify-between items-center pb-1 border-b border-white/20">
                   <span className="text-purple-100">Priority</span>
-                  <span className="font-bold capitalize">{order.priority}</span>
+                  <span className="font-semibold capitalize">{order.priority}</span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-white/20">
+                <div className="flex justify-between items-center pb-1 border-b border-white/20">
                   <span className="text-purple-100">Items</span>
-                  <span className="font-bold">{order.items?.length || 0}</span>
+                  <span className="font-semibold">{order.items?.length || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-purple-100">Created</span>
-                  <span className="font-bold">{new Date(order.created_at).toLocaleDateString()}</span>
+                  <span className="font-semibold">{new Date(order.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
 
             {/* Notes */}
             {order.notes && (
-              <div className="bg-white rounded shadow-lg p-4 border border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-1.5">
-                  <FaFileAlt className="text-purple-600 w-3.5 h-3.5" />
+              <div className="bg-white rounded shadow-sm p-2 border border-gray-100">
+                <h3 className="text-xs font-semibold text-gray-900 mb-1 flex items-center gap-1">
+                  <FaFileAlt className="text-purple-600 w-3 h-3" />
                   Notes
                 </h3>
-                <p className="text-gray-700 text-xs leading-relaxed bg-yellow-50 p-2.5 rounded border-l-2 border-yellow-400">
+                <p className="text-gray-700 text-xs leading-tight bg-yellow-50 p-1.5 rounded border-l-2 border-yellow-400">
                   {order.notes}
                 </p>
               </div>

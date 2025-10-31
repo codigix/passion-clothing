@@ -120,8 +120,9 @@ const Sidebar = ({ open, onToggle }) => {
       ],
       inventory: [
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/inventory' },
+        { text: 'Material Allocation', icon: <Package size={18} />, path: '/inventory/allocation' },
         { text: 'Barcode Scanner', icon: <Scan size={18} />, path: '/inventory/scan' },
-        { text: 'Stock Management', icon: <Package size={18} />, path: '/inventory/stock' },
+        { text: 'Stock Management', icon: <FileText size={18} />, path: '/inventory/stock' },
         { text: 'Goods Receipt (GRN)', icon: <Receipt size={18} />, path: '/inventory/grn', badge: pendingGRNCount },
         { text: 'Material Requests (MRN)', icon: <Send size={18} />, path: '/inventory/mrn-requests', badge: pendingMRNCount },
         { text: 'Stock Alerts', icon: <Bell size={18} />, path: '/inventory/alerts' },

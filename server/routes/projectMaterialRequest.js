@@ -1072,8 +1072,8 @@ router.post('/:id/trigger-procurement', authenticateToken, checkDepartment(['inv
 
 // Comprehensive Material Request Approval & Dispatch Workflow
 router.post('/:id/approve-and-dispatch', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
-  const transaction = await require('../config/database').sequelize.transaction();
-  const { GoodsReceiptNote, MaterialDispatch } = require('../config/database');
+  const { sequelize, GoodsReceiptNote, MaterialDispatch, Product } = require('../config/database');
+  const transaction = await sequelize.transaction();
 
   try {
     const { id } = req.params;
@@ -1132,8 +1132,6 @@ router.post('/:id/approve-and-dispatch', authenticateToken, checkDepartment(['in
     const stockCheckResults = [];
     let allMaterialsAvailable = true;
     let partiallyAvailable = false;
-
-    const { Product } = require('../config/database');
     
     for (const material of materialsRequested) {
       const materialName = material.material_name || material.name || '';

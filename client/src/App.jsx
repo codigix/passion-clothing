@@ -12,6 +12,7 @@ import ProcurementDashboard from './pages/dashboards/ProcurementDashboard';
 import ChallanDashboard from './pages/dashboards/ChallanDashboard';
 // import InventoryDashboard from './pages/dashboards/InventoryDashboard'; // Old dashboard
 import EnhancedInventoryDashboard from './pages/inventory/EnhancedInventoryDashboard'; // New unified dashboard
+import ProjectAllocationDashboard from './pages/inventory/ProjectAllocationDashboard'; // Material allocation view
 import ManufacturingDashboard from './pages/dashboards/ManufacturingDashboard';
 import OutsourcingDashboard from './pages/dashboards/OutsourcingDashboard';
 import SamplesDashboard from './pages/dashboards/SamplesDashboard';
@@ -206,6 +207,7 @@ function App() {
         {/* <Route path="/inventory/products" element={<ProductsPage />} /> */}
         {/* <Route path="/inventory/barcode-lookup" element={<ProductBarcodeLookup />} /> */}
         {/* <Route path="/inventory/lifecycle" element={<ProductLifecyclePage />} /> */}
+        <Route path="/inventory/allocation" element={<ProtectedDashboard department="inventory"><ProjectAllocationDashboard /></ProtectedDashboard>} />
         <Route path="/inventory/projects/:salesOrderId" element={<ProtectedDashboard department="inventory"><ProjectMaterialDashboard /></ProtectedDashboard>} />
         <Route path="/inventory/stock" element={<ProtectedDashboard department="inventory"><StockManagementPage /></ProtectedDashboard>} />
         <Route path="/inventory/alerts" element={<ProtectedDashboard department="inventory"><StockAlertsPage /></ProtectedDashboard>} />

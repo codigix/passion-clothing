@@ -28,7 +28,8 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaSpinner,
-  FaEye
+  FaEye,
+  FaCalendarAlt
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
@@ -227,9 +228,9 @@ const SalesOrdersPage = () => {
     const cfg = config[status] || config.draft;
     const Icon = cfg.icon;
     return (
-      <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${cfg.bg} ${cfg.text} ${cfg.border} text-xs font-semibold`}>
-        <Icon size={14} />
-        {status?.replace(/_/g, ' ').toUpperCase()}
+      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${cfg.bg} ${cfg.text} ${cfg.border} text-xs font-normal`}>
+        <Icon size={12} />
+        {status?.replace(/_/g, ' ').substring(0, 1).toUpperCase() + status?.replace(/_/g, ' ').substring(1).toLowerCase()}
       </div>
     );
   };
@@ -284,31 +285,31 @@ const SalesOrdersPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white px-6 py-8 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-start">
+      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white px-6 py-3.5 shadow-md">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 bg-white/20 rounded-lg">
-                <FaShoppingCart className="w-6 h-6" />
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-white/20 rounded-lg">
+                <FaShoppingCart className="w-4 h-4" />
               </div>
-              <h1 className="text-3xl font-bold">Sales Orders</h1>
+              <h1 className="text-xl font-semibold">Sales Orders</h1>
             </div>
-            <p className="text-blue-100 text-sm font-medium">Manage and track all sales orders efficiently</p>
+            <p className="text-blue-100 text-xs font-normal">Manage and track all sales orders</p>
           </div>
           <button
             onClick={() => navigate('/sales/orders/create')}
-            className="px-5 py-2.5 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg font-semibold flex items-center gap-2 hover:shadow-xl"
+            className="px-4 py-1.5 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-md font-medium flex items-center gap-2 hover:shadow-lg text-sm"
           >
-            <FaPlus size={16} />
+            <FaPlus size={14} />
             Create Order
           </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-3">
         {/* Summary Cards */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             {[
               { label: 'Total Orders', value: summary.total_orders, icon: FaShoppingCart, color: 'blue' },
               { label: 'Pending', value: summary.pending_orders, icon: FaClock, color: 'amber' },
@@ -321,14 +322,14 @@ const SalesOrdersPage = () => {
               const iconColor = { blue: 'text-blue-600', amber: 'text-amber-600', orange: 'text-orange-600', green: 'text-green-600' }[card.color];
 
               return (
-                <div key={idx} className={`${bgColor} rounded-xl p-6 border border-${card.color}-200 shadow-sm hover:shadow-md transition-all`}>
+                <div key={idx} className={`${bgColor} rounded-lg p-3 border border-${card.color}-200 shadow-sm hover:shadow-md transition-all`}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-gray-600 text-sm font-medium mb-1">{card.label}</p>
-                      <p className="text-3xl font-bold text-gray-800">{card.value}</p>
+                      <p className="text-gray-600 text-xs font-normal mb-0.5">{card.label}</p>
+                      <p className="text-2xl font-bold text-gray-800">{card.value}</p>
                     </div>
-                    <div className={`${iconBg} p-3 rounded-lg`}>
-                      <Icon className={`${iconColor} text-lg`} />
+                    <div className={`${iconBg} p-2 rounded-lg`}>
+                      <Icon className={`${iconColor} text-base`} />
                     </div>
                   </div>
                 </div>
@@ -338,64 +339,64 @@ const SalesOrdersPage = () => {
         )}
 
         {/* Filter & View Mode Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3.5 mb-4">
+          <div className="flex flex-col lg:flex-row gap-2 justify-between items-start lg:items-center">
             {/* Search */}
             <div className="flex-1 relative w-full lg:w-auto">
-              <FaSearch className="absolute left-3 top-3.5 text-gray-400" size={18} />
+              <FaSearch className="absolute left-2.5 top-2.5 text-gray-400" size={14} />
               <input
                 type="text"
-                placeholder="Search by order, customer, product..."
+                placeholder="Search order, customer, product..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-1.5 items-center">
               <button
                 onClick={() => setViewMode('table')}
-                className={`p-2.5 rounded-lg border transition-all ${viewMode === 'table' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                className={`p-1.5 rounded-lg border transition-all text-sm ${viewMode === 'table' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
                 title="Table View"
               >
-                <FaTh size={18} />
+                <FaTh size={14} />
               </button>
               <button
                 onClick={() => setViewMode('cards')}
-                className={`p-2.5 rounded-lg border transition-all ${viewMode === 'cards' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                className={`p-1.5 rounded-lg border transition-all text-sm ${viewMode === 'cards' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
                 title="Card View"
               >
-                <FaThLarge size={18} />
+                <FaThLarge size={14} />
               </button>
               <button
                 onClick={() => setViewMode('kanban')}
-                className={`p-2.5 rounded-lg border transition-all ${viewMode === 'kanban' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                className={`p-1.5 rounded-lg border transition-all text-sm ${viewMode === 'kanban' ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
                 title="Kanban View"
               >
-                <FaChartBar size={18} />
+                <FaChartBar size={14} />
               </button>
 
               {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2.5 rounded-lg border transition-all ${showFilters ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                className={`p-1.5 rounded-lg border transition-all text-sm ${showFilters ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
                 title="Toggle Filters"
               >
-                <FaFilter size={18} />
+                <FaFilter size={14} />
               </button>
             </div>
           </div>
 
           {/* Advanced Filters */}
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5 pt-5 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-3 pt-3 border-t border-gray-200">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                 >
                   <option value="all">All Status</option>
                   <option value="draft">Draft</option>
@@ -410,11 +411,11 @@ const SalesOrdersPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Procurement Status</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Procurement</label>
                 <select
                   value={procurementFilter}
                   onChange={(e) => setProcurementFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                 >
                   <option value="all">All</option>
                   <option value="not_requested">Not Requested</option>
@@ -427,22 +428,22 @@ const SalesOrdersPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">From</label>
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">To</label>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                 />
               </div>
             </div>
@@ -451,80 +452,80 @@ const SalesOrdersPage = () => {
 
         {/* Table View */}
         {viewMode === 'table' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">SO Number</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Customer</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Order Date</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Total Amount</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">Delivery Date</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700">Actions</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">SO Number</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Customer</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Order Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Amount</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Delivery</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-12 text-center">
+                      <td colSpan="7" className="px-3 py-8 text-center">
                         <div className="flex flex-col items-center justify-center gap-2">
-                          <FaExclamationCircle className="text-4xl text-gray-400" />
-                          <p className="text-gray-500 font-medium">No orders found</p>
+                          <FaExclamationCircle className="text-3xl text-gray-400" />
+                          <p className="text-gray-500 font-normal text-sm">No orders found</p>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     filteredOrders.map((order) => (
                       <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-2">
                           <button
                             onClick={() => navigate(`/sales/orders/${order.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-semibold hover:underline"
+                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-sm"
                           >
                             {order.order_number}
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">{order.customer?.name || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{new Date(order.order_date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-sm font-semibold text-gray-800">₹{order.total_amount?.toLocaleString()}</td>
-                        <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{new Date(order.delivery_date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">
-                          <div className="action-menu-container relative flex justify-center gap-2">
+                        <td className="px-3 py-2 text-xs text-gray-700">{order.customer?.name || 'N/A'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-600">{new Date(order.order_date).toLocaleDateString()}</td>
+                        <td className="px-3 py-2 text-xs font-medium text-gray-800">₹{order.total_amount?.toLocaleString()}</td>
+                        <td className="px-3 py-2">{getStatusBadge(order.status)}</td>
+                        <td className="px-3 py-2 text-xs text-gray-600">{new Date(order.delivery_date).toLocaleDateString()}</td>
+                        <td className="px-3 py-2">
+                          <div className="action-menu-container relative flex justify-center gap-1">
                             <button
                               onClick={() => navigate(`/sales/orders/${order.id}`)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                               title="View Details"
                             >
-                              <FaEye size={16} />
+                              <FaEye size={13} />
                             </button>
                             <button
                               onClick={() => handleShowQR(order)}
-                              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              className="p-1 text-purple-600 hover:bg-purple-50 rounded transition-colors"
                               title="Show QR Code"
                             >
-                              <FaQrcode size={16} />
+                              <FaQrcode size={13} />
                             </button>
                             <button
                               onClick={() => setShowActionMenu(showActionMenu === order.id ? null : order.id)}
-                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                             >
-                              <FaEllipsisV size={16} />
+                              <FaEllipsisV size={13} />
                             </button>
 
                             {/* Action Menu */}
                             {showActionMenu === order.id && (
-                              <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-48">
+                              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-40">
                                 <button
                                   onClick={() => {
                                     navigate(`/sales/orders/edit/${order.id}`);
                                     setShowActionMenu(null);
                                   }}
-                                  className="w-full text-left px-4 py-2 hover:bg-blue-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-100"
+                                  className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
                                 >
-                                  <FaEdit size={14} /> Edit
+                                  <FaEdit size={12} /> Edit
                                 </button>
                                 {order.status === 'draft' && (
                                   <button
@@ -532,9 +533,9 @@ const SalesOrdersPage = () => {
                                       handleSendToProcurement(order);
                                       setShowActionMenu(null);
                                     }}
-                                    className="w-full text-left px-4 py-2 hover:bg-green-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-100"
+                                    className="w-full text-left px-3 py-1.5 hover:bg-green-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
                                   >
-                                    <FaTruck size={14} /> Send to Procurement
+                                    <FaTruck size={12} /> Send
                                   </button>
                                 )}
                                 <button
@@ -542,18 +543,18 @@ const SalesOrdersPage = () => {
                                     handleShowQR(order);
                                     setShowActionMenu(null);
                                   }}
-                                  className="w-full text-left px-4 py-2 hover:bg-purple-50 text-gray-700 text-sm flex items-center gap-2 border-b border-gray-100"
+                                  className="w-full text-left px-3 py-1.5 hover:bg-purple-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
                                 >
-                                  <FaQrcode size={14} /> QR Code
+                                  <FaQrcode size={12} /> QR
                                 </button>
                                 <button
                                   onClick={() => {
                                     handleDelete(order);
                                     setShowActionMenu(null);
                                   }}
-                                  className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm flex items-center gap-2"
+                                  className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 text-xs flex items-center gap-1.5"
                                 >
-                                  <FaTrash size={14} /> Delete
+                                  <FaTrash size={12} /> Delete
                                 </button>
                               </div>
                             )}
@@ -570,74 +571,74 @@ const SalesOrdersPage = () => {
 
         {/* Card View */}
         {viewMode === 'cards' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {filteredOrders.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-12">
-                <FaExclamationCircle className="text-4xl text-gray-400 mb-2" />
-                <p className="text-gray-500 font-medium">No orders found</p>
+              <div className="col-span-full flex flex-col items-center justify-center py-8">
+                <FaExclamationCircle className="text-3xl text-gray-400 mb-2" />
+                <p className="text-gray-500 font-normal text-sm">No orders found</p>
               </div>
             ) : (
               filteredOrders.map((order) => (
                 <div
                   key={order.id}
-                  className={`bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all overflow-hidden cursor-pointer`}
+                  className={`bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all overflow-hidden cursor-pointer`}
                   onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
                 >
-                  <div className={`h-1 bg-gradient-to-r ${getStatusColor(order.status)}`}></div>
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
+                  <div className={`h-0.5 bg-gradient-to-r ${getStatusColor(order.status)}`}></div>
+                  <div className="p-3">
+                    <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">SO Number</p>
-                        <p className="text-lg font-bold text-gray-800">{order.order_number}</p>
+                        <p className="text-xs text-gray-500 mb-0.5">SO #</p>
+                        <p className="text-sm font-semibold text-gray-800">{order.order_number}</p>
                       </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleShowQR(order);
                         }}
-                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg"
+                        className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
                       >
-                        <FaQrcode />
+                        <FaQrcode size={14} />
                       </button>
                     </div>
 
-                    <div className="space-y-3 mb-4">
+                    <div className="space-y-1.5 mb-2">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Customer</p>
-                        <p className="text-sm font-semibold text-gray-800">{order.customer?.name || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">Customer</p>
+                        <p className="text-xs font-normal text-gray-800 truncate">{order.customer?.name || 'N/A'}</p>
                       </div>
-                      <div className="flex gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Amount</p>
-                          <p className="text-sm font-bold text-blue-600">₹{order.total_amount?.toLocaleString()}</p>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Amount</p>
+                          <p className="text-xs font-semibold text-blue-600">₹{order.total_amount?.toLocaleString()}</p>
                         </div>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Order Date</p>
-                          <p className="text-sm text-gray-700">{new Date(order.order_date).toLocaleDateString()}</p>
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Date</p>
+                          <p className="text-xs text-gray-700">{new Date(order.order_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mb-4">{getStatusBadge(order.status)}</div>
+                    <div className="mb-2">{getStatusBadge(order.status)}</div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/sales/orders/${order.id}`);
                         }}
-                        className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
+                        className="flex-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
                       >
-                        <FaEye size={14} /> View
+                        <FaEye size={12} /> View
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/sales/orders/edit/${order.id}`);
                         }}
-                        className="flex-1 px-3 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
+                        className="flex-1 px-2 py-1 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
                       >
-                        <FaEdit size={14} /> Edit
+                        <FaEdit size={12} /> Edit
                       </button>
                     </div>
                   </div>
@@ -649,7 +650,7 @@ const SalesOrdersPage = () => {
 
         {/* Kanban View */}
         {viewMode === 'kanban' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 overflow-x-auto pb-3">
             {Object.entries(groupOrdersByStatus()).map(([status, statusOrders]) => {
               const statusConfig = {
                 draft: { gradient: 'from-slate-400 to-slate-600', icon: FaClock, lightBg: 'bg-slate-50' },
@@ -667,26 +668,22 @@ const SalesOrdersPage = () => {
               return (
                 <div key={status} className="flex flex-col">
                   {/* Column Header */}
-                  <div className={`bg-gradient-to-r ${config.gradient} text-white px-4 py-4 rounded-t-xl shadow-md`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <HeaderIcon className="text-lg" />
-                        <h3 className="font-bold text-sm">{status.replace(/_/g, ' ').toUpperCase()}</h3>
+                  <div className={`bg-gradient-to-r ${config.gradient} text-white px-3 py-2 rounded-t-lg shadow-md`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <HeaderIcon className="text-sm" />
+                        <h3 className="font-semibold text-xs">{status.replace(/_/g, ' ').substring(0, 1).toUpperCase() + status.replace(/_/g, ' ').substring(1).toLowerCase()}</h3>
                       </div>
-                      <span className="bg-white/25 backdrop-blur px-3 py-1 rounded-full text-sm font-bold">{statusOrders.length}</span>
-                    </div>
-                    <div className="text-white/80 text-xs font-medium">
-                      {statusOrders.length} {statusOrders.length === 1 ? 'order' : 'orders'}
+                      <span className="bg-white/25 backdrop-blur px-2 py-0.5 rounded-full text-xs font-bold">{statusOrders.length}</span>
                     </div>
                   </div>
 
                   {/* Column Content */}
-                  <div className="bg-gray-50 rounded-b-xl flex-1 min-h-[600px] max-h-[600px] overflow-y-auto p-3 space-y-3 border border-t-0 border-gray-200">
+                  <div className="bg-gray-50 rounded-b-lg flex-1 min-h-[450px] max-h-[450px] overflow-y-auto p-2 space-y-2 border border-t-0 border-gray-200">
                     {statusOrders.length === 0 ? (
-                      <div className="py-12 text-center text-gray-400">
-                        <FaShoppingCart className="text-3xl mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm font-medium">No orders</p>
-                        <p className="text-xs mt-1">Drag orders here to update status</p>
+                      <div className="py-8 text-center text-gray-400">
+                        <FaShoppingCart className="text-2xl mx-auto mb-1 text-gray-300" />
+                        <p className="text-xs font-normal">No orders</p>
                       </div>
                     ) : (
                       statusOrders.map((order) => {
@@ -700,86 +697,59 @@ const SalesOrdersPage = () => {
                           <div
                             key={order.id}
                             onClick={() => navigate(`/sales/orders/${order.id}`)}
-                            className="group bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-lg transition-all cursor-pointer hover:border-blue-400 overflow-hidden"
+                            className="group bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-blue-400 overflow-hidden"
                           >
                             {/* Card Header */}
-                            <div className="px-3 pt-3 pb-2 border-b border-gray-100">
-                              <div className="flex justify-between items-start gap-2 mb-2">
-                                <div className="flex-1">
-                                  <p className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
+                            <div className="px-2 pt-2 pb-1 border-b border-gray-100">
+                              <div className="flex justify-between items-start gap-1 mb-1">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-gray-900 text-xs group-hover:text-blue-600 transition-colors truncate">
                                     {order.order_number}
                                   </p>
                                 </div>
                                 {isOverdue && (
-                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Overdue</span>
+                                  <span className="px-1.5 py-0 bg-red-100 text-red-700 text-xs font-bold rounded whitespace-nowrap">OD</span>
                                 )}
                                 {isUrgent && !isOverdue && (
-                                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">Urgent</span>
+                                  <span className="px-1.5 py-0 bg-amber-100 text-amber-700 text-xs font-bold rounded whitespace-nowrap">Urg</span>
                                 )}
                               </div>
                               <p className="text-xs text-gray-600 truncate">{order.customer?.name || 'N/A'}</p>
                             </div>
 
                             {/* Card Body */}
-                            <div className="px-3 py-3 space-y-2">
+                            <div className="px-2 py-1.5 space-y-1">
                               {/* Product Info */}
                               {order.items?.[0]?.product_type && (
-                                <div className="flex items-start gap-2">
-                                  <span className="text-xs text-gray-500 font-medium">Product:</span>
-                                  <span className="text-xs text-gray-700 font-medium truncate">{order.items[0].product_type}</span>
+                                <div className="flex items-start gap-1">
+                                  <span className="text-xs text-gray-500 font-normal">P:</span>
+                                  <span className="text-xs text-gray-700 font-normal truncate">{order.items[0].product_type}</span>
                                 </div>
                               )}
 
                               {/* Quantity */}
                               {order.items?.[0]?.quantity && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-gray-500">Qty:</span>
-                                  <span className="font-semibold text-gray-700">{order.items[0].quantity} pcs</span>
+                                <div className="flex items-center gap-1 text-xs">
+                                  <span className="text-gray-500">Q:</span>
+                                  <span className="font-normal text-gray-700">{order.items[0].quantity} pcs</span>
                                 </div>
                               )}
 
                               {/* Price */}
-                              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                                <span className="text-xs text-gray-500">Total:</span>
-                                <span className="text-sm font-bold text-blue-600">₹{order.total_amount?.toLocaleString()}</span>
+                              <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
+                                <span className="text-xs text-gray-500">₹</span>
+                                <span className="text-xs font-semibold text-blue-600">{order.total_amount?.toLocaleString()}</span>
                               </div>
 
                               {/* Delivery Info */}
                               {order.expected_delivery_date && (
-                                <div className="flex items-center gap-2 text-xs mt-2">
-                                  <FaCalendarAlt className="text-gray-400" size={12} />
-                                  <span className={isOverdue ? 'text-red-600 font-semibold' : isUrgent ? 'text-amber-600 font-semibold' : 'text-gray-600'}>
+                                <div className="flex items-center gap-1 text-xs mt-1">
+                                  <FaCalendarAlt className="text-gray-400 flex-shrink-0" size={10} />
+                                  <span className={`${isOverdue ? 'text-red-600 font-semibold' : isUrgent ? 'text-amber-600 font-semibold' : 'text-gray-600'} truncate`}>
                                     {new Date(order.expected_delivery_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
-                                    {daysLeft !== null && ` (${Math.abs(daysLeft)} days ${isOverdue ? 'ago' : 'left'})`}
                                   </span>
                                 </div>
                               )}
-
-                              {/* Procurement Status Badge */}
-                              {order.procurement_status && (
-                                <div className="pt-2">
-                                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                                    order.procurement_status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                                    order.procurement_status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    Proc: {order.procurement_status?.replace(/_/g, ' ').toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Card Footer - Actions (visible on hover) */}
-                            <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-transparent border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/sales/orders/${order.id}`);
-                                }}
-                                className="w-full text-center px-2 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 rounded hover:bg-blue-100 transition-colors"
-                              >
-                                View Details
-                              </button>
                             </div>
                           </div>
                         );

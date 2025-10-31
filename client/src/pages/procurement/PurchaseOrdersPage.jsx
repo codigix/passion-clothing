@@ -71,6 +71,7 @@ const PurchaseOrdersPage = () => {
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({});
+  const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -433,6 +434,16 @@ const PurchaseOrdersPage = () => {
     }
   };
 
+  const toggleRowExpansion = (orderId) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(orderId)) {
+      newExpandedRows.delete(orderId);
+    } else {
+      newExpandedRows.add(orderId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
+
   const getStatusBadge = (status) => {
     const badge = PO_STATUS_BADGES[status] || PO_STATUS_BADGES.draft;
     return (
@@ -468,121 +479,121 @@ const PurchaseOrdersPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-white p-6">
+    <div className="min-h-screen bg-white p-3">
       <div className="max-w-[1600px] mx-auto">
         {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: '#0f172a' }}>Purchase Orders</h1>
-          <p className="text-slate-500 text-base">Manage and track all purchase orders with real-time updates</p>
+        <div className="mb-3">
+          <h1 className="text-xl font-semibold mb-0.5" style={{ color: '#0f172a' }}>Purchase Orders</h1>
+          <p className="text-slate-500 text-xs">Manage and track all purchase orders with real-time updates</p>
         </div>
 
         {/* Summary Cards */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Total Orders</p>
-                  <p className="text-2xl font-bold text-slate-800">{summary.total_orders}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 mb-3">
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Total Orders</p>
+                  <p className="text-lg font-semibold text-slate-800">{summary.total_orders}</p>
                 </div>
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <FaShoppingCart size={20} className="text-blue-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Draft Orders</p>
-                  <p className="text-2xl font-bold text-slate-800">{summary.draft_orders}</p>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <FaFileInvoice size={20} className="text-slate-500" />
+                <div className="bg-blue-50 p-2 rounded-lg flex-shrink-0">
+                  <FaShoppingCart size={14} className="text-blue-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-amber-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Pending Approval</p>
-                  <p className="text-2xl font-bold text-slate-800">{summary.pending_approval_orders}</p>
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Draft Orders</p>
+                  <p className="text-lg font-semibold text-slate-800">{summary.draft_orders}</p>
                 </div>
-                <div className="bg-amber-50 p-3 rounded-lg">
-                  <FaClock size={20} className="text-amber-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-violet-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Sent to Vendor</p>
-                  <p className="text-2xl font-bold text-slate-800">{summary.sent_orders}</p>
-                </div>
-                <div className="bg-violet-50 p-3 rounded-lg">
-                  <FaTruck size={20} className="text-violet-500" />
+                <div className="bg-slate-50 p-2 rounded-lg flex-shrink-0">
+                  <FaFileInvoice size={14} className="text-slate-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Received</p>
-                  <p className="text-2xl font-bold text-slate-800">{summary.received_orders}</p>
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-amber-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Pending Appr.</p>
+                  <p className="text-lg font-semibold text-slate-800">{summary.pending_approval_orders}</p>
                 </div>
-                <div className="bg-emerald-50 p-3 rounded-lg">
-                  <FaBoxOpen size={20} className="text-emerald-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Completed</p>
-                  <p className="text-2xl font-bold text-slate-800">{summary.completed_orders}</p>
-                </div>
-                <div className="bg-teal-50 p-3 rounded-lg">
-                  <FaCheck size={20} className="text-teal-500" />
+                <div className="bg-amber-50 p-2 rounded-lg flex-shrink-0">
+                  <FaClock size={14} className="text-amber-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-cyan-100 transition-all md:col-span-2 lg:col-span-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Total Value</p>
-                  <p className="text-2xl font-bold text-slate-800">{formatINR(summary.total_value)}</p>
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-violet-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Sent to Vendor</p>
+                  <p className="text-lg font-semibold text-slate-800">{summary.sent_orders}</p>
                 </div>
-                <div className="bg-cyan-50 p-3 rounded-lg">
-                  <FaMoneyBillWave size={20} className="text-cyan-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Pending Value</p>
-                  <p className="text-2xl font-bold text-orange-600">{formatINR(summary.pending_value)}</p>
-                </div>
-                <div className="bg-orange-50 p-3 rounded-lg">
-                  <FaClock size={20} className="text-orange-500" />
+                <div className="bg-violet-50 p-2 rounded-lg flex-shrink-0">
+                  <FaTruck size={14} className="text-violet-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-green-100 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Completed Value</p>
-                  <p className="text-2xl font-bold text-green-600">{formatINR(summary.completed_value)}</p>
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Received</p>
+                  <p className="text-lg font-semibold text-slate-800">{summary.received_orders}</p>
                 </div>
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <FaCheck size={20} className="text-green-500" />
+                <div className="bg-emerald-50 p-2 rounded-lg flex-shrink-0">
+                  <FaBoxOpen size={14} className="text-emerald-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Completed</p>
+                  <p className="text-lg font-semibold text-slate-800">{summary.completed_orders}</p>
+                </div>
+                <div className="bg-teal-50 p-2 rounded-lg flex-shrink-0">
+                  <FaCheck size={14} className="text-teal-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-cyan-100 transition-all sm:col-span-2 md:col-span-1">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Total Value</p>
+                  <p className="text-base font-semibold text-slate-800">{formatINR(summary.total_value)}</p>
+                </div>
+                <div className="bg-cyan-50 p-2 rounded-lg flex-shrink-0">
+                  <FaMoneyBillWave size={14} className="text-cyan-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Pending Value</p>
+                  <p className="text-base font-semibold text-orange-600">{formatINR(summary.pending_value)}</p>
+                </div>
+                <div className="bg-orange-50 p-2 rounded-lg flex-shrink-0">
+                  <FaClock size={14} className="text-orange-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm hover:shadow-md hover:border-green-100 transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-normal mb-1 truncate">Completed Value</p>
+                  <p className="text-base font-semibold text-green-600">{formatINR(summary.completed_value)}</p>
+                </div>
+                <div className="bg-green-50 p-2 rounded-lg flex-shrink-0">
+                  <FaCheck size={14} className="text-green-500" />
                 </div>
               </div>
             </div>
@@ -590,45 +601,45 @@ const PurchaseOrdersPage = () => {
         )}
 
         {/* Filters Section */}
-        <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex-1 relative mr-4">
+        <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-3">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <div className="flex-1 relative min-w-0">
               <input
                 type="text"
-                placeholder="Search by PO Number, Vendor, Project, Customer..."
+                placeholder="Search PO, Vendor, Project..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-3 border border-slate-200 rounded-lg pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 placeholder-slate-400 transition-all"
+                className="w-full p-2 text-xs border border-slate-200 rounded-lg pl-8 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 placeholder-slate-400 transition-all"
               />
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+              <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-slate-400" size={12} />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 flex-wrap">
               <div className="relative column-menu-container">
                 <button
                   onClick={() => setShowColumnMenu(!showColumnMenu)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg transition-all font-medium"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg transition-all font-medium whitespace-nowrap"
                 >
-                  <FaColumns size={16} />
+                  <FaColumns size={12} />
                   <span>Columns</span>
-                  <FaChevronDown size={14} className={`transition-transform ${showColumnMenu ? 'rotate-180' : ''}`} />
+                  <FaChevronDown size={10} className={`transition-transform ${showColumnMenu ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Column Menu Dropdown */}
                 {showColumnMenu && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg z-50 border border-slate-100">
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-slate-800">Manage Columns</h3>
-                        <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
-                          {visibleColumns.length} of {AVAILABLE_COLUMNS.length}
+                  <div className="absolute right-0 mt-1 w-64 bg-white rounded-lg shadow-lg z-50 border border-slate-100">
+                    <div className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-xs text-slate-800">Manage Columns</h3>
+                        <span className="text-xs text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
+                          {visibleColumns.length}/{AVAILABLE_COLUMNS.length}
                         </span>
                       </div>
 
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                      <div className="space-y-1 max-h-72 overflow-y-auto">
                         {AVAILABLE_COLUMNS.map(column => (
                           <label
                             key={column.id}
-                            className={`flex items-center gap-1.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : ''
+                            className={`flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : ''
                               }`}
                           >
                             <input
@@ -636,27 +647,27 @@ const PurchaseOrdersPage = () => {
                               checked={isColumnVisible(column.id)}
                               onChange={() => toggleColumn(column.id)}
                               disabled={column.alwaysVisible}
-                              className="w-4 h-4 rounded focus:ring-2 focus:ring-opacity-20"
+                              className="w-3 h-3 rounded focus:ring-1 focus:ring-opacity-20"
                               style={{ accentColor: '#0f172a' }}
                             />
-                            <span className="text-sm text-slate-700">{column.label}</span>
+                            <span className="text-xs text-slate-700">{column.label}</span>
                             {column.alwaysVisible && (
-                              <span className="text-xs text-slate-400 ml-auto">(Required)</span>
+                              <span className="text-xs text-slate-400 ml-auto">(Req)</span>
                             )}
                           </label>
                         ))}
                       </div>
 
-                      <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
+                      <div className="flex gap-1.5 mt-2 pt-2 border-t border-slate-100">
                         <button
                           onClick={showAllColumns}
-                          className="flex-1 px-3 py-2 text-sm bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg transition-all font-medium"
+                          className="flex-1 px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg transition-all font-medium"
                         >
                           Show All
                         </button>
                         <button
                           onClick={resetColumns}
-                          className="flex-1 px-3 py-2 text-sm bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-all font-medium"
+                          className="flex-1 px-2 py-1 text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-all font-medium"
                         >
                           Reset
                         </button>
@@ -668,11 +679,11 @@ const PurchaseOrdersPage = () => {
 
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-all font-medium"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-all font-medium whitespace-nowrap"
               >
-                <FaFilter size={16} />
+                <FaFilter size={12} />
                 <span>Filters</span>
-                <FaChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                <FaChevronDown size={10} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </button>
 
 
@@ -680,13 +691,13 @@ const PurchaseOrdersPage = () => {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-4 border-t border-slate-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
+                  className="w-full p-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
                 >
                   <option value="all">All Statuses</option>
                   <option value="draft">Draft</option>
@@ -706,11 +717,11 @@ const PurchaseOrdersPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Priority</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Priority</label>
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
+                  className="w-full p-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
                 >
                   <option value="all">All Priorities</option>
                   <option value="low">Low</option>
@@ -721,22 +732,22 @@ const PurchaseOrdersPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Date From</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Date From</label>
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
+                  className="w-full p-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Date To</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Date To</label>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
+                  className="w-full p-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:ring-opacity-20 bg-white text-slate-800 transition-all"
                 />
               </div>
             </div>
@@ -746,74 +757,75 @@ const PurchaseOrdersPage = () => {
         {/* Orders Table */}
         <div className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100">
-              <thead className="bg-slate-50 border-b border-slate-100">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-100 border-b border-slate-200">
                 <tr>
                   {isColumnVisible('po_number') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PO Number</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">PO Number</th>
                   )}
                   {isColumnVisible('po_date') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PO Date</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">PO Date</th>
                   )}
                   {isColumnVisible('vendor') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Vendor</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Vendor</th>
                   )}
                   {isColumnVisible('linked_so') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Linked SO</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Linked SO</th>
                   )}
                   {isColumnVisible('customer') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Customer</th>
                   )}
                   {isColumnVisible('project_name') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Project</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Project</th>
                   )}
                   {isColumnVisible('total_quantity') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Quantity</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Qty</th>
                   )}
                   {isColumnVisible('final_amount') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Amount</th>
                   )}
                   {isColumnVisible('expected_delivery_date') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Expected Delivery</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Del. Date</th>
                   )}
                   {isColumnVisible('status') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Status</th>
                   )}
                   {isColumnVisible('priority') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Priority</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Priority</th>
                   )}
                   {isColumnVisible('created_by') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Created By</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">Created By</th>
                   )}
                   {isColumnVisible('actions') && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider sticky right-0 bg-slate-50 shadow-[-2px_0_4px_rgba(0,0,0,0.05)] min-w-[100px]">Actions</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sticky right-0 bg-slate-100 shadow-[-2px_0_4px_rgba(0,0,0,0.05)] min-w-[80px]">Actions</th>
                   )}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-100">
+              <tbody className="bg-white divide-y divide-slate-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={AVAILABLE_COLUMNS.length} className="px-4 py-12 text-center text-slate-500">
+                    <td colSpan={AVAILABLE_COLUMNS.length} className="px-2 py-6 text-center text-slate-500 text-xs">
                       <div className="inline-flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin"></div>
+                        <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin"></div>
                         Loading purchase orders...
                       </div>
                     </td>
                   </tr>
                 ) : filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={AVAILABLE_COLUMNS.length} className="px-4 py-12 text-center text-slate-400">
-                      <p className="text-base">No purchase orders found</p>
+                    <td colSpan={AVAILABLE_COLUMNS.length} className="px-2 py-6 text-center text-slate-400 text-xs">
+                      <p>No purchase orders found</p>
                     </td>
                   </tr>
                 ) : (
                   filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-50 transition-colors group">
+                    <React.Fragment key={order.id}>
+                      <tr className="hover:bg-slate-50 transition-colors group">
                       {isColumnVisible('po_number') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           <button
                             onClick={() => handleView(order)}
-                            className="font-semibold hover:underline"
+                            className="font-medium text-xs hover:underline"
                             style={{ color: '#0f172a' }}
                           >
                             {order.po_number}
@@ -821,91 +833,95 @@ const PurchaseOrdersPage = () => {
                         </td>
                       )}
                       {isColumnVisible('po_date') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-slate-700">
                           {formatDate(order.po_date)}
                         </td>
                       )}
                       {isColumnVisible('vendor') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-slate-800">{safePath(order, 'vendor.name', 'Unknown Vendor')}</div>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <div className="text-xs font-normal text-slate-800">{safePath(order, 'vendor.name', 'Unknown Vendor')}</div>
                           <div className="text-xs text-slate-500">{safePath(order, 'vendor.vendor_code', '—')}</div>
                         </td>
                       )}
                       {isColumnVisible('linked_so') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-slate-700">
                           {safePath(order, 'salesOrder.order_number', '—')}
                         </td>
                       )}
                       {isColumnVisible('customer') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm font-medium text-slate-800">{safePath(order, 'customer.name', 'Unknown Customer')}</div>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <div className="text-xs font-normal text-slate-800">{safePath(order, 'customer.name', 'Unknown Customer')}</div>
                           {safePath(order, 'customer.customer_code') !== '—' && (
                             <div className="text-xs text-slate-500">{safePath(order, 'customer.customer_code', '')}</div>
                           )}
                         </td>
                       )}
                       {isColumnVisible('project_name') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-slate-700">
                           {order.project_name || '—'}
                         </td>
                       )}
                       {isColumnVisible('total_quantity') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-slate-700">
                           {order.total_quantity || '0'}
                         </td>
                       )}
                       {isColumnVisible('final_amount') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-800">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-slate-800">
                           {formatINR(order.final_amount)}
                         </td>
                       )}
                       {isColumnVisible('expected_delivery_date') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-slate-700">
                           {formatDate(order.expected_delivery_date)}
                         </td>
                       )}
                       {isColumnVisible('status') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           {getStatusBadge(order.status)}
                         </td>
                       )}
                       {isColumnVisible('priority') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2 whitespace-nowrap">
                           {getPriorityBadge(order.priority)}
                         </td>
                       )}
                       {isColumnVisible('created_by') && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-slate-700">
                           {order.creator?.name || 'N/A'}
                         </td>
                       )}
                       {isColumnVisible('actions') && (
-                        <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_4px_rgba(0,0,0,0.05)] transition-colors">
-                          <div className="relative action-menu-container">
-                            <button
-                              onClick={(e) => toggleActionMenu(order.id, e)}
-                              className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
-                              title="Actions"
-                            >
-                              <FaChevronDown size={14} />
-                            </button>
+                        <td className="px-2 py-2 whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_4px_rgba(0,0,0,0.05)] transition-colors">
+                          <button
+                            onClick={() => toggleRowExpansion(order.id)}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+                            title={expandedRows.has(order.id) ? 'Hide Actions' : 'Show Actions'}
+                          >
+                            <FaChevronDown size={12} className={`transition-transform ${expandedRows.has(order.id) ? 'rotate-180' : ''}`} />
+                          </button>
+                        </td>
+                      )}
+                      </tr>
 
-                            {/* Enhanced Action Menu Dropdown */}
-                            {showActionMenu === order.id && (
-                              <div
-                                className="fixed bg-white rounded-lg shadow-lg z-[100] border border-slate-100 py-1 min-w-[240px]"
-                                style={{ top: menuPosition.top, left: menuPosition.left }}
-                              >
-                                {/* View / Edit */}
+                      {/* Expanded Actions Row */}
+                      {expandedRows.has(order.id) && (
+                        <tr className="bg-slate-50 border-t border-blue-200">
+                          <td colSpan={AVAILABLE_COLUMNS.length} className="px-2 py-2">
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-medium text-slate-700 mb-1.5">Available Actions</h4>
+                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1">
+                                
+                                {/* View / Edit Button */}
                                 <button
                                   onClick={() => {
                                     handleView(order);
-                                    setShowActionMenu(null);
+                                    setExpandedRows(new Set());
                                   }}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-blue-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors text-xs font-normal border border-blue-200"
                                 >
-                                  <FaEye size={16} className="text-blue-500" />
-                                  <span className="font-medium">View / Edit</span>
+                                  <FaEye size={12} />
+                                  <span className="text-center text-xs">View</span>
                                 </button>
 
                                 {/* Submit for Approval - Only for draft status */}
@@ -913,12 +929,12 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleSubmitForApproval(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors text-xs font-normal border border-amber-200"
                                   >
-                                    <FaClipboardList size={16} className="text-amber-500" />
-                                    <span>Submit for Approval</span>
+                                    <FaClipboardList size={12} />
+                                    <span className="text-center text-xs">Submit</span>
                                   </button>
                                 )}
 
@@ -927,12 +943,12 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleApprovePO(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors text-xs font-normal border border-emerald-200"
                                   >
-                                    <FaCheckCircle size={16} className="text-emerald-500" />
-                                    <span>Approve PO</span>
+                                    <FaCheckCircle size={12} />
+                                    <span className="text-center text-xs">Approve</span>
                                   </button>
                                 )}
 
@@ -941,12 +957,12 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleSendToVendor(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-violet-600 hover:bg-violet-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-violet-50 hover:bg-violet-100 text-violet-600 transition-colors text-xs font-normal border border-violet-200"
                                   >
-                                    <FaTruck size={16} className="text-violet-500" />
-                                    <span>Send to Vendor</span>
+                                    <FaTruck size={12} />
+                                    <span className="text-center text-xs">Send</span>
                                   </button>
                                 )}
 
@@ -955,12 +971,12 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleMaterialReceived(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-teal-600 hover:bg-teal-50 flex items-center gap-3 transition-colors font-semibold border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-teal-50 hover:bg-teal-100 text-teal-600 transition-colors text-xs font-normal border border-teal-200"
                                   >
-                                    <FaCheckCircle size={16} className="text-teal-500" />
-                                    <span>✅ Material Received</span>
+                                    <FaCheckCircle size={12} />
+                                    <span className="text-center text-xs">Received</span>
                                   </button>
                                 )}
 
@@ -969,12 +985,12 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleRequestGRN(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors text-xs font-normal border border-blue-200"
                                   >
-                                    <FaBoxOpen size={16} className="text-blue-500" />
-                                    <span>📋 Request GRN (Manual)</span>
+                                    <FaBoxOpen size={12} />
+                                    <span className="text-center text-xs">Req GRN</span>
                                   </button>
                                 )}
 
@@ -983,12 +999,12 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleViewGRNStatus(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-orange-50 hover:bg-orange-100 text-orange-600 transition-colors text-xs font-normal border border-orange-200"
                                   >
-                                    <FaClock size={16} className="text-orange-500" />
-                                    <span>⏳ {order.status === 'dispatched' || order.status === 'in_transit' ? 'Materials In Transit - GRN Pending' : 'GRN Request Pending'}</span>
+                                    <FaClock size={12} />
+                                    <span className="text-center text-xs">{order.status === 'dispatched' || order.status === 'in_transit' ? 'In Transit' : 'GRN Status'}</span>
                                   </button>
                                 )}
 
@@ -996,25 +1012,25 @@ const PurchaseOrdersPage = () => {
                                 <button
                                   onClick={() => {
                                     handleGenerateInvoice(order);
-                                    setShowActionMenu(null);
+                                    setExpandedRows(new Set());
                                   }}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors text-xs font-normal border border-slate-200"
                                 >
-                                  <FaFileInvoice size={16} className="text-slate-400" />
-                                  <span>Generate Invoice</span>
+                                  <FaFileInvoice size={12} />
+                                  <span className="text-center text-xs">Invoice</span>
                                 </button>
 
-                                {/* View GRN Status */}
-                                {['sent', 'acknowledged', 'received', 'partial_received', 'completed'].includes(order.status) && (
+                                {/* View GRN Status - General option for received orders */}
+                                {['sent', 'acknowledged', 'received', 'partial_received', 'completed'].includes(order.status) && !['grn_requested', 'dispatched', 'in_transit'].includes(order.status) && (
                                   <button
                                     onClick={() => {
                                       handleViewGRNStatus(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors text-xs font-normal border border-slate-200"
                                   >
-                                    <FaClipboardList size={16} className="text-slate-400" />
-                                    <span>View GRN Status</span>
+                                    <FaClipboardList size={12} />
+                                    <span className="text-center text-xs">GRN Status</span>
                                   </button>
                                 )}
 
@@ -1022,24 +1038,24 @@ const PurchaseOrdersPage = () => {
                                 <button
                                   onClick={() => {
                                     handleGenerateQR(order);
-                                    setShowActionMenu(null);
+                                    setExpandedRows(new Set());
                                   }}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors text-xs font-normal border border-slate-200"
                                 >
-                                  <FaQrcode size={16} className="text-slate-400" />
-                                  <span>Generate QR Code</span>
+                                  <FaQrcode size={12} />
+                                  <span className="text-center text-xs">QR Code</span>
                                 </button>
 
                                 {/* Print PO */}
                                 <button
                                   onClick={() => {
                                     handlePrint(order);
-                                    setShowActionMenu(null);
+                                    setExpandedRows(new Set());
                                   }}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors text-xs font-normal border border-slate-200"
                                 >
-                                  <FaPrint size={16} className="text-slate-400" />
-                                  <span>Print PO</span>
+                                  <FaPrint size={12} />
+                                  <span className="text-center text-xs">Print</span>
                                 </button>
 
                                 {/* Mark as Received - Quick action */}
@@ -1047,33 +1063,32 @@ const PurchaseOrdersPage = () => {
                                   <button
                                     onClick={() => {
                                       handleMarkAsReceived(order);
-                                      setShowActionMenu(null);
+                                      setExpandedRows(new Set());
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 transition-colors border-b border-slate-100"
+                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors text-xs font-normal border border-emerald-200"
                                   >
-                                    <FaCheck size={16} className="text-emerald-500" />
-                                    <span>Mark as Received</span>
+                                    <FaCheck size={12} />
+                                    <span className="text-center text-xs">Received</span>
                                   </button>
                                 )}
 
                                 {/* Delete - Dangerous action at bottom */}
-                                <div className="border-t border-slate-100 my-1"></div>
                                 <button
                                   onClick={() => {
                                     handleDelete(order);
-                                    setShowActionMenu(null);
+                                    setExpandedRows(new Set());
                                   }}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-600 transition-colors text-xs font-normal border border-red-200"
                                 >
-                                  <FaTrash size={16} className="text-red-500" />
-                                  <span>Delete Order</span>
+                                  <FaTrash size={12} />
+                                  <span className="text-center text-xs">Delete</span>
                                 </button>
                               </div>
-                            )}
-                          </div>
-                        </td>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </tr>
+                    </React.Fragment>
                   ))
                 )}
               </tbody>
@@ -1084,13 +1099,13 @@ const PurchaseOrdersPage = () => {
         {/* QR Code Modal */}
         {showQRModal && qrOrder && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 border border-slate-100">
-              <div className="px-6 py-5 border-b border-slate-100">
-                <h2 className="text-lg font-semibold text-slate-800">Purchase Order QR Code</h2>
+            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 border border-slate-100">
+              <div className="px-4 py-3 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-800">PO QR Code</h2>
               </div>
 
-              <div className="p-6">
-                <div className="text-center mb-6">
+              <div className="p-3">
+                <div className="text-center mb-3">
                   <QRCodeDisplay
                     data={JSON.stringify({
                       po_number: qrOrder.po_number,
@@ -1099,30 +1114,30 @@ const PurchaseOrdersPage = () => {
                       amount: qrOrder.final_amount,
                       track_url: `${window.location.origin}/procurement/track/${qrOrder.po_number}`
                     })}
-                    size={200}
+                    size={160}
                   />
                 </div>
 
-                <div className="space-y-3 text-sm mb-6 bg-slate-50 p-4 rounded-lg">
-                  <div className="text-slate-700"><strong className="text-slate-800">PO Number:</strong> <span className="font-mono">{qrOrder.po_number}</span></div>
+                <div className="space-y-1.5 text-xs mb-3 bg-slate-50 p-2.5 rounded">
+                  <div className="text-slate-700"><strong className="text-slate-800">PO:</strong> <span className="font-mono text-xs">{qrOrder.po_number}</span></div>
                   <div className="text-slate-700"><strong className="text-slate-800">Vendor:</strong> {qrOrder.vendor?.name}</div>
                   <div className="text-slate-700"><strong className="text-slate-800">Status:</strong> {qrOrder.status}</div>
                   <div className="text-slate-700"><strong className="text-slate-800">Amount:</strong> ₹{qrOrder.final_amount?.toLocaleString()}</div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button
                     onClick={() => setShowQRModal(false)}
-                    className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all font-medium"
+                    className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded transition-all font-medium text-xs"
                   >
                     Close
                   </button>
                   <button
                     onClick={() => window.print()}
-                    className="flex-1 px-4 py-2.5 text-white rounded-lg transition-all font-medium"
+                    className="flex-1 px-3 py-2 text-white rounded transition-all font-medium text-xs"
                     style={{ backgroundColor: '#0f172a' }}
                   >
-                    Print QR Code
+                    Print
                   </button>
                 </div>
               </div>
