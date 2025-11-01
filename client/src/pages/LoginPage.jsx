@@ -50,8 +50,8 @@ const LoginPage = () => {
         </div>
         <div className="bg-white shadow rounded border border-gray-200">
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 text-center mb-1">Welcome Back</h2>
-            <p className="text-gray-500 text-center mb-4 bg-green-600">Sign in to your account to continue</p>
+            <h2 className="text-xl font-semibold text-gray-800 text-center mb-1 bg-red-800">Welcome Back</h2>
+            <p className="text-gray-500 text-center mb-4 bg-blue-800">Sign in to your account to continue</p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
