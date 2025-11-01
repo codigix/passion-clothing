@@ -14,23 +14,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/passion-clothing
-
-            # Save .env if it exists
-            if [ -f "server/.env" ]; then
-              cp server/.env /tmp/.env_backup
-            fi
-
-            # Reset to clean Git state
-            git fetch origin main
-            git reset --hard origin/main
-
-            # Restore .env
-            if [ -f "/tmp/.env_backup" ]; then
-              mkdir -p server
-              mv /tmp/.env_backup server/.env
-            fi
-
-            # Install and build
+            git pull origin main
             cd server && npm install --production
             cd ../client && npm install && npm run build
             pm2 restart passion-erp
