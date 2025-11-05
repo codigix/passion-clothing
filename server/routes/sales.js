@@ -2210,7 +2210,13 @@ router.get(
           {
             model: SalesOrder,
             as: "salesOrder",
-            attributes: ["id", "order_number", "status"],
+            attributes: [
+              "id",
+              "order_number",
+              "status",
+              "product_name",
+              "items",
+            ],
             include: [
               { model: Customer, as: "customer", attributes: ["name"] },
             ],
@@ -2227,7 +2233,7 @@ router.get(
           {
             model: SalesOrder,
             as: "salesOrder",
-            attributes: ["id", "order_number"],
+            attributes: ["id", "order_number", "product_name", "items"],
             include: [
               { model: Customer, as: "customer", attributes: ["name"] },
             ],
@@ -2264,6 +2270,33 @@ router.get(
         const customerName =
           activity.salesOrder?.customer?.name || "Unknown Customer";
 
+        // Get product name - try product_name field first, fallback to items
+        let productName = activity.salesOrder?.product_name;
+        if (
+          !productName &&
+          activity.salesOrder?.items &&
+          activity.salesOrder.items.length > 0
+        ) {
+          productName =
+            activity.salesOrder.items[0].product_name ||
+            activity.salesOrder.items[0].product_type;
+        }
+
+        // Map status to stage description
+        const stageMap = {
+          pending: "Pending",
+          accepted: "Accepted",
+          procurement_created: "Procurement Started",
+          in_production: "In Production",
+          production_complete: "Production Complete",
+          ready_for_shipment: "Ready for Shipment",
+          shipped: "Shipped",
+          delivered: "Delivered",
+          cancelled: "Cancelled",
+        };
+
+        const stage = stageMap[activity.status_to] || activity.status_to;
+
         return {
           id: `order-${activity.id}`,
           type: "order_activity",
@@ -2272,9 +2305,12 @@ router.get(
           description:
             activity.note || `Status changed to ${activity.status_to}`,
           customer: customerName,
+          product_name: productName,
           timestamp: createdDate,
           performed_by: userName,
           related_id: activity.salesOrder?.id,
+          status: activity.status_to,
+          stage: stage,
         };
       });
 
@@ -2288,6 +2324,13 @@ router.get(
         const customerName =
           shipment.salesOrder?.customer?.name || "Unknown Customer";
 
+        // Get product name - try salesOrder first, then shipment items
+        let productName = shipment.salesOrder?.product_name;
+        if (!productName && shipment.items && shipment.items.length > 0) {
+          productName =
+            shipment.items[0].product_name || shipment.items[0].product_type;
+        }
+
         return {
           id: `shipment-${shipment.id}`,
           type: "shipment_activity",
@@ -2297,9 +2340,12 @@ router.get(
             shipment.awb_number ? ` | AWB: ${shipment.awb_number}` : ""
           }`,
           customer: customerName,
+          product_name: productName || null,
           timestamp: createdDate,
           performed_by: null,
           related_id: shipment.salesOrder?.id,
+          status: shipment.status,
+          stage: "Shipment",
         };
       });
 
