@@ -1092,95 +1092,22 @@ const PurchaseOrdersPage = () => {
                         )}
                         {isColumnVisible("actions") && (
                           <td className="px-2 py-2 whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_4px_rgba(0,0,0,0.05)] transition-colors">
-                            <div className="flex items-center gap-1">
-                              {/* View */}
-                              <button
-                                onClick={() => handleView(order)}
-                                className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors text-blue-600 hover:text-blue-700"
-                                title="View"
-                              >
-                                <FaEye size={12} />
-                              </button>
-
-                              {/* Submit - For draft status */}
-                              {order.status?.toLowerCase() === "draft" && (
-                                <button
-                                  onClick={() => handleSubmitForApproval(order)}
-                                  className="p-1.5 hover:bg-amber-100 rounded-lg transition-colors text-amber-600 hover:text-amber-700"
-                                  title="Submit for Approval"
-                                >
-                                  <FaClipboardList size={12} />
-                                </button>
-                              )}
-
-                              {/* Send to Vendor - For approved or draft status */}
-                              {(order.status?.toLowerCase() === "approved" ||
-                                order.status?.toLowerCase() === "draft") && (
-                                <button
-                                  onClick={() => handleSendToVendor(order)}
-                                  className="p-1.5 hover:bg-violet-100 rounded-lg transition-colors text-violet-600 hover:text-violet-700"
-                                  title="Send to Vendor"
-                                >
-                                  <FaTruck size={12} />
-                                </button>
-                              )}
-
-                              {/* Invoice */}
-                              <button
-                                onClick={() => handleGenerateInvoice(order)}
-                                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600 hover:text-slate-700"
-                                title="Generate Invoice"
-                              >
-                                <FaFileInvoice size={12} />
-                              </button>
-
-                              {/* QR Code */}
-                              <button
-                                onClick={() => handleGenerateQR(order)}
-                                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600 hover:text-slate-700"
-                                title="Generate QR Code"
-                              >
-                                <FaQrcode size={12} />
-                              </button>
-
-                              {/* Print */}
-                              <button
-                                onClick={() => handlePrint(order)}
-                                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600 hover:text-slate-700"
-                                title="Print"
-                              >
-                                <FaPrint size={12} />
-                              </button>
-
-                              {/* Delete */}
-                              <button
-                                onClick={() => handleDelete(order)}
-                                className="p-1.5 hover:bg-red-100 rounded-lg transition-colors text-red-600 hover:text-red-700"
-                                title="Delete"
-                              >
-                                <FaTrash size={12} />
-                              </button>
-
-                              {/* More Actions Chevron */}
-                              <button
-                                onClick={() => toggleRowExpansion(order.id)}
-                                className="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700 ml-1 border-l border-slate-200 pl-2"
-                                title={
-                                  expandedRows.has(order.id)
-                                    ? "Hide More Actions"
-                                    : "Show More Actions"
-                                }
-                              >
-                                <FaChevronDown
-                                  size={12}
-                                  className={`transition-transform ${
-                                    expandedRows.has(order.id)
-                                      ? "rotate-180"
-                                      : ""
-                                  }`}
-                                />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => toggleRowExpansion(order.id)}
+                              className="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+                              title={
+                                expandedRows.has(order.id)
+                                  ? "Hide Actions"
+                                  : "Show Actions"
+                              }
+                            >
+                              <FaChevronDown
+                                size={12}
+                                className={`transition-transform ${
+                                  expandedRows.has(order.id) ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
                           </td>
                         )}
                       </tr>
