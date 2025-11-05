@@ -1,77 +1,207 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingBag, ShoppingCart, Plus, Search, Eye, Edit, Building, Receipt, Truck, DollarSign, Calendar, CheckCircle, AlertTriangle, Download, Star, Phone, Mail, QrCode, MessageSquare, Package, Factory, RefreshCw, TrendingUp, BarChart3, Clock, Box, Trash2, FileText, PrinterIcon, ChevronDown, Columns3 } from 'lucide-react';
-import { FaTrash, FaQrcode, FaTruck, FaFileInvoice, FaPrint, FaChevronDown, FaShoppingCart, FaClock, FaCheck, FaMoneyBillWave, FaColumns, FaCheckCircle, FaExclamationCircle, FaBoxOpen, FaClipboardList } from 'react-icons/fa';
-import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../utils/api';
-import toast from 'react-hot-toast';
-import QRCodeScanner from '../../components/manufacturing/QRCodeScanner';
-import QRCodeDisplay from '../../components/QRCodeDisplay';
-import PurchaseOrderForm from '../../components/procurement/PurchaseOrderForm';
+import React, { useState, useEffect } from "react";
+import {
+  ShoppingBag,
+  ShoppingCart,
+  Plus,
+  Search,
+  Eye,
+  Edit,
+  Building,
+  Receipt,
+  Truck,
+  DollarSign,
+  Calendar,
+  CheckCircle,
+  AlertTriangle,
+  Download,
+  Star,
+  Phone,
+  Mail,
+  QrCode,
+  MessageSquare,
+  Package,
+  Factory,
+  RefreshCw,
+  TrendingUp,
+  BarChart3,
+  Clock,
+  Box,
+  Trash2,
+  FileText,
+  PrinterIcon,
+  ChevronDown,
+  Columns3,
+} from "lucide-react";
+import {
+  FaTrash,
+  FaQrcode,
+  FaTruck,
+  FaFileInvoice,
+  FaPrint,
+  FaChevronDown,
+  FaShoppingCart,
+  FaClock,
+  FaCheck,
+  FaMoneyBillWave,
+  FaColumns,
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaBoxOpen,
+  FaClipboardList,
+} from "react-icons/fa";
+import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../utils/api";
+import toast from "react-hot-toast";
+import QRCodeScanner from "../../components/manufacturing/QRCodeScanner";
+import QRCodeDisplay from "../../components/QRCodeDisplay";
+import PurchaseOrderForm from "../../components/procurement/PurchaseOrderForm";
 
 // Define all available columns
 const AVAILABLE_COLUMNS = [
-  { id: 'po_number', label: 'PO Number', defaultVisible: true, alwaysVisible: true },
-  { id: 'po_date', label: 'PO Date', defaultVisible: true },
-  { id: 'vendor', label: 'Vendor', defaultVisible: true },
-  { id: 'linked_so', label: 'Linked SO', defaultVisible: false },
-  { id: 'customer', label: 'Customer', defaultVisible: false },
-  { id: 'project_name', label: 'Project Name', defaultVisible: false },
-  { id: 'total_quantity', label: 'Total Quantity', defaultVisible: false },
-  { id: 'final_amount', label: 'Total Amount', defaultVisible: true },
-  { id: 'expected_delivery_date', label: 'Expected Delivery', defaultVisible: true },
-  { id: 'status', label: 'Status', defaultVisible: true },
-  { id: 'priority', label: 'Priority', defaultVisible: true },
-  { id: 'created_by', label: 'Created By', defaultVisible: false },
-  { id: 'actions', label: 'Actions', defaultVisible: true, alwaysVisible: true }
+  {
+    id: "po_number",
+    label: "PO Number",
+    defaultVisible: true,
+    alwaysVisible: true,
+  },
+  { id: "po_date", label: "PO Date", defaultVisible: true },
+  { id: "vendor", label: "Vendor", defaultVisible: true },
+  { id: "linked_so", label: "Linked SO", defaultVisible: false },
+  { id: "customer", label: "Customer", defaultVisible: false },
+  { id: "project_name", label: "Project Name", defaultVisible: false },
+  { id: "total_quantity", label: "Total Quantity", defaultVisible: false },
+  { id: "final_amount", label: "Total Amount", defaultVisible: true },
+  {
+    id: "expected_delivery_date",
+    label: "Expected Delivery",
+    defaultVisible: true,
+  },
+  { id: "status", label: "Status", defaultVisible: true },
+  { id: "priority", label: "Priority", defaultVisible: true },
+  { id: "created_by", label: "Created By", defaultVisible: false },
+  {
+    id: "actions",
+    label: "Actions",
+    defaultVisible: true,
+    alwaysVisible: true,
+  },
 ];
 
 // Status and Priority badges
 const PO_STATUS_BADGES = {
-  draft: { label: 'Draft', color: 'bg-slate-100', text: 'text-slate-700', description: 'Order is in draft status' },
-  pending_approval: { label: 'Pending Approval', color: 'bg-amber-100', text: 'text-amber-700', description: 'Awaiting admin approval' },
-  approved: { label: 'Approved', color: 'bg-blue-100', text: 'text-blue-700', description: 'Order approved' },
-  sent: { label: 'Sent to Vendor', color: 'bg-purple-100', text: 'text-purple-700', description: 'Sent to vendor' },
-  acknowledged: { label: 'Acknowledged', color: 'bg-indigo-100', text: 'text-indigo-700', description: 'Vendor acknowledged' },
-  dispatched: { label: '🚚 Dispatched', color: 'bg-cyan-100', text: 'text-cyan-700', description: 'Materials dispatched' },
-  in_transit: { label: '🚛 In Transit', color: 'bg-sky-100', text: 'text-sky-700', description: 'Materials in transit' },
-  grn_requested: { label: 'GRN Requested', color: 'bg-orange-100', text: 'text-orange-700', description: 'GRN creation requested' },
-  grn_created: { label: 'GRN Created', color: 'bg-teal-100', text: 'text-teal-700', description: 'GRN created' },
-  partial_received: { label: 'Partially Received', color: 'bg-lime-100', text: 'text-lime-700', description: 'Partially received' },
-  received: { label: 'Received', color: 'bg-emerald-100', text: 'text-emerald-700', description: 'Fully received' },
-  completed: { label: 'Completed', color: 'bg-green-100', text: 'text-green-700', description: 'Order completed' },
-  cancelled: { label: 'Cancelled', color: 'bg-red-100', text: 'text-red-700', description: 'Order cancelled' }
+  draft: {
+    label: "Draft",
+    color: "bg-slate-100",
+    text: "text-slate-700",
+    description: "Order is in draft status",
+  },
+  pending_approval: {
+    label: "Pending Approval",
+    color: "bg-amber-100",
+    text: "text-amber-700",
+    description: "Awaiting admin approval",
+  },
+  approved: {
+    label: "Approved",
+    color: "bg-blue-100",
+    text: "text-blue-700",
+    description: "Order approved",
+  },
+  sent: {
+    label: "Sent to Vendor",
+    color: "bg-purple-100",
+    text: "text-purple-700",
+    description: "Sent to vendor",
+  },
+  acknowledged: {
+    label: "Acknowledged",
+    color: "bg-indigo-100",
+    text: "text-indigo-700",
+    description: "Vendor acknowledged",
+  },
+  dispatched: {
+    label: "🚚 Dispatched",
+    color: "bg-cyan-100",
+    text: "text-cyan-700",
+    description: "Materials dispatched",
+  },
+  in_transit: {
+    label: "🚛 In Transit",
+    color: "bg-sky-100",
+    text: "text-sky-700",
+    description: "Materials in transit",
+  },
+  grn_requested: {
+    label: "GRN Requested",
+    color: "bg-orange-100",
+    text: "text-orange-700",
+    description: "GRN creation requested",
+  },
+  grn_created: {
+    label: "GRN Created",
+    color: "bg-teal-100",
+    text: "text-teal-700",
+    description: "GRN created",
+  },
+  partial_received: {
+    label: "Partially Received",
+    color: "bg-lime-100",
+    text: "text-lime-700",
+    description: "Partially received",
+  },
+  received: {
+    label: "Received",
+    color: "bg-emerald-100",
+    text: "text-emerald-700",
+    description: "Fully received",
+  },
+  completed: {
+    label: "Completed",
+    color: "bg-green-100",
+    text: "text-green-700",
+    description: "Order completed",
+  },
+  cancelled: {
+    label: "Cancelled",
+    color: "bg-red-100",
+    text: "text-red-700",
+    description: "Order cancelled",
+  },
 };
 
 const PRIORITY_BADGES = {
-  low: { label: 'Low', color: 'bg-blue-100', text: 'text-blue-700' },
-  medium: { label: 'Medium', color: 'bg-yellow-100', text: 'text-yellow-700' },
-  high: { label: 'High', color: 'bg-orange-100', text: 'text-orange-700' },
-  urgent: { label: 'Urgent', color: 'bg-red-100', text: 'text-red-700' }
+  low: { label: "Low", color: "bg-blue-100", text: "text-blue-700" },
+  medium: { label: "Medium", color: "bg-yellow-100", text: "text-yellow-700" },
+  high: { label: "High", color: "bg-orange-100", text: "text-orange-700" },
+  urgent: { label: "Urgent", color: "bg-red-100", text: "text-red-700" },
 };
 
 // Utility functions
 const formatINR = (value) => {
-  if (!value) return '₹0';
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
+  if (!value) return "₹0";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(value);
 };
 
 const formatDate = (date) => {
-  if (!date) return 'N/A';
-  return new Date(date).toLocaleDateString('en-IN');
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("en-IN");
 };
 
 const ProcurementDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [tabValue, setTabValue] = useState(0);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState("all");
 
   // Real data
   const [stats, setStats] = useState({
     totalPOs: 0,
     openPOs: 0,
     vendorCount: 0,
-    pendingOrders: 0
+    pendingOrders: 0,
   });
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
@@ -86,21 +216,23 @@ const ProcurementDashboard = () => {
   const [isFetching, setIsFetching] = useState(false);
 
   // Purchase Orders table state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilterPO, setStatusFilterPO] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilterPO, setStatusFilterPO] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [menuPosition, setMenuPosition] = useState({});
   const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('procurementDashboardVisibleColumns');
+    const saved = localStorage.getItem("procurementDashboardVisibleColumns");
     if (saved) {
       return JSON.parse(saved);
     }
-    return AVAILABLE_COLUMNS.filter(col => col.defaultVisible).map(col => col.id);
+    return AVAILABLE_COLUMNS.filter((col) => col.defaultVisible).map(
+      (col) => col.id
+    );
   });
   const [poSummary, setPoSummary] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
@@ -120,22 +252,29 @@ const ProcurementDashboard = () => {
   // Apply filters for PO table
   useEffect(() => {
     applyPOFilters();
-  }, [purchaseOrders, searchTerm, statusFilterPO, priorityFilter, dateFrom, dateTo]);
+  }, [
+    purchaseOrders,
+    searchTerm,
+    statusFilterPO,
+    priorityFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   // Click outside handler for PO table menus
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showColumnMenu && !event.target.closest('.column-menu-container')) {
+      if (showColumnMenu && !event.target.closest(".column-menu-container")) {
         setShowColumnMenu(false);
       }
-      if (showActionMenu && !event.target.closest('.action-menu-container')) {
+      if (showActionMenu && !event.target.closest(".action-menu-container")) {
         setShowActionMenu(null);
         setMenuPosition({});
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showColumnMenu, showActionMenu]);
 
   const fetchDashboardData = async () => {
@@ -146,49 +285,54 @@ const ProcurementDashboard = () => {
       setLoading(true);
 
       // Fetch stats
-      const statsRes = await api.get('/procurement/dashboard/stats');
-      setStats(prevStats => ({
+      const statsRes = await api.get("/procurement/dashboard/stats");
+      setStats((prevStats) => ({
         ...prevStats,
-        ...statsRes.data
+        ...statsRes.data,
       }));
 
       // Fetch recent purchase orders
-      const poRes = await api.get('/procurement/pos?limit=10');
+      const poRes = await api.get("/procurement/pos?limit=10");
       setPurchaseOrders(poRes.data.purchaseOrders || []);
 
       // Fetch incoming orders from sales
-      const incomingRes = await api.get('/sales/orders?limit=50');
-      const ordersForProcurement = (incomingRes.data.orders || []).filter(order => 
-        order.ready_for_procurement === true && (order.status === 'draft' || order.status === 'confirmed')
+      const incomingRes = await api.get("/sales/orders?limit=50");
+      const ordersForProcurement = (incomingRes.data.orders || []).filter(
+        (order) =>
+          order.ready_for_procurement === true &&
+          (order.status === "draft" || order.status === "confirmed")
       );
       setIncomingOrders(ordersForProcurement);
 
       // Fetch incoming purchase orders
-      const incomingPORes = await api.get('/procurement/pos?status=draft,pending_approval,sent&limit=20');
+      const incomingPORes = await api.get(
+        "/procurement/pos?status=draft,pending_approval,sent&limit=20"
+      );
       setIncomingPurchaseOrders(incomingPORes.data.purchaseOrders || []);
 
       // Update pending orders count
-      const totalIncoming = (incomingRes.data.orders?.length || 0) + (incomingPORes.data.purchaseOrders?.length || 0);
-      setStats(prevStats => ({
+      const totalIncoming =
+        (incomingRes.data.orders?.length || 0) +
+        (incomingPORes.data.purchaseOrders?.length || 0);
+      setStats((prevStats) => ({
         ...prevStats,
-        pendingOrders: totalIncoming
+        pendingOrders: totalIncoming,
       }));
 
       // Fetch vendors
-      const vendorsRes = await api.get('/procurement/vendors?limit=10');
+      const vendorsRes = await api.get("/procurement/vendors?limit=10");
       setVendors(vendorsRes.data.vendors || []);
 
       // Fetch PO summary stats
       try {
-        const summaryRes = await api.get('/procurement/pos/stats/summary');
+        const summaryRes = await api.get("/procurement/pos/stats/summary");
         setPoSummary(summaryRes.data);
       } catch (err) {
-        console.error('Error fetching PO summary:', err);
+        console.error("Error fetching PO summary:", err);
       }
-
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
       setStats({ totalPOs: 0, openPOs: 0, vendorCount: 0, pendingOrders: 0 });
       setPurchaseOrders([]);
       setIncomingOrders([]);
@@ -206,30 +350,37 @@ const ProcurementDashboard = () => {
     // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(order =>
-        order.po_number?.toLowerCase().includes(search) ||
-        order.vendor?.name?.toLowerCase().includes(search) ||
-        order.vendor?.vendor_code?.toLowerCase().includes(search) ||
-        order.project_name?.toLowerCase().includes(search)
+      filtered = filtered.filter(
+        (order) =>
+          order.po_number?.toLowerCase().includes(search) ||
+          order.vendor?.name?.toLowerCase().includes(search) ||
+          order.vendor?.vendor_code?.toLowerCase().includes(search) ||
+          order.project_name?.toLowerCase().includes(search)
       );
     }
 
     // Status filter
-    if (statusFilterPO !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilterPO);
+    if (statusFilterPO !== "all") {
+      filtered = filtered.filter((order) => order.status === statusFilterPO);
     }
 
     // Priority filter
-    if (priorityFilter !== 'all') {
-      filtered = filtered.filter(order => order.priority?.toLowerCase() === priorityFilter);
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter(
+        (order) => order.priority?.toLowerCase() === priorityFilter
+      );
     }
 
     // Date range filter
     if (dateFrom) {
-      filtered = filtered.filter(order => new Date(order.po_date) >= new Date(dateFrom));
+      filtered = filtered.filter(
+        (order) => new Date(order.po_date) >= new Date(dateFrom)
+      );
     }
     if (dateTo) {
-      filtered = filtered.filter(order => new Date(order.po_date) <= new Date(dateTo));
+      filtered = filtered.filter(
+        (order) => new Date(order.po_date) <= new Date(dateTo)
+      );
     }
 
     setFilteredOrders(filtered);
@@ -239,43 +390,60 @@ const ProcurementDashboard = () => {
   const isColumnVisible = (columnId) => visibleColumns.includes(columnId);
 
   const toggleColumn = (columnId) => {
-    const column = AVAILABLE_COLUMNS.find(col => col.id === columnId);
+    const column = AVAILABLE_COLUMNS.find((col) => col.id === columnId);
     if (column?.alwaysVisible) return;
 
     const newVisible = visibleColumns.includes(columnId)
-      ? visibleColumns.filter(id => id !== columnId)
+      ? visibleColumns.filter((id) => id !== columnId)
       : [...visibleColumns, columnId];
 
     setVisibleColumns(newVisible);
-    localStorage.setItem('procurementDashboardVisibleColumns', JSON.stringify(newVisible));
+    localStorage.setItem(
+      "procurementDashboardVisibleColumns",
+      JSON.stringify(newVisible)
+    );
   };
 
   const showAllColumns = () => {
-    const allIds = AVAILABLE_COLUMNS.map(col => col.id);
+    const allIds = AVAILABLE_COLUMNS.map((col) => col.id);
     setVisibleColumns(allIds);
-    localStorage.setItem('procurementDashboardVisibleColumns', JSON.stringify(allIds));
+    localStorage.setItem(
+      "procurementDashboardVisibleColumns",
+      JSON.stringify(allIds)
+    );
   };
 
   const resetColumns = () => {
-    const defaultIds = AVAILABLE_COLUMNS.filter(col => col.defaultVisible).map(col => col.id);
+    const defaultIds = AVAILABLE_COLUMNS.filter(
+      (col) => col.defaultVisible
+    ).map((col) => col.id);
     setVisibleColumns(defaultIds);
-    localStorage.setItem('procurementDashboardVisibleColumns', JSON.stringify(defaultIds));
+    localStorage.setItem(
+      "procurementDashboardVisibleColumns",
+      JSON.stringify(defaultIds)
+    );
   };
 
   // Badge helpers
   const getStatusBadge = (status) => {
     const badge = PO_STATUS_BADGES[status] || PO_STATUS_BADGES.draft;
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.color} ${badge.text}`} title={badge.description}>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.color} ${badge.text}`}
+        title={badge.description}
+      >
         {badge.label}
       </span>
     );
   };
 
   const getPriorityBadge = (priority) => {
-    const badge = PRIORITY_BADGES[priority?.toLowerCase()] || PRIORITY_BADGES.medium;
+    const badge =
+      PRIORITY_BADGES[priority?.toLowerCase()] || PRIORITY_BADGES.medium;
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.color} ${badge.text}`}>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.color} ${badge.text}`}
+      >
         {badge.label}
       </span>
     );
@@ -320,44 +488,78 @@ const ProcurementDashboard = () => {
   };
 
   const handleDeletePO = async (order) => {
-    if (!window.confirm(`Are you sure you want to delete PO ${order.po_number}?`)) {
+    if (
+      !window.confirm(`Are you sure you want to delete PO ${order.po_number}?`)
+    ) {
       return;
     }
 
     try {
       await api.delete(`/procurement/pos/${order.id}`);
-      toast.success('Purchase order deleted successfully');
+      toast.success("Purchase order deleted successfully");
       fetchDashboardData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete purchase order');
+      toast.error(
+        error.response?.data?.message || "Failed to delete purchase order"
+      );
+    }
+  };
+
+  const handleSubmitPO = async (order) => {
+    if (!window.confirm(`Submit PO ${order.po_number} for approval?`)) {
+      return;
+    }
+
+    try {
+      await api.patch(`/procurement/pos/${order.id}`, {
+        status: "pending_approval",
+      });
+      toast.success("Purchase order submitted for approval!");
+      fetchDashboardData();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to submit purchase order"
+      );
     }
   };
 
   const handleSendToVendor = async (order) => {
-    if (!window.confirm(`Send PO ${order.po_number} to vendor ${order.vendor?.name}?`)) {
+    if (
+      !window.confirm(
+        `Send PO ${order.po_number} to vendor ${order.vendor?.name}?`
+      )
+    ) {
       return;
     }
 
     try {
-      await api.patch(`/procurement/pos/${order.id}`, { status: 'sent' });
-      toast.success('Purchase order sent to vendor successfully!');
+      await api.patch(`/procurement/pos/${order.id}`, { status: "sent" });
+      toast.success("Purchase order sent to vendor successfully!");
       fetchDashboardData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send to vendor');
+      toast.error(error.response?.data?.message || "Failed to send to vendor");
     }
   };
 
   const handleMaterialReceived = async (order) => {
-    if (!window.confirm(`Confirm that materials for PO ${order.po_number} have been received?`)) {
+    if (
+      !window.confirm(
+        `Confirm that materials for PO ${order.po_number} have been received?`
+      )
+    ) {
       return;
     }
 
     try {
-      await api.post(`/procurement/purchase-orders/${order.id}/material-received`);
+      await api.post(
+        `/procurement/purchase-orders/${order.id}/material-received`
+      );
       toast.success(`Materials received for PO ${order.po_number}!`);
       fetchDashboardData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to mark materials as received');
+      toast.error(
+        error.response?.data?.message || "Failed to mark materials as received"
+      );
     }
   };
 
@@ -365,44 +567,61 @@ const ProcurementDashboard = () => {
   const handleQrScanSuccess = (qrData) => {
     setSelectedOrder(qrData);
     setQrDialogOpen(true);
-    toast.success('Order details loaded from QR code');
+    toast.success("Order details loaded from QR code");
   };
 
   // Handle creating purchase order from sales order
   const handleCreatePO = (salesOrder) => {
-    navigate(`/procurement/purchase-orders/create?from_sales_order=${salesOrder.id}`);
+    navigate(
+      `/procurement/purchase-orders/create?from_sales_order=${salesOrder.id}`
+    );
   };
 
   // Handle accepting incoming order request
   const handleAcceptOrder = async (order) => {
     if (!order) {
-      toast.error('Order details are unavailable. Please refresh and try again.');
-      return;
-    }
-
-    const isDraft = order.status === 'draft';
-    const isReady = order.ready_for_procurement === true;
-
-    if (!isDraft || !isReady) {
       toast.error(
-        `Order ${order.order_number || order.id} cannot be accepted yet. Status: ${order.status || 'unknown'}, Ready for procurement: ${isReady ? 'Yes' : 'No'}.`
+        "Order details are unavailable. Please refresh and try again."
       );
       return;
     }
 
-    if (!window.confirm(`Confirm order ${order.order_number}?\n\nThis will change the order status to 'Confirmed' and notify the Sales department.`)) {
+    const isDraft = order.status === "draft";
+    const isReady = order.ready_for_procurement === true;
+
+    if (!isDraft || !isReady) {
+      toast.error(
+        `Order ${
+          order.order_number || order.id
+        } cannot be accepted yet. Status: ${
+          order.status || "unknown"
+        }, Ready for procurement: ${isReady ? "Yes" : "No"}.`
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Confirm order ${order.order_number}?\n\nThis will change the order status to 'Confirmed' and notify the Sales department.`
+      )
+    ) {
       return;
     }
 
     try {
-      const response = await api.put(`/procurement/sales-orders/${order.id}/accept`);
-      toast.success('Order confirmed successfully. Sales department has been notified.');
+      const response = await api.put(
+        `/procurement/sales-orders/${order.id}/accept`
+      );
+      toast.success(
+        "Order confirmed successfully. Sales department has been notified."
+      );
       fetchDashboardData();
     } catch (error) {
-      console.error('Error confirming order:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to confirm order';
+      console.error("Error confirming order:", error);
+      const errorMsg =
+        error.response?.data?.message || "Failed to confirm order";
       const currentStatus = error.response?.data?.currentStatus;
-      
+
       if (currentStatus) {
         toast.error(`${errorMsg}. Current status: ${currentStatus}`);
       } else {
@@ -413,27 +632,27 @@ const ProcurementDashboard = () => {
 
   // Send order to inventory
   const handleSendToInventory = async (orderId) => {
-    if (!window.confirm('Mark materials as received and send to inventory?')) {
+    if (!window.confirm("Mark materials as received and send to inventory?")) {
       return;
     }
 
     try {
       await api.put(`/sales/orders/${orderId}/status`, {
-        status: 'materials_received',
-        notes: 'Materials received by procurement and sent to inventory'
+        status: "materials_received",
+        notes: "Materials received by procurement and sent to inventory",
       });
 
-      toast.success('Order sent to inventory');
+      toast.success("Order sent to inventory");
       fetchDashboardData();
     } catch (error) {
-      console.error('Error sending to inventory:', error);
-      toast.error('Failed to send to inventory');
+      console.error("Error sending to inventory:", error);
+      toast.error("Failed to send to inventory");
     }
   };
 
   // Handle Generate Invoice
   const handleGenerateInvoice = (po) => {
-    toast.success('Invoice generation feature coming soon');
+    toast.success("Invoice generation feature coming soon");
     // TODO: Implement invoice generation
   };
 
@@ -457,25 +676,32 @@ const ProcurementDashboard = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      draft: 'default',
-      pending_approval: 'warning',
-      approved: 'info',
-      sent_to_vendor: 'primary',
-      completed: 'success',
-      cancelled: 'error'
+      draft: "default",
+      pending_approval: "warning",
+      approved: "info",
+      sent_to_vendor: "primary",
+      completed: "success",
+      cancelled: "error",
     };
-    return colors[status] || 'default';
+    return colors[status] || "default";
   };
 
   const StatCard = ({ icon: Icon, label, value, color, subtitle }) => (
     <div className="bg-white rounded-lg border border-slate-100 p-2.5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wide font-medium text-slate-500 mb-1">{label}</p>
+          <p className="text-xs uppercase tracking-wide font-medium text-slate-500 mb-1">
+            {label}
+          </p>
           <p className="text-xl font-semibold text-slate-800">{value}</p>
-          {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
+          {subtitle && (
+            <p className="text-xs text-slate-500 mt-1">{subtitle}</p>
+          )}
         </div>
-        <div className="p-2 rounded-lg" style={{ backgroundColor: color + '15' }}>
+        <div
+          className="p-2 rounded-lg"
+          style={{ backgroundColor: color + "15" }}
+        >
           <Icon size={18} style={{ color }} />
         </div>
       </div>
@@ -489,25 +715,32 @@ const ProcurementDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg" style={{ backgroundColor: '#0f172a15' }}>
-                <ShoppingBag size={22} style={{ color: '#0f172a' }} />
+              <div
+                className="p-1.5 rounded-lg"
+                style={{ backgroundColor: "#0f172a15" }}
+              >
+                <ShoppingBag size={22} style={{ color: "#0f172a" }} />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-slate-800">Procurement Dashboard</h1>
-                <p className="text-xs text-slate-500 mt-0">Manage orders, vendors & supply chain</p>
+                <h1 className="text-lg font-semibold text-slate-800">
+                  Procurement Dashboard
+                </h1>
+                <p className="text-xs text-slate-500 mt-0">
+                  Manage orders, vendors & supply chain
+                </p>
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <button 
-                onClick={() => navigate('/procurement/vendor-management')}
+              <button
+                onClick={() => navigate("/procurement/vendor-management")}
                 className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition font-medium text-xs"
               >
                 <Building size={16} /> Vendors
               </button>
-              <button 
-                onClick={() => navigate('/procurement/purchase-orders')}
+              <button
+                onClick={() => navigate("/procurement/purchase-orders")}
                 className="flex items-center gap-2 px-3 py-1.5 text-white rounded-lg transition font-medium text-xs shadow-sm"
-                style={{ backgroundColor: '#0f172a' }}
+                style={{ backgroundColor: "#0f172a" }}
               >
                 <Plus size={16} /> Create PO
               </button>
@@ -564,7 +797,7 @@ const ProcurementDashboard = () => {
             <option value="completed">Completed</option>
           </select>
           <button
-            onClick={() => navigate('/procurement/reports')}
+            onClick={() => navigate("/procurement/reports")}
             className="flex items-center gap-2 px-2 py-1.5 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition font-medium text-xs"
           >
             <BarChart3 size={16} /> Reports
@@ -573,15 +806,19 @@ const ProcurementDashboard = () => {
             onClick={() => fetchDashboardData()}
             disabled={loading}
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-white transition font-medium text-xs disabled:opacity-50"
-            style={{ backgroundColor: '#0f172a' }}
+            style={{ backgroundColor: "#0f172a" }}
           >
-            {loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw size={16} />}
+            {loading ? (
+              <RefreshCw className="w-3 h-3 animate-spin" />
+            ) : (
+              <RefreshCw size={16} />
+            )}
             Refresh
           </button>
           <button
-            onClick={() => navigate('/procurement/reports')}
+            onClick={() => navigate("/procurement/reports")}
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-white transition font-medium text-xs ml-auto"
-            style={{ backgroundColor: '#06b6d4' }}
+            style={{ backgroundColor: "#06b6d4" }}
           >
             <Download size={16} /> Export
           </button>
@@ -590,9 +827,17 @@ const ProcurementDashboard = () => {
         {/* Tabs */}
         <div className="flex gap-0 mb-3 border-b border-slate-200">
           {[
-            { label: 'Incoming', count: incomingOrders.length + incomingPurchaseOrders.length, icon: TrendingUp },
-            { label: 'Purchase Orders', count: purchaseOrders.length, icon: Receipt },
-            { label: 'Vendors', count: vendors.length, icon: Building }
+            {
+              label: "Incoming",
+              count: incomingOrders.length + incomingPurchaseOrders.length,
+              icon: TrendingUp,
+            },
+            {
+              label: "Purchase Orders",
+              count: purchaseOrders.length,
+              icon: Receipt,
+            },
+            { label: "Vendors", count: vendors.length, icon: Building },
           ].map((tab, idx) => {
             const TabIcon = tab.icon;
             return (
@@ -601,12 +846,15 @@ const ProcurementDashboard = () => {
                 onClick={() => setTabValue(idx)}
                 className={`flex items-center gap-2 px-4 py-2 font-medium text-xs transition border-b-2 whitespace-nowrap ${
                   tabValue === idx
-                    ? 'border-blue-500 text-slate-800'
-                    : 'border-transparent text-slate-600 hover:text-slate-800'
+                    ? "border-blue-500 text-slate-800"
+                    : "border-transparent text-slate-600 hover:text-slate-800"
                 }`}
               >
                 <TabIcon size={16} />
-                {tab.label} <span className="ml-1 px-2 py-0 bg-slate-100 rounded-full text-xs font-medium text-slate-600">{tab.count}</span>
+                {tab.label}{" "}
+                <span className="ml-1 px-2 py-0 bg-slate-100 rounded-full text-xs font-medium text-slate-600">
+                  {tab.count}
+                </span>
               </button>
             );
           })}
@@ -617,11 +865,16 @@ const ProcurementDashboard = () => {
           {/* Incoming Orders Tab */}
           {tabValue === 0 && (
             <div className="space-y-3">
-              {incomingOrders.length === 0 && incomingPurchaseOrders.length === 0 ? (
+              {incomingOrders.length === 0 &&
+              incomingPurchaseOrders.length === 0 ? (
                 <div className="text-center py-4 bg-slate-50 border border-slate-200 rounded-lg">
                   <Package className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-slate-800 mb-1">No Incoming Orders</p>
-                  <p className="text-xs text-slate-500">Check back later or create a new purchase order</p>
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    No Incoming Orders
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Check back later or create a new purchase order
+                  </p>
                 </div>
               ) : (
                 <>
@@ -630,11 +883,20 @@ const ProcurementDashboard = () => {
                     <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                       <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg" style={{ backgroundColor: '#3b82f615' }}>
-                            <ShoppingCart size={16} style={{ color: '#3b82f6' }} />
+                          <div
+                            className="p-1.5 rounded-lg"
+                            style={{ backgroundColor: "#3b82f615" }}
+                          >
+                            <ShoppingCart
+                              size={16}
+                              style={{ color: "#3b82f6" }}
+                            />
                           </div>
                           <h3 className="text-sm font-semibold text-slate-800">
-                            Sales Orders <span className="text-xs text-slate-500">({incomingOrders.length})</span>
+                            Sales Orders{" "}
+                            <span className="text-xs text-slate-500">
+                              ({incomingOrders.length})
+                            </span>
                           </h3>
                         </div>
                       </div>
@@ -642,58 +904,119 @@ const ProcurementDashboard = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">#</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Customer</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Product</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Qty</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Material</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Status</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Actions</th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                #
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Customer
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Product
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Qty
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Material
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Status
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Actions
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-200">
                             {incomingOrders.map((order) => (
-                              <tr key={order.id} className="hover:bg-slate-50 transition">
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">{order.order_number}</td>
-                                <td className="px-3 py-1.5 text-xs">
-                                  <p className="font-medium text-slate-800">{typeof order.customer === 'object' ? order.customer?.name : order.customer}</p>
-                                  <p className="text-xs text-slate-500 mt-0">{new Date(order.created_at).toLocaleDateString()}</p>
+                              <tr
+                                key={order.id}
+                                className="hover:bg-slate-50 transition"
+                              >
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {order.order_number}
                                 </td>
                                 <td className="px-3 py-1.5 text-xs">
-                                  <p className="text-slate-800">{order.garment_specifications?.product_name || order.product_name || 'N/A'}</p>
-                                  <p className="text-xs text-slate-500 mt-0">{order.garment_specifications?.product_type || 'N/A'}</p>
+                                  <p className="font-medium text-slate-800">
+                                    {typeof order.customer === "object"
+                                      ? order.customer?.name
+                                      : order.customer}
+                                  </p>
+                                  <p className="text-xs text-slate-500 mt-0">
+                                    {new Date(
+                                      order.created_at
+                                    ).toLocaleDateString()}
+                                  </p>
                                 </td>
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">{order.total_quantity || 0}</td>
+                                <td className="px-3 py-1.5 text-xs">
+                                  <p className="text-slate-800">
+                                    {order.garment_specifications
+                                      ?.product_name ||
+                                      order.product_name ||
+                                      "N/A"}
+                                  </p>
+                                  <p className="text-xs text-slate-500 mt-0">
+                                    {order.garment_specifications
+                                      ?.product_type || "N/A"}
+                                  </p>
+                                </td>
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {order.total_quantity || 0}
+                                </td>
                                 <td className="px-3 py-1.5 text-xs">
                                   <div className="space-y-0.5">
-                                    {order.garment_specifications?.fabric_type && (
-                                      <p className="text-slate-800"><span className="text-slate-500">Fabric:</span> {order.garment_specifications.fabric_type}</p>
+                                    {order.garment_specifications
+                                      ?.fabric_type && (
+                                      <p className="text-slate-800">
+                                        <span className="text-slate-500">
+                                          Fabric:
+                                        </span>{" "}
+                                        {
+                                          order.garment_specifications
+                                            .fabric_type
+                                        }
+                                      </p>
                                     )}
                                     {order.garment_specifications?.color && (
-                                      <p className="text-slate-800"><span className="text-slate-500">Color:</span> {order.garment_specifications.color}</p>
+                                      <p className="text-slate-800">
+                                        <span className="text-slate-500">
+                                          Color:
+                                        </span>{" "}
+                                        {order.garment_specifications.color}
+                                      </p>
                                     )}
                                   </div>
                                 </td>
                                 <td className="px-3 py-1.5 text-xs">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-xs ${
-                                    order.status === 'confirmed'
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-amber-100 text-amber-700'
-                                  }`}>
-                                    {order.status === 'confirmed' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                                    {order.status === 'draft' ? 'Pending' : 'Approved'}
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-xs ${
+                                      order.status === "confirmed"
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-amber-100 text-amber-700"
+                                    }`}
+                                  >
+                                    {order.status === "confirmed" ? (
+                                      <CheckCircle size={12} />
+                                    ) : (
+                                      <Clock size={12} />
+                                    )}
+                                    {order.status === "draft"
+                                      ? "Pending"
+                                      : "Approved"}
                                   </span>
                                 </td>
                                 <td className="px-3 py-1.5 text-xs">
                                   <div className="flex gap-1">
                                     <button
-                                      onClick={() => navigate(`/sales/orders/${order.id}`)}
+                                      onClick={() =>
+                                        navigate(`/sales/orders/${order.id}`)
+                                      }
                                       className="p-1 rounded-lg hover:bg-slate-100 transition text-blue-600"
                                       title="View"
                                     >
                                       <Eye size={14} />
                                     </button>
-                                    {order.status === 'draft' && (
+                                    {order.status === "draft" && (
                                       <button
                                         onClick={() => handleAcceptOrder(order)}
                                         className="p-1 rounded-lg hover:bg-slate-100 transition text-green-600"
@@ -702,7 +1025,7 @@ const ProcurementDashboard = () => {
                                         <CheckCircle size={14} />
                                       </button>
                                     )}
-                                    {order.status === 'confirmed' && (
+                                    {order.status === "confirmed" && (
                                       <button
                                         onClick={() => handleCreatePO(order)}
                                         className="p-1 rounded-lg hover:bg-slate-100 transition text-slate-600"
@@ -726,11 +1049,17 @@ const ProcurementDashboard = () => {
                     <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                       <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg" style={{ backgroundColor: '#8b5cf615' }}>
-                            <Receipt size={16} style={{ color: '#8b5cf6' }} />
+                          <div
+                            className="p-1.5 rounded-lg"
+                            style={{ backgroundColor: "#8b5cf615" }}
+                          >
+                            <Receipt size={16} style={{ color: "#8b5cf6" }} />
                           </div>
                           <h3 className="text-sm font-semibold text-slate-800">
-                            Incoming Purchase Orders <span className="text-xs text-slate-500">({incomingPurchaseOrders.length})</span>
+                            Incoming Purchase Orders{" "}
+                            <span className="text-xs text-slate-500">
+                              ({incomingPurchaseOrders.length})
+                            </span>
                           </h3>
                         </div>
                       </div>
@@ -738,33 +1067,58 @@ const ProcurementDashboard = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">PO #</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Vendor</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Amount</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Status</th>
-                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">Actions</th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                PO #
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Vendor
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Amount
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Status
+                              </th>
+                              <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
+                                Actions
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-200">
                             {incomingPurchaseOrders.map((po) => (
-                              <tr key={po.id} className="hover:bg-slate-50 transition">
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">{po.po_number}</td>
-                                <td className="px-3 py-1.5 text-xs text-slate-800">{po.vendor?.vendor_name || po.vendor_id}</td>
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">₹{(po.total_amount / 100).toFixed(0)}</td>
+                              <tr
+                                key={po.id}
+                                className="hover:bg-slate-50 transition"
+                              >
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {po.po_number}
+                                </td>
+                                <td className="px-3 py-1.5 text-xs text-slate-800">
+                                  {po.vendor?.vendor_name || po.vendor_id}
+                                </td>
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  ₹{(po.total_amount / 100).toFixed(0)}
+                                </td>
                                 <td className="px-3 py-1.5 text-xs">
-                                  <span className={`inline-flex px-2 py-0.5 rounded-full font-medium text-xs ${
-                                    po.status === 'draft'
-                                      ? 'bg-slate-100 text-slate-700'
-                                      : po.status === 'pending_approval'
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    {po.status.replace(/_/g, ' ')}
+                                  <span
+                                    className={`inline-flex px-2 py-0.5 rounded-full font-medium text-xs ${
+                                      po.status === "draft"
+                                        ? "bg-slate-100 text-slate-700"
+                                        : po.status === "pending_approval"
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-blue-100 text-blue-700"
+                                    }`}
+                                  >
+                                    {po.status.replace(/_/g, " ")}
                                   </span>
                                 </td>
                                 <td className="px-3 py-1.5 text-xs">
                                   <button
-                                    onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                                    onClick={() =>
+                                      navigate(
+                                        `/procurement/purchase-orders/${po.id}`
+                                      )
+                                    }
                                     className="p-1 rounded-lg hover:bg-slate-100 transition text-blue-600"
                                     title="View"
                                   >
@@ -790,28 +1144,52 @@ const ProcurementDashboard = () => {
               {poSummary && (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
                   <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                    <p className="text-xs text-slate-500 font-medium mb-1">Total Orders</p>
-                    <p className="text-lg font-semibold text-slate-800">{poSummary.total_orders}</p>
+                    <p className="text-xs text-slate-500 font-medium mb-1">
+                      Total Orders
+                    </p>
+                    <p className="text-lg font-semibold text-slate-800">
+                      {poSummary.total_orders}
+                    </p>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                    <p className="text-xs text-slate-500 font-medium mb-1">Draft</p>
-                    <p className="text-lg font-semibold text-slate-800">{poSummary.draft_orders}</p>
+                    <p className="text-xs text-slate-500 font-medium mb-1">
+                      Draft
+                    </p>
+                    <p className="text-lg font-semibold text-slate-800">
+                      {poSummary.draft_orders}
+                    </p>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                    <p className="text-xs text-slate-500 font-medium mb-1">Pending</p>
-                    <p className="text-lg font-semibold text-amber-600">{poSummary.pending_approval_orders}</p>
+                    <p className="text-xs text-slate-500 font-medium mb-1">
+                      Pending
+                    </p>
+                    <p className="text-lg font-semibold text-amber-600">
+                      {poSummary.pending_approval_orders}
+                    </p>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                    <p className="text-xs text-slate-500 font-medium mb-1">Sent</p>
-                    <p className="text-lg font-semibold text-slate-800">{poSummary.sent_orders}</p>
+                    <p className="text-xs text-slate-500 font-medium mb-1">
+                      Sent
+                    </p>
+                    <p className="text-lg font-semibold text-slate-800">
+                      {poSummary.sent_orders}
+                    </p>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                    <p className="text-xs text-slate-500 font-medium mb-1">Received</p>
-                    <p className="text-lg font-semibold text-green-600">{poSummary.received_orders}</p>
+                    <p className="text-xs text-slate-500 font-medium mb-1">
+                      Received
+                    </p>
+                    <p className="text-lg font-semibold text-green-600">
+                      {poSummary.received_orders}
+                    </p>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm md:col-span-2 lg:col-span-1">
-                    <p className="text-xs text-slate-500 font-medium mb-1">Total Value</p>
-                    <p className="text-lg font-semibold text-slate-800">{formatINR(poSummary.total_value)}</p>
+                    <p className="text-xs text-slate-500 font-medium mb-1">
+                      Total Value
+                    </p>
+                    <p className="text-lg font-semibold text-slate-800">
+                      {formatINR(poSummary.total_value)}
+                    </p>
                   </div>
                 </div>
               )}
@@ -827,7 +1205,10 @@ const ProcurementDashboard = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full p-2 border border-slate-200 rounded-lg pl-8 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-800 placeholder-slate-400 transition-all text-xs"
                     />
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400" size={14} />
+                    <Search
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400"
+                      size={14}
+                    />
                   </div>
                   <div className="flex gap-2">
                     <div className="relative column-menu-container">
@@ -837,7 +1218,12 @@ const ProcurementDashboard = () => {
                       >
                         <FaColumns size={14} />
                         <span>Columns</span>
-                        <FaChevronDown size={12} className={`transition-transform ${showColumnMenu ? 'rotate-180' : ''}`} />
+                        <FaChevronDown
+                          size={12}
+                          className={`transition-transform ${
+                            showColumnMenu ? "rotate-180" : ""
+                          }`}
+                        />
                       </button>
 
                       {/* Column Menu Dropdown */}
@@ -845,17 +1231,24 @@ const ProcurementDashboard = () => {
                         <div className="absolute right-0 mt-1 w-60 bg-white rounded-lg shadow-lg z-50 border border-slate-100">
                           <div className="p-2">
                             <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-semibold text-slate-800 text-xs">Manage Columns</h3>
+                              <h3 className="font-semibold text-slate-800 text-xs">
+                                Manage Columns
+                              </h3>
                               <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
-                                {visibleColumns.length}/{AVAILABLE_COLUMNS.length}
+                                {visibleColumns.length}/
+                                {AVAILABLE_COLUMNS.length}
                               </span>
                             </div>
 
                             <div className="space-y-1 max-h-72 overflow-y-auto mb-2">
-                              {AVAILABLE_COLUMNS.map(column => (
+                              {AVAILABLE_COLUMNS.map((column) => (
                                 <label
                                   key={column.id}
-                                  className={`flex items-center gap-1.5 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-xs ${column.alwaysVisible ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`flex items-center gap-1.5 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-xs ${
+                                    column.alwaysVisible
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : ""
+                                  }`}
                                 >
                                   <input
                                     type="checkbox"
@@ -863,11 +1256,15 @@ const ProcurementDashboard = () => {
                                     onChange={() => toggleColumn(column.id)}
                                     disabled={column.alwaysVisible}
                                     className="w-3 h-3 rounded focus:ring-1 focus:ring-opacity-20"
-                                    style={{ accentColor: '#0f172a' }}
+                                    style={{ accentColor: "#0f172a" }}
                                   />
-                                  <span className="text-slate-700">{column.label}</span>
+                                  <span className="text-slate-700">
+                                    {column.label}
+                                  </span>
                                   {column.alwaysVisible && (
-                                    <span className="text-xs text-slate-400 ml-auto">(Required)</span>
+                                    <span className="text-xs text-slate-400 ml-auto">
+                                      (Required)
+                                    </span>
                                   )}
                                 </label>
                               ))}
@@ -898,7 +1295,12 @@ const ProcurementDashboard = () => {
                     >
                       <Search size={14} />
                       <span>Filters</span>
-                      <ChevronDown size={12} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform ${
+                          showFilters ? "rotate-180" : ""
+                        }`}
+                      />
                     </button>
                   </div>
                 </div>
@@ -906,7 +1308,9 @@ const ProcurementDashboard = () => {
                 {showFilters && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Status
+                      </label>
                       <select
                         value={statusFilterPO}
                         onChange={(e) => setStatusFilterPO(e.target.value)}
@@ -914,7 +1318,9 @@ const ProcurementDashboard = () => {
                       >
                         <option value="all">All Statuses</option>
                         <option value="draft">Draft</option>
-                        <option value="pending_approval">Pending Approval</option>
+                        <option value="pending_approval">
+                          Pending Approval
+                        </option>
                         <option value="approved">Approved</option>
                         <option value="sent">Sent to Vendor</option>
                         <option value="received">Received</option>
@@ -923,7 +1329,9 @@ const ProcurementDashboard = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Priority</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Priority
+                      </label>
                       <select
                         value={priorityFilter}
                         onChange={(e) => setPriorityFilter(e.target.value)}
@@ -938,7 +1346,9 @@ const ProcurementDashboard = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Date From</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Date From
+                      </label>
                       <input
                         type="date"
                         value={dateFrom}
@@ -948,7 +1358,9 @@ const ProcurementDashboard = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Date To</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Date To
+                      </label>
                       <input
                         type="date"
                         value={dateTo}
@@ -965,52 +1377,82 @@ const ProcurementDashboard = () => {
                 {filteredOrders.length === 0 ? (
                   <div className="text-center py-4">
                     <Receipt className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-slate-800 mb-1">No Purchase Orders</p>
-                    <p className="text-xs text-slate-500">Create your first purchase order to get started</p>
+                    <p className="text-sm font-semibold text-slate-800 mb-1">
+                      No Purchase Orders
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Create your first purchase order to get started
+                    </p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full divide-y divide-slate-100">
                       <thead className="bg-slate-50 border-b border-slate-100">
                         <tr>
-                          {isColumnVisible('po_number') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PO Number</th>
+                          {isColumnVisible("po_number") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              PO Number
+                            </th>
                           )}
-                          {isColumnVisible('po_date') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PO Date</th>
+                          {isColumnVisible("po_date") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              PO Date
+                            </th>
                           )}
-                          {isColumnVisible('vendor') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Vendor</th>
+                          {isColumnVisible("vendor") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Vendor
+                            </th>
                           )}
-                          {isColumnVisible('linked_so') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Linked SO</th>
+                          {isColumnVisible("linked_so") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Linked SO
+                            </th>
                           )}
-                          {isColumnVisible('customer') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer</th>
+                          {isColumnVisible("customer") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Customer
+                            </th>
                           )}
-                          {isColumnVisible('project_name') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Project</th>
+                          {isColumnVisible("project_name") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Project
+                            </th>
                           )}
-                          {isColumnVisible('total_quantity') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Qty</th>
+                          {isColumnVisible("total_quantity") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Qty
+                            </th>
                           )}
-                          {isColumnVisible('final_amount') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Total Amount</th>
+                          {isColumnVisible("final_amount") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Total Amount
+                            </th>
                           )}
-                          {isColumnVisible('expected_delivery_date') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Expected Delivery</th>
+                          {isColumnVisible("expected_delivery_date") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Expected Delivery
+                            </th>
                           )}
-                          {isColumnVisible('status') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                          {isColumnVisible("status") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Status
+                            </th>
                           )}
-                          {isColumnVisible('priority') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Priority</th>
+                          {isColumnVisible("priority") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Priority
+                            </th>
                           )}
-                          {isColumnVisible('created_by') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Created By</th>
+                          {isColumnVisible("created_by") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                              Created By
+                            </th>
                           )}
-                          {isColumnVisible('actions') && (
-                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider sticky right-0 bg-slate-50">Actions</th>
+                          {isColumnVisible("actions") && (
+                            <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider sticky right-0 bg-slate-50">
+                              Actions
+                            </th>
                           )}
                         </tr>
                       </thead>
@@ -1019,50 +1461,89 @@ const ProcurementDashboard = () => {
                           <React.Fragment key={po.id}>
                             {/* Main Row */}
                             <tr className="hover:bg-slate-50 transition">
-                              {isColumnVisible('po_number') && (
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">{po.po_number}</td>
+                              {isColumnVisible("po_number") && (
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {po.po_number}
+                                </td>
                               )}
-                              {isColumnVisible('po_date') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-600">{formatDate(po.po_date)}</td>
+                              {isColumnVisible("po_date") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-600">
+                                  {formatDate(po.po_date)}
+                                </td>
                               )}
-                              {isColumnVisible('vendor') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-800">{po.vendor?.name || po.vendor?.vendor_name || 'N/A'}</td>
+                              {isColumnVisible("vendor") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-800">
+                                  {po.vendor?.name ||
+                                    po.vendor?.vendor_name ||
+                                    "N/A"}
+                                </td>
                               )}
-                              {isColumnVisible('linked_so') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-800">{po.linked_sales_order_id || 'N/A'}</td>
+                              {isColumnVisible("linked_so") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-800">
+                                  {po.linked_sales_order_id || "N/A"}
+                                </td>
                               )}
-                              {isColumnVisible('customer') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-800">{po.customer?.name || 'N/A'}</td>
+                              {isColumnVisible("customer") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-800">
+                                  {po.customer?.name || "N/A"}
+                                </td>
                               )}
-                              {isColumnVisible('project_name') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-800">{po.project_name || 'N/A'}</td>
+                              {isColumnVisible("project_name") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-800">
+                                  {po.project_name || "N/A"}
+                                </td>
                               )}
-                              {isColumnVisible('total_quantity') && (
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">{po.total_quantity || 0}</td>
+                              {isColumnVisible("total_quantity") && (
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {po.total_quantity || 0}
+                                </td>
                               )}
-                              {isColumnVisible('final_amount') && (
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">{formatINR(po.final_amount || po.total_amount)}</td>
+                              {isColumnVisible("final_amount") && (
+                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {formatINR(
+                                    po.final_amount || po.total_amount
+                                  )}
+                                </td>
                               )}
-                              {isColumnVisible('expected_delivery_date') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-600">{formatDate(po.expected_delivery_date)}</td>
+                              {isColumnVisible("expected_delivery_date") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-600">
+                                  {formatDate(po.expected_delivery_date)}
+                                </td>
                               )}
-                              {isColumnVisible('status') && (
-                                <td className="px-3 py-1.5 text-xs">{getStatusBadge(po.status)}</td>
+                              {isColumnVisible("status") && (
+                                <td className="px-3 py-1.5 text-xs">
+                                  {getStatusBadge(po.status)}
+                                </td>
                               )}
-                              {isColumnVisible('priority') && (
-                                <td className="px-3 py-1.5 text-xs">{getPriorityBadge(po.priority)}</td>
+                              {isColumnVisible("priority") && (
+                                <td className="px-3 py-1.5 text-xs">
+                                  {getPriorityBadge(po.priority)}
+                                </td>
                               )}
-                              {isColumnVisible('created_by') && (
-                                <td className="px-3 py-1.5 text-xs text-slate-600">{po.created_by || 'N/A'}</td>
+                              {isColumnVisible("created_by") && (
+                                <td className="px-3 py-1.5 text-xs text-slate-600">
+                                  {po.created_by || "N/A"}
+                                </td>
                               )}
-                              {isColumnVisible('actions') && (
+                              {isColumnVisible("actions") && (
                                 <td className="px-3 py-1.5 text-xs sticky right-0 bg-white">
                                   <button
                                     onClick={() => toggleRowExpansion(po.id)}
-                                    className={`p-1 rounded-lg hover:bg-slate-100 transition text-slate-600 ${expandedRows.has(po.id) ? 'rotate-180' : ''}`}
-                                    title={expandedRows.has(po.id) ? 'Collapse' : 'Expand Actions'}
+                                    className={`p-1 rounded-lg hover:bg-slate-100 transition text-slate-600 ${
+                                      expandedRows.has(po.id)
+                                        ? "rotate-180"
+                                        : ""
+                                    }`}
+                                    title={
+                                      expandedRows.has(po.id)
+                                        ? "Collapse"
+                                        : "Expand Actions"
+                                    }
                                   >
-                                    <ChevronDown size={16} className="transition-transform" />
+                                    <ChevronDown
+                                      size={16}
+                                      className="transition-transform"
+                                    />
                                   </button>
                                 </td>
                               )}
@@ -1071,13 +1552,23 @@ const ProcurementDashboard = () => {
                             {/* Expanded Row - Actions Panel */}
                             {expandedRows.has(po.id) && (
                               <tr className="bg-slate-50">
-                                <td colSpan={Object.keys(AVAILABLE_COLUMNS).length} className="px-3 py-3">
+                                <td
+                                  colSpan={
+                                    Object.keys(AVAILABLE_COLUMNS).length
+                                  }
+                                  className="px-3 py-3"
+                                >
                                   <div className="bg-white rounded-lg border border-slate-200 p-3">
                                     <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-200">
-                                      <Receipt size={16} className="text-slate-600" />
-                                      <h4 className="text-sm font-semibold text-slate-800">Available Actions</h4>
+                                      <Receipt
+                                        size={16}
+                                        className="text-slate-600"
+                                      />
+                                      <h4 className="text-sm font-semibold text-slate-800">
+                                        Available Actions
+                                      </h4>
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                                       {/* View Button */}
                                       <button
@@ -1088,12 +1579,38 @@ const ProcurementDashboard = () => {
                                         className="flex flex-col items-center gap-1 p-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all group"
                                         title="View PO details"
                                       >
-                                        <Eye size={16} className="text-blue-600 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-medium text-blue-700">View</span>
+                                        <Eye
+                                          size={16}
+                                          className="text-blue-600 group-hover:scale-110 transition-transform"
+                                        />
+                                        <span className="text-xs font-medium text-blue-700">
+                                          View
+                                        </span>
                                       </button>
 
+                                      {/* Submit Button */}
+                                      {po.status === "draft" && (
+                                        <button
+                                          onClick={() => {
+                                            handleSubmitPO(po);
+                                            setExpandedRows(new Set());
+                                          }}
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-green-50 hover:bg-green-100 border border-green-200 transition-all group"
+                                          title="Submit for approval"
+                                        >
+                                          <FaCheckCircle
+                                            size={14}
+                                            className="text-green-600 group-hover:scale-110 transition-transform"
+                                          />
+                                          <span className="text-xs font-medium text-green-700">
+                                            Submit
+                                          </span>
+                                        </button>
+                                      )}
+
                                       {/* Send to Vendor Button */}
-                                      {(po.status === 'draft' || po.status === 'pending_approval') && (
+                                      {(po.status === "draft" ||
+                                        po.status === "pending_approval") && (
                                         <button
                                           onClick={() => {
                                             handleSendToVendor(po);
@@ -1102,13 +1619,18 @@ const ProcurementDashboard = () => {
                                           className="flex flex-col items-center gap-1 p-2 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all group"
                                           title="Send to vendor"
                                         >
-                                          <Truck size={16} className="text-amber-600 group-hover:scale-110 transition-transform" />
-                                          <span className="text-xs font-medium text-amber-700">Send</span>
+                                          <Truck
+                                            size={16}
+                                            className="text-amber-600 group-hover:scale-110 transition-transform"
+                                          />
+                                          <span className="text-xs font-medium text-amber-700">
+                                            Send
+                                          </span>
                                         </button>
                                       )}
 
                                       {/* Material Received Button */}
-                                      {po.status === 'sent' && (
+                                      {po.status === "sent" && (
                                         <button
                                           onClick={() => {
                                             handleMaterialReceived(po);
@@ -1117,8 +1639,13 @@ const ProcurementDashboard = () => {
                                           className="flex flex-col items-center gap-1 p-2 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-all group"
                                           title="Mark as material received"
                                         >
-                                          <FaBoxOpen size={14} className="text-teal-600 group-hover:scale-110 transition-transform" />
-                                          <span className="text-xs font-medium text-teal-700">Received</span>
+                                          <FaBoxOpen
+                                            size={14}
+                                            className="text-teal-600 group-hover:scale-110 transition-transform"
+                                          />
+                                          <span className="text-xs font-medium text-teal-700">
+                                            Received
+                                          </span>
                                         </button>
                                       )}
 
@@ -1131,8 +1658,13 @@ const ProcurementDashboard = () => {
                                         className="flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all group"
                                         title="Generate invoice"
                                       >
-                                        <FaFileInvoice size={14} className="text-slate-600 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-medium text-slate-700">Invoice</span>
+                                        <FaFileInvoice
+                                          size={14}
+                                          className="text-slate-600 group-hover:scale-110 transition-transform"
+                                        />
+                                        <span className="text-xs font-medium text-slate-700">
+                                          Invoice
+                                        </span>
                                       </button>
 
                                       {/* QR Code Button */}
@@ -1144,8 +1676,13 @@ const ProcurementDashboard = () => {
                                         className="flex flex-col items-center gap-1 p-2 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all group"
                                         title="Show QR code"
                                       >
-                                        <QrCode size={16} className="text-purple-600 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-medium text-purple-700">QR</span>
+                                        <QrCode
+                                          size={16}
+                                          className="text-purple-600 group-hover:scale-110 transition-transform"
+                                        />
+                                        <span className="text-xs font-medium text-purple-700">
+                                          QR
+                                        </span>
                                       </button>
 
                                       {/* Print Button */}
@@ -1157,8 +1694,13 @@ const ProcurementDashboard = () => {
                                         className="flex flex-col items-center gap-1 p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all group"
                                         title="Print PO"
                                       >
-                                        <FaPrint size={14} className="text-indigo-600 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-medium text-indigo-700">Print</span>
+                                        <FaPrint
+                                          size={14}
+                                          className="text-indigo-600 group-hover:scale-110 transition-transform"
+                                        />
+                                        <span className="text-xs font-medium text-indigo-700">
+                                          Print
+                                        </span>
                                       </button>
 
                                       {/* Delete Button */}
@@ -1170,8 +1712,13 @@ const ProcurementDashboard = () => {
                                         className="flex flex-col items-center gap-1 p-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 transition-all group"
                                         title="Delete PO"
                                       >
-                                        <Trash2 size={16} className="text-red-600 group-hover:scale-110 transition-transform" />
-                                        <span className="text-xs font-medium text-red-700">Delete</span>
+                                        <Trash2
+                                          size={16}
+                                          className="text-red-600 group-hover:scale-110 transition-transform"
+                                        />
+                                        <span className="text-xs font-medium text-red-700">
+                                          Delete
+                                        </span>
                                       </button>
                                     </div>
                                   </div>
@@ -1194,12 +1741,16 @@ const ProcurementDashboard = () => {
               {vendors.length === 0 ? (
                 <div className="text-center py-4 bg-slate-50 border border-slate-200 rounded-lg">
                   <Building className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-slate-800 mb-1">No Vendors Found</p>
-                  <p className="text-xs text-slate-500">Add vendors to manage procurement</p>
-                  <button 
-                    onClick={() => navigate('/procurement/vendor-management')}
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    No Vendors Found
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Add vendors to manage procurement
+                  </p>
+                  <button
+                    onClick={() => navigate("/procurement/vendor-management")}
                     className="mt-2 px-3 py-1.5 text-white rounded-lg transition font-semibold text-xs"
-                    style={{ backgroundColor: '#0f172a' }}
+                    style={{ backgroundColor: "#0f172a" }}
                   >
                     Manage Vendors
                   </button>
@@ -1207,29 +1758,47 @@ const ProcurementDashboard = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {vendors.map((vendor) => (
-                    <div key={vendor.id} className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+                    <div
+                      key={vendor.id}
+                      className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h4 className="text-sm font-semibold text-slate-800">{vendor.vendor_name}</h4>
-                          <p className="text-xs text-slate-500">{vendor.vendor_code}</p>
+                          <h4 className="text-sm font-semibold text-slate-800">
+                            {vendor.vendor_name}
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            {vendor.vendor_code}
+                          </p>
                         </div>
                         <Star size={16} className="text-amber-500" />
                       </div>
-                      
+
                       <div className="space-y-1 mb-2 text-xs">
                         {vendor.contact_person && (
-                          <p className="text-slate-700"><span className="text-slate-500">Contact:</span> {vendor.contact_person}</p>
+                          <p className="text-slate-700">
+                            <span className="text-slate-500">Contact:</span>{" "}
+                            {vendor.contact_person}
+                          </p>
                         )}
                         {vendor.email && (
-                          <p className="text-slate-700 flex items-center gap-1"><Mail size={12} className="text-slate-400" /> {vendor.email}</p>
+                          <p className="text-slate-700 flex items-center gap-1">
+                            <Mail size={12} className="text-slate-400" />{" "}
+                            {vendor.email}
+                          </p>
                         )}
                         {vendor.phone && (
-                          <p className="text-slate-700 flex items-center gap-1"><Phone size={12} className="text-slate-400" /> {vendor.phone}</p>
+                          <p className="text-slate-700 flex items-center gap-1">
+                            <Phone size={12} className="text-slate-400" />{" "}
+                            {vendor.phone}
+                          </p>
                         )}
                       </div>
 
                       <button
-                        onClick={() => navigate('/procurement/vendor-management')}
+                        onClick={() =>
+                          navigate("/procurement/vendor-management")
+                        }
                         className="w-full py-1 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition font-medium text-xs"
                       >
                         View Details
@@ -1248,7 +1817,9 @@ const ProcurementDashboard = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
             <div className="flex justify-between items-center p-4 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-800">PO QR Code</h3>
+              <h3 className="text-lg font-semibold text-slate-800">
+                PO QR Code
+              </h3>
               <button
                 onClick={() => setQrDialogOpen(false)}
                 className="text-slate-400 hover:text-slate-600 transition"
@@ -1257,10 +1828,10 @@ const ProcurementDashboard = () => {
               </button>
             </div>
             <div className="p-4">
-              <QRCodeDisplay 
-                data={qrOrder} 
+              <QRCodeDisplay
+                data={qrOrder}
                 title={`PO: ${qrOrder.po_number}`}
-                subtitle={qrOrder.vendor?.name || 'Purchase Order'}
+                subtitle={qrOrder.vendor?.name || "Purchase Order"}
               />
             </div>
           </div>
