@@ -1,403 +1,277 @@
-# Sales Dashboard — Quick Start Guide
+# Sales Dashboard Real-Time Tracker - Quick Start Guide
 
-## 🚀 What's New?
+## 🎯 What's New?
 
-The Sales Dashboard has been completely redesigned with a **professional and modern layout**:
+Your Sales Dashboard now displays:
 
-- 🎨 **Modern Design**: Dark gradient header, color-coded cards
-- 📊 **Better Data Visibility**: 2-3x more orders visible without scrolling
-- 📱 **Mobile Optimized**: Responsive layout works great on all devices
-- ⚡ **Performance**: Faster, more efficient layout
-- ♿ **Accessibility**: Better contrast and readability
+1. **🕒 Recent Activities** - Auto-updating feed of all order and shipment activities
+2. **⚡ Quick Stats** - Live counts of orders at each stage
+3. **📊 Process Timeline** - Visual order journey (clicking order details shows full timeline)
 
 ---
 
-## 📍 Where to Find It
+## 🚀 How to Use
 
-**URL**: `/sales` or via sidebar → Sales Dashboard
+### 1. View Recent Activities
 
----
+- Navigate to **Sales Dashboard** (`http://localhost:3000/sales/dashboard`)
+- See the **Recent Activities** section at the top
+- Activities auto-refresh every 30 seconds
+- Click **🔄 Refresh** button for immediate update
 
-## 🎯 Main Features
+### 2. Check Quick Stats
 
-### 1. **Header**
-```
-┌─ Sales Dashboard
-│  Performance • Orders • Revenue
-│                              [New Order] Button
-└─ Dark sophisticated gradient background
-```
-- Quick access to create new orders
-- Professional appearance
+- View stats in the **right sidebar**:
+  - In Production: _count_
+  - Ready to Ship: _count_
+  - Shipped: _count_
+  - Delivered: _count_
 
-### 2. **KPI Cards** (4 Statistics)
-```
-┌───────────────┬───────────────┬───────────────┬───────────────┐
-│  Total Orders │  Active Orders│  Completed    │  Total Revenue│
-│      42       │      12       │      15       │    ₹2.5L      │
-│  +12% ↑       │  5 pending    │  78% ✓        │  +8.5% ↑      │
-└───────────────┴───────────────┴───────────────┴───────────────┘
-Color-coded: Blue | Amber | Green | Indigo
-```
-- Quick overview of key metrics
-- Trend indicators
-- Completion status
+### 3. View Order's Process Timeline
 
-### 3. **Search & Filters**
-```
-┌─────────────────────────┬──────────────┬──────────┬──────────┐
-│Search order #, customer...│ All Status ▼  │ Reports  │ Export  │
-└─────────────────────────┴──────────────┴──────────┴──────────┘
-```
-- Search orders by number or customer
-- Filter by status
-- View reports
-- Export to CSV
-
-### 4. **Tabs** (3 Views)
-```
-📋 Orders  |  📈 Pipeline  |  👥 Customers
-```
+1. Navigate to Sales Dashboard
+2. Click on any order in the table/cards
+3. On order details page, you'll see the full process timeline
+4. Timeline shows:
+   - Current status
+   - Last updated time
+   - All completed stages with timestamps
+   - Pending stages
 
 ---
 
-## 🔍 Tab Details
+## 📊 Activity Feed Shows
 
-### **Tab 1: Orders** 
-Two view modes available:
+Each activity displays:
 
-#### View Mode: Cards 📇
-```
-┌──────────────────┐
-│  Order #1001     │
-│  ┌──────────────┐│
-│  │ Cust: Acme Co││
-│  │ Prod: Fabric ││
-│  │ Qty: 100     ││
-│  │ ₹5000        ││
-│  │ Draft 45%    ││
-│  └──────────────┘│
-│  [View] [Edit]   │
-└──────────────────┘
-```
-- Visual card layout
-- Color-coded status
-- Quick preview
-- Click to view details
-
-#### View Mode: Table 📊
-```
-Order# │ Customer  │ Products │ Qty │ Amount  │ Status │ Progress
-#1001  │ Acme Co   │ Fabric   │100  │ ₹5000   │ Draft  │ ████░ 45%
-#1002  │ Tech Inc  │ Cloth    │200  │ ₹8500   │ In Prod│ ██████░ 65%
-```
-- Comprehensive table view
-- All details visible
-- Best for bulk operations
-- Easy sorting
-
-**Switching Between Views:**
-- Use toggle buttons (Table | Cards icons) in top-right
-- Both views show same data, different presentation
+- **Icon**: 📋 for orders, 🚚 for shipments
+- **Title**: Order number + action
+- **Description**: What happened
+- **Customer**: Who it's for
+- **Timestamp**: When it happened
+- **Performed By**: Who did it (System for shipments)
 
 ---
 
-### **Tab 2: Pipeline** 📈
-```
-┌─────────────────────┐
-│ Draft               │ 10 orders
-│ ████░░░░░░░░░░░░░░░│
-│ ₹25,000 value       │
-├─────────────────────┤
-│ Pending Approval    │ 8 orders
-│ ███░░░░░░░░░░░░░░░░│
-│ ₹18,500 value       │
-├─────────────────────┤
-│ In Production       │ 12 orders
-│ █████░░░░░░░░░░░░░░│
-│ ₹45,000 value       │
-└─────────────────────┘
-```
-- Sales pipeline visualization
-- Order progression
-- Financial value tracking
-- Stage-by-stage breakdown
+## 🔄 Auto-Update Timeline
+
+Activities refresh automatically every 30 seconds. You'll see:
+
+- ✅ New orders
+- ✅ Status changes
+- ✅ Shipment creations
+- ✅ Deliveries
+
+No need to refresh the page!
 
 ---
 
-### **Tab 3: Customers** 👥
+## 📈 Stage Progression
+
+An order moves through these stages:
+
 ```
-┌─────────────────────────────────┐
-│ Customer Management             │
-│                                 │
-│ Feature Coming Soon             │
-│ Manage customers, accounts &    │
-│ purchase history                │
-└─────────────────────────────────┘
+📋 Draft (Order created)
+   ↓
+🛒 Procurement (Materials ordered)
+   ↓
+🏭 Manufacturing (Production in progress)
+   ↓
+🚚 Shipment (Dispatch prepared)
+   ↓
+📦 Delivery (In transit/Delivered)
 ```
-- Coming soon (under development)
+
+Each stage is marked as:
+
+- ✅ Completed (Green)
+- 🔄 In Progress (Blue)
+- ⏳ Pending (Gray)
 
 ---
 
-## 💡 How to Use
+## 🎯 Key Features
+
+| Feature               | Benefit                               |
+| --------------------- | ------------------------------------- |
+| **Auto-Refresh**      | No manual page refresh needed         |
+| **Real-Time Updates** | See changes immediately               |
+| **Visual Timeline**   | Understand order progress at a glance |
+| **Activity Log**      | Complete audit trail of all actions   |
+| **Quick Stats**       | Monitor order pipeline health         |
+
+---
+
+## 🔍 Example Workflow
 
 ### Creating a New Order
-1. Click **[New Order]** button (top-right)
-2. Fill in order details
-3. Save and view in dashboard
 
-### Searching for Orders
-1. Use search box: "Enter order #, customer name..."
-2. Results update automatically
-3. Click any order to view details
+1. Create a sales order → Appears in **Recent Activities** as "Order Created"
+2. Send to Procurement → Activity shows "Status Updated to procurement_created"
+3. Manufacturing starts → Activity shows "Production Started"
+4. Production completes → Activity shows shipment creation
+5. Order delivered → Activity shows "Delivered"
 
-### Filtering by Status
-1. Click **[All Status ▼]** dropdown
-2. Select desired status:
-   - All Orders
-   - Draft
-   - Pending Approval
-   - Confirmed
-   - In Production
-   - Ready to Ship
-   - Completed
-   - Cancelled
-3. Table/Cards update instantly
-
-### Viewing Order Details
-1. **Card View**: Click the card or [View] button
-2. **Table View**: Click order number or [View] button
-3. Opens full order details page
-
-### Editing an Order
-1. **Card View**: Click [Edit] button
-2. **Table View**: Click [Edit] button (pencil icon)
-3. Opens order edit page
-
-### Exporting Data
-1. Adjust filters if needed
-2. Click **[Export]** button
-3. Downloads CSV file to your computer
-
-### Viewing Reports
-1. Click **[Reports]** button
-2. Opens detailed sales reports page
+All activities appear in the feed instantly!
 
 ---
 
-## 🎨 Design Elements
+## ⚙️ Configuration
 
-### Colors
-- **Blue**: Primary action, total orders
-- **Amber**: Warning/attention, active orders
-- **Green**: Success, completed orders
-- **Indigo**: Informational, revenue
-- **Slate**: Neutral text and borders
+### Change Auto-Refresh Speed
 
-### Typography
-- Headers: Bold, larger (easier to scan)
-- Labels: Medium weight, descriptive
-- Data: Bold numbers for emphasis
-- Hints: Small gray text for secondary info
+Edit `client/src/pages/dashboards/SalesDashboard.jsx`:
 
-### Spacing
-- Compact but readable
-- Consistent spacing throughout
-- More data visible without scrolling
+**Current:** 30 seconds
+
+```jsx
+<RecentActivities autoRefreshInterval={30000} />
+```
+
+**To change to 15 seconds:**
+
+```jsx
+<RecentActivities autoRefreshInterval={15000} />
+```
+
+### Show More Activities
+
+Edit the same file, change query parameter:
+
+**Current:** 10 activities
+
+```jsx
+const response = await api.get("/sales/dashboard/recent-activities?limit=10");
+```
+
+**To show 20:**
+
+```jsx
+const response = await api.get("/sales/dashboard/recent-activities?limit=20");
+```
 
 ---
 
-## 📊 Understanding the Data
+## 🛠️ Troubleshooting
 
-### Order Status Flow
-```
-Draft
-  ↓
-Pending Approval
-  ↓
-Confirmed
-  ↓
-In Production
-  ↓
-Ready to Ship
-  ↓
-Shipped
-  ↓
-Delivered / Completed
-```
+### Activities not showing?
 
-### Progress Bar Colors
-- **Blue-to-Blue Gradient**: Progress to next stage
-- **Percentage**: Estimated completion
+- ✅ Make sure you're logged in as Sales user
+- ✅ Check that orders exist in database
+- ✅ Click **Refresh** button
+- ✅ Check browser console (F12) for errors
 
-### KPI Meanings
-- **Total Orders**: All orders in system
-- **Active Orders**: Orders awaiting action
-- **Completed Orders**: Successfully finished
-- **Total Revenue**: Total sales value
+### Timeline not updating?
+
+- ✅ Wait 30 seconds for auto-refresh
+- ✅ Manually click Refresh button
+- ✅ Navigate away and back to dashboard
+
+### 401 Unauthorized error?
+
+- ✅ Log out and log back in
+- ✅ Check that user has "sales" or "admin" department role
+- ✅ Verify JWT token is valid
 
 ---
 
 ## 📱 Mobile View
 
-### On Phones
+On mobile devices:
+
+- Activities and stats stack vertically
+- All features work the same
+- Timestamps are readable on small screens
+- Touch-friendly refresh button
+
+---
+
+## 🎨 Visual Guide
+
 ```
-Card View: 1 column (easier scrolling)
-Tab Nav: Stacked or scrollable
-Search: Full width
+┌─────────────────────────────────────────────────────────────┐
+│                    Sales Dashboard                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────────────────────┐  ┌─────────────────┐ │
+│  │    Recent Activities (2/3)       │  │  Quick Stats    │ │
+│  │                                  │  │  (1/3)          │ │
+│  │ 📋 SO-123 - Status Updated       │  │                 │ │
+│  │ 🚚 Shipment for SO-122           │  │ In Production:7 │ │
+│  │ 📋 SO-121 - Order Created        │  │ Ready to Ship:3 │ │
+│  │ 🚚 Shipment Dispatched           │  │ Shipped: 12     │ │
+│  │ 📋 SO-120 - Production Started   │  │ Delivered: 45   │ │
+│  │                                  │  │                 │ │
+│  └──────────────────────────────────┘  └─────────────────┘ │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│  [Stats Cards showing Total, Active, Completed, Revenue]    │
+├─────────────────────────────────────────────────────────────┤
+│  [Search Bar] [Status Filter] [Export] [View Toggle]        │
+├─────────────────────────────────────────────────────────────┤
+│  [Orders Table or Cards - same as before]                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### On Tablets
-```
-Card View: 2 columns
-Tab Nav: All visible
-Search: Full width
-```
+---
 
-### On Desktop
-```
-Card View: 3 columns (default)
-Tab Nav: All visible
-Search: Compact layout
-```
+## 🔐 Permissions
+
+You need these permissions to see activities:
+
+- **Department**: Sales, Admin, Manufacturing, or Shipment
+- **Role**: Salesperson, Manager, Admin, or Manufacturing Staff
+- **Action**: View sales orders
+
+If you can't see activities, ask your admin to grant the "sales" or "admin" department role.
 
 ---
 
-## ⚡ Tips & Tricks
+## 📚 Related Docs
 
-### 1. **Quick Overview**
-- Look at KPI cards for instant metrics
-- Use pipeline to see workflow progress
-
-### 2. **Fast Search**
-- Start typing order # for quick results
-- Search is case-insensitive
-
-### 3. **Bulk Operations**
-- Use table view for multiple orders
-- Filter by status to focus on relevant orders
-
-### 4. **Mobile Friendly**
-- Switch to card view on mobile
-- Easier to tap and interact
-
-### 5. **Data Export**
-- Export filtered results for reporting
-- Great for presentations
+- [Full Implementation Details](./SALES_DASHBOARD_REAL_TIME_TRACKER.md)
+- [API Endpoints Reference](./API_ENDPOINTS_REFERENCE.md)
+- [Order Status Flow](./COMPLETE_MANUFACTURING_FLOW_GUIDE.md)
 
 ---
 
-## ❓ Common Questions
+## 💡 Tips & Tricks
 
-### Q: Where do I create a new order?
-**A**: Click the **[New Order]** button in the top-right header.
-
-### Q: How do I find a specific order?
-**A**: Use the search box and type the order number or customer name.
-
-### Q: Can I change the layout?
-**A**: Yes! Switch between **Cards** and **Table** views using toggle buttons.
-
-### Q: What does the progress bar mean?
-**A**: It shows order completion status (Draft 10% → Completed 100%).
-
-### Q: Can I export the data?
-**A**: Yes! Click **[Export]** to download orders as CSV.
-
-### Q: Are mobile phones supported?
-**A**: Fully responsive! Works great on all devices.
+1. **Monitor Pipeline Health**: Watch Quick Stats to see order distribution
+2. **Track Bottlenecks**: See if orders stack up in any stage
+3. **Audit Trail**: Review who made what changes and when
+4. **Customer Updates**: See shipment AWB numbers in activities
+5. **Performance**: Activities are cached - no page refresh needed
 
 ---
 
-## 🔧 Settings & Preferences
+## ✨ What's Coming Next
 
-### Filter Status (Quick Access)
-- Dropdown available in search bar
-- Resets when page refreshes
-- Filters affect both views
+Future enhancements:
 
-### View Mode Preference
-- Toggle between cards and table
-- Preference saved in session
-- Both views show same data
-
-### Column Visibility (Future)
-- Currently showing all columns
-- Click column headers to sort
-- Custom columns coming soon
+- ⏳ WebSocket real-time updates (no polling)
+- 🔔 Notifications for critical changes
+- 📊 Analytics dashboard with stage timings
+- 📋 Export activities to CSV/PDF
+- 🎯 Alert rules for delayed orders
 
 ---
 
-## 🎓 Learning Resources
+## 🚨 Known Limitations
 
-### For New Users
-1. Explore KPI cards first
-2. Try both view modes (Cards & Table)
-3. Use search to find sample orders
-4. Click [View] to see order details
-
-### For Advanced Users
-1. Use Status filters for specific workflows
-2. Export data for analysis
-3. Use search for batch operations
-4. Monitor pipeline progression
+1. Auto-refresh happens every 30 seconds (not real-time)
+2. Activities limited to last 10 items (configurable)
+3. Historical data requires page refresh to show older activities
 
 ---
 
-## 🐛 Troubleshooting
+## 📞 Need Help?
 
-### Dashboard not loading?
-- Refresh the page (F5)
-- Clear browser cache
-- Check internet connection
+1. Check this guide first
+2. Review browser console (F12) for errors
+3. Verify user permissions
+4. Check database for order data
+5. Contact your administrator
 
-### Data not updating?
-- Click **[Refresh]** or refresh page
-- Check filter settings
-- Verify orders exist in system
-
-### Can't see my order?
-- Check Status filter
-- Try searching by order #
-- Verify order was created
-
-### Export not working?
-- Check browser download settings
-- Try different export format
-- Contact support if issue persists
-
----
-
-## 📞 Support
-
-For issues or questions:
-1. Check this Quick Start guide
-2. Review order details page
-3. Contact system administrator
-4. Submit support ticket
-
----
-
-## ✅ Quick Checklist
-
-- [ ] Created first order
-- [ ] Searched for an order
-- [ ] Viewed order details
-- [ ] Tried both view modes
-- [ ] Filtered by status
-- [ ] Exported data
-- [ ] Reviewed KPI cards
-- [ ] Checked pipeline
-- [ ] Tested on mobile
-
----
-
-**Ready to use the Sales Dashboard!** 🚀
-
-Start by creating your first order or searching for existing ones. The new modern design makes it easy to find exactly what you need.
-
----
-
-**Last Updated**: January 2025  
-**Version**: 2.0 (Professional Redesign)  
-**Status**: ✅ Live & Ready
+**Created:** November 2025
+**Last Updated:** November 2025
