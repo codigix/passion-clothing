@@ -1823,9 +1823,7 @@ const ProcurementDashboard = () => {
               <button
                 onClick={() => setQrDialogOpen(false)}
                 className="text-slate-400 hover:text-slate-600 transition"
-              >
-                ×
-              </button>
+              ></button>
             </div>
             <div className="p-4">
               <QRCodeDisplay
