@@ -722,6 +722,7 @@ router.post("/orders", authenticateToken, async (req, res) => {
       special_instructions,
       priority = "medium",
       garment_specifications,
+      project_title,
     } = req.body;
 
     // Validate required fields
@@ -838,6 +839,13 @@ router.post("/orders", authenticateToken, async (req, res) => {
     // Generate QR code data
     const qrCodeData = JSON.stringify(qrSnapshot);
 
+    // Generate meaningful project_name if not provided
+    let finalProjectName = project_title || buyer_reference;
+    if (!finalProjectName || finalProjectName.trim() === '') {
+      // Fallback to customer name if available
+      finalProjectName = customer?.name || `SO-${order_number}`;
+    }
+
     const order = await SalesOrder.create({
       order_number,
       customer_id: customer.id,
@@ -861,6 +869,7 @@ router.post("/orders", authenticateToken, async (req, res) => {
       special_instructions,
       priority,
       garment_specifications,
+      project_name: finalProjectName,
       qr_code: qrCodeData,
       created_by: req.user.id,
       status: "draft",
@@ -2216,6 +2225,8 @@ router.get(
               "status",
               "product_name",
               "items",
+              "project_name",
+              "project_reference",
             ],
             include: [
               { model: Customer, as: "customer", attributes: ["name"] },
@@ -2233,7 +2244,14 @@ router.get(
           {
             model: SalesOrder,
             as: "salesOrder",
-            attributes: ["id", "order_number", "product_name", "items"],
+            attributes: [
+              "id",
+              "order_number",
+              "product_name",
+              "items",
+              "project_name",
+              "project_reference",
+            ],
             include: [
               { model: Customer, as: "customer", attributes: ["name"] },
             ],
@@ -2297,11 +2315,23 @@ router.get(
 
         const stage = stageMap[activity.status_to] || activity.status_to;
 
+        // Get project name - try project_name field first, then project_title, fallback to buyer_reference or order_number
+        let projectName = activity.salesOrder?.project_name;
+        if (!projectName || projectName.trim() === '') {
+          projectName = activity.salesOrder?.project_title;
+        }
+        if (!projectName || projectName.trim() === '') {
+          projectName = activity.salesOrder?.buyer_reference;
+        }
+        if (!projectName || projectName.trim() === '') {
+          projectName = `SO-${activity.salesOrder?.order_number}`;
+        }
+
         return {
           id: `order-${activity.id}`,
           type: "order_activity",
           icon: "📋",
-          title: `${activity.salesOrder?.order_number} - ${actionDescription}`,
+          title: projectName,
           description:
             activity.note || `Status changed to ${activity.status_to}`,
           customer: customerName,
@@ -2309,6 +2339,8 @@ router.get(
           timestamp: createdDate,
           performed_by: userName,
           related_id: activity.salesOrder?.id,
+          order_number: activity.salesOrder?.order_number,
+          order_id: activity.salesOrder?.id,
           status: activity.status_to,
           stage: stage,
         };
@@ -2331,11 +2363,23 @@ router.get(
             shipment.items[0].product_name || shipment.items[0].product_type;
         }
 
+        // Get project name - try project_name field first, then project_title, fallback to buyer_reference or order_number
+        let shipmentProjectName = shipment.salesOrder?.project_name;
+        if (!shipmentProjectName || shipmentProjectName.trim() === '') {
+          shipmentProjectName = shipment.salesOrder?.project_title;
+        }
+        if (!shipmentProjectName || shipmentProjectName.trim() === '') {
+          shipmentProjectName = shipment.salesOrder?.buyer_reference;
+        }
+        if (!shipmentProjectName || shipmentProjectName.trim() === '') {
+          shipmentProjectName = `SO-${shipment.salesOrder?.order_number}`;
+        }
+
         return {
           id: `shipment-${shipment.id}`,
           type: "shipment_activity",
           icon: "🚚",
-          title: `Shipment for ${shipment.salesOrder?.order_number}`,
+          title: shipmentProjectName,
           description: `Status: ${shipment.status}${
             shipment.awb_number ? ` | AWB: ${shipment.awb_number}` : ""
           }`,
@@ -2344,6 +2388,8 @@ router.get(
           timestamp: createdDate,
           performed_by: null,
           related_id: shipment.salesOrder?.id,
+          order_number: shipment.salesOrder?.order_number,
+          order_id: shipment.salesOrder?.id,
           status: shipment.status,
           stage: "Shipment",
         };

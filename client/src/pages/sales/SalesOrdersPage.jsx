@@ -34,6 +34,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
+import ProjectIdentifier from '../../components/common/ProjectIdentifier';
 
 const AVAILABLE_COLUMNS = [
   { id: 'order_number', label: 'SO Number', defaultVisible: true, alwaysVisible: true },
@@ -385,6 +386,79 @@ const SalesOrdersPage = () => {
               >
                 <FaFilter size={14} />
               </button>
+
+              {/* Column Visibility Menu */}
+              <div className="column-menu-container relative">
+                <button
+                  onClick={() => setShowColumnMenu(!showColumnMenu)}
+                  className={`p-1.5 rounded-lg border transition-all text-sm ${showColumnMenu ? 'bg-blue-100 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                  title="Manage Columns"
+                >
+                  <FaColumns size={14} />
+                </button>
+
+                {/* Column Menu Dropdown */}
+                {showColumnMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 w-56 max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200 sticky top-0 bg-white">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">Visible Columns</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const allVisible = AVAILABLE_COLUMNS.filter(col => !col.alwaysVisible).map(col => col.id);
+                            const always = AVAILABLE_COLUMNS.filter(col => col.alwaysVisible).map(col => col.id);
+                            setVisibleColumns([...always, ...allVisible]);
+                            localStorage.setItem('salesOrdersVisibleColumns', JSON.stringify([...always, ...allVisible]));
+                          }}
+                          className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors font-medium"
+                        >
+                          Show All
+                        </button>
+                        <button
+                          onClick={() => {
+                            const defaultVisible = AVAILABLE_COLUMNS.filter(col => col.defaultVisible || col.alwaysVisible).map(col => col.id);
+                            setVisibleColumns(defaultVisible);
+                            localStorage.setItem('salesOrdersVisibleColumns', JSON.stringify(defaultVisible));
+                          }}
+                          className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors font-medium"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      {AVAILABLE_COLUMNS.map(col => (
+                        <label key={col.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns.includes(col.id)}
+                            onChange={(e) => {
+                              let newVisible;
+                              if (e.target.checked) {
+                                newVisible = [...visibleColumns, col.id];
+                              } else {
+                                if (col.alwaysVisible) {
+                                  alert('This column cannot be hidden');
+                                  return;
+                                }
+                                newVisible = visibleColumns.filter(c => c !== col.id);
+                              }
+                              setVisibleColumns(newVisible);
+                              localStorage.setItem('salesOrdersVisibleColumns', JSON.stringify(newVisible));
+                            }}
+                            disabled={col.alwaysVisible}
+                            className="w-4 h-4 rounded border-gray-300"
+                          />
+                          <span className={`text-xs font-normal ${col.alwaysVisible ? 'text-gray-400' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                            {col.label}
+                            {col.alwaysVisible && <span className="text-gray-400 ml-1">(fixed)</span>}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -457,19 +531,25 @@ const SalesOrdersPage = () => {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">SO Number</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Customer</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Order Date</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Amount</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Status</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Delivery</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-700">Actions</th>
+                    {AVAILABLE_COLUMNS.map(col => {
+                      if (!visibleColumns.includes(col.id)) return null;
+                      return (
+                        <th 
+                          key={col.id} 
+                          className={`px-3 py-2 text-left text-xs font-medium text-gray-700 ${
+                            col.id === 'actions' ? 'text-center' : ''
+                          }`}
+                        >
+                          {col.label}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-3 py-8 text-center">
+                      <td colSpan={visibleColumns.length} className="px-3 py-8 text-center">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <FaExclamationCircle className="text-3xl text-gray-400" />
                           <p className="text-gray-500 font-normal text-sm">No orders found</p>
@@ -479,87 +559,157 @@ const SalesOrdersPage = () => {
                   ) : (
                     filteredOrders.map((order) => (
                       <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-3 py-2">
-                          <button
-                            onClick={() => navigate(`/sales/orders/${order.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-sm"
-                          >
-                            {order.order_number}
-                          </button>
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-700">{order.customer?.name || 'N/A'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-600">{new Date(order.order_date).toLocaleDateString()}</td>
-                        <td className="px-3 py-2 text-xs font-medium text-gray-800">₹{order.total_amount?.toLocaleString()}</td>
-                        <td className="px-3 py-2">{getStatusBadge(order.status)}</td>
-                        <td className="px-3 py-2 text-xs text-gray-600">{new Date(order.delivery_date).toLocaleDateString()}</td>
-                        <td className="px-3 py-2">
-                          <div className="action-menu-container relative flex justify-center gap-1">
-                            <button
-                              onClick={() => navigate(`/sales/orders/${order.id}`)}
-                              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="View Details"
-                            >
-                              <FaEye size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleShowQR(order)}
-                              className="p-1 text-purple-600 hover:bg-purple-50 rounded transition-colors"
-                              title="Show QR Code"
-                            >
-                              <FaQrcode size={13} />
-                            </button>
-                            <button
-                              onClick={() => setShowActionMenu(showActionMenu === order.id ? null : order.id)}
-                              className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                            >
-                              <FaEllipsisV size={13} />
-                            </button>
+                        {AVAILABLE_COLUMNS.map(col => {
+                          if (!visibleColumns.includes(col.id)) return null;
 
-                            {/* Action Menu */}
-                            {showActionMenu === order.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-40">
-                                <button
-                                  onClick={() => {
-                                    navigate(`/sales/orders/edit/${order.id}`);
-                                    setShowActionMenu(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
-                                >
-                                  <FaEdit size={12} /> Edit
-                                </button>
-                                {order.status === 'draft' && (
+                          // Render each column based on its ID
+                          let content = null;
+                          switch (col.id) {
+                            case 'order_number':
+                              content = (
+                                <div onClick={() => navigate(`/sales/orders/${order.id}`)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                                  <ProjectIdentifier
+                                    projectName={order.project_name}
+                                    orderId={order.order_number}
+                                    type="sales"
+                                    size="small"
+                                  />
+                                </div>
+                              );
+                              break;
+                            case 'order_date':
+                              content = <span className="text-xs text-gray-600">{new Date(order.order_date).toLocaleDateString()}</span>;
+                              break;
+                            case 'customer':
+                              content = <span className="text-xs text-gray-700">{order.customer?.name || 'N/A'}</span>;
+                              break;
+                            case 'product_info':
+                              const products = order.items?.map(item => item.product_type || item.description).join(', ') || 'N/A';
+                              content = <span className="text-xs text-gray-600 truncate" title={products}>{products}</span>;
+                              break;
+                            case 'quantity':
+                              const totalQty = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                              content = <span className="text-xs font-medium text-gray-800">{totalQty}</span>;
+                              break;
+                            case 'rate':
+                              const rate = order.items?.[0]?.rate_per_piece || order.items?.[0]?.rate || 'N/A';
+                              content = <span className="text-xs font-medium text-gray-800">₹{typeof rate === 'number' ? rate.toLocaleString() : rate}</span>;
+                              break;
+                            case 'total_amount':
+                              content = <span className="text-xs font-semibold text-blue-600">₹{order.total_amount?.toLocaleString()}</span>;
+                              break;
+                            case 'advance_paid':
+                              content = <span className="text-xs font-medium text-green-600">₹{order.advance_paid?.toLocaleString() || '0'}</span>;
+                              break;
+                            case 'balance':
+                              const balance = (order.total_amount || 0) - (order.advance_paid || 0);
+                              content = <span className="text-xs font-medium text-orange-600">₹{balance.toLocaleString()}</span>;
+                              break;
+                            case 'delivery_date':
+                              content = <span className="text-xs text-gray-600">{new Date(order.delivery_date).toLocaleDateString()}</span>;
+                              break;
+                            case 'status':
+                              content = getStatusBadge(order.status);
+                              break;
+                            case 'shipment_status':
+                              const shipmentStatus = shipmentMap[order.id] || 'N/A';
+                              content = <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{shipmentStatus}</span>;
+                              break;
+                            case 'procurement':
+                              content = <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded">{order.procurement_status || 'N/A'}</span>;
+                              break;
+                            case 'invoice':
+                              content = <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">{order.invoice_status || 'N/A'}</span>;
+                              break;
+                            case 'challan':
+                              content = <span className="text-xs px-2 py-1 bg-cyan-100 text-cyan-700 rounded">{order.challan_status || 'N/A'}</span>;
+                              break;
+                            case 'created_by':
+                              content = <span className="text-xs text-gray-600">{order.created_by?.name || 'N/A'}</span>;
+                              break;
+                            case 'actions':
+                              content = (
+                                <div className="action-menu-container relative flex justify-center gap-1">
                                   <button
-                                    onClick={() => {
-                                      handleSendToProcurement(order);
-                                      setShowActionMenu(null);
-                                    }}
-                                    className="w-full text-left px-3 py-1.5 hover:bg-green-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                    onClick={() => navigate(`/sales/orders/${order.id}`)}
+                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="View Details"
                                   >
-                                    <FaTruck size={12} /> Send
+                                    <FaEye size={13} />
                                   </button>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    handleShowQR(order);
-                                    setShowActionMenu(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 hover:bg-purple-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
-                                >
-                                  <FaQrcode size={12} /> QR
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    handleDelete(order);
-                                    setShowActionMenu(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 text-xs flex items-center gap-1.5"
-                                >
-                                  <FaTrash size={12} /> Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
+                                  <button
+                                    onClick={() => handleShowQR(order)}
+                                    className="p-1 text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                                    title="Show QR Code"
+                                  >
+                                    <FaQrcode size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => setShowActionMenu(showActionMenu === order.id ? null : order.id)}
+                                    className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                  >
+                                    <FaEllipsisV size={13} />
+                                  </button>
+
+                                  {/* Action Menu */}
+                                  {showActionMenu === order.id && (
+                                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-40">
+                                      <button
+                                        onClick={() => {
+                                          navigate(`/sales/orders/edit/${order.id}`);
+                                          setShowActionMenu(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                      >
+                                        <FaEdit size={12} /> Edit
+                                      </button>
+                                      {order.status === 'draft' && (
+                                        <button
+                                          onClick={() => {
+                                            handleSendToProcurement(order);
+                                            setShowActionMenu(null);
+                                          }}
+                                          className="w-full text-left px-3 py-1.5 hover:bg-green-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                        >
+                                          <FaTruck size={12} /> Send
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => {
+                                          handleShowQR(order);
+                                          setShowActionMenu(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-purple-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                      >
+                                        <FaQrcode size={12} /> QR
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleDelete(order);
+                                          setShowActionMenu(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 text-xs flex items-center gap-1.5"
+                                      >
+                                        <FaTrash size={12} /> Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                              break;
+                            default:
+                              content = <span className="text-xs text-gray-600">N/A</span>;
+                          }
+
+                          return (
+                            <td 
+                              key={col.id} 
+                              className={`px-3 py-2 ${col.id === 'actions' ? 'text-center' : 'text-left'}`}
+                            >
+                              {content}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))
                   )}
@@ -587,16 +737,20 @@ const SalesOrdersPage = () => {
                   <div className={`h-0.5 bg-gradient-to-r ${getStatusColor(order.status)}`}></div>
                   <div className="p-3">
                     <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-0.5">SO #</p>
-                        <p className="text-sm font-semibold text-gray-800">{order.order_number}</p>
+                      <div className="flex-1">
+                        <ProjectIdentifier
+                          projectName={order.project_name}
+                          orderId={order.order_number}
+                          type="sales"
+                          size="default"
+                        />
                       </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleShowQR(order);
                         }}
-                        className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
+                        className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg ml-2"
                       >
                         <FaQrcode size={14} />
                       </button>

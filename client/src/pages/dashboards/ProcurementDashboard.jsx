@@ -236,6 +236,7 @@ const ProcurementDashboard = () => {
   });
   const [poSummary, setPoSummary] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
+  const [poCountByOrder, setPoCountByOrder] = useState({}); // Track PO count per sales order
 
   // Show success message if navigated from PO creation
   useEffect(() => {
@@ -292,8 +293,19 @@ const ProcurementDashboard = () => {
       }));
 
       // Fetch recent purchase orders
-      const poRes = await api.get("/procurement/pos?limit=10");
-      setPurchaseOrders(poRes.data.purchaseOrders || []);
+      const poRes = await api.get("/procurement/pos?limit=100");
+      const allPOs = poRes.data.purchaseOrders || [];
+      setPurchaseOrders(allPOs.slice(0, 10));
+
+      // Calculate PO count for each sales order
+      const poCount = {};
+      allPOs.forEach((po) => {
+        if (po.linked_sales_order_id) {
+          poCount[po.linked_sales_order_id] =
+            (poCount[po.linked_sales_order_id] || 0) + 1;
+        }
+      });
+      setPoCountByOrder(poCount);
 
       // Fetch incoming orders from sales
       const incomingRes = await api.get("/sales/orders?limit=50");
@@ -575,6 +587,37 @@ const ProcurementDashboard = () => {
     navigate(
       `/procurement/purchase-orders/create?from_sales_order=${salesOrder.id}`
     );
+  };
+
+  // Handle viewing sales order details
+  const handleViewOrder = (order) => {
+    console.log("handleViewOrder called with:", order);
+    console.log("Order ID:", order?.id);
+    
+    if (!order) {
+      console.error("Order is null or undefined");
+      toast.error("Order data is unavailable");
+      return;
+    }
+
+    // Try multiple property names for ID
+    const orderId = order.id || order.order_id || order.salesOrderId;
+    console.log("Order ID to navigate to:", orderId);
+
+    if (!orderId) {
+      console.error("Cannot find order ID. Order object:", order);
+      toast.error("Cannot open order - order ID is missing");
+      return;
+    }
+
+    try {
+      const navigationPath = `/sales/orders/${orderId}`;
+      console.log(`Navigating to: ${navigationPath}`);
+      navigate(navigationPath);
+    } catch (error) {
+      console.error("Error navigating to order:", error);
+      toast.error("Failed to open order details");
+    }
   };
 
   // Handle accepting incoming order request
@@ -905,7 +948,8 @@ const ProcurementDashboard = () => {
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
                               <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
-                                #
+                                Project Name
+                                
                               </th>
                               <th className="px-3 py-1 text-left text-xs font-semibold text-slate-700">
                                 Customer
@@ -933,8 +977,14 @@ const ProcurementDashboard = () => {
                                 key={order.id}
                                 className="hover:bg-slate-50 transition"
                               >
-                                <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
-                                  {order.order_number}
+                               
+                                <td className="px-3 py-1.5 text-xs">
+                                  <p className="font-medium text-slate-800">
+                                   {order.project_name || "-"}
+                                  </p>
+                                  <p className="text-xs text-slate-500 mt-0">
+                                    {order.order_number}
+                                  </p>
                                 </td>
                                 <td className="px-3 py-1.5 text-xs">
                                   <p className="font-medium text-slate-800">
@@ -1006,33 +1056,50 @@ const ProcurementDashboard = () => {
                                   </span>
                                 </td>
                                 <td className="px-3 py-1.5 text-xs">
-                                  <div className="flex gap-1">
+                                  <div className="flex gap-1 flex-wrap items-center">
+                                    {/* View Order Button */}
                                     <button
-                                      onClick={() =>
-                                        navigate(`/sales/orders/${order.id}`)
-                                      }
-                                      className="p-1 rounded-lg hover:bg-slate-100 transition text-blue-600"
-                                      title="View"
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleViewOrder(order);
+                                      }}
+                                      className="p-1.5 rounded-lg hover:bg-blue-100 transition text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+                                      title="View order details before creating PO"
+                                      style={{ outline: 'none' }}
                                     >
                                       <Eye size={14} />
                                     </button>
+                                    
+                                    {/* Accept Order Button - Only for Draft orders */}
                                     {order.status === "draft" && (
                                       <button
                                         onClick={() => handleAcceptOrder(order)}
-                                        className="p-1 rounded-lg hover:bg-slate-100 transition text-green-600"
-                                        title="Accept"
+                                        className="p-1.5 rounded-lg hover:bg-green-100 transition text-green-600 hover:text-green-700 font-medium"
+                                        title="Accept order (change status to Confirmed)"
                                       >
                                         <CheckCircle size={14} />
                                       </button>
                                     )}
+                                    
+                                    {/* Create PO Button - For Confirmed orders (can create multiple) */}
                                     {order.status === "confirmed" && (
-                                      <button
-                                        onClick={() => handleCreatePO(order)}
-                                        className="p-1 rounded-lg hover:bg-slate-100 transition text-slate-600"
-                                        title="Create PO"
-                                      >
-                                        <Plus size={14} />
-                                      </button>
+                                      <div className="relative">
+                                        <button
+                                          onClick={() => handleCreatePO(order)}
+                                          className="p-1.5 rounded-lg hover:bg-purple-100 transition text-purple-600 hover:text-purple-700 font-medium relative"
+                                          title={`Create purchase order (${poCountByOrder[order.id] || 0} PO${poCountByOrder[order.id] !== 1 ? "s" : ""} exist${poCountByOrder[order.id] !== 1 ? "" : "s"}, you can create more)`}
+                                        >
+                                          <Plus size={14} />
+                                        </button>
+                                        {/* Badge showing PO count if any exist */}
+                                        {poCountByOrder[order.id] > 0 && (
+                                          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-purple-600 rounded-full">
+                                            {poCountByOrder[order.id]}
+                                          </span>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
                                 </td>

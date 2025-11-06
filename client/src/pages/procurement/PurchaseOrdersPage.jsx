@@ -38,6 +38,7 @@ import EnhancedPurchaseOrderForm from "../../components/procurement/EnhancedPurc
 import { useVendors } from "../../hooks/useVendors";
 import { useProducts } from "../../hooks/useProducts";
 import { useCustomers } from "../../hooks/useCustomers";
+import ProjectIdentifier from "../../components/common/ProjectIdentifier";
 import toast from "react-hot-toast";
 
 // Define all available columns with their properties
@@ -916,7 +917,7 @@ const PurchaseOrdersPage = () => {
                 <tr>
                   {isColumnVisible("po_number") && (
                     <th className="px-2 py-2 text-left text-xs font-medium text-slate-700">
-                      PO Number
+                      Project Details
                     </th>
                   )}
                   {isColumnVisible("po_date") && (
@@ -1008,14 +1009,15 @@ const PurchaseOrdersPage = () => {
                     <React.Fragment key={order.id}>
                       <tr className="hover:bg-slate-50 transition-colors group">
                         {isColumnVisible("po_number") && (
-                          <td className="px-2 py-2 whitespace-nowrap">
-                            <button
-                              onClick={() => handleView(order)}
-                              className="font-medium text-xs hover:underline"
-                              style={{ color: "#0f172a" }}
-                            >
-                              {order.po_number}
-                            </button>
+                          <td className="px-2 py-2">
+                            <div onClick={() => handleView(order)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                              <ProjectIdentifier
+                                projectName={order.project_name}
+                                orderId={order.po_number}
+                                type="purchase"
+                                size="small"
+                              />
+                            </div>
                           </td>
                         )}
                         {isColumnVisible("po_date") && (

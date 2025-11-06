@@ -302,6 +302,16 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true,
       comment: 'Invoice generation date'
+    },
+    project_reference: {
+      type: DataTypes.STRING(120),
+      allowNull: true,
+      comment: 'Project reference code used to link manufacturing orders'
+    },
+    project_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Human-friendly project name for dashboards and reports'
     }
   }, {
     tableName: 'sales_orders',

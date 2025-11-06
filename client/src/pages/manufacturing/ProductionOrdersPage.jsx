@@ -27,6 +27,7 @@ import { useProducts } from "../../hooks/useProducts";
 import PermissionGate from "../../components/auth/PermissionGate";
 import { useColumnVisibility } from "../../hooks/useColumnVisibility";
 import { useSmartDropdown } from "../../hooks/useSmartDropdown";
+import ProjectIdentifier from "../../components/common/ProjectIdentifier";
 
 // Define all available columns with their properties
 const AVAILABLE_COLUMNS = [
@@ -315,6 +316,7 @@ const ProductionOrdersPage = () => {
         return {
           id: order.id,
           orderNumber: order.production_number,
+          projectName: order.project_name,
           productName: productName || "Unknown Product",
           quantity: order.quantity,
           produced: order.produced_quantity,
@@ -1480,7 +1482,7 @@ const ProductionOrdersPage = () => {
                   <tr className="bg-slate-50 border-b border-slate-200">
                     {isColumnVisible("order_number") && (
                       <th className="px-6 py-3 text-left font-semibold text-slate-900">
-                        Order Number
+                        Project Details
                       </th>
                     )}
                     {isColumnVisible("product") && (
@@ -1532,8 +1534,13 @@ const ProductionOrdersPage = () => {
                       className="hover:bg-slate-50 transition-colors duration-150"
                     >
                       {isColumnVisible("order_number") && (
-                        <td className="px-6 py-3 font-medium text-slate-900">
-                          {order.orderNumber}
+                        <td className="px-6 py-3">
+                          <ProjectIdentifier
+                            projectName={order.projectName}
+                            orderId={order.orderNumber}
+                            type="production"
+                            size="small"
+                          />
                         </td>
                       )}
                       {isColumnVisible("product") && (

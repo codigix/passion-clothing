@@ -10,36 +10,44 @@ const CreateSalesOrderPage = () => {
   
   // State for order data
   const [orderData, setOrderData] = useState({
+    // PRIMARY IDENTIFIERS
+    projectTitle: '',
     customerName: '',
-    address: '',
-    contactPerson: '',
     email: '',
     phone: '',
-    gstNumber: '',
-    orderDate: new Date().toISOString().split('T')[0],
-    projectTitle: '',
+    contactPerson: '',
+    
+    // PRODUCT DETAILS
     productName: '',
-    productCode: '',
     productType: '',
-    customProductType: '',
     fabricType: '',
     color: '',
     quantity: '',
     qualitySpecification: '',
+    
+    // PRICING & DELIVERY
     pricePerPiece: '',
-    designFile: null,
-    designFileName: '',
-    sizeOption: 'fixed',
-    sizeDetails: [],
     expectedDeliveryDate: '',
     advancePaid: '',
     gstPercentage: '18',
+    
+    // OPTIONAL/ADVANCED
+    gstNumber: '',
+    address: '',
+    designFile: null,
+    designFileName: '',
+    
+    // INTERNAL (not shown)
+    orderDate: new Date().toISOString().split('T')[0],
+    productCode: '',
+    sizeOption: 'fixed',
+    sizeDetails: [],
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [createdOrder, setCreatedOrder] = useState(null);
-  const [currentSection, setCurrentSection] = useState('customer'); // Tab control
+  const [currentSection, setCurrentSection] = useState('primary'); // Tab control
   const [imagePreview, setImagePreview] = useState(null); // Image preview URL
 
   const productTypes = [
@@ -376,32 +384,31 @@ const CreateSalesOrderPage = () => {
               onClick={() => {
                 setCreatedOrder(null);
                 setOrderData({
+                  projectTitle: '',
                   customerName: '',
-                  address: '',
-                  contactPerson: '',
                   email: '',
                   phone: '',
-                  gstNumber: '',
-                  orderDate: new Date().toISOString().split('T')[0],
-                  projectTitle: '',
+                  contactPerson: '',
                   productName: '',
-                  productCode: '',
                   productType: '',
-                  customProductType: '',
                   fabricType: '',
                   color: '',
                   quantity: '',
                   qualitySpecification: '',
                   pricePerPiece: '',
-                  designFile: null,
-                  designFileName: '',
-                  sizeOption: 'fixed',
-                  sizeDetails: [],
                   expectedDeliveryDate: '',
                   advancePaid: '',
                   gstPercentage: '18',
+                  gstNumber: '',
+                  address: '',
+                  designFile: null,
+                  designFileName: '',
+                  orderDate: new Date().toISOString().split('T')[0],
+                  productCode: '',
+                  sizeOption: 'fixed',
+                  sizeDetails: [],
                 });
-                setCurrentSection('customer');
+                setCurrentSection('primary');
                 setSubmitError('');
               }}
               className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all font-medium flex items-center gap-1 border border-blue-200 text-sm"
@@ -448,9 +455,9 @@ const CreateSalesOrderPage = () => {
         {/* Progress Tabs */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {[
-            { id: 'customer', label: '👤 Customer Info', icon: '1' },
+            { id: 'primary', label: '🎯 Project & Customer', icon: '1' },
             { id: 'product', label: '📦 Product Details', icon: '2' },
-            { id: 'pricing', label: '💰 Pricing & Dates', icon: '3' }
+            { id: 'pricing', label: '💰 Pricing & Delivery', icon: '3' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -468,14 +475,29 @@ const CreateSalesOrderPage = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-2">
-          {/* SECTION 1: Customer Information */}
-          {currentSection === 'customer' && (
+          {/* SECTION 1: PRIMARY - Project & Customer (HIGHLIGHTED) */}
+          {currentSection === 'primary' && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Customer & Order Information</h2>
+              {/* PROJECT TITLE - HIGHLIGHTED AS PRIMARY */}
+              <div className="mb-4 pb-4 border-b-2 border-amber-200">
+                <label className="block text-xs font-bold text-amber-700 mb-2 uppercase tracking-wider">
+                  🎯 Primary Project Name
+                </label>
+                <input
+                  type="text"
+                  value={orderData.projectTitle}
+                  onChange={(e) => handleInputChange('projectTitle', e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition text-sm font-semibold bg-amber-50 placeholder-amber-300"
+                  placeholder="e.g., Winter Uniforms – XYZ Pvt Ltd"
+                />
+                <p className="text-xs text-amber-600 mt-1">This is your order's unique project identifier</p>
+              </div>
+
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Customer Information</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Customer Name */}
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
+                {/* Customer Name - Required */}
+                <div className="lg:col-span-1">
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Customer Name <span className="text-red-500">*</span>
                   </label>
@@ -502,7 +524,7 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
-                {/* Email */}
+                {/* Email & Phone in row */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Email
@@ -516,7 +538,6 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
-                {/* Phone */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Phone
@@ -530,45 +551,39 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
-                {/* GST Number */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    GST Number
-                  </label>
-                  <input
-                    type="text"
-                    value={orderData.gstNumber}
-                    onChange={(e) => handleInputChange('gstNumber', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="22AAAAA0000A1Z5"
-                  />
-                </div>
-
-                {/* Order Date */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Order Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={orderData.orderDate}
-                    onChange={(e) => handleInputChange('orderDate', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                  />
-                </div>
-
-                {/* Address - Full Width */}
-                <div className="md:col-span-2 lg:col-span-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Address (Billing / Shipping)
-                  </label>
-                  <textarea
-                    value={orderData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="Complete address with city and pincode"
-                    rows="2"
-                  />
+                {/* GST & Address - Optional Footer */}
+                <div className="lg:col-span-2 pt-2 border-t border-gray-200">
+                  <details className="group cursor-pointer">
+                    <summary className="text-xs font-medium text-gray-600 hover:text-gray-900 select-none">
+                      + Additional Information (GST, Address)
+                    </summary>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          GST Number
+                        </label>
+                        <input
+                          type="text"
+                          value={orderData.gstNumber}
+                          onChange={(e) => handleInputChange('gstNumber', e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                          placeholder="22AAAAA0000A1Z5"
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Address
+                        </label>
+                        <textarea
+                          value={orderData.address}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                          placeholder="City, pincode"
+                          rows="2"
+                        />
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </div>
 
@@ -587,24 +602,10 @@ const CreateSalesOrderPage = () => {
           {/* SECTION 2: Product Details */}
           {currentSection === 'product' && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-3">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Product & Order Details</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Product Details</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Project Title */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Project / Order Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={orderData.projectTitle}
-                    onChange={(e) => handleInputChange('projectTitle', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="e.g., Winter Uniforms – XYZ Pvt Ltd"
-                  />
-                </div>
-
-                {/* Product Name */}
+                {/* Product Name - REQUIRED */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Product Name <span className="text-red-500">*</span>
@@ -618,52 +619,51 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
-                {/* Product Code (Read-only) */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Product Code <span className="text-xs text-gray-500">(Auto-gen)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={orderData.productCode}
-                    readOnly
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-600 text-xs cursor-not-allowed"
-                    placeholder="Auto-generated"
-                  />
-                </div>
-
-                {/* Product Type */}
+                {/* Product Type - Consolidated */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Product Type
                   </label>
-                  <select
-                    value={orderData.productType}
-                    onChange={(e) => handleInputChange('productType', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                  >
-                    <option value="">Select type</option>
-                    {productTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Custom Product Type */}
-                {orderData.productType === 'Other' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Custom Type
-                    </label>
+                  {orderData.productType === 'Other' ? (
                     <input
                       type="text"
-                      value={orderData.customProductType}
-                      onChange={(e) => handleInputChange('customProductType', e.target.value)}
+                      value={orderData.productType === 'Other' ? orderData.customProductType : orderData.productType}
+                      onChange={(e) => {
+                        if (orderData.productType === 'Other') {
+                          handleInputChange('customProductType', e.target.value);
+                        }
+                      }}
                       className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                      placeholder="Enter type"
+                      placeholder="Enter custom type"
                     />
-                  </div>
-                )}
+                  ) : (
+                    <select
+                      value={orderData.productType}
+                      onChange={(e) => handleInputChange('productType', e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                    >
+                      <option value="">Select type</option>
+                      {productTypes.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Quantity - REQUIRED */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Quantity (Units) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={orderData.quantity}
+                    onChange={(e) => handleInputChange('quantity', e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                    placeholder="1000"
+                  />
+                </div>
 
                 {/* Fabric Type */}
                 <div>
@@ -693,23 +693,8 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
-                {/* Quantity */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Quantity (Units) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={orderData.quantity}
-                    onChange={(e) => handleInputChange('quantity', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="1000"
-                  />
-                </div>
-
-                {/* Quality Specification */}
-                <div className="md:col-span-2 lg:col-span-3">
+                {/* Quality Specification - Optional Footer */}
+                <div className="md:col-span-2 lg:col-span-3 pt-2 border-t border-gray-200">
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Quality Specification
                   </label>
@@ -718,68 +703,15 @@ const CreateSalesOrderPage = () => {
                     value={orderData.qualitySpecification}
                     onChange={(e) => handleInputChange('qualitySpecification', e.target.value)}
                     className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="e.g., 220 GSM Cotton"
+                    placeholder="e.g., 220 GSM, Double Stitching, etc (Optional)"
                   />
                 </div>
               </div>
 
-              {/* Size Details */}
-              {orderData.sizeOption === 'fixed' && (
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-900">Size Breakdown (Optional)</h3>
-                    <button
-                      type="button"
-                      onClick={addSizeDetail}
-                      className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all text-xs font-medium flex items-center gap-1 border border-blue-200"
-                    >
-                      <FaPlus className="w-2.5 h-2.5" /> Add
-                    </button>
-                  </div>
-
-                  {orderData.sizeDetails.length > 0 && (
-                    <div className="space-y-2">
-                      {orderData.sizeDetails.map((detail, index) => (
-                        <div key={index} className="flex gap-2 items-end">
-                          <div className="flex-1">
-                            <label className="block text-xs font-medium text-gray-600 mb-0.5">Size</label>
-                            <input
-                              type="text"
-                              value={detail.size}
-                              onChange={(e) => handleSizeDetailChange(index, 'size', e.target.value)}
-                              className="w-full px-2 py-1 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
-                              placeholder="M, L, XL"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-xs font-medium text-gray-600 mb-0.5">Qty</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={detail.quantity}
-                              onChange={(e) => handleSizeDetailChange(index, 'quantity', e.target.value)}
-                              className="w-full px-2 py-1 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
-                              placeholder="0"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeSizeDetail(index)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <FaTrash className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div className="mt-3 flex gap-2 justify-between border-t border-gray-200 pt-3">
                 <button
                   type="button"
-                  onClick={() => setCurrentSection('customer')}
+                  onClick={() => setCurrentSection('primary')}
                   className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium text-sm"
                 >
                   ← Back
@@ -789,7 +721,7 @@ const CreateSalesOrderPage = () => {
                   onClick={() => setCurrentSection('pricing')}
                   className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium text-sm"
                 >
-                  Next: Pricing & Dates →
+                  Next: Pricing & Delivery →
                 </button>
               </div>
             </div>

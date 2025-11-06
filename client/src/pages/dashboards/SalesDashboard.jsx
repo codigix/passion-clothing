@@ -23,6 +23,7 @@ import {
   FaEllipsisV,
   FaStar,
   FaTh,
+  FaColumns,
 } from "react-icons/fa";
 import {
   ShoppingCart,
@@ -47,6 +48,8 @@ const SalesDashboard = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterProcurement, setFilterProcurement] = useState("all");
+  const [filterProduction, setFilterProduction] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
@@ -62,6 +65,92 @@ const SalesDashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [viewMode, setViewMode] = useState("table"); // 'table' or 'cards'
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+
+  // Define available columns for the sales orders table
+  const AVAILABLE_COLUMNS = [
+    { id: "project_name", label: "Project Name", defaultVisible: true, fixed: true },
+    { id: "customer", label: "Customer", defaultVisible: true, fixed: false },
+    { id: "products", label: "Products", defaultVisible: true, fixed: false },
+    { id: "quantity", label: "Qty", defaultVisible: false, fixed: false },
+    { id: "amount", label: "Amount", defaultVisible: true, fixed: false },
+    { id: "advance_paid", label: "Advance Paid", defaultVisible: false, fixed: false },
+    { id: "balance", label: "Balance", defaultVisible: false, fixed: false },
+    { id: "procurement_status", label: "📋 Procurement", defaultVisible: true, fixed: false },
+    { id: "production_status", label: "🏭 Production", defaultVisible: true, fixed: false },
+    { id: "status", label: "Status", defaultVisible: true, fixed: false },
+    { id: "progress", label: "Progress", defaultVisible: false, fixed: false },
+    { id: "delivery_date", label: "Delivery", defaultVisible: true, fixed: false },
+    { id: "created_by", label: "Created By", defaultVisible: false, fixed: false },
+    { id: "order_date", label: "Order Date", defaultVisible: false, fixed: false },
+    { id: "rate_per_piece", label: "Rate/Piece", defaultVisible: false, fixed: false },
+    { id: "actions", label: "Actions", defaultVisible: true, fixed: true },
+  ];
+
+  // Initialize visible columns from localStorage
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const stored = localStorage.getItem("salesDashboardVisibleColumns");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Error parsing stored columns:", e);
+    }
+    return AVAILABLE_COLUMNS.filter(col => col.defaultVisible).map(col => col.id);
+  });
+
+  // Save visible columns to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("salesDashboardVisibleColumns", JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  // Toggle column visibility
+  const handleToggleColumn = (columnId) => {
+    const column = AVAILABLE_COLUMNS.find(col => col.id === columnId);
+    if (column && column.fixed) return; // Don't toggle fixed columns
+    
+    setVisibleColumns(prev => 
+      prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+
+  // Show all columns
+  const handleShowAllColumns = () => {
+    setVisibleColumns(AVAILABLE_COLUMNS.map(col => col.id));
+  };
+
+  // Reset to default columns
+  const handleResetColumns = () => {
+    setVisibleColumns(AVAILABLE_COLUMNS.filter(col => col.defaultVisible).map(col => col.id));
+  };
+
+  // Close menu when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (columnMenuOpen && !event.target.closest('.column-menu-container')) {
+        setColumnMenuOpen(false);
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === "Escape" && columnMenuOpen) {
+        setColumnMenuOpen(false);
+      }
+    };
+
+    if (columnMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscapeKey);
+      
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("keydown", handleEscapeKey);
+      };
+    }
+  }, [columnMenuOpen]);
 
   // Fetch dashboard data function
   const fetchDashboardData = async () => {
@@ -101,6 +190,8 @@ const SalesDashboard = () => {
 
       const params = new URLSearchParams();
       if (filterStatus !== "all") params.append("status", filterStatus);
+      if (filterProcurement !== "all") params.append("procurement", filterProcurement);
+      if (filterProduction !== "all") params.append("production", filterProduction);
       if (dateFilter.from) params.append("date_from", dateFilter.from);
       if (dateFilter.to) params.append("date_to", dateFilter.to);
 
@@ -255,11 +346,26 @@ const SalesDashboard = () => {
     </div>
   );
 
-  // Filter orders based on status
-  const filteredOrders =
-    filterStatus === "all"
-      ? salesOrders
-      : salesOrders.filter((order) => order.status === filterStatus);
+  // Filter orders based on multiple criteria (status, procurement, production)
+  const filteredOrders = salesOrders.filter((order) => {
+    // Base status filter
+    if (filterStatus !== "all" && order.status !== filterStatus) return false;
+
+    // Procurement stage filter
+    if (filterProcurement !== "all") {
+      if (filterProcurement === "under_po" && !order.purchase_order_id) return false;
+      if (filterProcurement === "no_po" && order.purchase_order_id) return false;
+    }
+
+    // Production stage filter
+    if (filterProduction !== "all") {
+      if (filterProduction === "in_production" && order.status !== "in_production") return false;
+      if (filterProduction === "production_pending" && order.status !== "confirmed") return false;
+      if (filterProduction === "ready_to_ship" && order.status !== "ready_to_ship") return false;
+    }
+
+    return true;
+  });
 
   // Loading component
   if (loading) {
@@ -300,246 +406,165 @@ const SalesDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Modern Header with Sophisticated Design */}
-      <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-blue-800 text-white px-6 py-3">
+      <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-blue-800 text-white px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <div className="flex items-center gap-2.5 mb-0.5">
-              <div className="p-1.5 bg-white/15 rounded-lg backdrop-blur-sm">
+          <div className="flex-1">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="p-2 bg-white/15 rounded-lg backdrop-blur-sm">
                 <ShoppingCart className="w-5 h-5" />
               </div>
-              <h1 className="text-lg font-bold">Sales Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl font-bold">Sales Dashboard</h1>
             </div>
-            <p className="text-blue-200 text-xs font-normal ml-10">
+            <p className="text-blue-200 text-xs font-normal ml-13">
               Performance • Orders • Revenue
             </p>
           </div>
           <button
-            className="px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-xs flex items-center gap-2 hover:from-blue-600 hover:to-blue-700"
+            className="px-3.5 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium text-xs sm:text-sm flex items-center gap-2 hover:from-blue-600 hover:to-blue-700 flex-shrink-0"
             onClick={() => navigate("/sales/orders/create")}
           >
-            <FaPlus size={13} />
-            New Order
+            <FaPlus size={14} />
+            <span className="hidden sm:inline">New Order</span>
           </button>
         </div>
       </div>
 
-      <div className="px-6 py-3 max-w-7xl mx-auto">
-        {/* Modern Stats Cards with Gradient Backgrounds */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          {/* Total Orders Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-3 hover:shadow-md transition-all hover:border-blue-300">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-blue-700 text-xs font-medium">
-                  Total Orders
-                </p>
-                <p className="text-xl font-bold text-blue-900 mt-1">
-                  {stats?.totalOrders || 0}
-                </p>
-              </div>
-              <div className="p-2 bg-blue-200 rounded-lg">
-                <ShoppingCart className="w-4 h-4 text-blue-700" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-xs pt-1 border-t border-blue-200">
-              <TrendingUp className="w-3 h-3 text-green-600" />
-              <span className="text-green-600 font-semibold">+12%</span>
-              <span className="text-blue-600">vs last month</span>
-            </div>
-          </div>
-
-          {/* Active Orders Card */}
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-3 hover:shadow-md transition-all hover:border-amber-300">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-amber-700 text-xs font-medium">
-                  Active Orders
-                </p>
-                <p className="text-xl font-bold text-amber-900 mt-1">
-                  {stats?.pendingOrders || 0}
-                </p>
-              </div>
-              <div className="p-2 bg-amber-200 rounded-lg">
-                <Clock className="w-4 h-4 text-amber-700" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-xs pt-1 border-t border-amber-200">
-              <span className="text-amber-700 font-semibold">5 pending</span>
-              <span className="text-amber-600">approval</span>
-            </div>
-          </div>
-
-          {/* Completed Orders Card */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-3 hover:shadow-md transition-all hover:border-green-300">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-green-700 text-xs font-medium">Completed</p>
-                <p className="text-xl font-bold text-green-900 mt-1">
-                  {stats?.orderStats?.find((s) => s.status === "completed")
-                    ?.count || 0}
-                </p>
-              </div>
-              <div className="p-2 bg-green-200 rounded-lg">
-                <CheckCircle className="w-4 h-4 text-green-700" />
-              </div>
-            </div>
-            <div className="w-full bg-green-200 rounded-full h-1.5 mt-2">
-              <div
-                className="bg-green-600 h-1.5 rounded-full"
-                style={{ width: "78%" }}
-              ></div>
-            </div>
-            <p className="text-xs text-green-700 mt-1 font-medium">
-              78% completion
-            </p>
-          </div>
-
-          {/* Total Revenue Card */}
-          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow-sm border border-indigo-200 p-3 hover:shadow-md transition-all hover:border-indigo-300">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-indigo-700 text-xs font-medium">
-                  Total Revenue
-                </p>
-                <p className="text-xl font-bold text-indigo-900 mt-1">
-                  ₹{((stats?.totalRevenue || 0) / 100000).toFixed(1)}L
-                </p>
-              </div>
-              <div className="p-2 bg-indigo-200 rounded-lg">
-                <DollarSign className="w-4 h-4 text-indigo-700" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-xs pt-1 border-t border-indigo-200">
-              <TrendingUp className="w-3 h-3 text-green-600" />
-              <span className="text-green-600 font-semibold">+8.5%</span>
-              <span className="text-indigo-600">this quarter</span>
-            </div>
-          </div>
-        </div>
-
+      <div className="px-4 sm:px-6 py-5 max-w-7xl mx-auto w-full">
         {/* Real-Time Process Tracker Section */}
-        <div className="mb-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            {/* Process Tracker - Wider on desktop */}
-            <div className="lg:col-span-2">
-              <RecentActivities autoRefreshInterval={30000} />
-            </div>
-            {/* Recent Activities - Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-4 shadow-sm">
-                <h3 className="font-semibold text-slate-900 text-sm mb-3">
-                  ⚡ Quick Stats
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">In Production:</span>
-                    <span className="font-bold text-purple-600">
-                      {stats?.orderStats?.find(
-                        (s) => s.status === "in_production"
-                      )?.count || 0}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">Ready to Ship:</span>
-                    <span className="font-bold text-pink-600">
-                      {stats?.orderStats?.find(
-                        (s) => s.status === "ready_to_ship"
-                      )?.count || 0}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">Shipped:</span>
-                    <span className="font-bold text-blue-600">
-                      {stats?.orderStats?.find((s) => s.status === "shipped")
-                        ?.count || 0}
-                    </span>
-                  </div>
-                  <div className="border-t border-purple-200 pt-2 mt-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-600">Delivered:</span>
-                      <span className="font-bold text-green-600">
-                        {stats?.orderStats?.find(
-                          (s) => s.status === "delivered"
-                        )?.count || 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="mb-6">
+          <RecentActivities autoRefreshInterval={30000} />
         </div>
 
         {/* Modern Search and Filters Bar */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 mb-4">
-          <div className="flex flex-col lg:flex-row gap-2">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
             {/* Search Box */}
-            <div className="flex-1">
+            <div className="sm:col-span-2 lg:col-span-2">
               <div className="relative">
                 <FaSearch
-                  className="absolute left-3 top-2.5 text-slate-400"
+                  className="absolute left-3 top-3 text-slate-400"
                   size={13}
                 />
                 <input
-                  className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all placeholder-slate-400"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder-slate-400"
                   placeholder="Search order #, customer..."
                   onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Status Filter */}
-            <div className="lg:w-48">
+            {/* Order Status Filter */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Order Status</label>
               <select
-                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all bg-white"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="all">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="pending_approval">Pending Approval</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="in_production">In Production</option>
-                <option value="ready_to_ship">Ready to Ship</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="draft">📝 Draft</option>
+                <option value="pending_approval">⏳ Pending Approval</option>
+                <option value="confirmed">✅ Confirmed</option>
+                <option value="in_production">🏭 In Production</option>
+                <option value="ready_to_ship">📦 Ready to Ship</option>
+                <option value="shipped">🚚 Shipped</option>
+                <option value="delivered">✔️ Delivered</option>
+                <option value="completed">🎯 Completed</option>
+                <option value="cancelled">❌ Cancelled</option>
               </select>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2 items-center">
-              <button
-                className="px-3 py-1.5 text-xs border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium flex items-center gap-1.5"
-                onClick={() => navigate("/sales/reports")}
-                title="View detailed reports"
+            {/* Procurement Stage Filter */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Procurement</label>
+              <select
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white"
+                value={filterProcurement}
+                onChange={(e) => setFilterProcurement(e.target.value)}
               >
-                <FaChartLine size={12} />
-                <span className="hidden sm:inline">Reports</span>
-              </button>
-              <button
-                className="px-3 py-1.5 text-xs bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:shadow-md transition-all font-medium flex items-center gap-1.5 disabled:opacity-50"
-                onClick={handleExportOrders}
-                disabled={exporting}
-                title="Export orders to CSV"
-              >
-                {exporting ? (
-                  <FaSpinner className="animate-spin" size={12} />
-                ) : (
-                  <FaFileExport size={12} />
-                )}
-                <span className="hidden sm:inline">
-                  {exporting ? "Exporting..." : "Export"}
-                </span>
-              </button>
+                <option value="all">All Orders</option>
+                <option value="under_po">🔗 Under PO</option>
+                <option value="no_po">❌ No PO Yet</option>
+              </select>
             </div>
+
+            {/* Production Stage Filter */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Production</label>
+              <select
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white"
+                value={filterProduction}
+                onChange={(e) => setFilterProduction(e.target.value)}
+              >
+                <option value="all">All Stages</option>
+                <option value="production_pending">⏱️ Pending Production</option>
+                <option value="in_production">🏭 In Production</option>
+                <option value="ready_to_ship">📦 Ready to Ship</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Second Row: Action Buttons */}
+          <div className="flex gap-2 flex-wrap relative items-center">
+            <button
+              className="px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
+              onClick={() => navigate("/sales/reports")}
+              title="View detailed reports"
+            >
+              <FaChartLine size={13} />
+              <span className="hidden sm:inline">Reports</span>
+            </button>
+            
+            {/* Column Visibility Toggle - More Prominent */}
+            
+
+            <button
+              className="px-4 py-2 text-sm bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:shadow-md transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+              onClick={handleExportOrders}
+              disabled={exporting}
+              title="Export orders to CSV"
+            >
+              {exporting ? (
+                <FaSpinner className="animate-spin" size={13} />
+              ) : (
+                <FaFileExport size={13} />
+              )}
+              <span className="hidden sm:inline">
+                {exporting ? "Exporting..." : "Export"}
+              </span>
+            </button>
+
+            {/* Active Filters Display */}
+            {(filterStatus !== "all" || filterProcurement !== "all" || filterProduction !== "all") && (
+              <div className="ml-auto flex items-center gap-2 text-xs text-slate-600">
+                <FaFilter size={12} className="text-blue-600" />
+                <span className="font-medium">
+                  Filters active: {[
+                    filterStatus !== "all" ? "1 Status" : "",
+                    filterProcurement !== "all" ? "1 Procurement" : "",
+                    filterProduction !== "all" ? "1 Production" : ""
+                  ].filter(Boolean).join(", ")}
+                </span>
+                <button
+                  onClick={() => {
+                    setFilterStatus("all");
+                    setFilterProcurement("all");
+                    setFilterProduction("all");
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-semibold underline"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Modern Tabs Section */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
           {/* Tab Navigation */}
-          <div className="border-b border-slate-200 bg-slate-50 px-4">
-            <div className="flex gap-0.5">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 sm:px-6">
+            <div className="flex gap-1">
               {[
                 { label: "Orders", icon: FaClipboardList },
                 { label: "Pipeline", icon: TrendingUp },
@@ -547,14 +572,14 @@ const SalesDashboard = () => {
               ].map((tab, idx) => (
                 <button
                   key={tab.label}
-                  className={`py-2 px-3 font-medium text-xs border-b-2 transition-all flex items-center gap-1.5 ${
+                  className={`py-3 px-4 font-medium text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
                     tabValue === idx
                       ? "border-blue-600 text-blue-700 bg-blue-50"
                       : "border-transparent text-slate-600 hover:text-blue-600 hover:bg-slate-100"
                   }`}
                   onClick={() => setTabValue(idx)}
                 >
-                  <tab.icon size={13} />
+                  <tab.icon size={14} />
                   {tab.label}
                 </button>
               ))}
@@ -563,20 +588,20 @@ const SalesDashboard = () => {
 
           {/* Tab Content */}
           <TabPanel value={tabValue} index={0}>
-            <div className="p-3">
+            <div className="p-4 sm:p-6">
               {/* Orders Header with View Mode Toggle */}
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-center mb-5 gap-3">
                 <div>
-                  <h3 className="font-semibold text-sm text-slate-800">
+                  <h3 className="font-semibold text-base text-slate-800">
                     Sales Orders
                   </h3>
-                  <p className="text-slate-600 text-xs mt-0.5">
-                    {filteredOrders.length} orders
+                  <p className="text-slate-600 text-sm mt-1">
+                    {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+                <div className="flex gap-1 bg-slate-100 p-1.5 rounded-lg flex-shrink-0">
                   <button
-                    className={`px-2.5 py-1.5 rounded text-xs transition-all ${
+                    className={`px-3 py-2 rounded transition-all ${
                       viewMode === "table"
                         ? "bg-white text-blue-700 shadow-sm border border-slate-300"
                         : "text-slate-600 hover:text-blue-700"
@@ -584,10 +609,10 @@ const SalesDashboard = () => {
                     onClick={() => setViewMode("table")}
                     title="Table view"
                   >
-                    <FaClipboardList size={12} />
+                    <FaClipboardList size={13} />
                   </button>
                   <button
-                    className={`px-2.5 py-1.5 rounded text-xs transition-all ${
+                    className={`px-3 py-2 rounded transition-all ${
                       viewMode === "cards"
                         ? "bg-white text-blue-700 shadow-sm border border-slate-300"
                         : "text-slate-600 hover:text-blue-700"
@@ -595,71 +620,130 @@ const SalesDashboard = () => {
                     onClick={() => setViewMode("cards")}
                     title="Card view"
                   >
-                    <FaTh size={12} />
+                    <FaTh size={13} />
                   </button>
+                  <div className="relative column-menu-container">
+              <button
+                className={`px-3 py-2 text-sm border  transition-all font-medium flex items-center justify-center gap-2 relative whitespace-nowrap ${
+                  columnMenuOpen 
+                    ? "bg-blue-100 border-blue-300 text-blue-600" 
+                    : "border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+                }`}
+                onClick={() => setColumnMenuOpen(!columnMenuOpen)}
+                title="Customize table columns"
+                id="columnMenuButton"
+              >
+                <FaColumns size={13} />
+                
+                {/* Indicator dot if columns are customized */}
+                {visibleColumns.length !== AVAILABLE_COLUMNS.filter(col => col.defaultVisible).length && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                )}
+              </button>
+
+              {/* Column Menu Dropdown */}
+              {columnMenuOpen && (
+                <div 
+                  className="absolute right-0 mt-1 w-56 sm:w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-50 max-h-96 overflow-y-auto top-full"
+                  id="columnMenuDropdown"
+                >
+                  {/* Header with Quick Actions */}
+                  <div className="sticky top-0 bg-white border-b border-slate-200 p-3">
+                    <p className="text-xs font-semibold text-slate-700 mb-2">Visible Columns</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleShowAllColumns}
+                        className="flex-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        Show All
+                      </button>
+                      <button
+                        onClick={handleResetColumns}
+                        className="flex-1 px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded hover:bg-slate-200 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Column List */}
+                  <div className="p-2 space-y-1">
+                    {AVAILABLE_COLUMNS.map(column => (
+                      <label
+                        key={column.id}
+                        className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer group"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.includes(column.id)}
+                          onChange={() => handleToggleColumn(column.id)}
+                          disabled={column.fixed}
+                          className="w-4 h-4 rounded border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <span className={`text-xs font-normal ${column.fixed ? 'text-slate-400' : 'text-slate-700 group-hover:text-slate-900'} flex-1`}>
+                          {column.label}
+                        </span>
+                        {column.fixed && (
+                          <span className="text-xs text-slate-400 font-medium">(fixed)</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
                 </div>
               </div>
 
               {/* Orders Display */}
               {filteredOrders.length === 0 ? (
-                <div className="py-8 text-center">
-                  <div className="inline-block p-2.5 bg-slate-100 rounded-full mb-2">
-                    <FaClipboardList className="text-xl text-slate-400" />
+                <div className="py-12 text-center">
+                  <div className="inline-block p-3 bg-slate-100 rounded-full mb-3">
+                    <FaClipboardList className="text-2xl text-slate-400" />
                   </div>
-                  <p className="text-slate-700 font-medium text-sm">
+                  <p className="text-slate-800 font-semibold text-base">
                     No orders found
                   </p>
-                  <p className="text-slate-600 text-xs mt-1">
-                    Try adjusting your filters or create a new order
+                  <p className="text-slate-600 text-sm mt-2 mb-4">
+                    Try adjusting your filters or create a new order to get started
                   </p>
                   <button
                     onClick={() => navigate("/sales/orders/create")}
-                    className="mt-3 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs rounded-lg hover:shadow-md transition-all font-medium"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm rounded-lg hover:shadow-md transition-all font-medium"
                   >
-                    <FaPlus className="inline mr-1.5" size={11} />
+                    <FaPlus className="inline mr-2" size={13} />
                     Create New Order
                   </button>
                 </div>
               ) : viewMode === "cards" ? (
                 // Modern Card View
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredOrders.map((order) => (
                     <div
                       key={order.id}
-                      className={`rounded-lg border border-slate-200 p-2.5 bg-gradient-to-br ${getStatusGradient(
+                      className={`rounded-lg border border-slate-200 p-4 bg-gradient-to-br ${getStatusGradient(
                         order.status
                       )} hover:shadow-md transition-all cursor-pointer group`}
                       onClick={() => handleViewOrder(order.id)}
                     >
                       {/* Card Header */}
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-medium text-slate-600">
-                            Order #
+                            Order Number
                           </p>
-                          <p className="text-sm font-bold text-slate-900 group-hover:text-blue-600 truncate">
+                          <p className="text-base font-bold text-slate-900 group-hover:text-blue-600 truncate">
                             {order.order_number}
                           </p>
                         </div>
-                        <button
-                          className="ml-2 p-1 hover:bg-white/50 rounded transition-colors text-slate-600 hover:text-slate-800 flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(
-                              openMenuId === order.id ? null : order.id
-                            );
-                          }}
-                        >
-                          <FaEllipsisV size={11} />
-                        </button>
                       </div>
 
                       {/* Customer Info */}
-                      <div className="mb-2 pb-2 border-b border-slate-300/30">
-                        <p className="text-xs text-slate-600 font-medium">
+                      <div className="mb-3 pb-3 border-b border-slate-300/40">
+                        <p className="text-xs text-slate-600 font-semibold uppercase tracking-wide">
                           Customer
                         </p>
-                        <p className="text-xs font-semibold text-slate-800 truncate">
+                        <p className="text-sm font-semibold text-slate-800 truncate mt-1">
                           {order.customer?.name || "N/A"}
                         </p>
                         <p className="text-xs text-slate-600 truncate">
@@ -668,41 +752,41 @@ const SalesDashboard = () => {
                       </div>
 
                       {/* Product Info */}
-                      <div className="mb-2 pb-2 border-b border-slate-300/30">
-                        <p className="text-xs text-slate-600 font-medium">
+                      <div className="mb-3 pb-3 border-b border-slate-300/40">
+                        <p className="text-xs text-slate-600 font-semibold uppercase tracking-wide">
                           Product
                         </p>
                         {order.items &&
                         Array.isArray(order.items) &&
                         order.items.length > 0 ? (
-                          <div>
-                            <p className="text-xs font-semibold text-slate-800 truncate">
+                          <div className="mt-1">
+                            <p className="text-sm font-semibold text-slate-800 truncate">
                               {order.items[0]?.product_name ||
                                 order.items[0]?.description ||
                                 "Product"}
                             </p>
                             {order.items.length > 1 && (
-                              <p className="text-xs text-slate-500">
-                                +{order.items.length - 1} more
+                              <p className="text-xs text-slate-600 mt-1">
+                                +{order.items.length - 1} more item{order.items.length > 2 ? 's' : ''}
                               </p>
                             )}
                           </div>
                         ) : (
-                          <p className="text-xs text-slate-500">No products</p>
+                          <p className="text-xs text-slate-600 mt-1">No products</p>
                         )}
                       </div>
 
                       {/* Order Details */}
-                      <div className="space-y-1 mb-2">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-600">Qty:</span>
+                      <div className="space-y-2 mb-3 pb-3 border-b border-slate-300/40">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-600">Quantity:</span>
                           <span className="font-semibold text-slate-900">
-                            {order.total_quantity || 0}
+                            {order.total_quantity || 0} units
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-600">Amount:</span>
-                          <span className="font-bold text-slate-900">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-600">Amount:</span>
+                          <span className="font-bold text-slate-900 text-lg">
                             ₹
                             {(order.final_amount || 0).toLocaleString("en-IN", {
                               maximumFractionDigits: 0,
@@ -711,31 +795,58 @@ const SalesDashboard = () => {
                         </div>
                       </div>
 
+                      {/* Process Stages */}
+                      <div className="grid grid-cols-2 gap-2 mb-3 pb-3 border-b border-slate-300/40">
+                        {/* Procurement Stage */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">📋</span>
+                          <div>
+                            <p className="text-xs text-slate-600 font-semibold">Procurement</p>
+                            <p className="text-xs font-bold text-slate-900">
+                              {order.purchase_order_id ? "🔗 Under PO" : "❌ No PO"}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Production Stage */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🏭</span>
+                          <div>
+                            <p className="text-xs text-slate-600 font-semibold">Production</p>
+                            <p className="text-xs font-bold text-slate-900">
+                              {order.status === "confirmed" ? "⏱️ Pending" : 
+                               order.status === "in_production" ? "🏭 Active" :
+                               order.status === "ready_to_ship" ? "📦 Ready" : "—"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Status and Progress */}
-                      <div className="mb-2 pb-2 border-b border-slate-300/30">
+                      <div className="mb-3">
                         <span
-                          className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${getStatusColor(
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
                             order.status
                           )}`}
                         >
                           {order.status.replace(/_/g, " ").toUpperCase()}
                         </span>
-                        <div className="w-full bg-slate-300/30 rounded-full h-1 mt-1.5">
+                        <div className="w-full bg-slate-300/30 rounded-full h-2 mt-2">
                           <div
-                            className="h-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                            className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
                             style={{
                               width: `${getOrderProgress(order.status)}%`,
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-slate-600 mt-0.5">
+                        <p className="text-xs text-slate-600 mt-1.5 font-medium">
                           {getOrderProgress(order.status)}% complete
                         </p>
                       </div>
 
                       {/* Delivery Date */}
-                      <p className="text-xs text-slate-600 mb-2 font-medium">
-                        Del:{" "}
+                      <p className="text-sm text-slate-700 mb-4 font-medium">
+                        <span className="text-slate-600">Delivery: </span>
                         {order.delivery_date
                           ? new Date(order.delivery_date).toLocaleDateString(
                               "en-IN",
@@ -745,29 +856,29 @@ const SalesDashboard = () => {
                                 day: "2-digit",
                               }
                             )
-                          : "Not set"}
+                          : "Not scheduled"}
                       </p>
 
                       {/* Action Buttons */}
                       <div className="flex gap-2">
                         <button
-                          className="flex-1 px-2 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded text-xs font-medium flex items-center justify-center gap-1 hover:shadow-md transition-all"
+                          className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md transition-all"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewOrder(order.id);
                           }}
                         >
-                          <FaEye size={11} />
-                          View
+                          <FaEye size={12} />
+                          <span className="hidden sm:inline">View</span>
                         </button>
                         <button
-                          className="px-2 py-1.5 border border-slate-300 text-slate-700 rounded text-xs hover:bg-slate-100 transition-colors"
+                          className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-white transition-colors font-medium"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditOrder(order.id);
                           }}
                         >
-                          <FaEdit size={11} />
+                          <FaEdit size={12} />
                         </button>
                       </div>
                     </div>
@@ -775,42 +886,31 @@ const SalesDashboard = () => {
                 </div>
               ) : (
                 // Modern Table View
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-xs">
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="min-w-full text-sm">
                     <thead className="bg-slate-100 border-b border-slate-300 sticky top-0 z-10">
                       <tr>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-left min-w-[85px]">
-                          Order #
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-left min-w-[120px]">
-                          Customer
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-left min-w-[150px]">
-                          Products
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-right min-w-[60px]">
-                          Qty
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-right min-w-[90px]">
-                          Amount
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-center min-w-[100px]">
-                          Status
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-center min-w-[85px]">
-                          Progress
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-left min-w-[75px]">
-                          Delivery
-                        </th>
-                        <th className="font-semibold text-slate-700 text-xs px-3 py-2 text-center min-w-[65px]">
-                          Actions
-                        </th>
+                        {AVAILABLE_COLUMNS.map(column => 
+                          visibleColumns.includes(column.id) && (
+                            <th
+                              key={column.id}
+                              className={`font-semibold text-slate-700 text-xs px-4 py-3 ${
+                                ["amount", "quantity", "advance_paid", "balance", "rate_per_piece"].includes(column.id)
+                                  ? "text-right"
+                                  : ["procurement_status", "production_status", "status", "progress", "actions"].includes(column.id)
+                                  ? "text-center"
+                                  : "text-left"
+                              }`}
+                            >
+                              {column.label}
+                            </th>
+                          )
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {filteredOrders.map((order) => {
-                        // Extract product names from items array (without size/material info)
+                        // Extract product names from items array
                         const productList =
                           order.items &&
                           Array.isArray(order.items) &&
@@ -826,123 +926,212 @@ const SalesDashboard = () => {
                                 .filter(Boolean)
                             : [];
                         const primaryProduct = productList[0] || "No products";
-                        const additionalCount = Math.max(
-                          0,
-                          productList.length - 1
-                        );
+                        const additionalCount = Math.max(0, productList.length - 1);
 
                         return (
                           <tr
                             key={order.id}
-                            className="hover:bg-slate-50 transition-colors group cursor-pointer border-b border-slate-100"
+                            className="hover:bg-blue-50 transition-colors group cursor-pointer border-b border-slate-100 last:border-b-0"
                             onClick={() => handleViewOrder(order.id)}
                           >
-                            <td className="px-3 py-2 font-semibold text-slate-900 group-hover:text-blue-600 min-w-[85px]">
-                              {order.order_number}
-                            </td>
-                            <td className="px-3 py-2 min-w-[120px]">
-                              <div>
-                                <div className="font-semibold text-slate-900 text-xs">
-                                  {order.customer?.name || "N/A"}
-                                </div>
-                                <div className="text-xs text-slate-500">
-                                  {order.customer?.phone || "-"}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 min-w-[150px]">
-                              <Tooltip
-                                text={productList.join(", ") || "No products"}
-                              >
-                                <div className="text-xs text-slate-700">
-                                  <div
-                                    className="font-semibold truncate"
-                                    title={primaryProduct}
-                                  >
-                                    {primaryProduct}
-                                  </div>
-                                  {additionalCount > 0 && (
-                                    <div className="text-slate-500 text-xs">
-                                      +{additionalCount} item
-                                      {additionalCount > 1 ? "s" : ""}
+                            {/* Dynamic Column Rendering */}
+                            {AVAILABLE_COLUMNS.map(column => 
+                              visibleColumns.includes(column.id) && (
+                                <td
+                                  key={column.id}
+                                  className={`px-4 py-3 ${
+                                    ["amount", "quantity", "advance_paid", "balance", "rate_per_piece"].includes(column.id)
+                                      ? "text-right"
+                                      : ["procurement_status", "production_status", "status", "progress", "actions"].includes(column.id)
+                                      ? "text-center"
+                                      : "text-left"
+                                  }`}
+                                >
+                                  {/* Project Name */}
+                                  {column.id === "project_name" && (
+                                    <div>
+                                      <p className="font-semibold text-slate-900 group-hover:text-blue-600">
+                                        {order.project_name || "-"}
+                                      </p>
+                                      <span className="text-slate-400 text-xs">{order.order_number}</span>
                                     </div>
                                   )}
-                                </div>
-                              </Tooltip>
-                            </td>
-                            <td className="px-3 py-2 text-right font-semibold text-slate-900 text-xs min-w-[60px]">
-                              {order.total_quantity || 0}
-                            </td>
-                            <td className="px-3 py-2 text-right font-bold text-slate-900 text-xs min-w-[90px]">
-                              ₹
-                              {(order.final_amount || 0).toLocaleString(
-                                "en-IN",
-                                { maximumFractionDigits: 0 }
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-center min-w-[100px]">
-                              <span
-                                className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${getStatusColor(
-                                  order.status
-                                )}`}
-                              >
-                                {order.status.replace(/_/g, " ").toUpperCase()}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-center min-w-[85px]">
-                              <div className="flex items-center justify-center gap-1">
-                                <div className="w-8 h-1 bg-slate-300 rounded-full">
-                                  <div
-                                    className="h-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
-                                    style={{
-                                      width: `${getOrderProgress(
-                                        order.status
-                                      )}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs font-semibold text-slate-700 w-5">
-                                  {getOrderProgress(order.status)}%
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 text-xs text-slate-700 whitespace-nowrap min-w-[75px]">
-                              {order.delivery_date
-                                ? new Date(
-                                    order.delivery_date
-                                  ).toLocaleDateString("en-IN", {
-                                    year: "2-digit",
-                                    month: "2-digit",
-                                    day: "2-digit",
-                                  })
-                                : "-"}
-                            </td>
-                            <td className="px-3 py-2 text-center min-w-[65px]">
-                              <div className="flex items-center justify-center gap-2">
-                                <Tooltip text="View">
-                                  <button
-                                    className="p-1.5 hover:bg-blue-100 rounded transition-colors text-blue-600"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewOrder(order.id);
-                                    }}
-                                  >
-                                    <FaEye size={11} />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip text="Edit">
-                                  <button
-                                    className="p-1.5 hover:bg-amber-100 rounded transition-colors text-amber-600"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditOrder(order.id);
-                                    }}
-                                  >
-                                    <FaEdit size={11} />
-                                  </button>
-                                </Tooltip>
-                              </div>
-                            </td>
+
+                                  {/* Customer */}
+                                  {column.id === "customer" && (
+                                    <div>
+                                      <div className="font-semibold text-slate-900 text-sm">
+                                        {order.customer?.name || "N/A"}
+                                      </div>
+                                      <div className="text-xs text-slate-600">
+                                        {order.customer?.phone || "-"}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Products */}
+                                  {column.id === "products" && (
+                                    <Tooltip text={productList.join(", ") || "No products"}>
+                                      <div className="text-slate-700">
+                                        <div
+                                          className="font-semibold truncate text-sm"
+                                          title={primaryProduct}
+                                        >
+                                          {primaryProduct}
+                                        </div>
+                                        {additionalCount > 0 && (
+                                          <div className="text-slate-600 text-xs">
+                                            +{additionalCount} item{additionalCount > 1 ? "s" : ""}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </Tooltip>
+                                  )}
+
+                                  {/* Quantity */}
+                                  {column.id === "quantity" && (
+                                    <span className="font-semibold text-slate-900">
+                                      {order.total_quantity || 0}
+                                    </span>
+                                  )}
+
+                                  {/* Amount */}
+                                  {column.id === "amount" && (
+                                    <span className="font-bold text-slate-900">
+                                      ₹{(order.final_amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                    </span>
+                                  )}
+
+                                  {/* Advance Paid */}
+                                  {column.id === "advance_paid" && (
+                                    <span className="font-semibold text-green-700">
+                                      ₹{(order.advance_paid || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                    </span>
+                                  )}
+
+                                  {/* Balance */}
+                                  {column.id === "balance" && (
+                                    <span className="font-semibold text-orange-700">
+                                      ₹{((order.final_amount || 0) - (order.advance_paid || 0)).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                    </span>
+                                  )}
+
+                                  {/* Procurement Status */}
+                                  {column.id === "procurement_status" && (
+                                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                      order.purchase_order_id 
+                                        ? "bg-green-100 text-green-700" 
+                                        : "bg-red-100 text-red-700"
+                                    }`}>
+                                      {order.purchase_order_id ? "🔗 Under PO" : "❌ No PO"}
+                                    </span>
+                                  )}
+
+                                  {/* Production Status */}
+                                  {column.id === "production_status" && (
+                                    <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-blue-100 text-blue-700">
+                                      {order.status === "confirmed" ? "⏱️ Pending" : 
+                                       order.status === "in_production" ? "🏭 Active" :
+                                       order.status === "ready_to_ship" ? "📦 Ready" : "—"}
+                                    </span>
+                                  )}
+
+                                  {/* Main Status */}
+                                  {column.id === "status" && (
+                                    <span
+                                      className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusColor(order.status)}`}
+                                    >
+                                      {order.status.replace(/_/g, " ").toUpperCase()}
+                                    </span>
+                                  )}
+
+                                  {/* Progress */}
+                                  {column.id === "progress" && (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <div className="w-12 h-2 bg-slate-300/50 rounded-full">
+                                        <div
+                                          className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                                          style={{
+                                            width: `${getOrderProgress(order.status)}%`,
+                                          }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-xs font-semibold text-slate-700 w-8 text-center">
+                                        {getOrderProgress(order.status)}%
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Delivery Date */}
+                                  {column.id === "delivery_date" && (
+                                    <span className="text-sm text-slate-700 whitespace-nowrap">
+                                      {order.delivery_date
+                                        ? new Date(order.delivery_date).toLocaleDateString("en-IN", {
+                                            year: "2-digit",
+                                            month: "2-digit",
+                                            day: "2-digit",
+                                          })
+                                        : "-"}
+                                    </span>
+                                  )}
+
+                                  {/* Order Date */}
+                                  {column.id === "order_date" && (
+                                    <span className="text-sm text-slate-700 whitespace-nowrap">
+                                      {order.order_date
+                                        ? new Date(order.order_date).toLocaleDateString("en-IN", {
+                                            year: "2-digit",
+                                            month: "2-digit",
+                                            day: "2-digit",
+                                          })
+                                        : "-"}
+                                    </span>
+                                  )}
+
+                                  {/* Rate per Piece */}
+                                  {column.id === "rate_per_piece" && (
+                                    <span className="font-semibold text-slate-900">
+                                      ₹{(order.items?.[0]?.rate_per_piece || order.items?.[0]?.rate || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                    </span>
+                                  )}
+
+                                  {/* Created By */}
+                                  {column.id === "created_by" && (
+                                    <span className="text-sm text-slate-700">
+                                      {order.created_by || order.created?.name || "-"}
+                                    </span>
+                                  )}
+
+                                  {/* Actions */}
+                                  {column.id === "actions" && (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Tooltip text="View">
+                                        <button
+                                          className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleViewOrder(order.id);
+                                          }}
+                                        >
+                                          <FaEye size={13} />
+                                        </button>
+                                      </Tooltip>
+                                      <Tooltip text="Edit">
+                                        <button
+                                          className="p-2 hover:bg-amber-100 rounded-lg transition-colors text-amber-600"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditOrder(order.id);
+                                          }}
+                                        >
+                                          <FaEdit size={13} />
+                                        </button>
+                                      </Tooltip>
+                                    </div>
+                                  )}
+                                </td>
+                              )
+                            )}
                           </tr>
                         );
                       })}
@@ -955,28 +1144,28 @@ const SalesDashboard = () => {
 
           {/* Sales Pipeline Tab */}
           <TabPanel value={tabValue} index={1}>
-            <div className="p-3">
-              <h3 className="font-semibold text-sm text-slate-800 mb-3">
-                Sales Pipeline
+            <div className="p-4 sm:p-6">
+              <h3 className="font-semibold text-base text-slate-800 mb-5">
+                Sales Pipeline Overview
               </h3>
               {salesPipeline && salesPipeline.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {salesPipeline.map((stage, idx) => (
                     <div
                       key={idx}
-                      className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-300 p-2.5"
+                      className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4 hover:shadow-md transition-all"
                     >
-                      <div className="flex justify-between items-center mb-1.5">
-                        <h4 className="font-semibold text-xs text-slate-800">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-semibold text-sm text-slate-800">
                           {stage.stage}
                         </h4>
-                        <span className="text-base font-bold text-blue-700">
+                        <span className="text-lg font-bold text-blue-700">
                           {stage.count || 0}
                         </span>
                       </div>
-                      <div className="w-full bg-slate-300 rounded-full h-1.5">
+                      <div className="w-full bg-slate-300/30 rounded-full h-2">
                         <div
-                          className="bg-gradient-to-r from-blue-600 to-blue-700 h-1.5 rounded-full"
+                          className="bg-gradient-to-r from-blue-600 to-blue-700 h-2 rounded-full transition-all"
                           style={{
                             width: `${
                               (stage.count /
@@ -989,16 +1178,27 @@ const SalesDashboard = () => {
                           }}
                         ></div>
                       </div>
-                      <p className="text-xs text-slate-600 mt-1">
-                        ₹{(stage.value || 0).toLocaleString("en-IN")} value
-                      </p>
+                      <div className="flex justify-between items-center mt-3">
+                        <p className="text-xs text-slate-600 font-medium">
+                          Total Value
+                        </p>
+                        <p className="text-sm font-bold text-slate-900">
+                          ₹{(stage.value || 0).toLocaleString("en-IN")}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6">
-                  <p className="text-slate-600 text-xs">
+                <div className="text-center py-12">
+                  <div className="inline-block p-3 bg-slate-100 rounded-full mb-3">
+                    <TrendingUp className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <p className="text-slate-700 font-semibold text-base">
                     No pipeline data available
+                  </p>
+                  <p className="text-slate-600 text-sm mt-2">
+                    Create orders to build your sales pipeline
                   </p>
                 </div>
               )}
@@ -1007,17 +1207,19 @@ const SalesDashboard = () => {
 
           {/* Customer Management Tab */}
           <TabPanel value={tabValue} index={2}>
-            <div className="p-3">
-              <h3 className="font-semibold text-sm text-slate-800 mb-3">
+            <div className="p-4 sm:p-6">
+              <h3 className="font-semibold text-base text-slate-800 mb-5">
                 Customer Management
               </h3>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-300 rounded-lg p-4 text-center">
-                <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                <p className="text-slate-700 font-semibold text-xs">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-8 text-center">
+                <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
+                  <Users className="w-8 h-8 text-blue-600" />
+                </div>
+                <p className="text-slate-800 font-semibold text-base">
                   Feature Coming Soon
                 </p>
-                <p className="text-slate-600 text-xs mt-1">
-                  Manage customers, accounts & purchase history
+                <p className="text-slate-600 text-sm mt-2">
+                  Manage customers, accounts, purchase history, and loyalty programs
                 </p>
               </div>
             </div>

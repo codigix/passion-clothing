@@ -190,6 +190,11 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
       comment: 'Notes about team assignments and responsibilities'
+    },
+    project_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      comment: 'Human-friendly project name for dashboards and reports'
     }
   }, {
     tableName: 'production_orders',

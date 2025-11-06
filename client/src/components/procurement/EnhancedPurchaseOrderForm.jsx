@@ -316,7 +316,7 @@ const EnhancedPurchaseOrderForm = ({
     ];
 
     setFormData((prev) => {
-      const updated = [...prev.special_instructions_checkboxes];
+      let updated = [...prev.special_instructions_checkboxes];
       if (checked) {
         if (!updated.includes(instructions[index])) {
           updated.push(instructions[index]);
