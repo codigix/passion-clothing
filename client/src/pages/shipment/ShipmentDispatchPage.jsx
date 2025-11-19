@@ -261,14 +261,13 @@ const ShipmentDispatchPage = () => {
     const statusMap = {
       'preparing': ['packed', 'ready_to_ship'],
       'packed': ['ready_to_ship'],
-      'ready_to_ship': ['shipped', 'dispatched'],
+      'ready_to_ship': ['shipped'],
       'shipped': ['in_transit'],
-      'dispatched': ['in_transit'],
       'in_transit': ['out_for_delivery'],
       'out_for_delivery': ['delivered'],
       'delivered': [],
-      'failed_delivery': ['pending'],
-      'returned': ['pending'],
+      'failed_delivery': ['in_transit', 'returned'],
+      'returned': [],
       'cancelled': []
     };
     return statusMap[currentStatus] || [];
@@ -322,14 +321,13 @@ const ShipmentDispatchPage = () => {
         }
 
         return fetch(`/api/shipments/${shipmentId}/status`, {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
             status: targetStatus,
-            location: 'Warehouse',
             notes: 'Bulk dispatch'
           })
         });
@@ -929,10 +927,10 @@ const ShipmentDispatchPage = () => {
             <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
               <p className="text-xs font-bold text-blue-900 uppercase">Shipment Summary</p>
               <div className="space-y-1 mt-2 text-sm text-blue-800">
-                <p>📦 <span className="font-semibold">{shipment.salesOrder?.customer?.name}</span></p>
+                <p className="flex items-center gap-2"><Truck className="w-4 h-4" /> <span className="font-semibold">{shipment.salesOrder?.customer?.name}</span></p>
                 <p>📍 {(shipment.shipping_address || shipment.delivery_address)?.substring(0, 50)}...</p>
                 {shipment.courier_company && (
-                  <p>🚚 <span className="font-semibold text-blue-900">{shipment.courier_company}</span></p>
+                  <p className="flex items-center gap-2"><Truck className="w-4 h-4" /> <span className="font-semibold text-blue-900">{shipment.courier_company}</span></p>
                 )}
               </div>
             </div>
@@ -1245,7 +1243,7 @@ const ShipmentDispatchPage = () => {
                 <option value="">All Status</option>
                 <option value="pending">⏳ Pending</option>
                 <option value="dispatched">📤 Dispatched</option>
-                <option value="in_transit">🚚 In Transit</option>
+                <option value="in_transit">📦 In Transit</option>
                 <option value="delivered">✅ Delivered</option>
               </select>
             </div>

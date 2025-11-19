@@ -75,6 +75,21 @@ api.interceptors.response.use(
       }
     }
 
+    // Don't try to extract error message from blob responses
+    // Blob responses can't have their data read as text
+    if (error.response?.data instanceof Blob) {
+      console.error(`Request failed with status ${error.response.status}`);
+      return Promise.reject(error);
+    }
+
+    // Only try to extract detailed error message if response is a regular object
+    if (error.response?.data && typeof error.response.data === 'object' && !(error.response.data instanceof Blob)) {
+      const errorMsg = error.response.data.message || error.response.data.error;
+      if (errorMsg) {
+        console.error(`API Error: ${errorMsg}`);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

@@ -1076,8 +1076,10 @@ const ProductionOperationsViewPage = () => {
                 </button>
               </div>
 
-              {/* Ready for Shipment Button - Shows when all stages are complete */}
-              {productionOrder?.status === "completed" &&
+              {/* Ready for Shipment Button - Shows when in final stages (finishing, quality_check, or completed) */}
+              {(productionOrder?.status === "completed" || 
+                productionOrder?.status === "finishing" || 
+                productionOrder?.status === "quality_check") &&
                 overallProgress === 100 && (
                   <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-lg">
                     <div className="flex items-center justify-between">

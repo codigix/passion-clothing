@@ -18,34 +18,58 @@ import {
   Zap,
   DollarSign,
   Truck,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import api from "../../utils/api";
 import toast from "react-hot-toast";
 
 const GRNWorkflowDashboard = () => {
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("incoming");
   const [grns, setGrns] = useState([]);
+  const [incomingGRNRequests, setIncomingGRNRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState("card");
+  const [incomingViewMode, setIncomingViewMode] = useState("card");
 
   useEffect(() => {
-    fetchGRNs();
+    fetchAllData();
   }, [filterStatus]);
 
-  const fetchGRNs = async () => {
+  const fetchAllData = async () => {
     try {
       setLoading(true);
+      // Fetch GRNs
       const query = filterStatus !== "all" ? `?status=${filterStatus}` : "";
       const response = await api.get(`/grn${query}`);
       setGrns(response.data.grns || []);
+
+      // Fetch incoming GRN requests (POs with grn_requested status)
+      const incomingRes = await api.get("/procurement/pos?status=grn_requested&limit=50");
+      setIncomingGRNRequests(incomingRes.data.purchaseOrders || []);
     } catch (error) {
-      console.error("Error fetching GRNs:", error);
-      toast.error("Failed to load GRNs");
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGRNs = async () => {
+    fetchAllData();
+  };
+
+  const handleCreateGRNFromRequest = async (po) => {
+    try {
+      // Navigate to CreateGRNPage with PO ID
+      window.location.href = `/inventory/grn/create?from_po=${po.id}`;
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to create GRN");
     }
   };
 
@@ -593,6 +617,40 @@ const GRNWorkflowDashboard = () => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="max-w-7xl mx-auto mb-6">
+        <div className="flex gap-0 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab("incoming")}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition border-b-2 whitespace-nowrap ${
+              activeTab === "incoming"
+                ? "border-blue-500 text-gray-800"
+                : "border-transparent text-gray-600 hover:text-gray-800"
+            }`}
+          >
+            <Truck size={18} />
+            Incoming Requests
+            <span className="ml-2 px-2 py-0 bg-yellow-100 rounded-full text-xs font-bold text-yellow-700">
+              {incomingGRNRequests.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition border-b-2 whitespace-nowrap ${
+              activeTab === "all"
+                ? "border-blue-500 text-gray-800"
+                : "border-transparent text-gray-600 hover:text-gray-800"
+            }`}
+          >
+            <Package size={18} />
+            All GRNs
+            <span className="ml-2 px-2 py-0 bg-blue-100 rounded-full text-xs font-bold text-blue-700">
+              {grns.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* Workflow Legend */}
       <div className="max-w-7xl mx-auto mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -638,80 +696,512 @@ const GRNWorkflowDashboard = () => {
       </div>
 
       {/* Filters */}
-      <div className="max-w-7xl mx-auto mb-6 bg-white rounded-lg p-4 flex gap-4 flex-wrap">
-        <div className="flex-1 min-w-64">
-          <input
-            type="text"
-            placeholder="Search GRN, PO, Vendor..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Status</option>
-          <option value="received">Received</option>
-          <option value="verified">Verified</option>
-          <option value="short_received">Short Received</option>
-        </select>
-        <button
-          onClick={fetchGRNs}
-          className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
-      </div>
-
-      {/* GRN List */}
-      <div className="max-w-7xl mx-auto">
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin">
-              <Package className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-gray-500 mt-2">Loading GRNs...</p>
+      {activeTab === "all" && (
+        <div className="max-w-7xl mx-auto mb-6 bg-white rounded-lg p-4 flex gap-4 flex-wrap">
+          <div className="flex-1 min-w-64">
+            <input
+              type="text"
+              placeholder="Search GRN, PO, Vendor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        ) : grns.length === 0 ? (
-          <div className="bg-white rounded-lg p-8 text-center">
-            <Package className="w-16 h-16 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-gray-700">No GRNs Found</h3>
-            <p className="text-gray-500 mt-2">
-              Create your first GRN to get started
-            </p>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="received">Received</option>
+            <option value="verified">Verified</option>
+            <option value="short_received">Short Received</option>
+          </select>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 border rounded-lg p-1">
             <button
-              onClick={() => {
-                window.location.href = "/inventory/grn/create";
-              }}
-              className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+              onClick={() => setViewMode("card")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all ${
+                viewMode === "card"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+              title="Card View"
             >
-              <Plus className="w-5 h-5" />
-              Create GRN
+              <LayoutGrid className="w-4 h-4" />
+              <span className="text-sm font-medium">Cards</span>
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all ${
+                viewMode === "table"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+              title="Table View"
+            >
+              <List className="w-4 h-4" />
+              <span className="text-sm font-medium">Table</span>
             </button>
           </div>
-        ) : (
+          
+          <button
+            onClick={fetchGRNs}
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
+      )}
+
+      {/* Filters for Incoming Requests */}
+      {activeTab === "incoming" && incomingGRNRequests.length > 0 && (
+        <div className="max-w-7xl mx-auto mb-6 bg-white rounded-lg p-4 flex gap-4 justify-end">
+          <div className="flex items-center gap-1 border rounded-lg p-1">
+            <button
+              onClick={() => setIncomingViewMode("card")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all ${
+                incomingViewMode === "card"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="text-sm font-medium">Cards</span>
+            </button>
+            <button
+              onClick={() => setIncomingViewMode("table")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all ${
+                incomingViewMode === "table"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+              title="Table View"
+            >
+              <List className="w-4 h-4" />
+              <span className="text-sm font-medium">Table</span>
+            </button>
+          </div>
+          <button
+            onClick={fetchGRNs}
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto">
+        {/* Incoming Requests Tab */}
+        {activeTab === "incoming" && (
           <div>
-            {grns
-              .filter(
-                (grn) =>
-                  searchTerm === "" ||
-                  grn.grn_number
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                  grn.purchaseOrder?.po_number
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                  grn.purchaseOrder?.vendor?.name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase())
-              )
-              .map((grn) => (
-                <GRNCard key={grn.id} grn={grn} />
-              ))}
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin">
+                  <Truck className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 mt-2">Loading incoming requests...</p>
+              </div>
+            ) : incomingGRNRequests.length === 0 ? (
+              <div className="bg-white rounded-lg p-8 text-center">
+                <Truck className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-gray-700">No Incoming GRN Requests</h3>
+                <p className="text-gray-500 mt-2">
+                  All GRN requests have been processed
+                </p>
+              </div>
+            ) : (
+              <div>
+                {incomingViewMode === "card" ? (
+                  <div className="space-y-3">
+                    {incomingGRNRequests.map((po) => (
+                      <div
+                        key={po.id}
+                        className="bg-white border border-yellow-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-bold text-gray-800">
+                                {po.po_number}
+                              </h3>
+                              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full">
+                                {po.status}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mt-2">
+                              <div>
+                                <div className="text-gray-600 font-medium">Vendor</div>
+                                <div className="text-gray-800">
+                                  {po.vendor?.name || po.vendor?.vendor_name || "N/A"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-gray-600 font-medium">Project</div>
+                                <div className="text-gray-800">
+                                  {po.project_name || "N/A"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-gray-600 font-medium">Total Qty</div>
+                                <div className="text-gray-800 font-bold">
+                                  {po.items?.reduce((sum, item) => sum + item.quantity, 0) || "N/A"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-gray-600 font-medium">Amount</div>
+                                <div className="text-gray-800 font-bold">
+                                  ₹{po.final_amount?.toLocaleString() || "0"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-3 border-t border-gray-100">
+                          <button
+                            onClick={() => handleCreateGRNFromRequest(po)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-all"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create GRN
+                          </button>
+                          <button
+                            onClick={() => {
+                              window.location.href = `/procurement/purchase-orders/${po.id}`;
+                            }}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-all"
+                          >
+                            View PO
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              PO Number
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Vendor
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Project
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Total Qty
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Amount
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {incomingGRNRequests.map((po) => {
+                            const totalQty = po.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+                            return (
+                              <tr key={po.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="font-mono font-bold text-gray-800">
+                                    {po.po_number}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {new Date(po.created_at).toLocaleDateString()}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="text-sm font-medium text-gray-800">
+                                    {po.vendor?.name || po.vendor?.vendor_name || "N/A"}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="text-sm text-gray-800">
+                                    {po.project_name || "N/A"}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="text-sm font-bold text-blue-600">
+                                    {totalQty}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="text-sm font-bold text-gray-800">
+                                    ₹{po.final_amount?.toLocaleString() || "0"}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-flex px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full">
+                                    {po.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => handleCreateGRNFromRequest(po)}
+                                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                                      title="Create GRN"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      Create GRN
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        window.location.href = `/procurement/purchase-orders/${po.id}`;
+                                      }}
+                                      className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
+                                      title="View PO"
+                                    >
+                                      <Eye className="w-3 h-3" />
+                                      View
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* All GRNs Tab */}
+        {activeTab === "all" && (
+          <div>
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin">
+                  <Package className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 mt-2">Loading GRNs...</p>
+              </div>
+            ) : grns.length === 0 ? (
+              <div className="bg-white rounded-lg p-8 text-center">
+                <Package className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-gray-700">No GRNs Found</h3>
+                <p className="text-gray-500 mt-2">
+                  Create your first GRN to get started
+                </p>
+                <button
+                  onClick={() => {
+                    window.location.href = "/inventory/grn/create";
+                  }}
+                  className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  <Plus className="w-5 h-5" />
+                  Create GRN
+                </button>
+              </div>
+            ) : (
+              <div>
+                {viewMode === "card" ? (
+                  <div className="space-y-3">
+                    {grns
+                      .filter(
+                        (grn) =>
+                          searchTerm === "" ||
+                          grn.grn_number
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase()) ||
+                          grn.purchaseOrder?.po_number
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase()) ||
+                          grn.purchaseOrder?.vendor?.name
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase())
+                      )
+                      .map((grn) => (
+                        <GRNCard key={grn.id} grn={grn} />
+                      ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              GRN Number
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              PO Number
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Vendor
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Ordered Qty
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Received Qty
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Variance
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Workflow
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {grns
+                            .filter(
+                              (grn) =>
+                                searchTerm === "" ||
+                                grn.grn_number
+                                  .toLowerCase()
+                                  .includes(searchTerm.toLowerCase()) ||
+                                grn.purchaseOrder?.po_number
+                                  .toLowerCase()
+                                  .includes(searchTerm.toLowerCase()) ||
+                                grn.purchaseOrder?.vendor?.name
+                                  .toLowerCase()
+                                  .includes(searchTerm.toLowerCase())
+                            )
+                            .map((grn) => {
+                              const workflow = WorkflowStatus({ grn });
+                              const orderedQty = grn.items_received?.reduce(
+                                (sum, item) => sum + item.ordered_quantity,
+                                0
+                              ) || 0;
+                              const receivedQty = grn.items_received?.reduce(
+                                (sum, item) => sum + item.received_quantity,
+                                0
+                              ) || 0;
+                              const variance = receivedQty - orderedQty;
+                              const variancePercent = orderedQty > 0 
+                                ? ((variance / orderedQty) * 100).toFixed(1)
+                                : 0;
+
+                              return (
+                                <tr
+                                  key={grn.id}
+                                  className="hover:bg-gray-50 transition-colors"
+                                >
+                                  <td className="px-4 py-3">
+                                    <div className="font-mono font-bold text-gray-900">
+                                      {grn.grn_number}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {new Date(grn.received_date).toLocaleDateString()}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="font-mono text-sm text-gray-900">
+                                      {grn.purchaseOrder?.po_number}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {grn.purchaseOrder?.vendor?.name}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <div className="text-sm font-semibold text-gray-900">
+                                      {orderedQty.toFixed(2)}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <div className="text-sm font-bold text-blue-600">
+                                      {receivedQty.toFixed(2)}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <div
+                                      className={`text-sm font-bold ${
+                                        variance === 0
+                                          ? "text-green-600"
+                                          : variance < 0
+                                          ? "text-orange-600"
+                                          : "text-blue-600"
+                                      }`}
+                                    >
+                                      {variance > 0 ? "+" : ""}
+                                      {variance.toFixed(2)}
+                                      <span className="text-xs ml-1">
+                                        ({variancePercent}%)
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-center gap-2">
+                                      {workflow.icon}
+                                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${workflow.badge}`}>
+                                        {workflow.label}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span
+                                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                        grn.verification_status === "verified"
+                                          ? "bg-green-100 text-green-700"
+                                          : grn.verification_status === "pending"
+                                          ? "bg-yellow-100 text-yellow-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      }`}
+                                    >
+                                      {grn.verification_status || "received"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedGRN(grn);
+                                          setShowDetailModal(true);
+                                        }}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="View Details"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          window.location.href = `/inventory/grn/${grn.id}/verify`;
+                                        }}
+                                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                        title="Verify GRN"
+                                      >
+                                        <CheckCircle className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

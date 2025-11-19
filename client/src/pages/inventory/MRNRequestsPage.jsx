@@ -6,12 +6,13 @@ import {
   FaExclamationTriangle, 
   FaClock,
   FaSearch,
-  FaFilter,
   FaTimes,
   FaClipboardCheck,
   FaTruck,
   FaBox,
-  FaArrowRight
+  FaArrowRight,
+  FaList,
+  FaCheckDouble
 } from 'react-icons/fa';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -25,6 +26,7 @@ const MRNRequestsPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
     fetchMaterialRequests();
@@ -76,6 +78,21 @@ const MRNRequestsPage = () => {
     setStatusFilter('');
     setPriorityFilter('');
     setProjectFilter('');
+    setActiveTab('all');
+  };
+
+  const getTabFilteredRequests = () => {
+    let requests = filteredRequests;
+    
+    if (activeTab === 'pending') {
+      requests = requests.filter(r => r.status === 'pending' || r.status === 'pending_inventory_review');
+    } else if (activeTab === 'progress') {
+      requests = requests.filter(r => r.status === 'partially_issued');
+    } else if (activeTab === 'completed') {
+      requests = requests.filter(r => r.status === 'issued' || r.status === 'completed');
+    }
+    
+    return requests;
   };
 
   const getStatusIcon = (status) => {
@@ -152,145 +169,193 @@ const MRNRequestsPage = () => {
     );
   }
 
+  const tabFilteredRequests = getTabFilteredRequests();
+
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-              <FaIndustry className="mr-3 text-blue-600" />
-              Material Request Notes (MRN)
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Process material requests from Manufacturing department
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
-        <div className="bg-white rounded shadow p-4 border-l-4 border-blue-500">
-          <div className="text-sm text-gray-600">Total Requests</div>
-          <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
-        </div>
-        <div className="bg-white rounded shadow p-4 border-l-4 border-yellow-500">
-          <div className="text-sm text-gray-600">Pending Review</div>
-          <div className="text-2xl font-bold text-gray-800">{stats.pending}</div>
-        </div>
-        <div className="bg-white rounded shadow p-4 border-l-4 border-green-500">
-          <div className="text-sm text-gray-600">Issued</div>
-          <div className="text-2xl font-bold text-gray-800">{stats.issued}</div>
-        </div>
-        <div className="bg-white rounded shadow p-4 border-l-4 border-purple-500">
-          <div className="text-sm text-gray-600">Completed</div>
-          <div className="text-2xl font-bold text-gray-800">{stats.completed}</div>
-        </div>
-        <div className="bg-white rounded shadow p-4 border-l-4 border-red-500">
-          <div className="text-sm text-gray-600">Urgent Priority</div>
-          <div className="text-2xl font-bold text-gray-800">{stats.urgent}</div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded shadow-md p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          {/* Search */}
-          <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search requests..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500"
-            />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-3">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <div className="p-1 bg-blue-100 rounded-lg">
+                  <FaList className="text-lg text-blue-600" />
+                </div>
+                Material Request Notes
+              </h1>
+              <p className="text-gray-600 text-xs mt-1">Track and dispatch material requests to manufacturing</p>
+            </div>
           </div>
 
-          {/* Status Filter */}
-          <div className="relative">
-            <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 appearance-none"
-            >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="pending_inventory_review">Pending Review</option>
-              <option value="partially_issued">Partially Issued</option>
-              <option value="issued">Issued</option>
-              <option value="completed">Completed</option>
-              <option value="pending_procurement">Pending Procurement</option>
-              <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
+          {/* Summary Statistics - Enhanced with Gradient */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2.5">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-3 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-xs font-medium">Total Requests</p>
+                  <p className="text-2xl font-bold mt-0.5">{stats.total}</p>
+                </div>
+                <FaBox className="text-3xl opacity-20" />
+              </div>
+            </div>
 
-          {/* Priority Filter */}
-          <div className="relative">
-            <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-3 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-yellow-100 text-xs font-medium">⏳ Pending</p>
+                  <p className="text-2xl font-bold mt-0.5">{stats.pending}</p>
+                </div>
+                <FaClock className="text-3xl opacity-20" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-3 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-xs font-medium">📊 In Progress</p>
+                  <p className="text-2xl font-bold mt-0.5">{filteredRequests.filter(r => r.status === 'partially_issued').length}</p>
+                </div>
+                <FaArrowRight className="text-3xl opacity-20" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-3 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-xs font-medium">✓ Issued</p>
+                  <p className="text-2xl font-bold mt-0.5">{stats.issued}</p>
+                </div>
+                <FaTruck className="text-3xl opacity-20" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-3 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-xs font-medium">🎯 Completed</p>
+                  <p className="text-2xl font-bold mt-0.5">{stats.completed}</p>
+                </div>
+                <FaCheckDouble className="text-3xl opacity-20" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Filters Section */}
+        <div className="bg-white rounded-lg shadow-md p-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-2">
+            {/* Search */}
+            <div className="relative">
+              <FaSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+              <input
+                type="text"
+                placeholder="🔍 Search by request #, project..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            {/* Priority Filter */}
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 appearance-none"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500 transition-all appearance-none bg-white"
             >
-              <option value="">All Priorities</option>
+              <option value="">📌 All Priorities</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
             </select>
-          </div>
 
-          {/* Project Filter */}
-          <div className="relative">
-            <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500 transition-all appearance-none bg-white"
+            >
+              <option value="">📋 All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="pending_inventory_review">Pending Review</option>
+              <option value="partially_issued">Partially Issued</option>
+              <option value="issued">Issued</option>
+              <option value="completed">Completed</option>
+            </select>
+
+            {/* Project Filter */}
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 appearance-none"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500 transition-all appearance-none bg-white"
             >
-              <option value="">All Projects</option>
+              <option value="">🏢 All Projects</option>
               {uniqueProjects.map(project => (
                 <option key={project} value={project}>{project}</option>
               ))}
             </select>
           </div>
+
+          {/* Reset Button */}
+          {(searchTerm || statusFilter || priorityFilter || projectFilter) && (
+            <div className="flex justify-end">
+              <button
+                onClick={resetFilters}
+                className="flex items-center gap-1 px-3 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
+              >
+                <FaTimes className="text-sm" />
+                Reset
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Reset Filters Button */}
-        {(searchTerm || statusFilter || priorityFilter || projectFilter) && (
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={resetFilters}
-              className="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
-            >
-              <FaTimes className="mr-2" />
-              Reset Filters
-            </button>
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-md p-2 mb-4">
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              { id: 'all', label: '📦 All', count: filteredRequests.length },
+              { id: 'pending', label: '⏳ Pending', count: stats.pending },
+              { id: 'progress', label: '📊 Progress', count: filteredRequests.filter(r => r.status === 'partially_issued').length },
+              { id: 'completed', label: '✅ Done', count: stats.completed }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  activeTab === tab.id
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {tab.label}
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                  activeTab === tab.id ? 'bg-blue-400' : 'bg-gray-300'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* Requests List */}
-      {filteredRequests.length === 0 ? (
-        <div className="bg-white rounded shadow-md p-12 text-center">
-          <FaBox className="mx-auto text-6xl text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            {materialRequests.length === 0 ? 'No Material Requests Yet' : 'No Matching Requests'}
-          </h3>
-          <p className="text-gray-500 mb-4">
-            {materialRequests.length === 0 
-              ? 'No material requests have been sent to Inventory yet.'
-              : 'Try adjusting your filters to see more results.'}
-          </p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filteredRequests.map((request) => {
-            // Parse materials if it's a JSON string
+
+        {/* Requests Grid */}
+        {tabFilteredRequests.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <FaBox className="mx-auto text-4xl text-gray-200 mb-2" />
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">
+              {filteredRequests.length === 0 ? 'No Material Requests Found' : 'No Requests in this Category'}
+            </h3>
+            <p className="text-gray-500 text-xs">
+              {filteredRequests.length === 0 
+                ? 'No material requests match your search criteria. Try adjusting your filters.'
+                : 'Switch to another tab or adjust your filters to see more requests.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+          {tabFilteredRequests.map((request) => {
             let materials = [];
             try {
               materials = typeof request.materials_requested === 'string'
@@ -302,29 +367,48 @@ const MRNRequestsPage = () => {
 
             const totalMaterials = materials.length;
             const issuedMaterials = materials.filter(m => m.status === 'issued').length;
+            const isCompleted = request.status === 'completed' || request.status === 'issued';
 
             return (
               <div
                 key={request.id}
-                className="bg-white rounded shadow-md hover:shadow-lg transition-shadow border border-gray-200"
+                className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border-l-4 ${
+                  isCompleted ? 'border-l-green-500' : 'border-l-blue-500'
+                }`}
               >
-                {/* Card Header */}
-                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      {getStatusIcon(request.status)}
+                {/* Card Header - Gradient Background */}
+                <div className={`p-3 bg-gradient-to-r ${
+                  isCompleted 
+                    ? 'from-green-50 via-green-25 to-white' 
+                    : 'from-blue-50 via-blue-25 to-white'
+                } border-b border-gray-100`}>
+                  <div className="flex items-start justify-between gap-2">
+                    {/* Left Content */}
+                    <div className="flex items-start gap-2 flex-1">
+                      <div className={`p-1.5 rounded-lg text-sm ${
+                        isCompleted ? 'bg-green-100' : 'bg-blue-100'
+                      }`}>
+                        {getStatusIcon(request.status)}
+                      </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">
-                          {request.request_number}
-                        </h3>
-                        <p className="text-sm text-gray-600">{request.project_name || 'No Project'}</p>
+                        <h3 className="font-bold text-gray-900 text-sm">{request.project_name || 'No Project'}</h3>
+                        <p className="text-xs text-gray-600 mt-0">{request.request_number}</p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end space-y-2">
-                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeColor(request.status)}`}>
-                        {request.status?.replace(/_/g, ' ').toUpperCase()}
-                      </span>
-                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${getPriorityBadgeColor(request.priority)}`}>
+
+                    {/* Right Badges */}
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex gap-1 items-center flex-wrap justify-end">
+                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${getStatusBadgeColor(request.status)}`}>
+                          {request.status?.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                        {isCompleted && (
+                          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${getPriorityBadgeColor(request.priority)}`}>
                         {request.priority?.toUpperCase() || 'MEDIUM'}
                       </span>
                     </div>
@@ -332,71 +416,88 @@ const MRNRequestsPage = () => {
                 </div>
 
                 {/* Card Body */}
-                <div className="p-4 space-y-3">
-                  {/* Department */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Department:</span>
-                    <span className="font-medium text-gray-800">
-                      {request.requesting_department?.toUpperCase() || 'MANUFACTURING'}
+                <div className="p-3 space-y-2">
+                  {/* Department Row */}
+                  <div className="flex items-center justify-between text-xs pb-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Dept:</span>
+                    <span className="font-semibold text-gray-900">
+                      {request.requesting_department?.toUpperCase()?.substring(0, 12) || 'MFG'}
                     </span>
                   </div>
 
-                  {/* Dates */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Request Date:</span>
-                    <span className="font-medium text-gray-800">{formatDate(request.request_date)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Required By:</span>
-                    <span className="font-medium text-gray-800">{formatDate(request.required_by_date)}</span>
-                  </div>
-
-                  {/* Materials Count */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Materials:</span>
-                    <span className="font-medium text-gray-800">
-                      {issuedMaterials > 0 
-                        ? `${issuedMaterials} / ${totalMaterials} Issued`
-                        : `${totalMaterials} Items`
-                      }
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  {totalMaterials > 0 && issuedMaterials > 0 && (
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full transition-all"
-                        style={{ width: `${(issuedMaterials / totalMaterials) * 100}%` }}
-                      ></div>
+                  {/* Dates Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Req Date</p>
+                      <p className="text-xs font-semibold text-gray-900">{formatDate(request.request_date)}</p>
                     </div>
-                  )}
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Req By</p>
+                      <p className="text-xs font-semibold text-gray-900">{formatDate(request.required_by_date)}</p>
+                    </div>
+                  </div>
+
+                  {/* Materials Section */}
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-600 font-medium">Materials</span>
+                      <span className="text-xs font-bold text-gray-900">
+                        {issuedMaterials > 0 
+                          ? `${issuedMaterials}/${totalMaterials}`
+                          : `${totalMaterials}`
+                        }
+                      </span>
+                    </div>
+                    {totalMaterials > 0 && (
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isCompleted ? 'bg-green-500' : 'bg-blue-500'
+                          }`}
+                          style={{ width: totalMaterials > 0 ? `${(issuedMaterials / totalMaterials) * 100}%` : '0%' }}
+                        ></div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Card Footer - Action Buttons */}
-                <div className="p-4 bg-gray-50 border-t border-gray-200 flex gap-2">
+                <div className={`px-3 py-2 flex gap-1.5 border-t text-xs ${
+                  isCompleted ? 'bg-green-25 border-green-100' : 'bg-gray-50 border-gray-100'
+                }`}>
                   <button
                     onClick={() => navigate(`/inventory/mrn/${request.id}`)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-500 text-sm text-white rounded hover:bg-blue-600 transition-colors text-sm font-medium"
-                    title="Review material request details"
+                    disabled={isCompleted}
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg font-medium transition-all text-xs ${
+                      isCompleted
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                    }`}
+                    title={isCompleted ? 'Dispatch already completed' : 'Review material request details'}
                   >
-                    <FaClipboardCheck />
+                    <FaClipboardCheck className="text-sm" />
                     Review
                   </button>
                   <button
                     onClick={() => navigate(`/inventory/dispatch/${request.id}`)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 bg-green-500 text-sm text-white rounded hover:bg-green-600 transition-colors text-sm font-medium"
-                    title="Dispatch materials to Manufacturing"
+                    disabled={isCompleted}
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg font-medium transition-all text-xs ${
+                      isCompleted
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
+                    }`}
+                    title={isCompleted ? 'Dispatch already completed' : 'Dispatch materials to Manufacturing'}
                   >
-                    <FaTruck />
-                    Dispatch
+                    <FaTruck className="text-sm" />
+                    {isCompleted ? 'Done ✓' : 'Dispatch'}
                   </button>
                 </div>
               </div>
             );
           })}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -23,16 +23,15 @@ router.get('/', authenticateToken, checkDepartment(['shipment', 'admin', 'sales'
     const include = [
       { 
         model: SalesOrder, 
-        as: 'salesOrder',
-        include: [{ model: Customer, as: 'customer' }]
+        as: 'salesOrder'
       },
       { 
         model: CourierPartner, 
-        as: 'courierPartner' 
+        as: 'courierPartner'
       },
       { 
         model: CourierAgent, 
-        as: 'courierAgent' 
+        as: 'courierAgent'
       },
       { 
         model: User, 
@@ -42,13 +41,20 @@ router.get('/', authenticateToken, checkDepartment(['shipment', 'admin', 'sales'
       {
         model: ShipmentTracking,
         as: 'trackingUpdates',
-        order: [['timestamp', 'DESC']],
-        limit: 1
+        limit: 1,
+        separate: true
       }
     ];
 
-    // Apply filters
-    if (status) where.status = status;
+    // Apply filters - handle comma-separated status values
+    if (status) {
+      const statusArray = status.split(',').map(s => s.trim());
+      if (statusArray.length > 1) {
+        where.status = { [Op.in]: statusArray };
+      } else {
+        where.status = status;
+      }
+    }
     if (courier_partner_id) where.courier_partner_id = courier_partner_id;
     if (courier_company) where.courier_company = { [Op.like]: `%${courier_company}%` };
     
@@ -105,8 +111,9 @@ router.get('/', authenticateToken, checkDepartment(['shipment', 'admin', 'sales'
       stats: statusCounts
     });
   } catch (error) {
-    console.error('Shipments fetch error:', error);
-    res.status(500).json({ message: 'Failed to fetch shipments' });
+    console.error('Shipments fetch error:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ message: 'Failed to fetch shipments', error: error.message });
   }
 });
 
@@ -1240,8 +1247,8 @@ router.patch('/:id/status', authenticateToken, checkDepartment(['shipment', 'war
     // Update sales order status if needed
     const salesOrderStatusMap = {
       'shipped': 'shipped',
-      'in_transit': 'in_transit',
-      'out_for_delivery': 'out_for_delivery',
+      'in_transit': 'shipped',  // Keep as shipped (in_transit not valid for SalesOrder)
+      'out_for_delivery': 'shipped',  // Keep as shipped (out_for_delivery not valid for SalesOrder)
       'delivered': 'delivered'
     };
 

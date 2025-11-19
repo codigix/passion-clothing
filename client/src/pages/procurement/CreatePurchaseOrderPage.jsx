@@ -14,13 +14,17 @@ import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import api from "../../utils/api";
 import QRCodeDisplay from "../../components/QRCodeDisplay";
 import { generateOrderQRData } from "../../utils/qrCode";
+import EnhancedPOItemsBuilder_V2 from "../../components/procurement/EnhancedPOItemsBuilder_V2";
 import toast from "react-hot-toast";
 
 const CreatePurchaseOrderPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { id: poId } = useParams(); // Get PO ID from URL for edit mode
+  const { id: poId } = useParams();
   const linkedSalesOrderId = searchParams.get("from_sales_order");
+  const preselectedProjectName = searchParams.get("project_name");
+  const preselectedVendorId = searchParams.get("vendor_id");
+  const preselectedMaterialType = searchParams.get("material_type") || "fabric";
   const isEditMode = !!poId;
 
   // State for order data
@@ -77,6 +81,7 @@ const CreatePurchaseOrderPage = () => {
   const [vendorOptions, setVendorOptions] = useState([]);
   const [customerOptions, setCustomerOptions] = useState([]);
   const [linkedSalesOrder, setLinkedSalesOrder] = useState(null);
+  const [vendorDetails, setVendorDetails] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [financialErrors, setFinancialErrors] = useState({});
@@ -92,6 +97,18 @@ const CreatePurchaseOrderPage = () => {
     "30% Advance • 70% After QC Approval",
     "Net 30 Days (Credit After Delivery)",
   ];
+
+  const extractAdvancePaymentPercentage = (paymentTerms) => {
+    if (!paymentTerms || !paymentTerms.selected || paymentTerms.selected.length === 0) {
+      return null;
+    }
+    
+    const selected = paymentTerms.selected[0];
+    if (selected.includes("100%")) return 100;
+    if (selected.includes("50%")) return 50;
+    if (selected.includes("30%")) return 30;
+    return null;
+  };
 
   // Special instructions options
   const specialInstructionsOptions = [
@@ -144,58 +161,50 @@ const CreatePurchaseOrderPage = () => {
       const fetchSalesOrder = async () => {
         try {
           const response = await api.get(`/sales/orders/${linkedSalesOrderId}`);
-          const so = response.data.order; // API returns { order: {...} }
+          const so = response.data.order;
           setLinkedSalesOrder(so);
 
-          // Auto-fill from Sales Order
-          const soItems = so.items || [];
-          const mappedItems = soItems.map((item) => ({
-            type: item.product_type === "Fabric" ? "fabric" : "accessories",
-            fabric_name:
-              item.product_type === "Fabric" ? item.description || "" : "",
-            color: item.color || "",
-            hsn: item.hsn || "",
-            gsm: item.gsm || "",
-            width: item.width || "",
-            item_name:
-              item.product_type !== "Fabric" ? item.description || "" : "",
-            description: item.description || "",
-            uom: item.uom || "Meters",
-            quantity: item.quantity || "",
-            rate: item.unit_price || "",
-            total: (item.quantity || 0) * (item.unit_price || 0),
-            supplier: "",
-            remarks: item.remarks || "",
-          }));
+          // Sales Order items are shown as reference only, not prefilled into PO items
 
-          // Debug: Check what we received
           console.log("Fetched Sales Order:", so);
 
-          setOrderData((prev) => ({
-            ...prev,
-            project_name: so.buyer_reference || "",
-            customer_id: so.customer_id || "",
-            client_name: so.customer?.name || so.customer_name || "",
-            expected_delivery_date: so.delivery_date
-              ? new Date(so.delivery_date).toISOString().split("T")[0]
-              : "",
-            priority: so.priority || "medium",
-            items: mappedItems.length > 0 ? mappedItems : prev.items,
-            special_instructions: {
-              selected: so.special_instructions
-                ? [so.special_instructions]
-                : [],
-              additional_notes: "",
-            },
-            internal_notes: `Linked to Sales Order: ${
-              so.order_number || so.id
-            }`,
-          }));
+          setOrderData((prev) => {
+            const itemType = preselectedMaterialType || 'fabric';
+            const itemUOM = itemType === 'accessories' ? 'Pieces' : 'Meters';
+            
+            const updatedItems = prev.items.map((item, idx) => 
+              idx === 0 
+                ? { ...item, type: itemType, uom: itemUOM }
+                : item
+            );
+            
+            return {
+              ...prev,
+              project_name: preselectedProjectName || so.buyer_reference || "",
+              vendor_id: preselectedVendorId || "",
+              customer_id: so.customer_id || "",
+              client_name: so.customer?.name || so.customer_name || "",
+              expected_delivery_date: so.delivery_date
+                ? new Date(so.delivery_date).toISOString().split("T")[0]
+                : "",
+              priority: so.priority || "medium",
+              items: updatedItems,
+              special_instructions: {
+                selected: so.special_instructions
+                  ? [so.special_instructions]
+                  : [],
+                additional_notes: "",
+              },
+              internal_notes: `Linked to Sales Order: ${
+                so.order_number || so.id
+              }`,
+            };
+          });
 
           toast.success(
-            `Loaded data from Sales Order: ${
+            `Loaded Sales Order: ${
               so.order_number || so.id || "Successfully loaded"
-            }`
+            }. Add items needed for production.`
           );
         } catch (error) {
           console.error("Failed to fetch sales order:", error);
@@ -204,8 +213,24 @@ const CreatePurchaseOrderPage = () => {
       };
 
       fetchSalesOrder();
+    } else if (preselectedMaterialType && preselectedMaterialType !== 'fabric') {
+      // If no linked sales order but material type is specified, update item type
+      setOrderData((prev) => {
+        const itemUOM = preselectedMaterialType === 'accessories' ? 'Pieces' : 'Meters';
+        
+        const updatedItems = prev.items.map((item, idx) => 
+          idx === 0 
+            ? { ...item, type: preselectedMaterialType, uom: itemUOM }
+            : item
+        );
+        
+        return {
+          ...prev,
+          items: updatedItems,
+        };
+      });
     }
-  }, [linkedSalesOrderId]);
+  }, [linkedSalesOrderId, preselectedProjectName, preselectedVendorId, preselectedMaterialType]);
 
   // Load existing PO data when in edit mode
   useEffect(() => {
@@ -352,7 +377,7 @@ const CreatePurchaseOrderPage = () => {
     }
   }, [isEditMode, poId]);
 
-  // Auto-fill supplier when vendor changes
+  // Auto-fill supplier when vendor changes & fetch vendor details
   useEffect(() => {
     if (orderData.vendor_id) {
       const selectedVendor = vendorOptions.find(
@@ -366,6 +391,18 @@ const CreatePurchaseOrderPage = () => {
             supplier: selectedVendor.label,
           })),
         }));
+        
+        // Fetch vendor details for V2 builder
+        const fetchVendorDetails = async () => {
+          try {
+            const response = await api.get(`/procurement/vendors/${orderData.vendor_id}`);
+            setVendorDetails(response.data.vendor || {});
+          } catch (error) {
+            console.error("Failed to fetch vendor details:", error);
+            setVendorDetails({});
+          }
+        };
+        fetchVendorDetails();
       }
     }
   }, [orderData.vendor_id, vendorOptions]);
@@ -593,6 +630,7 @@ const CreatePurchaseOrderPage = () => {
         special_instructions: JSON.stringify(orderData.special_instructions),
         terms_conditions: JSON.stringify(orderData.terms_conditions),
         final_amount: parseFloat(calculations.grandTotal),
+        advance_payment_percentage: extractAdvancePaymentPercentage(orderData.payment_terms),
         status: actionType,
         action_type: actionType,
       };
@@ -1027,28 +1065,34 @@ const CreatePurchaseOrderPage = () => {
 
           {/* Items Section */}
           <div className="rounded border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between border-b pb-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  🔹 Order Items
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Add fabric and accessories
-                </p>
-              </div>
-              {!createdOrder && (
-                <button
-                  type="button"
-                  onClick={handleAddItem}
-                  className="inline-flex items-center gap-1.5 rounded bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-blue-600"
-                >
-                  <FaPlus className="h-4 w-4" />
-                  Add Item
-                </button>
-              )}
+            <div className="mb-4 border-b pb-3">
+              <h2 className="text-lg font-semibold text-gray-900">
+                📦 Order Items (Advanced Builder)
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Add, search, and manage materials with auto-pricing and multi-selection
+              </p>
             </div>
 
-            <div className="space-y-4">
+            <EnhancedPOItemsBuilder_V2
+              items={orderData.items}
+              onItemsChange={(newItems) =>
+                setOrderData((prev) => ({ ...prev, items: newItems }))
+              }
+              vendorId={orderData.vendor_id}
+              vendorName={
+                vendorOptions.find(
+                  (v) => v.value === parseInt(orderData.vendor_id)
+                )?.label || ""
+              }
+              vendorDetails={vendorDetails || {}}
+              salesOrderItems={linkedSalesOrder?.items || []}
+              customerName={orderData.client_name || linkedSalesOrder?.customer?.name || ""}
+              projectName={orderData.project_name || linkedSalesOrder?.project_name || ""}
+              disabled={!!createdOrder}
+            />
+
+            <div className="hidden space-y-4">
               {orderData.items.map((item, index) => (
                 <div
                   key={index}

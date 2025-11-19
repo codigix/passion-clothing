@@ -64,7 +64,7 @@ const GRNVerificationPage = () => {
 
   const handleSubmit = async (status) => {
     try {
-      const hasDiscrepancy = 
+      const hasDiscrepancy =
         verificationForm.discrepancy_details.qty_mismatch ||
         verificationForm.discrepancy_details.weight_mismatch ||
         verificationForm.discrepancy_details.quality_issue;
@@ -86,9 +86,34 @@ const GRNVerificationPage = () => {
       const response = await api.post(`/grn/${id}/verify`, payload);
 
       if (status === 'verified') {
-        const itemsAdded = response.data.inventory_items_added || 0;
-        alert(`GRN verified successfully! ${itemsAdded} items automatically added to inventory with barcodes generated.`);
-        navigate('/inventory/stock');
+        // Check for excess materials that need approval
+        const hasExcess = grn.items_received?.some(item => item.overage_quantity > 0);
+
+        if (hasExcess) {
+          // Redirect to excess approval page
+          alert('GRN verified! Excess materials detected - proceeding to approval workflow.');
+          navigate(`/inventory/grn/${id}/excess-approval`);
+        } else {
+          // Check if stock should be allocated to project or warehouse
+          const isProjectStock = grn.purchaseOrder?.linked_sales_order_id;
+
+          if (isProjectStock) {
+            // Allocate to project
+            const allocationResponse = await api.post(`/inventory/allocate-to-project`, {
+              grn_id: id,
+              sales_order_id: grn.purchaseOrder.linked_sales_order_id
+            });
+
+            const itemsAdded = response.data.inventory_items_added || 0;
+            alert(`GRN verified successfully! ${itemsAdded} items allocated to project ${grn.purchaseOrder.project_name || grn.purchaseOrder.linked_sales_order_id}.`);
+            navigate('/inventory/allocations');
+          } else {
+            // Store in warehouse
+            const itemsAdded = response.data.inventory_items_added || 0;
+            alert(`GRN verified successfully! ${itemsAdded} items added to warehouse stock with barcodes generated.`);
+            navigate('/inventory/stock');
+          }
+        }
       } else {
         alert('Discrepancy reported. Awaiting manager approval...');
         navigate('/inventory/grn');

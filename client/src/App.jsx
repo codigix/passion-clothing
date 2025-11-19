@@ -29,6 +29,7 @@ import FinanceDashboard from "./pages/dashboards/FinanceDashboard";
 import FinanceInvoicesPage from "./pages/finance/FinanceInvoicesPage";
 import FinancePaymentsPage from "./pages/finance/FinancePaymentsPage";
 import FinanceReportsPage from "./pages/finance/FinanceReportsPage";
+import InvoiceDetailsPage from "./pages/finance/InvoiceDetailsPage";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 
 // Samples Pages
@@ -48,6 +49,7 @@ import DevToolsPage from "./pages/DevToolsPage";
 import SalesOrdersPage from "./pages/sales/SalesOrdersPage";
 import SalesOrderDetailsPage from "./pages/sales/SalesOrderDetailsPage";
 import CreateSalesOrderPage from "./pages/sales/CreateSalesOrderPage";
+import EditSalesOrderPage from "./pages/sales/EditSalesOrderPage";
 import SalesReportsPage from "./pages/sales/SalesReportsPage";
 
 // Procurement Pages
@@ -64,6 +66,7 @@ import VendorPerformancePage from "./pages/procurement/VendorPerformancePage";
 import PendingApprovalsPage from "./pages/procurement/PendingApprovalsPage";
 import MaterialRequestsPage from "./pages/procurement/MaterialRequestsPage";
 import ProductionRequestsPage from "./pages/procurement/ProductionRequestsPage";
+import CreditNotesPage from "./pages/procurement/CreditNotesPage";
 
 // Challan Pages
 import ChallanRegisterPage from "./pages/challans/ChallanRegisterPage";
@@ -117,6 +120,9 @@ import SystemConfigPage from "./pages/admin/SystemConfigPage.jsx";
 import StoreReturnsPage from "./pages/store/StoreReturnsPage";
 import StoreStockManagementPage from "./pages/store/StoreStockManagementPage";
 
+// QR Data Viewer
+import QRDataViewer from "./pages/QRDataViewer";
+
 function App() {
   const { user, loading, canAccessDepartment } = useAuth();
 
@@ -134,6 +140,7 @@ function App() {
         <Route path="/" element={<RegistrationPage />} />
         <Route path="/register" element={<RegistrationPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/qr/view" element={<QRDataViewer />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -141,7 +148,7 @@ function App() {
 
   // Protected Route Wrapper
   const ProtectedDashboard = ({ department, children }) => {
-    if (!canAccessDepartment(department)) {
+    if (user.department !== 'admin' && !canAccessDepartment(department)) {
       return <Navigate to={`/${user.department}/dashboard`} replace />;
     }
     return children;
@@ -354,6 +361,14 @@ function App() {
           }
         />
         <Route
+          path="/sales/orders/:id/edit"
+          element={
+            <ProtectedDashboard department="sales">
+              <EditSalesOrderPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
           path="/sales/orders/:id"
           element={
             <ProtectedDashboard department="sales">
@@ -472,6 +487,14 @@ function App() {
           element={
             <ProtectedDashboard department="procurement">
               <ProcurementReportsPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/procurement/credit-notes"
+          element={
+            <ProtectedDashboard department="procurement">
+              <CreditNotesPage />
             </ProtectedDashboard>
           }
         />
@@ -940,6 +963,14 @@ function App() {
           element={
             <ProtectedDashboard department="finance">
               <FinanceReportsPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/invoice/:id"
+          element={
+            <ProtectedDashboard department="finance">
+              <InvoiceDetailsPage />
             </ProtectedDashboard>
           }
         />

@@ -29,9 +29,12 @@ import {
   FaTimesCircle,
   FaSpinner,
   FaEye,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaExclamationTriangle,
+  FaShare
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
 import ProjectIdentifier from '../../components/common/ProjectIdentifier';
@@ -81,6 +84,7 @@ const SalesOrdersPage = () => {
   const [qrOrder, setQrOrder] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [delayedOrdersCount, setDelayedOrdersCount] = useState(0);
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -99,7 +103,25 @@ const SalesOrdersPage = () => {
 
   useEffect(() => {
     applyFilters();
+    calculateDelayedOrders();
   }, [orders, searchTerm, statusFilter, procurementFilter, dateFrom, dateTo]);
+
+  const calculateDelayedOrders = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const delayed = orders.filter(order => {
+      if (!order.delivery_date) return false;
+      if (order.status === 'delivered' || order.status === 'completed' || order.status === 'cancelled') {
+        return false;
+      }
+      const deliveryDate = new Date(order.delivery_date);
+      deliveryDate.setHours(0, 0, 0, 0);
+      return deliveryDate < today;
+    }).length;
+    
+    setDelayedOrdersCount(delayed);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -210,6 +232,80 @@ const SalesOrdersPage = () => {
     }
   };
 
+  const handleDownloadInvoice = async (order) => {
+    try {
+      const response = await api.get(`/sales/orders/${order.id}/invoice`, {
+        responseType: 'blob',
+        timeout: 30000,
+      });
+
+      if (!response.data || response.data.size === 0) {
+        alert('Invoice is empty');
+        return;
+      }
+
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice-${order.order_number}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      console.error('Download invoice error:', error);
+      
+      let errorMsg = 'Failed to download invoice';
+      
+      // Handle different error types
+      if (error.response?.data instanceof Blob) {
+        // For blob errors, try to parse as JSON if it's JSON content
+        try {
+          const text = await error.response.data.text();
+          const json = JSON.parse(text);
+          errorMsg = json.message || errorMsg;
+        } catch {
+          errorMsg = `Server error: ${error.response?.status || 'Unknown'}`;
+        }
+      } else if (error.response?.data?.message) {
+        // For JSON errors
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        // For network/other errors
+        errorMsg = error.message;
+      }
+      
+      alert(errorMsg);
+    }
+  };
+
+  const handleSendInvoiceToAccounting = async (order) => {
+    try {
+      toast.loading('Sending invoice to accounting department...');
+      
+      const response = await api.post(`/sales/orders/${order.id}/send-invoice-to-accounting`);
+      
+      toast.dismiss();
+      toast.success(`Invoice sent to accounting department!\nInvoice #: ${response.data.invoice.invoice_number}`);
+    } catch (error) {
+      toast.dismiss();
+      console.error('Send invoice to accounting error:', error);
+      
+      let errorMsg = 'Failed to send invoice to accounting';
+      
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg);
+    }
+  };
+
   const handleShowQR = (order) => {
     setQrOrder(order);
     setShowQRModal(true);
@@ -310,17 +406,18 @@ const SalesOrdersPage = () => {
       <div className="max-w-7xl mx-auto px-6 py-3">
         {/* Summary Cards */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
             {[
               { label: 'Total Orders', value: summary.total_orders, icon: FaShoppingCart, color: 'blue' },
               { label: 'Pending', value: summary.pending_orders, icon: FaClock, color: 'amber' },
               { label: 'In Production', value: summary.in_production_orders, icon: FaCog, color: 'orange' },
+              { label: 'Delayed', value: delayedOrdersCount, icon: FaExclamationTriangle, color: 'red' },
               { label: 'Delivered', value: summary.delivered_orders, icon: FaCheck, color: 'green' }
             ].map((card, idx) => {
               const Icon = card.icon;
-              const bgColor = { blue: 'bg-blue-50', amber: 'bg-amber-50', orange: 'bg-orange-50', green: 'bg-green-50' }[card.color];
-              const iconBg = { blue: 'bg-blue-100', amber: 'bg-amber-100', orange: 'bg-orange-100', green: 'bg-green-100' }[card.color];
-              const iconColor = { blue: 'text-blue-600', amber: 'text-amber-600', orange: 'text-orange-600', green: 'text-green-600' }[card.color];
+              const bgColor = { blue: 'bg-blue-50', amber: 'bg-amber-50', orange: 'bg-orange-50', green: 'bg-green-50', red: 'bg-red-50' }[card.color];
+              const iconBg = { blue: 'bg-blue-100', amber: 'bg-amber-100', orange: 'bg-orange-100', green: 'bg-green-100', red: 'bg-red-100' }[card.color];
+              const iconColor = { blue: 'text-blue-600', amber: 'text-amber-600', orange: 'text-orange-600', green: 'text-green-600', red: 'text-red-600' }[card.color];
 
               return (
                 <div key={idx} className={`${bgColor} rounded-lg p-3 border border-${card.color}-200 shadow-sm hover:shadow-md transition-all`}>
@@ -654,15 +751,17 @@ const SalesOrdersPage = () => {
                                   {/* Action Menu */}
                                   {showActionMenu === order.id && (
                                     <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-40">
-                                      <button
-                                        onClick={() => {
-                                          navigate(`/sales/orders/edit/${order.id}`);
-                                          setShowActionMenu(null);
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
-                                      >
-                                        <FaEdit size={12} /> Edit
-                                      </button>
+                                      {order.status === 'draft' && (
+                                        <button
+                                          onClick={() => {
+                                            navigate(`/sales/orders/${order.id}/edit`);
+                                            setShowActionMenu(null);
+                                          }}
+                                          className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                        >
+                                          <FaEdit size={12} /> Edit
+                                        </button>
+                                      )}
                                       {order.status === 'draft' && (
                                         <button
                                           onClick={() => {
@@ -682,6 +781,24 @@ const SalesOrdersPage = () => {
                                         className="w-full text-left px-3 py-1.5 hover:bg-purple-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
                                       >
                                         <FaQrcode size={12} /> QR
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleDownloadInvoice(order);
+                                          setShowActionMenu(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-green-50 text-gray-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                      >
+                                        <FaFileInvoice size={12} /> Download Invoice
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleSendInvoiceToAccounting(order);
+                                          setShowActionMenu(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-blue-700 text-xs flex items-center gap-1.5 border-b border-gray-100"
+                                      >
+                                        <FaShare size={12} /> Send to Accounting
                                       </button>
                                       <button
                                         onClick={() => {
@@ -775,25 +892,27 @@ const SalesOrdersPage = () => {
 
                     <div className="mb-2">{getStatusBadge(order.status)}</div>
 
-                    <div className="flex gap-1">
+                    <div className={`flex gap-1 ${order.status === 'draft' ? '' : 'justify-center'}`}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/sales/orders/${order.id}`);
                         }}
-                        className="flex-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                        className={`${order.status === 'draft' ? 'flex-1' : 'flex-1'} px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1`}
                       >
                         <FaEye size={12} /> View
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/sales/orders/edit/${order.id}`);
-                        }}
-                        className="flex-1 px-2 py-1 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                      >
-                        <FaEdit size={12} /> Edit
-                      </button>
+                      {order.status === 'draft' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/sales/orders/${order.id}/edit`);
+                          }}
+                          className="flex-1 px-2 py-1 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          <FaEdit size={12} /> Edit
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -833,7 +952,7 @@ const SalesOrdersPage = () => {
                   </div>
 
                   {/* Column Content */}
-                  <div className="bg-gray-50 rounded-b-lg flex-1 min-h-[450px] max-h-[450px] overflow-y-auto p-2 space-y-2 border border-t-0 border-gray-200">
+                  <div className="bg-gray-50 rounded-b-lg flex-1 min-h-[50px] max-h-[250px] overflow-y-auto p-2 space-y-2 border border-t-0 border-gray-200">
                     {statusOrders.length === 0 ? (
                       <div className="py-8 text-center text-gray-400">
                         <FaShoppingCart className="text-2xl mx-auto mb-1 text-gray-300" />
@@ -931,7 +1050,18 @@ const SalesOrdersPage = () => {
               </button>
             </div>
             <div className="bg-gray-50 p-6 rounded-lg mb-4 flex justify-center">
-              <QRCodeDisplay value={qrOrder.order_number} />
+              <QRCodeDisplay 
+                data={{
+                  order_id: qrOrder.id,
+                  order_number: qrOrder.order_number,
+                  status: qrOrder.status,
+                  customer: qrOrder.customer?.name || 'N/A',
+                  delivery_date: qrOrder.delivery_date,
+                  total_quantity: qrOrder.total_quantity,
+                  timestamp: new Date().toISOString()
+                }}
+                size={250}
+              />
             </div>
             <p className="text-center text-gray-600 mb-4 font-semibold">{qrOrder.order_number}</p>
             <button

@@ -1,5 +1,6 @@
 import React from "react";
 import { Tooltip } from "@mui/material";
+import { Briefcase, Factory, Package, Truck } from "lucide-react";
 
 /**
  * ProjectIdentifier Component
@@ -43,14 +44,14 @@ const ProjectIdentifier = ({
   const getIcon = () => {
     switch (type) {
       case "production":
-        return "🏭";
+        return <Factory className="w-4 h-4" />;
       case "purchase":
-        return "📦";
+        return <Package className="w-4 h-4" />;
       case "shipment":
-        return "🚚";
+        return <Truck className="w-4 h-4" />;
       case "sales":
       default:
-        return "📋";
+        return <Briefcase className="w-4 h-4" />;
     }
   };
 
@@ -99,7 +100,7 @@ const ProjectIdentifier = ({
         <div className="flex items-start gap-2">
           {/* Icon */}
           {showIcon && (
-            <div className="text-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+            <div className="flex-shrink-0 group-hover:scale-110 transition-transform text-blue-600">
               {getIcon()}
             </div>
           )}

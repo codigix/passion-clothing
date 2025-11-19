@@ -27,8 +27,12 @@ import {
   FaShoppingCart,
   FaMoneyBill,
   FaShoppingBag,
-  FaPlus
+  FaPlus,
+  FaImage,
+  FaFile,
+  FaFileArchive
 } from 'react-icons/fa';
+import JSZip from 'jszip';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
 
@@ -41,6 +45,7 @@ const SalesOrderDetailsPage = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [poLoading, setPoLoading] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -95,6 +100,60 @@ const SalesOrderDetailsPage = () => {
 
   const handleViewProduction = () => {
     navigate('/manufacturing/orders');
+  };
+
+  const handleDownloadDesignFilesAsZip = async () => {
+    try {
+      setDownloadingZip(true);
+      const designFiles = order?.garment_specifications?.design_files || [];
+      
+      if (!designFiles || designFiles.length === 0) {
+        alert('No design files available to download');
+        setDownloadingZip(false);
+        return;
+      }
+
+      const zip = new JSZip();
+      const designFilesFolder = zip.folder('design-files');
+      let successCount = 0;
+
+      for (const fileData of designFiles) {
+        try {
+          // Handle both old format (string) and new format (object with storedName/originalName)
+          const storedFileName = typeof fileData === 'string' ? fileData : fileData.storedName;
+          const displayName = typeof fileData === 'string' ? fileData : (fileData.originalName || fileData.storedName);
+          
+          const response = await api.get(`/sales/orders/${id}/design-file/${encodeURIComponent(storedFileName)}`, {
+            responseType: 'blob'
+          });
+          designFilesFolder.file(displayName, response.data);
+          successCount++;
+        } catch (err) {
+          console.warn(`Failed to download file:`, fileData, err);
+        }
+      }
+
+      if (successCount === 0) {
+        alert('Could not download any design files. Files may not be available yet.');
+        setDownloadingZip(false);
+        return;
+      }
+
+      const zipContent = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(zipContent);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${order.order_number}-design-files.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download design files:', err);
+      alert('Failed to download design files');
+    } finally {
+      setDownloadingZip(false);
+    }
   };
 
   const getStatusConfig = (status) => {
@@ -541,7 +600,7 @@ const SalesOrderDetailsPage = () => {
                 )}
 
                 {activeTab === 'specs' && (
-                  <div>
+                  <div className="space-y-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <div className="p-1 bg-blue-100 rounded-lg">
                         <FaClipboardCheck className="text-blue-600 w-3.5 h-3.5" />
@@ -550,21 +609,62 @@ const SalesOrderDetailsPage = () => {
                     </div>
                     {order.garment_specifications && Object.keys(order.garment_specifications).length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {Object.entries(order.garment_specifications).map(([key, value]) => (
-                          <div key={key} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 border border-gray-200 hover:border-gray-300 transition-colors">
-                            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1 tracking-wider">
-                              {key.replace(/_/g, ' ')}
-                            </label>
-                            <p className="text-xs font-medium text-gray-900">
-                              {typeof value === 'boolean' ? (value ? '✓ Yes' : '✗ No') : typeof value === 'object' ? JSON.stringify(value) : value || '—'}
-                            </p>
-                          </div>
-                        ))}
+                        {Object.entries(order.garment_specifications).map(([key, value]) => {
+                          if (key === 'design_files') return null;
+                          return (
+                            <div key={key} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 border border-gray-200 hover:border-gray-300 transition-colors">
+                              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1 tracking-wider">
+                                {key.replace(/_/g, ' ')}
+                              </label>
+                              <p className="text-xs font-medium text-gray-900">
+                                {typeof value === 'boolean' ? (value ? '✓ Yes' : '✗ No') : typeof value === 'object' ? JSON.stringify(value) : value || '—'}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                         <FaFileAlt className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                         <p className="text-gray-500 font-medium text-xs">No specifications available</p>
+                      </div>
+                    )}
+
+                    {order.garment_specifications?.design_files && order.garment_specifications.design_files.length > 0 && (
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-100 to-pink-100 px-3 py-2 border-b border-purple-200 flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                            <div className="p-1 bg-purple-100 rounded-lg">
+                              <FaImage className="text-purple-600 w-3.5 h-3.5" />
+                            </div>
+                            Design Files ({order.garment_specifications.design_files.length})
+                          </h3>
+                          <button
+                            onClick={handleDownloadDesignFilesAsZip}
+                            disabled={downloadingZip}
+                            className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                          >
+                            <FaFileArchive className="w-3.5 h-3.5" />
+                            <span>{downloadingZip ? 'Downloading...' : 'Download All'}</span>
+                          </button>
+                        </div>
+                        <div className="p-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {order.garment_specifications.design_files.map((fileData, index) => {
+                              const displayName = typeof fileData === 'string' ? fileData : (fileData.originalName || fileData.storedName);
+                              const storedName = typeof fileData === 'string' ? fileData : fileData.storedName;
+                              return (
+                                <div key={index} className="bg-white rounded-lg border-2 border-dashed border-purple-200 p-3 hover:border-purple-400 transition-colors flex flex-col items-center justify-center text-center group">
+                                  <div className="p-2 bg-purple-100 rounded-lg mb-2 group-hover:bg-purple-200 transition-colors">
+                                    <FaFile className="text-purple-600 w-4 h-4" />
+                                  </div>
+                                  <p className="text-xs font-medium text-gray-900 truncate w-full" title={displayName}>{displayName}</p>
+                                  <p className="text-xs text-gray-500 mt-1">📎 Design File</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -620,19 +720,35 @@ const SalesOrderDetailsPage = () => {
                     </div>
                     <div className="grid grid-cols-1 gap-2">
                       {order.status === 'draft' && (
-                        <button
-                          onClick={() => handleStatusUpdate('confirmed')}
-                          className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white p-2.5 rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
-                        >
-                          <div className="p-1.5 bg-white/20 rounded-lg">
-                            <FaCheckCircle className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <p className="font-semibold">Confirm Order</p>
-                            <p className="text-xs text-green-100">Approve and send to procurement</p>
-                          </div>
-                          <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => navigate(`/sales/orders/${id}/edit`)}
+                            className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white p-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
+                          >
+                            <div className="p-1.5 bg-white/20 rounded-lg">
+                              <FaEdit className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="text-left flex-1">
+                              <p className="font-semibold">Edit Order</p>
+                              <p className="text-xs text-blue-100">Update order details</p>
+                            </div>
+                            <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleStatusUpdate('confirmed')}
+                            className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white p-2.5 rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
+                          >
+                            <div className="p-1.5 bg-white/20 rounded-lg">
+                              <FaCheckCircle className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="text-left flex-1">
+                              <p className="font-semibold">Confirm Order</p>
+                              <p className="text-xs text-green-100">Approve and send to procurement</p>
+                            </div>
+                            <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
+                          </button>
+                        </>
                       )}
                       
                       {order.status === 'confirmed' && (
@@ -667,10 +783,26 @@ const SalesOrderDetailsPage = () => {
                         </button>
                       )}
                       
-                      {!['draft', 'confirmed', 'in_production', 'materials_received'].includes(order.status) && (
+                      {order.status !== 'completed' && order.status !== 'cancelled' && (
+                        <button
+                          onClick={() => navigate(`/procurement/purchase-orders/create?from_sales_order=${id}`)}
+                          className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-2.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
+                        >
+                          <div className="p-1.5 bg-white/20 rounded-lg">
+                            <FaPlus className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <p className="font-semibold">Create Purchase Order</p>
+                            <p className="text-xs text-emerald-100">Add new PO for this order</p>
+                          </div>
+                          <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
+                        </button>
+                      )}
+                      
+                      {!['draft', 'confirmed', 'in_production', 'materials_received'].includes(order.status) && !['completed', 'cancelled'].includes(order.status) && (
                         <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                           <FaCog className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                          <p className="text-gray-500 font-medium text-xs">No actions available for this order status</p>
+                          <p className="text-gray-500 font-medium text-xs">Limited actions available for this order status</p>
                           <p className="text-xs text-gray-400 mt-1">Current status: {statusConfig.label}</p>
                         </div>
                       )}
@@ -699,14 +831,16 @@ const SalesOrderDetailsPage = () => {
               <div className="p-3 flex justify-center">
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-2 border-2 border-dashed border-blue-300">
                   <QRCodeDisplay
-                    data={order.qr_code || JSON.stringify({
+                    data={{
+                      order_id: order.id,
                       order_number: order.order_number,
-                      customer: order.customer?.name,
-                      quantity: order.total_quantity,
-                      amount: order.final_amount,
+                      status: order.status,
+                      customer: order.customer?.name || 'N/A',
                       delivery_date: order.delivery_date,
-                      status: order.status
-                    })}
+                      total_quantity: order.total_quantity,
+                      final_amount: order.final_amount,
+                      timestamp: new Date().toISOString()
+                    }}
                     size={130}
                   />
                 </div>
@@ -782,6 +916,56 @@ const SalesOrderDetailsPage = () => {
                   <span className="text-gray-900 font-semibold">Total Amount</span>
                   <span className="font-bold text-sm text-blue-600">₹{order.final_amount?.toLocaleString()}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Purchase Orders Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <div className="p-1 bg-cyan-100 rounded-lg">
+                    <FaTruck className="text-cyan-600 w-3.5 h-3.5" />
+                  </div>
+                  Purchase Orders ({purchaseOrders.length})
+                </h3>
+              </div>
+              <div className="p-3">
+                {poLoading ? (
+                  <div className="flex justify-center items-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
+                  </div>
+                ) : purchaseOrders && purchaseOrders.length > 0 ? (
+                  <div className="space-y-2">
+                    {purchaseOrders.map((po, index) => (
+                      <div key={index} className="bg-gradient-to-r from-cyan-50 to-blue-50 p-2 rounded-lg border border-cyan-200 hover:border-cyan-300 transition-colors cursor-pointer hover:shadow-sm">
+                        <div className="flex items-start justify-between mb-1">
+                          <div>
+                            <p className="text-xs font-semibold text-gray-900">{po.po_number || `PO-${index + 1}`}</p>
+                            <p className="text-xs text-gray-600 mt-0.5">{po.vendor || po.vendor_name || 'Vendor'}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPoStatusConfig(po.status)?.color || 'bg-gray-100'}`}>
+                            {getPoStatusConfig(po.status)?.label || po.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-gray-600 mt-1 pt-1 border-t border-cyan-100">
+                          <span>₹{po.total_amount?.toLocaleString() || '0'}</span>
+                          <button 
+                            onClick={() => navigate(`/procurement/purchase-orders/${po.id}`)}
+                            className="text-cyan-600 hover:text-cyan-800 font-medium"
+                          >
+                            View
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <FaTruck className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+                    <p className="text-xs text-gray-500 font-medium">No purchase orders yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Create one from the Actions tab</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

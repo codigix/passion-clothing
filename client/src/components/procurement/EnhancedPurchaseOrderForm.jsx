@@ -61,6 +61,7 @@ const EnhancedPurchaseOrderForm = ({
     // Financial Details
     payment_terms: "100% Advance Payment", // Radio selection
     payment_terms_custom: "", // Custom text if "Other" selected
+    payment_terms_additional_info: "", // Additional info textarea
     delivery_address: "",
     special_instructions_checkboxes: [], // Array of checked items
     special_instructions_notes: "", // Additional notes textarea
@@ -1138,6 +1139,25 @@ const EnhancedPurchaseOrderForm = ({
                     <span>⚠️</span> {validationErrors.payment_terms}
                   </p>
                 )}
+
+                <div className="mt-6 pt-4 border-t border-blue-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Information (Optional)
+                  </label>
+                  <textarea
+                    value={formData.payment_terms_additional_info}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "payment_terms_additional_info",
+                        e.target.value
+                      )
+                    }
+                    placeholder="Add any additional payment terms, conditions, or notes here..."
+                    disabled={isViewMode}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  />
+                </div>
               </div>
 
               {/* SECTION 2: SPECIAL INSTRUCTIONS */}

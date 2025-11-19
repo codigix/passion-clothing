@@ -1,0 +1,2 @@
+-- Add project_name column to shipments table if it doesn't exist
+ALTER TABLE shipments ADD COLUMN project_name VARCHAR(200) NULL COMMENT 'Human-friendly project name for dashboards and reports' AFTER created_by;

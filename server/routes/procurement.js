@@ -12,15 +12,43 @@ const {
   Product,
   Approval,
   GoodsReceiptNote,
+  HSNCode,
+  Invoice,
 } = require("../config/database");
 const { authenticateToken, checkDepartment } = require("../middleware/auth");
 const NotificationService = require("../utils/notificationService");
+const PDFGenerationService = require("../utils/pdfGenerationService");
+const AccountingDocumentService = require("../utils/emailService");  // Renamed - now sends system notifications
 const {
   generateBarcode,
   generateBatchBarcode,
   generateInventoryQRData,
 } = require("../utils/barcodeUtils");
+const fs = require("fs");
 const router = express.Router();
+
+// Generate challan number
+const generateChallanNumber = async () => {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const lastChallan = await Challan.findOne({
+    where: {
+      challan_number: {
+        [Op.like]: `CHN-${dateStr}-%`
+      }
+    },
+    order: [['created_at', 'DESC']]
+  });
+
+  let sequence = 1;
+  if (lastChallan) {
+    const lastSequence = parseInt(lastChallan.challan_number.split('-')[2]);
+    sequence = lastSequence + 1;
+  }
+
+  return `CHN-${dateStr}-${sequence.toString().padStart(4, '0')}`;
+};
 
 // ============================================
 // PROCUREMENT WORKFLOW ENDPOINTS
@@ -500,6 +528,41 @@ router.post(
       const barcode = generateBarcode("PO");
       await purchaseOrder.update({ barcode });
 
+      // Auto-create inward challan for purchase order
+      const challan_number = await generateChallanNumber();
+      const challanItems = items.map(item => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        rate: item.rate,
+        amount: item.total,
+        description: item.description || '',
+        hsn: item.hsn || '',
+        color: item.color || '',
+        gsm: item.gsm || '',
+        width: item.width || '',
+      }));
+
+      const challan = await Challan.create({
+        challan_number,
+        type: 'inward',
+        sub_type: 'purchase',
+        order_id: purchaseOrder.id,
+        order_type: 'purchase_order',
+        vendor_id: vendor_id,
+        items: challanItems,
+        total_quantity: total_quantity,
+        total_amount: final_amount,
+        status: 'draft',
+        priority: priority,
+        notes: `Auto-generated for PO ${po_number}`,
+        internal_notes: `Auto-created when PO was generated. Vendor: ${vendor.name}`,
+        created_by: req.user.id,
+        department: 'procurement',
+        expected_date: expected_delivery_date,
+      });
+
       // Update linked sales order status if exists
       if (req.body.linked_sales_order_id) {
         const salesOrder = await SalesOrder.findByPk(
@@ -567,6 +630,7 @@ router.post(
           total_quantity: purchaseOrder.total_quantity,
           final_amount: purchaseOrder.final_amount,
           linked_sales_order_id: purchaseOrder.linked_sales_order_id,
+          challan_number: challan_number,
         },
       });
     } catch (error) {
@@ -842,6 +906,41 @@ router.post(
         status: status || "draft",
       });
 
+      // Auto-create inward challan for purchase order
+      const challan_number = await generateChallanNumber();
+      const challanItems = items.map(item => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        rate: item.rate,
+        amount: item.total,
+        description: item.description || '',
+        hsn: item.hsn || '',
+        color: item.color || '',
+        gsm: item.gsm || '',
+        width: item.width || '',
+      }));
+
+      const challan = await Challan.create({
+        challan_number,
+        type: 'inward',
+        sub_type: 'purchase',
+        order_id: purchaseOrder.id,
+        order_type: 'purchase_order',
+        vendor_id: vendor_id,
+        items: challanItems,
+        total_quantity: total_quantity,
+        total_amount: final_amount,
+        status: 'draft',
+        priority: priority || 'medium',
+        notes: `Auto-generated for PO ${po_number}`,
+        internal_notes: `Auto-created when PO was generated from SO ${salesOrder.order_number}. Vendor: ${vendor.name}`,
+        created_by: req.user.id,
+        department: 'procurement',
+        expected_date: salesOrder.delivery_date,
+      });
+
       // Update sales order status to indicate procurement has started
       await salesOrder.update({
         status: "procurement_created",
@@ -884,6 +983,7 @@ router.post(
           status: purchaseOrder.status,
           total_quantity: purchaseOrder.total_quantity,
           final_amount: purchaseOrder.final_amount,
+          challan_number: challan_number,
         },
         salesOrder: {
           id: salesOrder.id,
@@ -1313,6 +1413,37 @@ router.get(
 
       // Ensure items is parsed as JSON (Sequelize should do this automatically, but let's be explicit)
       const poData = purchaseOrder.toJSON();
+
+      // For reopened POs, fetch the active vendor request and return only shortage items
+      if (poData.status === "reopened") {
+        const { VendorRequest, GoodsReceiptNote } = require("../config/database");
+        const vendorRequest = await VendorRequest.findOne({
+          where: {
+            purchase_order_id: id,
+            request_type: "shortage",
+            status: ["sent", "acknowledged", "in_transit"],
+          },
+          order: [["created_at", "DESC"]],
+        });
+
+        if (vendorRequest) {
+          // Get original GRN details
+          const originalGRN = await GoodsReceiptNote.findByPk(vendorRequest.grn_id, {
+            attributes: ["id", "grn_number", "created_at"],
+          });
+
+          // Replace PO items with only shortage items from vendor request
+          poData.items = vendorRequest.items || [];
+          poData.vendor_request_id = vendorRequest.id;
+          poData.vendor_request_number = vendorRequest.request_number;
+          poData.original_grn_id = originalGRN?.id || vendorRequest.grn_id;
+          poData.original_grn_number = originalGRN?.grn_number || null;
+          poData.is_shortage_fulfillment = true;
+          
+          console.log("Reopened PO - Returning shortage items only:", poData.items.length);
+          console.log("Original GRN:", originalGRN?.grn_number);
+        }
+      }
 
       // Log for debugging
       console.log("Fetching PO:", id);
@@ -2062,6 +2193,101 @@ router.get(
   }
 );
 
+// Get GRN Complaints/Discrepancies for Procurement Dashboard
+router.get(
+  "/dashboard/grn-complaints",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const { status = "all", type = "all", limit = 50, offset = 0 } = req.query;
+      const Op = require("sequelize").Op;
+
+      const whereClause = {
+        request_type: {
+          [Op.in]: ["grn_shortage_complaint", "grn_overage_complaint", "grn_invoice_mismatch"],
+        },
+        department: "procurement",
+      };
+
+      if (status !== "all") {
+        whereClause.status = status;
+      }
+
+      if (type !== "all") {
+        whereClause.request_type = `grn_${type}_complaint`;
+      }
+
+      // Get complaints with related PO data
+      const complaints = await Approval.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: PurchaseOrder,
+            as: "relatedEntity",
+            attributes: ["id", "po_number", "po_date", "final_amount"],
+            include: [
+              {
+                model: Vendor,
+                as: "vendor",
+                attributes: ["id", "name", "contact_person"],
+              },
+            ],
+          },
+          {
+            model: User,
+            as: "requester",
+            attributes: ["id", "name", "email"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+
+      // Get total count
+      const total = await Approval.count({ where: whereClause });
+
+      // Transform response for frontend
+      const transformedComplaints = complaints.map((complaint) => {
+        const details = complaint.approval_details || {};
+        const poData = complaint.relatedEntity;
+
+        return {
+          id: complaint.id,
+          complaint_type: details.complaint_type || "unknown",
+          grn_number: details.grn_number,
+          po_number: details.po_number || poData?.po_number,
+          po_id: complaint.entity_id,
+          vendor_name: details.vendor_name || poData?.vendor?.name,
+          status: complaint.status,
+          items_affected: details.items_affected || [],
+          total_value:
+            details.total_shortage_value ||
+            details.total_overage_value ||
+            0,
+          created_at: complaint.created_at,
+          action_required: details.action_required,
+          created_by: complaint.requester?.name || "System",
+        };
+      });
+
+      res.json({
+        complaints: transformedComplaints,
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+    } catch (error) {
+      console.error("Error fetching GRN complaints:", error);
+      res.status(500).json({
+        message: "Failed to fetch GRN complaints",
+        error: error.message,
+      });
+    }
+  }
+);
+
 // Export purchase orders to CSV
 router.get(
   "/pos/export",
@@ -2216,6 +2442,7 @@ router.post(
     try {
       console.log(`[Approve PO] Starting for PO ID: ${req.params.id}`);
       const { notes } = req.body;
+      const POApprovalWorkflowService = require("../utils/poApprovalWorkflowService");
 
       // Get PO with all details
       const po = await PurchaseOrder.findByPk(req.params.id, {
@@ -2240,30 +2467,53 @@ router.post(
         });
       }
 
-      // Update PO status to 'sent' (approved and automatically sent to vendor)
+      // Update PO status to 'approved' (admin approval - ready to send to vendor)
       await po.update(
         {
-          status: "sent",
+          status: "approved",
           approval_status: "approved",
           approved_by: req.user.id,
           approved_date: new Date(),
           approval_notes: notes || "",
-          sent_to_vendor_at: new Date(),
         },
         { transaction }
       );
 
       await transaction.commit();
 
+      // Execute PO Approval Workflow (generate invoice & send to finance)
+      let workflowResult = {
+        success: false,
+        invoice: null,
+        notification: null,
+        message: "Workflow execution pending"
+      };
+
+      try {
+        workflowResult = await POApprovalWorkflowService.executePOApprovalWorkflow(
+          po.id,
+          req.user.id,
+          req.user.name,
+          req.user.department,
+          notes
+        );
+
+        if (!workflowResult.success) {
+          console.warn(`Workflow warning for PO ${po.po_number}:`, workflowResult.message);
+        }
+      } catch (workflowError) {
+        console.error(`Workflow error for PO ${po.po_number}:`, workflowError);
+      }
+
       // Send notification to Procurement Department (after commit to ensure PO is saved)
       await NotificationService.sendToDepartment("procurement", {
         type: "procurement",
-        title: `✅ PO ${po.po_number} Approved & Sent to Vendor`,
+        title: `✅ PO ${po.po_number} Approved - Ready to Send to Vendor`,
         message: `Purchase Order ${
           po.po_number
-        } has been approved by admin and automatically sent to vendor ${
+        } has been approved by admin. Procurement team can now send it to vendor ${
           po.vendor?.name || "Unknown"
-        }. Track delivery and create GRN when materials arrive.`,
+        } via email or WhatsApp.`,
         priority:
           po.priority === "urgent" || po.priority === "high"
             ? "high"
@@ -2315,9 +2565,10 @@ router.post(
       res.json({
         message: "Purchase Order approved and sent to vendor successfully",
         purchase_order: po,
+        workflow_result: workflowResult,
         next_step: "await_delivery_then_create_grn",
         workflow_info:
-          "PO has been sent to vendor. When materials arrive, create GRN for quality verification before adding to inventory.",
+          "PO has been sent to vendor. Invoice generated and sent to Finance Department for payment processing. When materials arrive, create GRN for quality verification before adding to inventory.",
       });
     } catch (error) {
       await transaction.rollback();
@@ -2612,70 +2863,58 @@ router.post(
         return res.status(404).json({ message: "Purchase Order not found" });
       }
 
-      // Check if PO is in appropriate status
-      if (!["sent", "acknowledged"].includes(po.status)) {
+      // Check if PO is in appropriate status - allow "received" status too (idempotent)
+      if (!["sent", "acknowledged", "received"].includes(po.status)) {
         await transaction.rollback();
         return res.status(400).json({
-          message: `Cannot mark as received. PO status is '${po.status}'. Must be in 'sent' or 'acknowledged' status.`,
+          message: `Cannot mark as received. PO status is '${po.status}'. Must be in 'sent', 'acknowledged', or 'received' status.`,
         });
       }
 
-      // Check if already marked as received
+      // Check if already marked as received AND already has a GRN/approval request
       if (po.received_at) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message:
-            "Materials already marked as received for this Purchase Order",
-          received_at: po.received_at,
+        // If already marked as received, check if GRN request exists
+        const existingRequest = await Approval.findOne({
+          where: {
+            entity_type: "grn_creation",
+            entity_id: poId,
+          },
+          transaction,
         });
+
+        const existingGRN = await GoodsReceiptNote.findOne({
+          where: { purchase_order_id: poId },
+          transaction,
+        });
+
+        if (existingRequest || existingGRN) {
+          await transaction.rollback();
+          return res.status(400).json({
+            message:
+              "Materials already marked as received for this Purchase Order",
+            received_at: po.received_at,
+            grn_request_exists: !!existingRequest,
+            grn_exists: !!existingGRN,
+          });
+        }
       }
 
-      // Check if GRN already exists
-      const existingGRN = await GoodsReceiptNote.findOne({
-        where: { purchase_order_id: poId },
-        transaction,
-      });
-
-      if (existingGRN) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message: "GRN already exists for this Purchase Order",
-          grn_number: existingGRN.grn_number,
-        });
+      // Update PO with received information (if not already done)
+      let receivedAt = po.received_at || new Date();
+      if (!po.received_at) {
+        await po.update(
+          {
+            status: "received",
+            received_at: receivedAt,
+            internal_notes: `${
+              po.internal_notes || ""
+            }\n\n[${new Date().toISOString()}] Materials received - confirmed by ${
+              req.user.name
+            }`,
+          },
+          { transaction }
+        );
       }
-
-      // Check if GRN request already pending
-      const existingRequest = await Approval.findOne({
-        where: {
-          entity_type: "grn_creation",
-          entity_id: poId,
-          status: "pending",
-        },
-        transaction,
-      });
-
-      if (existingRequest) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message:
-            "GRN creation request already pending for this Purchase Order",
-        });
-      }
-
-      // Update PO with received information
-      const receivedAt = new Date();
-      await po.update(
-        {
-          status: "received",
-          received_at: receivedAt,
-          internal_notes: `${
-            po.internal_notes || ""
-          }\n\n[${new Date().toISOString()}] Materials received - confirmed by ${
-            req.user.name
-          }`,
-        },
-        { transaction }
-      );
 
       // Get inventory department users for assignment
       const inventoryUsers = await User.findAll({
@@ -2684,87 +2923,116 @@ router.post(
         transaction,
       });
 
-      // Automatically create GRN creation request for Inventory Department
-      const approval = await Approval.create(
-        {
+      // Automatically create GRN creation request for Inventory Department (only if not already created)
+      let approval;
+      const existingApproval = await Approval.findOne({
+        where: {
           entity_type: "grn_creation",
           entity_id: poId,
-          stage_key: "grn_creation_request",
-          stage_label: "GRN Creation Request - Materials Received",
-          sequence: 1,
-          status: "pending",
-          assigned_to_user_id:
-            inventoryUsers.length > 0 ? inventoryUsers[0].id : null,
-          created_by: req.user.id,
-          metadata: {
-            received_at: receivedAt,
-            request_notes:
-              "Materials received at warehouse - ready for GRN creation",
-            po_details: {
-              po_number: po.po_number,
-              vendor_name: po.vendor?.name,
-              customer_name: po.customer?.name,
-              project_name: po.project_name,
-              expected_delivery_date: po.expected_delivery_date,
-              items_count: po.items?.length || 0,
+        },
+        transaction,
+      });
+
+      if (existingApproval) {
+        approval = existingApproval;
+      } else {
+        approval = await Approval.create(
+          {
+            entity_type: "grn_creation",
+            entity_id: poId,
+            stage_key: "grn_creation_request",
+            stage_label: "GRN Creation Request - Materials Received",
+            sequence: 1,
+            status: "pending",
+            assigned_to_user_id:
+              inventoryUsers.length > 0 ? inventoryUsers[0].id : null,
+            created_by: req.user.id,
+            metadata: {
+              received_at: receivedAt,
+              request_notes:
+                "Materials received at warehouse - ready for GRN creation",
+              po_details: {
+                po_number: po.po_number,
+                vendor_name: po.vendor?.name,
+                customer_name: po.customer?.name,
+                project_name: po.project_name,
+                expected_delivery_date: po.expected_delivery_date,
+                items_count: po.items?.length || 0,
+              },
             },
           },
-        },
-        { transaction }
-      );
+          { transaction }
+        );
+
+        // Update PO status to indicate GRN request pending (so it shows in Inventory incoming requests)
+        await po.update(
+          {
+            status: "grn_requested",
+          },
+          { transaction }
+        );
+      }
 
       await transaction.commit();
 
-      // Send notification to Inventory Department
-      await NotificationService.sendToDepartment("inventory", {
-        type: "inventory",
-        title: `📦 Materials Received - PO ${po.po_number}`,
-        message: `Materials from ${po.vendor?.name} for PO ${po.po_number} have been received at the warehouse. Please create GRN to verify and add to inventory.`,
-        priority:
-          po.priority === "urgent" || po.priority === "high"
-            ? "high"
-            : "medium",
-        related_entity_id: po.id,
-        related_entity_type: "purchase_order",
-        action_url: `/inventory/grn/create?po_id=${po.id}`,
-        trigger_event: "materials_received_grn_requested",
-        metadata: {
-          po_number: po.po_number,
-          vendor_name: po.vendor?.name,
-          received_at: receivedAt,
-          items_count: po.items?.length || 0,
-          total_amount: po.final_amount,
-        },
-        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
-      });
-
-      // Send notification to Procurement Department
-      await NotificationService.sendToDepartment("procurement", {
-        type: "procurement",
-        title: `✅ PO ${po.po_number} - Materials Received`,
-        message: `PO ${po.po_number} materials have been marked as received. GRN request automatically created for Inventory department to verify and add to stock.`,
-        priority: "low",
-        related_entity_id: po.id,
-        related_entity_type: "purchase_order",
-        action_url: `/procurement/purchase-orders/${po.id}`,
-        trigger_event: "materials_received_confirmed",
-        metadata: {
-          po_number: po.po_number,
-          vendor_name: po.vendor?.name,
-          confirmed_by: req.user.name,
-        },
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      });
-
+      // Send response first
       res.json({
-        message:
-          "Materials marked as received and GRN request created successfully",
+        message: existingApproval
+          ? "Materials marked as received. GRN request already exists."
+          : "Materials marked as received and GRN request created successfully",
         purchase_order: po,
         grn_request: approval,
         next_step: "awaiting_grn_creation",
         workflow_info:
           "Materials have been received at warehouse. Inventory department has been notified to create GRN for verification and stock addition.",
       });
+
+      // Send notifications asynchronously (won't affect response)
+      try {
+        // Send notification to Inventory Department
+        await NotificationService.sendToDepartment("inventory", {
+          type: "inventory",
+          title: `📦 Materials Received - PO ${po.po_number}`,
+          message: `Materials from ${po.vendor?.name} for PO ${po.po_number} have been received at the warehouse. Please create GRN to verify and add to inventory.`,
+          priority:
+            po.priority === "urgent" || po.priority === "high"
+              ? "high"
+              : "medium",
+          related_entity_id: po.id,
+          related_entity_type: "purchase_order",
+          action_url: `/inventory/grn/create?po_id=${po.id}`,
+          trigger_event: "materials_received_grn_requested",
+          metadata: {
+            po_number: po.po_number,
+            vendor_name: po.vendor?.name,
+            received_at: receivedAt,
+            items_count: po.items?.length || 0,
+            total_amount: po.final_amount,
+          },
+          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+        });
+
+        // Send notification to Procurement Department
+        await NotificationService.sendToDepartment("procurement", {
+          type: "procurement",
+          title: `✅ PO ${po.po_number} - Materials Received`,
+          message: `PO ${po.po_number} materials have been marked as received. GRN request automatically created for Inventory department to verify and add to stock.`,
+          priority: "low",
+          related_entity_id: po.id,
+          related_entity_type: "purchase_order",
+          action_url: `/procurement/purchase-orders/${po.id}`,
+          trigger_event: "materials_received_confirmed",
+          metadata: {
+            po_number: po.po_number,
+            vendor_name: po.vendor?.name,
+            confirmed_by: req.user.name,
+          },
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+      } catch (notifError) {
+        console.error("Failed to send material received notifications:", notifError);
+        // Don't fail the operation if notifications fail
+      }
     } catch (error) {
       await transaction.rollback();
       console.error("Error marking PO as dispatched:", error);
@@ -2807,43 +3075,49 @@ router.post(
       }
 
       // Check if PO is in appropriate status for GRN request
-      if (!["sent", "acknowledged", "partial_received"].includes(po.status)) {
+      if (!["sent", "acknowledged", "partial_received", "received", "reopened"].includes(po.status)) {
         await transaction.rollback();
         return res.status(400).json({
-          message: `Cannot request GRN. PO status is '${po.status}'. Must be in sent, acknowledged, or partial_received status.`,
+          message: `Cannot request GRN. PO status is '${po.status}'. Must be in sent, acknowledged, partial_received, received, or reopened status.`,
         });
       }
 
-      // Check if GRN already exists for this PO
-      const existingGRN = await GoodsReceiptNote.findOne({
-        where: { purchase_order_id: poId },
-        transaction,
-      });
-
-      if (existingGRN) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message: "GRN already exists for this Purchase Order",
-          grn_number: existingGRN.grn_number,
+      // For reopened POs, allow multiple GRNs (for shortage fulfillment)
+      // For other statuses, check if GRN already exists
+      if (po.status !== "reopened") {
+        const existingGRN = await GoodsReceiptNote.findOne({
+          where: { purchase_order_id: poId },
+          transaction,
         });
+
+        if (existingGRN) {
+          await transaction.rollback();
+          return res.status(400).json({
+            message: "GRN already exists for this Purchase Order",
+            grn_number: existingGRN.grn_number,
+          });
+        }
       }
 
-      // Check if GRN request already pending
-      const existingRequest = await Approval.findOne({
-        where: {
-          entity_type: "grn_creation",
-          entity_id: poId,
-          status: "pending",
-        },
-        transaction,
-      });
-
-      if (existingRequest) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message:
-            "GRN creation request already pending for this Purchase Order",
+      // For reopened POs, allow new GRN requests even if one is pending (for shortage fulfillment)
+      // For other statuses, check if GRN request already pending
+      if (po.status !== "reopened") {
+        const existingRequest = await Approval.findOne({
+          where: {
+            entity_type: "grn_creation",
+            entity_id: poId,
+            status: "pending",
+          },
+          transaction,
         });
+
+        if (existingRequest) {
+          await transaction.rollback();
+          return res.status(400).json({
+            message:
+              "GRN creation request already pending for this Purchase Order",
+          });
+        }
       }
 
       // Get inventory department users for assignment
@@ -2853,27 +3127,59 @@ router.post(
         transaction,
       });
 
+      // For reopened POs, get vendor request and original GRN details
+      let vendorRequest = null;
+      let originalGRN = null;
+      let shortageItems = null;
+
+      if (po.status === "reopened") {
+        vendorRequest = await require("../config/database").VendorRequest.findOne({
+          where: {
+            purchase_order_id: poId,
+            status: ["sent", "acknowledged", "in_transit"],
+          },
+          transaction,
+        });
+
+        if (vendorRequest) {
+          shortageItems = vendorRequest.items;
+          
+          // Get original GRN
+          originalGRN = await GoodsReceiptNote.findByPk(vendorRequest.grn_id, {
+            transaction,
+          });
+        }
+      }
+
       // Create GRN creation request (Approval)
       const approval = await Approval.create(
         {
           entity_type: "grn_creation",
           entity_id: poId,
           stage_key: "grn_creation_request",
-          stage_label: "GRN Creation Request",
+          stage_label: po.status === "reopened" 
+            ? "GRN Creation Request - Shortage Fulfillment"
+            : "GRN Creation Request",
           sequence: 1,
           status: "pending",
           assigned_to_user_id:
-            inventoryUsers.length > 0 ? inventoryUsers[0].id : null, // Assign to first inventory user
+            inventoryUsers.length > 0 ? inventoryUsers[0].id : null,
           created_by: req.user.id,
           metadata: {
             request_notes: notes || "",
+            is_shortage_fulfillment: po.status === "reopened",
+            vendor_request_id: vendorRequest?.id || null,
+            vendor_request_number: vendorRequest?.request_number || null,
+            original_grn_id: originalGRN?.id || null,
+            original_grn_number: originalGRN?.grn_number || null,
+            shortage_items: shortageItems || null,
             po_details: {
               po_number: po.po_number,
               vendor_name: po.vendor?.name,
               customer_name: po.customer?.name,
               project_name: po.project_name,
               expected_delivery_date: po.expected_delivery_date,
-              items_count: po.items?.length || 0,
+              items_count: shortageItems?.length || po.items?.length || 0,
             },
           },
         },
@@ -2895,30 +3201,7 @@ router.post(
 
       await transaction.commit();
 
-      // Send notification to Inventory Department
-      await NotificationService.sendToDepartment("inventory", {
-        type: "grn_request",
-        title: `📋 GRN Creation Request: PO ${po.po_number}`,
-        message: `Procurement has requested GRN creation for Purchase Order ${po.po_number}. Please review and create GRN when materials arrive.`,
-        priority: "high",
-        related_entity_id: po.id,
-        related_entity_type: "purchase_order",
-        action_url: `/inventory/grn-requests/${approval.id}`,
-        trigger_event: "grn_creation_requested",
-        actor_id: req.user.id,
-        metadata: {
-          po_number: po.po_number,
-          vendor_name: po.vendor?.name,
-          customer_name: po.customer?.name,
-          project_name: po.project_name,
-          expected_delivery_date: po.expected_delivery_date,
-          items_count: po.items?.length || 0,
-          requested_by: req.user.name,
-          request_notes: notes,
-        },
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      });
-
+      // Send response first (before async notification)
       res.json({
         message:
           "GRN creation request sent to Inventory Department successfully",
@@ -2930,6 +3213,35 @@ router.post(
         },
         next_step: "await_inventory_approval",
       });
+
+      // Send notification to Inventory Department (async, won't affect response)
+      try {
+        await NotificationService.sendToDepartment("inventory", {
+          type: "grn_request",
+          title: `📋 GRN Creation Request: PO ${po.po_number}`,
+          message: `Procurement has requested GRN creation for Purchase Order ${po.po_number}. Please review and create GRN when materials arrive.`,
+          priority: "high",
+          related_entity_id: po.id,
+          related_entity_type: "purchase_order",
+          action_url: `/inventory/grn-requests/${approval.id}`,
+          trigger_event: "grn_creation_requested",
+          actor_id: req.user.id,
+          metadata: {
+            po_number: po.po_number,
+            vendor_name: po.vendor?.name,
+            customer_name: po.customer?.name,
+            project_name: po.project_name,
+            expected_delivery_date: po.expected_delivery_date,
+            items_count: po.items?.length || 0,
+            requested_by: req.user.name,
+            request_notes: notes,
+          },
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        });
+      } catch (notifError) {
+        console.error("Failed to send GRN request notification:", notifError);
+        // Don't fail the whole operation if notification fails
+      }
     } catch (error) {
       await transaction.rollback();
       console.error("Error requesting GRN creation:", error);
@@ -3045,6 +3357,999 @@ router.put(
       res.status(500).json({
         message: "Failed to update Purchase Order status",
         error: error.message,
+      });
+    }
+  }
+);
+
+// ============================================
+// PDF GENERATION & EMAIL ENDPOINTS
+// ============================================
+
+/**
+ * Generate PO and Invoice PDFs for a Purchase Order
+ * POST /api/procurement/pos/:id/generate-pdfs
+ */
+router.post(
+  "/pos/:id/generate-pdfs",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    const transaction = await require("../config/database").sequelize.transaction();
+
+    try {
+      const { id } = req.params;
+
+      // Get PO with vendor and customer data
+      const purchaseOrder = await PurchaseOrder.findByPk(id, {
+        include: [
+          { model: Vendor, as: "vendor" },
+          { model: Customer, as: "customer" },
+        ],
+        transaction,
+      });
+
+      if (!purchaseOrder) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      // Update status to generating
+      await purchaseOrder.update(
+        { pdf_generation_status: "generating" },
+        { transaction }
+      );
+
+      // Generate PO PDF
+      let poPdfResult;
+      let invoicePdfResult;
+
+      try {
+        poPdfResult = await PDFGenerationService.generatePOPDF(
+          purchaseOrder,
+          purchaseOrder.vendor,
+          purchaseOrder.customer
+        );
+
+        // Generate Invoice PDF
+        invoicePdfResult = await PDFGenerationService.generateInvoicePDF(
+          purchaseOrder,
+          purchaseOrder.vendor
+        );
+
+        // Update purchase order with PDF paths
+        await purchaseOrder.update(
+          {
+            po_pdf_path: poPdfResult.filePath,
+            invoice_pdf_path: invoicePdfResult.filePath,
+            po_pdf_generated_at: new Date(),
+            invoice_pdf_generated_at: new Date(),
+            pdf_generation_status: "completed",
+            pdf_error_message: null,
+          },
+          { transaction }
+        );
+
+        await transaction.commit();
+
+        res.json({
+          success: true,
+          message: "PDFs generated successfully",
+          data: {
+            po_number: purchaseOrder.po_number,
+            po_pdf: poPdfResult.url,
+            invoice_pdf: invoicePdfResult.url,
+            generated_at: new Date().toISOString(),
+          },
+        });
+      } catch (pdfError) {
+        await purchaseOrder.update(
+          {
+            pdf_generation_status: "failed",
+            pdf_error_message: pdfError.message,
+          },
+          { transaction }
+        );
+        await transaction.commit();
+
+        return res.status(500).json({
+          success: false,
+          message: "Failed to generate PDFs",
+          error: pdfError.message,
+        });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.error("PDF generation error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to process PDF generation",
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * Send PO and Invoice PDFs to Accounting Department
+ * POST /api/procurement/pos/:id/send-to-accounting
+ */
+router.post(
+  "/pos/:id/send-to-accounting",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    const transaction = await require("../config/database").sequelize.transaction();
+
+    try {
+      const { id } = req.params;
+      const { accounting_email } = req.body;
+
+      // Get PO with vendor data
+      const purchaseOrder = await PurchaseOrder.findByPk(id, {
+        include: [{ model: Vendor, as: "vendor" }],
+        transaction,
+      });
+
+      if (!purchaseOrder) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      // Check if PDFs are generated
+      if (!purchaseOrder.po_pdf_path || !purchaseOrder.invoice_pdf_path) {
+        await transaction.rollback();
+        return res.status(400).json({
+          message: "PDFs not yet generated. Please generate PDFs first.",
+        });
+      }
+
+      // Send notification to Finance/Accounting department with PDF references
+      const notificationResult = await AccountingDocumentService.sendPOAndInvoiceToAccounting({
+        purchaseOrderId: id,
+        purchaseOrder,
+        poPdfPath: purchaseOrder.po_pdf_path,
+        invoicePdfPath: purchaseOrder.invoice_pdf_path,
+        vendor: purchaseOrder.vendor,
+        user: req.user,
+        transaction
+      });
+
+      if (!notificationResult.success) {
+        await transaction.rollback();
+        return res.status(500).json({
+          success: false,
+          message: "Failed to send notification to Finance department",
+          error: notificationResult.message,
+        });
+      }
+
+      // Update purchase order with accounting notification info
+      await purchaseOrder.update(
+        {
+          accounting_notification_sent: true,
+          accounting_notification_sent_at: new Date(),
+          accounting_sent_by: req.user.id,
+        },
+        { transaction }
+      );
+
+      // Additional notification to procurement team about the action
+      await NotificationService.sendToDepartment("procurement", {
+        type: "procurement",
+        title: `✓ PO Documents Sent to Finance: ${purchaseOrder.po_number}`,
+        message: `PO and Invoice for project "${purchaseOrder.project_name}" from vendor ${purchaseOrder.vendor.name} sent to Finance Department`,
+        priority: "medium",
+        related_entity_id: purchaseOrder.id,
+        related_entity_type: "purchase_order",
+        metadata: {
+          po_number: purchaseOrder.po_number,
+          vendor_name: purchaseOrder.vendor.name,
+          final_amount: purchaseOrder.final_amount,
+          project_name: purchaseOrder.project_name,
+        },
+      });
+
+      await transaction.commit();
+
+      res.json({
+        success: true,
+        message: `PO and Invoice notification sent to ${notificationResult.notificationCount} Finance Department user(s)`,
+        data: {
+          po_number: purchaseOrder.po_number,
+          notification_sent: true,
+          notifications_sent_to: notificationResult.notificationCount,
+          sent_at: purchaseOrder.accounting_notification_sent_at,
+          recipient_department: "finance"
+        },
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error sending to accounting:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to send to accounting department",
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * Download PO PDF
+ * GET /api/procurement/pos/:id/download-pdf
+ */
+router.get(
+  "/pos/:id/download-pdf",
+  authenticateToken,
+  checkDepartment(["procurement", "admin", "finance"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const purchaseOrder = await PurchaseOrder.findByPk(id);
+      if (!purchaseOrder) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      if (
+        !purchaseOrder.po_pdf_path ||
+        !fs.existsSync(purchaseOrder.po_pdf_path)
+      ) {
+        return res.status(404).json({ message: "PDF not available for download" });
+      }
+
+      const filename = `PO_${purchaseOrder.po_number}.pdf`;
+      res.download(purchaseOrder.po_pdf_path, filename, (err) => {
+        if (err) {
+          console.error("Download error:", err);
+          res.status(500).json({ message: "Failed to download PDF" });
+        }
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to download PDF", error: error.message });
+    }
+  }
+);
+
+/**
+ * Download Invoice PDF
+ * GET /api/procurement/pos/:id/download-invoice
+ */
+router.get(
+  "/pos/:id/download-invoice",
+  authenticateToken,
+  checkDepartment(["procurement", "admin", "finance"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const purchaseOrder = await PurchaseOrder.findByPk(id);
+      if (!purchaseOrder) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      if (
+        !purchaseOrder.invoice_pdf_path ||
+        !fs.existsSync(purchaseOrder.invoice_pdf_path)
+      ) {
+        return res.status(404).json({ message: "Invoice PDF not available" });
+      }
+
+      const filename = `INVOICE_${purchaseOrder.po_number}.pdf`;
+      res.download(purchaseOrder.invoice_pdf_path, filename, (err) => {
+        if (err) {
+          console.error("Download error:", err);
+          res.status(500).json({ message: "Failed to download invoice" });
+        }
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to download invoice", error: error.message });
+    }
+  }
+);
+
+/**
+ * Get PDF Generation Status
+ * GET /api/procurement/pos/:id/pdf-status
+ */
+router.get(
+  "/pos/:id/pdf-status",
+  authenticateToken,
+  checkDepartment(["procurement", "admin", "finance"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const purchaseOrder = await PurchaseOrder.findByPk(id, {
+        attributes: [
+          "po_number",
+          "pdf_generation_status",
+          "po_pdf_generated_at",
+          "invoice_pdf_generated_at",
+          "accounting_notification_sent",
+          "accounting_notification_sent_at",
+          "pdf_error_message",
+        ],
+      });
+
+      if (!purchaseOrder) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      res.json({
+        po_number: purchaseOrder.po_number,
+        pdf_status: purchaseOrder.pdf_generation_status,
+        po_generated_at: purchaseOrder.po_pdf_generated_at,
+        invoice_generated_at: purchaseOrder.invoice_pdf_generated_at,
+        accounting_notified: purchaseOrder.accounting_notification_sent,
+        accounting_notified_at: purchaseOrder.accounting_notification_sent_at,
+        error_message: purchaseOrder.pdf_error_message,
+      });
+    } catch (error) {
+      console.error("Status check error:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to check PDF status", error: error.message });
+    }
+  }
+);
+
+/**
+ * Regenerate PDFs (if needed)
+ * POST /api/procurement/pos/:id/regenerate-pdfs
+ */
+router.post(
+  "/pos/:id/regenerate-pdfs",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    const transaction = await require("../config/database").sequelize.transaction();
+
+    try {
+      const { id } = req.params;
+
+      const purchaseOrder = await PurchaseOrder.findByPk(id, {
+        include: [
+          { model: Vendor, as: "vendor" },
+          { model: Customer, as: "customer" },
+        ],
+        transaction,
+      });
+
+      if (!purchaseOrder) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      // Delete old PDFs if they exist
+      if (
+        purchaseOrder.po_pdf_path &&
+        fs.existsSync(purchaseOrder.po_pdf_path)
+      ) {
+        fs.unlinkSync(purchaseOrder.po_pdf_path);
+      }
+      if (
+        purchaseOrder.invoice_pdf_path &&
+        fs.existsSync(purchaseOrder.invoice_pdf_path)
+      ) {
+        fs.unlinkSync(purchaseOrder.invoice_pdf_path);
+      }
+
+      // Generate new PDFs
+      const poPdfResult = await PDFGenerationService.generatePOPDF(
+        purchaseOrder,
+        purchaseOrder.vendor,
+        purchaseOrder.customer
+      );
+
+      const invoicePdfResult = await PDFGenerationService.generateInvoicePDF(
+        purchaseOrder,
+        purchaseOrder.vendor
+      );
+
+      // Update with new PDF paths
+      await purchaseOrder.update(
+        {
+          po_pdf_path: poPdfResult.filePath,
+          invoice_pdf_path: invoicePdfResult.filePath,
+          po_pdf_generated_at: new Date(),
+          invoice_pdf_generated_at: new Date(),
+          pdf_generation_status: "completed",
+          pdf_error_message: null,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      res.json({
+        success: true,
+        message: "PDFs regenerated successfully",
+        data: {
+          po_number: purchaseOrder.po_number,
+          regenerated_at: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Regenerate PDFs error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to regenerate PDFs",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ============================================
+// HSN CODE ENDPOINTS
+// ============================================
+
+// Get all HSN codes
+router.get(
+  "/hsn-codes",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { search, category, is_active = true } = req.query;
+      const where = {};
+
+      if (is_active !== "false") {
+        where.is_active = true;
+      }
+
+      if (category) {
+        where.category = category;
+      }
+
+      if (search) {
+        where[Op.or] = [
+          { code: { [Op.like]: `%${search}%` } },
+          { description: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      const hsnCodes = await HSNCode.findAll({
+        where,
+        order: [['code', 'ASC']],
+        attributes: ['id', 'code', 'description', 'category', 'gst_rate', 'unit_of_measure']
+      });
+
+      res.json({
+        hsnCodes,
+        total: hsnCodes.length
+      });
+    } catch (error) {
+      console.error('Error fetching HSN codes:', error);
+      res.status(500).json({ message: 'Failed to fetch HSN codes' });
+    }
+  }
+);
+
+// Get HSN code by code
+router.get(
+  "/hsn-codes/:code",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { code } = req.params;
+
+      const hsnCode = await HSNCode.findOne({
+        where: { code },
+        attributes: ['id', 'code', 'description', 'category', 'gst_rate', 'unit_of_measure', 'remarks']
+      });
+
+      if (!hsnCode) {
+        return res.status(404).json({ message: 'HSN code not found' });
+      }
+
+      res.json({ hsnCode });
+    } catch (error) {
+      console.error('Error fetching HSN code:', error);
+      res.status(500).json({ message: 'Failed to fetch HSN code' });
+    }
+  }
+);
+
+// Create HSN code (admin only)
+router.post(
+  "/hsn-codes",
+  authenticateToken,
+  checkDepartment(["admin"]),
+  async (req, res) => {
+    try {
+      const { code, description, category, gst_rate, unit_of_measure, remarks } = req.body;
+
+      if (!code || !description) {
+        return res.status(400).json({ message: 'Code and description are required' });
+      }
+
+      const existingCode = await HSNCode.findOne({ where: { code } });
+      if (existingCode) {
+        return res.status(400).json({ message: 'HSN code already exists' });
+      }
+
+      const hsnCode = await HSNCode.create({
+        code,
+        description,
+        category,
+        gst_rate: gst_rate || 0,
+        unit_of_measure: unit_of_measure || 'Meters',
+        remarks,
+        created_by: req.user.id
+      });
+
+      res.status(201).json({
+        message: 'HSN code created successfully',
+        hsnCode
+      });
+    } catch (error) {
+      console.error('Error creating HSN code:', error);
+      res.status(500).json({ message: 'Failed to create HSN code' });
+    }
+  }
+);
+
+// Get HSN categories
+router.get(
+  "/hsn-codes-categories",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const categories = await HSNCode.findAll({
+        attributes: ['category'],
+        where: { is_active: true },
+        raw: true,
+        group: ['category'],
+        order: [['category', 'ASC']]
+      });
+
+      const uniqueCategories = categories
+        .map(c => c.category)
+        .filter((c, idx, arr) => c && arr.indexOf(c) === idx);
+
+      res.json({ categories: uniqueCategories });
+    } catch (error) {
+      console.error('Error fetching HSN categories:', error);
+      res.status(500).json({ message: 'Failed to fetch categories' });
+    }
+  }
+);
+
+// Send PO to Vendor via Email and/or WhatsApp
+router.post(
+  "/pos/:id/send-to-vendor",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { sendEmail = true, sendWhatsapp = false } = req.body;
+
+      const purchaseOrder = await PurchaseOrder.findByPk(id, {
+        include: [
+          { model: Vendor, as: "vendor", attributes: ["id", "name", "email", "phone", "contact_person"] },
+          { model: Customer, as: "customer", attributes: ["id", "name", "email"] },
+          { model: User, as: "creator", attributes: ["id", "name", "email"] }
+        ]
+      });
+
+      if (!purchaseOrder) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      console.log(`[Send to Vendor] PO #${id} - Current status: "${purchaseOrder.status}", Approval status: "${purchaseOrder.approval_status}"`);
+
+      if (purchaseOrder.status !== "approved") {
+        return res.status(400).json({ 
+          message: "Only approved POs can be sent to vendors",
+          currentStatus: purchaseOrder.status,
+          requiredStatus: "approved"
+        });
+      }
+
+      const emailService = require('../utils/emailService');
+      let sentVia = [];
+      let errors = [];
+
+      // Send via Email if requested
+      if (sendEmail && purchaseOrder.vendor?.email) {
+        try {
+          await emailService.sendPOToVendor(purchaseOrder, purchaseOrder.vendor);
+          sentVia.push("Email");
+          console.log(`✓ Email sent to ${purchaseOrder.vendor.email}`);
+        } catch (emailError) {
+          console.error("Error sending email:", emailError);
+          errors.push(`Email: ${emailError.message}`);
+        }
+      }
+
+      // Send via WhatsApp if requested
+      if (sendWhatsapp && purchaseOrder.vendor?.phone) {
+        try {
+          const whatsappResult = await emailService.sendWhatsAppMessage(purchaseOrder, purchaseOrder.vendor);
+          if (whatsappResult.success) {
+            sentVia.push("WhatsApp");
+            console.log(`✓ WhatsApp message sent to ${purchaseOrder.vendor.phone}`);
+          } else {
+            console.warn(`⚠️ WhatsApp not sent: ${whatsappResult.message}`);
+            errors.push(`WhatsApp: ${whatsappResult.message}`);
+          }
+        } catch (whatsappError) {
+          console.error("Error sending WhatsApp:", whatsappError);
+          errors.push(`WhatsApp: ${whatsappError.message}`);
+        }
+      }
+
+      // Update PO status to 'sent'
+      await purchaseOrder.update({
+        status: "sent",
+        sent_at: new Date()
+      });
+
+      // Send notification to procurement team
+      await NotificationService.sendToDepartment("procurement", {
+        type: "procurement",
+        title: `PO Sent to Vendor: ${purchaseOrder.po_number}`,
+        message: `Purchase Order ${purchaseOrder.po_number} has been sent to vendor ${purchaseOrder.vendor?.name} via ${sentVia.length > 0 ? sentVia.join(" & ") : "Manual"}. Amount: ₹${parseFloat(purchaseOrder.final_amount).toLocaleString('en-IN')}`,
+        priority: "high",
+        related_entity_id: purchaseOrder.id,
+        related_entity_type: "purchase_order",
+        action_url: `/procurement/purchase-orders/${purchaseOrder.id}`,
+        metadata: {
+          po_number: purchaseOrder.po_number,
+          vendor_name: purchaseOrder.vendor?.name,
+          sent_via: sentVia.length > 0 ? sentVia.join(", ") : "Manual",
+          sent_at: new Date()
+        }
+      });
+
+      // Send notification to vendor (in-system if they are a user)
+      // In a real implementation, this would also send external email/WhatsApp
+
+      res.json({
+        success: true,
+        message: `PO sent to vendor successfully${sentVia.length > 0 ? ` via ${sentVia.join(" & ")}` : ""}!${errors.length > 0 ? ` (Errors: ${errors.join(', ')})` : ''}`,
+        sentVia,
+        errors: errors.length > 0 ? errors : undefined,
+        purchaseOrder: {
+          id: purchaseOrder.id,
+          po_number: purchaseOrder.po_number,
+          status: purchaseOrder.status,
+          sent_at: purchaseOrder.sent_at
+        }
+      });
+    } catch (error) {
+      console.error("Error sending PO to vendor:", error);
+      res.status(500).json({ 
+        message: "Failed to send PO to vendor",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  }
+);
+
+// ============================================
+// INVENTORY SHORTAGE & OVERAGE REQUESTS
+// ============================================
+
+// Get incoming shortage/overage requests for procurement
+router.get(
+  "/inventory-requests",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const { status = "pending_approval", type = "all", limit = 50, offset = 0 } = req.query;
+      const { InventoryShortageRequest, User } = require("../config/database");
+
+      const whereClause = {};
+      if (status !== "all") whereClause.status = status;
+      if (type !== "all") whereClause.request_type = type;
+
+      const { count, rows: requests } = await InventoryShortageRequest.findAndCountAll({
+        where: whereClause,
+        include: [
+          { model: User, as: "creator", attributes: ["id", "name", "email"] },
+          { model: User, as: "approver", attributes: ["id", "name", "email"], required: false },
+          { model: User, as: "rejector", attributes: ["id", "name", "email"], required: false }
+        ],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        order: [["created_at", "DESC"]]
+      });
+
+      res.json({
+        requests,
+        total: count,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      });
+    } catch (error) {
+      console.error("Error fetching inventory requests:", error);
+      res.status(500).json({
+        message: "Failed to fetch inventory requests",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Create inventory shortage/overage request
+router.post(
+  "/inventory-requests",
+  authenticateToken,
+  checkDepartment(["inventory", "manufacturing", "procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const {
+        request_type,
+        product_id,
+        product_name,
+        product_code,
+        current_stock,
+        minimum_stock,
+        required_quantity,
+        uom,
+        reason,
+        priority,
+        notes
+      } = req.body;
+
+      if (!request_type || !product_name || required_quantity === undefined) {
+        return res.status(400).json({
+          message: "Missing required fields: request_type, product_name, required_quantity"
+        });
+      }
+
+      const { InventoryShortageRequest } = require("../config/database");
+
+      // Generate request number
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const randomSuffix = Math.random().toString(36).substr(2, 5).toUpperCase();
+      const request_number = `ISR-${timestamp}-${randomSuffix}`;
+
+      const request = await InventoryShortageRequest.create({
+        request_number,
+        request_type,
+        product_id,
+        product_code,
+        product_name,
+        current_stock: current_stock || 0,
+        minimum_stock: minimum_stock || 0,
+        required_quantity,
+        uom,
+        reason,
+        priority: priority || "medium",
+        status: "pending_approval",
+        created_by: req.user.id,
+        notes
+      });
+
+      // Notify procurement department
+      const procurementUsers = await User.findAll({
+        where: { department: "procurement" }
+      });
+
+      for (const user of procurementUsers) {
+        await Notification.create({
+          user_id: user.id,
+          title: `New ${request_type === 'shortage' ? 'Shortage' : 'Overage'} Request: ${product_name}`,
+          message: `${request_type === 'shortage' ? 'Shortage' : 'Overage'} request for ${product_name} (Qty: ${required_quantity} ${uom || 'units'}) requires approval`,
+          type: "procurement_request",
+          reference_id: request.id,
+          reference_type: "inventory_shortage_request"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Inventory shortage/overage request created successfully",
+        request
+      });
+    } catch (error) {
+      console.error("Error creating inventory request:", error);
+      res.status(500).json({
+        message: "Failed to create inventory request",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Approve inventory shortage/overage request
+router.patch(
+  "/inventory-requests/:id/approve",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      const { InventoryShortageRequest } = require("../config/database");
+
+      const request = await InventoryShortageRequest.findByPk(id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      await request.update({
+        status: "approved",
+        approved_by: req.user.id,
+        approved_at: new Date(),
+        notes: notes || request.notes
+      });
+
+      res.json({
+        success: true,
+        message: "Inventory request approved successfully",
+        request
+      });
+    } catch (error) {
+      console.error("Error approving inventory request:", error);
+      res.status(500).json({
+        message: "Failed to approve inventory request",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Reject inventory shortage/overage request
+router.patch(
+  "/inventory-requests/:id/reject",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { rejection_reason } = req.body;
+      const { InventoryShortageRequest } = require("../config/database");
+
+      const request = await InventoryShortageRequest.findByPk(id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      await request.update({
+        status: "rejected",
+        rejected_by: req.user.id,
+        rejection_reason,
+        rejected_at: new Date()
+      });
+
+      res.json({
+        success: true,
+        message: "Inventory request rejected successfully",
+        request
+      });
+    } catch (error) {
+      console.error("Error rejecting inventory request:", error);
+      res.status(500).json({
+        message: "Failed to reject inventory request",
+        error: error.message
+      });
+    }
+  }
+);
+
+// Generate Invoice from Purchase Order
+router.post(
+  "/pos/:id/generate-invoice",
+  authenticateToken,
+  checkDepartment(["procurement", "finance", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get PO with vendor and customer data
+      const purchaseOrder = await PurchaseOrder.findByPk(id, {
+        include: [
+          { model: Vendor, as: "vendor" },
+          { model: Customer, as: "customer" }
+        ]
+      });
+
+      if (!purchaseOrder) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      // Parse items if they are stored as JSON string
+      const rawItems = typeof purchaseOrder.items === "string" 
+        ? JSON.parse(purchaseOrder.items)
+        : purchaseOrder.items || [];
+
+      // Clean items - remove problematic fields like 'type'
+      const items = rawItems.map(({ type, ...item }) => item);
+
+      // Calculate subtotal
+      const subtotal = items.reduce((sum, item) => {
+        return sum + (parseFloat(item.total) || 0);
+      }, 0);
+
+      // Calculate tax
+      const taxRate = parseFloat(purchaseOrder.tax_percentage || 0) / 100;
+      const taxAmount = subtotal * taxRate;
+
+      // Calculate total
+      const total = subtotal + taxAmount + (parseFloat(purchaseOrder.freight || 0));
+
+      // Generate unique invoice number
+      const invoiceNumber = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+      // Create invoice
+      const invoice = await Invoice.create({
+        invoice_number: invoiceNumber,
+        invoice_type: "purchase",
+        vendor_id: purchaseOrder.vendor_id,
+        purchase_order_id: purchaseOrder.id,
+        invoice_date: new Date(),
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        items: items,
+        subtotal: subtotal,
+        discount_percentage: purchaseOrder.discount_percentage || 0,
+        discount_amount: (subtotal * (parseFloat(purchaseOrder.discount_percentage || 0) / 100)),
+        total_tax_amount: taxAmount,
+        shipping_charges: purchaseOrder.freight || 0,
+        total_amount: total,
+        payment_status: "unpaid",
+        status: "draft",
+        created_by: req.user.id
+      });
+
+      // Update PO with invoice reference
+      await purchaseOrder.update({
+        invoice_id: invoice.id,
+        invoice_generated_at: new Date()
+      });
+
+      // Notify finance department
+      await NotificationService.sendToDepartment("finance", {
+        type: "invoice",
+        title: `New Vendor Invoice: ${invoiceNumber}`,
+        message: `Purchase Order ${purchaseOrder.po_number} has generated invoice ${invoiceNumber}`,
+        priority: "medium",
+        related_order_id: null,
+        related_entity_id: purchaseOrder.id,
+        related_entity_type: 'purchase_order',
+        action_url: `/finance/invoices/${invoice.id}`,
+        metadata: {
+          invoice_number: invoiceNumber,
+          po_number: purchaseOrder.po_number,
+          vendor_name: purchaseOrder.vendor?.name,
+          total_amount: total,
+          created_by: req.user.name,
+          created_at: new Date()
+        },
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      });
+
+      res.json({
+        success: true,
+        message: "Invoice generated successfully",
+        invoice: {
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          po_number: purchaseOrder.po_number,
+          vendor_name: purchaseOrder.vendor?.name,
+          total_amount: invoice.total_amount,
+          created_at: invoice.created_at
+        }
+      });
+    } catch (error) {
+      console.error("Error generating invoice:", error);
+      res.status(500).json({
+        message: "Failed to generate invoice",
+        error: error.message
       });
     }
   }

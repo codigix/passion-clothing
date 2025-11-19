@@ -123,7 +123,7 @@ module.exports = (sequelize) => {
       defaultValue: 0.00
     },
     status: {
-      type: DataTypes.ENUM('draft', 'pending_approval', 'approved', 'sent', 'acknowledged', 'dispatched', 'in_transit', 'grn_requested', 'partial_received', 'received', 'completed', 'cancelled'),
+      type: DataTypes.ENUM('draft', 'pending_approval', 'approved', 'sent', 'acknowledged', 'dispatched', 'in_transit', 'grn_requested', 'partial_received', 'received', 'grn_shortage', 'grn_overage', 'reopened', 'excess_received', 'completed', 'cancelled'),
       defaultValue: 'draft'
     },
     priority: {
@@ -133,6 +133,12 @@ module.exports = (sequelize) => {
     payment_terms: {
       type: DataTypes.STRING(100),
       allowNull: true
+    },
+    advance_payment_percentage: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      defaultValue: null,
+      comment: 'Advance payment requirement percentage extracted from payment terms (e.g., 50 for 50% advance)'
     },
     delivery_address: {
       type: DataTypes.TEXT,
@@ -251,6 +257,56 @@ module.exports = (sequelize) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
       comment: 'Flag to indicate if PO requires re-approval after edits'
+    },
+    po_pdf_path: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: 'Path to generated PO PDF file'
+    },
+    invoice_pdf_path: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: 'Path to generated Invoice PDF file'
+    },
+    po_pdf_generated_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Timestamp when PO PDF was generated'
+    },
+    invoice_pdf_generated_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Timestamp when Invoice PDF was generated'
+    },
+    accounting_notification_sent: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: 'Flag to track if accounting department was notified with PDFs'
+    },
+    accounting_notification_sent_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Timestamp when accounting department notification was sent'
+    },
+    accounting_sent_by: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      comment: 'User ID who sent notification to accounting'
+    },
+    pdf_generation_status: {
+      type: DataTypes.ENUM('pending', 'generating', 'completed', 'failed'),
+      defaultValue: 'pending',
+      comment: 'Current status of PDF generation'
+    },
+    pdf_error_message: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Error message if PDF generation fails'
     }
   }, {
     tableName: 'purchase_orders',
@@ -269,7 +325,9 @@ module.exports = (sequelize) => {
       { fields: ['version_number'] },
       { fields: ['last_edited_at'] },
       { fields: ['requires_reapproval'] },
-      { fields: ['last_edited_by'] }
+      { fields: ['last_edited_by'] },
+      { fields: ['accounting_notification_sent'] },
+      { fields: ['pdf_generation_status'] }
     ]
   });
 

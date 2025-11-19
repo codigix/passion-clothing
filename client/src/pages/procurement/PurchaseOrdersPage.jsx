@@ -95,6 +95,9 @@ const PurchaseOrdersPage = () => {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({});
   const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showSendToFinanceModal, setShowSendToFinanceModal] = useState(false);
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -308,7 +311,7 @@ const PurchaseOrdersPage = () => {
   const handleSendToVendor = async (order) => {
     if (
       !window.confirm(
-        `Send PO ${order.po_number} to vendor ${order.vendor?.name}?`
+        `Send PO ${order.po_number} to vendor ${order.vendor?.name}? This will also generate an invoice for this order.`
       )
     ) {
       return;
@@ -316,7 +319,15 @@ const PurchaseOrdersPage = () => {
 
     try {
       await api.patch(`/procurement/pos/${order.id}`, { status: "sent" });
-      toast.success("Purchase order sent to vendor successfully!");
+      
+      try {
+        await api.post(`/procurement/pos/${order.id}/generate-invoice`);
+        toast.success("Purchase order sent to vendor and invoice generated successfully!");
+      } catch (invoiceError) {
+        console.error("Invoice generation error:", invoiceError);
+        toast.success("Purchase order sent to vendor! (Invoice generation had an issue, you can generate it manually)");
+      }
+      
       fetchOrders();
       fetchSummary();
     } catch (error) {
@@ -440,14 +451,35 @@ const PurchaseOrdersPage = () => {
     }
 
     try {
-      await api.post(`/procurement/pos/${order.id}/generate-invoice`);
+      const response = await api.post(`/procurement/pos/${order.id}/generate-invoice`);
       toast.success("Vendor invoice generated successfully!");
+      setSelectedInvoice(response.data.invoice);
+      setShowInvoiceModal(true);
       fetchOrders();
       fetchSummary();
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Failed to generate invoice"
       );
+    }
+  };
+
+  const handleSendToFinance = async (formData) => {
+    try {
+      toast.loading('Sending invoice to Finance...');
+      await api.post(`/finance/financial-records`, {
+        invoice_id: selectedInvoice.id,
+        ...formData
+      });
+      toast.dismiss();
+      toast.success('Invoice sent to Finance department successfully!');
+      setShowSendToFinanceModal(false);
+      setShowInvoiceModal(false);
+      setSelectedInvoice(null);
+      fetchOrders();
+    } catch (error) {
+      toast.dismiss();
+      toast.error(error.response?.data?.message || 'Failed to send to Finance');
     }
   };
 
@@ -854,8 +886,8 @@ const PurchaseOrdersPage = () => {
                   <option value="approved">Approved</option>
                   <option value="sent">Sent to Vendor</option>
                   <option value="acknowledged">Acknowledged</option>
-                  <option value="dispatched">🚚 Dispatched</option>
-                  <option value="in_transit">🚛 In Transit</option>
+                  <option value="dispatched">📤 Dispatched</option>
+                  <option value="in_transit">📦 In Transit</option>
                   <option value="grn_requested">GRN Requested</option>
                   <option value="grn_created">GRN Created</option>
                   <option value="partial_received">Partially Received</option>
@@ -1201,8 +1233,10 @@ const PurchaseOrdersPage = () => {
                                   </button>
                                 )}
 
-                                {/* Request GRN Creation - For sent status (LEGACY - Manual Option) */}
-                                {order.status?.toLowerCase() === "sent" && (
+                                {/* Request GRN Creation - For sent or received status */}
+                                {["sent", "received", "partial_received", "acknowledged"].includes(
+                                  order.status?.toLowerCase()
+                                ) && (
                                   <button
                                     onClick={() => {
                                       handleRequestGRN(order);
@@ -1437,9 +1471,256 @@ const PurchaseOrdersPage = () => {
             onSubmit={handleSubmit}
           />
         )}
+
+        {/* Invoice View Modal */}
+        {showInvoiceModal && selectedInvoice && (
+          <InvoiceViewModal
+            invoice={selectedInvoice}
+            onClose={() => {
+              setShowInvoiceModal(false);
+              setSelectedInvoice(null);
+            }}
+            onSendToFinance={() => setShowSendToFinanceModal(true)}
+          />
+        )}
+
+        {/* Send to Finance Modal */}
+        {showSendToFinanceModal && selectedInvoice && (
+          <SendToFinanceModal
+            invoice={selectedInvoice}
+            onSubmit={handleSendToFinance}
+            onClose={() => setShowSendToFinanceModal(false)}
+          />
+        )}
       </div>
     </div>
   );
 };
+
+function InvoiceViewModal({ invoice, onClose, onSendToFinance }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Invoice Details</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            ✕
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-6 max-h-96 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs text-gray-600 font-medium uppercase">Invoice Number</p>
+              <p className="text-lg font-semibold text-gray-900 mt-1">{invoice.invoice_number}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 font-medium uppercase">Status</p>
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 mt-1">
+                {invoice.status?.replace('_', ' ').toUpperCase()}
+              </span>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Order Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-gray-600 font-medium">PO Number</p>
+                <p className="text-gray-900 mt-1">{invoice.po_number || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Invoice Date</p>
+                <p className="text-gray-900 mt-1">{new Date(invoice.invoice_date).toLocaleDateString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Financial Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Subtotal</p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(invoice.subtotal || 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Tax Amount</p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(invoice.total_tax_amount || 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Shipping</p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(invoice.shipping_charges || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-blue-50 p-3 rounded">
+                <p className="text-xs text-gray-600 font-medium">Total Amount</p>
+                <p className="text-lg font-bold text-blue-600 mt-1">₹{(invoice.total_amount || 0).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+          >
+            Close
+          </button>
+          <button
+            onClick={onSendToFinance}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <FaMoneyBillWave size={14} /> Send to Finance
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SendToFinanceModal({ invoice, onSubmit, onClose }) {
+  const [form, setForm] = useState({
+    record_type: 'debit',
+    account_head: 'Vendor Invoice',
+    description: `Vendor invoice ${invoice.invoice_number} for processing`,
+    amount: invoice.total_amount || 0,
+    project_name: '',
+    department: 'Procurement',
+    notes: ''
+  });
+
+  const [checkedItems, setCheckedItems] = useState({
+    verified: false,
+    approved: false,
+    payment_authorized: false
+  });
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (!checkedItems.verified || !checkedItems.approved || !checkedItems.payment_authorized) {
+      toast.error('Please check all required items before sending');
+      return;
+    }
+    onSubmit(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-96 overflow-y-auto">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+          <h2 className="text-lg font-semibold text-gray-900">Send Invoice to Finance</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleFormSubmit} className="px-6 py-4 space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+            <p className="text-sm text-blue-900 font-medium mb-2">Please verify and approve the invoice:</p>
+            <ul className="text-xs text-blue-800 space-y-1">
+              <li>✓ Check invoice details and amount</li>
+              <li>✓ Verify vendor and PO information</li>
+              <li>✓ Confirm payment authorization status</li>
+            </ul>
+          </div>
+
+          <div className="space-y-3 bg-gray-50 p-4 rounded">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={checkedItems.verified}
+                onChange={(e) => setCheckedItems({ ...checkedItems, verified: e.target.checked })}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <span className="text-sm text-gray-700 font-medium">Invoice verified and validated</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={checkedItems.approved}
+                onChange={(e) => setCheckedItems({ ...checkedItems, approved: e.target.checked })}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <span className="text-sm text-gray-700 font-medium">Invoice approved for processing</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={checkedItems.payment_authorized}
+                onChange={(e) => setCheckedItems({ ...checkedItems, payment_authorized: e.target.checked })}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <span className="text-sm text-gray-700 font-medium">Payment authorized</span>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Record Type</label>
+            <select
+              value={form.record_type}
+              onChange={(e) => setForm({ ...form, record_type: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="debit">Debit</option>
+              <option value="credit">Credit</option>
+              <option value="journal_entry">Journal Entry</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Head</label>
+            <input
+              type="text"
+              value={form.account_head}
+              onChange={(e) => setForm({ ...form, account_head: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Vendor Invoice"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <input
+              type="text"
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Department"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows="2"
+              placeholder="Additional notes (optional)"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <FaMoneyBillWave size={14} /> Send to Finance
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default PurchaseOrdersPage;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaSpinner, FaExclamationTriangle, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { Eye, Zap } from "lucide-react";
+import { Eye, Zap, Package, Calendar, Target, Truck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Slider from "react-slick";
 import api from "../../utils/api";
@@ -44,8 +44,8 @@ const RecentActivities = ({ autoRefreshInterval = 30000 }) => {
   }, [autoRefreshInterval]);
 
   // Filter activities by stage
-  const filteredActivities = selectedStage === "all" 
-    ? activities 
+  const filteredActivities = selectedStage === "all"
+    ? activities
     : activities.filter(activity => activity.stage === selectedStage || activity.status === selectedStage);
 
   // Get unique stages for filter tabs
@@ -86,10 +86,25 @@ const RecentActivities = ({ autoRefreshInterval = 30000 }) => {
       case "order_activity":
         return "📋";
       case "shipment_activity":
-        return "🚚";
+        return <Truck className="w-5 h-5" />;
       default:
         return "📌";
     }
+  };
+
+  const getStatusTextColor = (status) => {
+    const statusColors = {
+      draft: "text-slate-600",
+      pending_approval: "text-amber-600",
+      confirmed: "text-blue-600",
+      in_production: "text-indigo-600",
+      ready_to_ship: "text-cyan-600",
+      shipped: "text-blue-600",
+      delivered: "text-green-600",
+      completed: "text-emerald-600",
+      cancelled: "text-red-600",
+    };
+    return statusColors[status] || "text-slate-600";
   };
 
   if (loading) {
@@ -145,11 +160,10 @@ const RecentActivities = ({ autoRefreshInterval = 30000 }) => {
             onClick={() => {
               setSelectedStage(stage);
             }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              selectedStage === stage
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${selectedStage === stage
                 ? "bg-blue-600 text-white shadow-md"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
+              }`}
           >
             {stage === "all" ? "All" : stage}
           </button>
@@ -168,7 +182,7 @@ const RecentActivities = ({ autoRefreshInterval = 30000 }) => {
             slidesToShow={2}
             slidesToScroll={1}
             arrows={false}
-            dots={true}
+            dots={false}
             draggable={false}
             swipe={false}
             autoplay={false}
@@ -184,103 +198,72 @@ const RecentActivities = ({ autoRefreshInterval = 30000 }) => {
                 className="px-2"
               >
                 <div
-                  className={`${
-                    getActivityColor(activity.type).bg
-                  } border-2 ${
-                    getActivityColor(activity.type).border
-                  } rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg hover:scale-105 group h-full`}
+                  className={`${getActivityColor(activity.type).bg
+                    } border-2 ${getActivityColor(activity.type).border
+                    } rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg hover:scale-105 group h-full`}
                   onClick={() => handleViewOrder(activity)}
                 >
-                  {/* Top Section */}
-                  <div className="flex items-start justify-between mb-3">
-                    {/* Icon & Title */}
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="flex-shrink-0 text-2xl rounded-lg bg-white p-2 flex items-center justify-center w-10 h-10 shadow-sm group-hover:scale-110 transition-transform">
+                  {/* Header Section */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 text-xl rounded-lg bg-white p-2 flex items-center justify-center w-9 h-9 shadow-sm group-hover:scale-110 transition-transform">
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div>
-                          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-0.5">Project</p>
-                          <h4 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors truncate">
-                            {activity.title}
-                          </h4>
-                        </div>
-                        {activity.order_number && (
-                          <p className="text-xs text-slate-600 mt-1">
-                            <span className="text-slate-500">Order ID:</span>
-                            <span className="font-mono font-semibold ml-1">{activity.order_number}</span>
-                          </p>
+                        {activity.status && (
+                          <div className="flex items-start gap-2.5">
+
+                            <div className="flex-1 min-w-0">
+
+                              <p className={`font-semibold text-slate-900 text-xs truncate ${getStatusTextColor(activity.status)}`}>
+                                {activity.status.replace(/_/g, ' ')}
+                              </p>
+                            </div>
+                          </div>
                         )}
-                        <p className="text-xs text-slate-500 mt-1">
-                          {typeof activity.timestamp === "string"
-                            ? activity.timestamp
-                            : activity.timestamp || "N/A"}
-                        </p>
+                        
+                        <h4 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors truncate">
+                          {activity.title}
+                        </h4>
+                        
+
+                        {/* Status Badge */}
+                        {activity.product_name && (
+                          <div className="flex items-start gap-2.5 mt-1">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-slate-900 text-xs truncate">
+                                {activity.product_name}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {activity.delivery_date && (
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                            <p className={`font-medium text-xs truncate ${
+                              new Date(activity.delivery_date) < new Date(new Date().toDateString())
+                                ? 'text-red-600 font-semibold'
+                                : 'text-slate-600'
+                            }`}>
+                              Delivery: {new Date(activity.delivery_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    {/* View Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleViewOrder(activity);
                       }}
-                      className="flex-shrink-0 p-2 bg-white rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all shadow-sm hover:shadow-md"
+                      className="flex-shrink-0 ml-2 p-1.5 bg-white rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all shadow-sm hover:shadow-md"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                   </div>
 
-                  {/* Details Section */}
-                  <div className="space-y-2 text-xs">
-                    {/* Product */}
-                    {activity.product_name && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400">📦</span>
-                        <span className="truncate">
-                          <span className="text-slate-600">Product:</span>
-                          <span className="font-semibold text-slate-900 ml-1">{activity.product_name}</span>
-                        </span>
-                      </div>
-                    )}
+                  {/* Divider */}
 
-                    {/* Customer */}
-                    {activity.customer &&
-                      activity.customer !== "Unknown" &&
-                      activity.customer !== "Unknown Customer" && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400">👤</span>
-                          <span className="truncate">
-                            <span className="text-slate-600">Customer:</span>
-                            <span className="font-semibold text-slate-900 ml-1">{activity.customer}</span>
-                          </span>
-                        </div>
-                      )}
-
-                    {/* Stage & Status Badges */}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {activity.stage && (
-                        <span className="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold text-xs whitespace-nowrap">
-                          🏭 {activity.stage}
-                        </span>
-                      )}
-
-                      {activity.status && (
-                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold capitalize text-xs whitespace-nowrap">
-                          📊 {activity.status}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Order Number */}
-                    {activity.order_number && (
-                      <div className="mt-3 pt-3 border-t border-current border-opacity-10">
-                        <p className="text-xs text-slate-600">
-                          Order #<span className="font-mono font-bold">{activity.order_number}</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             ))}

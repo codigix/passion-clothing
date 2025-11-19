@@ -65,7 +65,7 @@ const ShipmentTrackingPage = () => {
   };
 
   const handleTrackShipment = async (trackingNum = trackingNumber) => {
-    if (!trackingNum.trim()) {
+    if (!trackingNum || !trackingNum.trim()) {
       toast.error('Please enter a tracking number');
       return;
     }

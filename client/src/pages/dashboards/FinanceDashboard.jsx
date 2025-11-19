@@ -11,7 +11,10 @@ import {
   Download,
   CheckCircle,
   Clock,
+  Trash2,
+  X,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -26,10 +29,6 @@ import {
 } from "../finance/financeConstants";
 import {
   financeStats,
-  financeKPIs,
-  invoiceSummary,
-  financeInvoices,
-  financePayments,
   cashFlowEvents,
   financialHighlights,
   expenseBreakdown,
@@ -49,34 +48,85 @@ const FinanceDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("invoices");
   const [filterType, setFilterType] = useState("all");
-  const [stats, setStats] = useState({
-    totalInvoices: 0,
-    totalPayments: 0,
-    totalRevenue: 0,
-    outstanding: 0,
-  });
+  const [kpis, setKpis] = useState([]);
+  const [invoiceSummary, setInvoiceSummary] = useState([]);
+  const [financeInvoices, setFinanceInvoices] = useState([]);
+  const [financePayments, setFinancePayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showInvoiceViewModal, setShowInvoiceViewModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   React.useEffect(() => {
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await import("../../utils/api").then((m) =>
-        m.default.get("/finance/dashboard/stats")
-      );
-      setStats(res.data);
+      const api = (await import("../../utils/api")).default;
+      
+      const [kpisRes, summaryRes, invoicesRes, paymentsRes] = await Promise.all([
+        api.get("/finance/dashboard/kpis"),
+        api.get("/finance/dashboard/invoice-summary"),
+        api.get("/finance/dashboard/recent-invoices"),
+        api.get("/finance/dashboard/recent-payments"),
+      ]);
+
+      setKpis(kpisRes.data.kpis || []);
+      setInvoiceSummary(summaryRes.data.summary || []);
+      setFinanceInvoices(invoicesRes.data.invoices || []);
+      setFinancePayments(paymentsRes.data.payments || []);
     } catch (error) {
-      setStats({
-        totalInvoices: 0,
-        totalPayments: 0,
-        totalRevenue: 0,
-        outstanding: 0,
-      });
+      console.error("Error fetching dashboard data:", error);
+      setKpis([]);
+      setInvoiceSummary([]);
+      setFinanceInvoices([]);
+      setFinancePayments([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewInvoice = (invoice) => {
+    setSelectedInvoice(invoice);
+    setShowInvoiceViewModal(true);
+  };
+
+  const handleDeleteInvoice = async (invoiceId) => {
+    if (!window.confirm("Are you sure you want to delete this invoice?")) {
+      return;
+    }
+
+    try {
+      toast.loading("Deleting invoice...");
+      const api = (await import("../../utils/api")).default;
+      await api.delete(`/finance/invoices/${invoiceId}`);
+      toast.dismiss();
+      toast.success("Invoice deleted successfully");
+      fetchDashboardData();
+    } catch (error) {
+      toast.dismiss();
+      console.error("Delete invoice error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete invoice");
+    }
+  };
+
+  const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm("Are you sure you want to delete this payment?")) {
+      return;
+    }
+
+    try {
+      toast.loading("Deleting payment...");
+      const api = (await import("../../utils/api")).default;
+      await api.delete(`/finance/payments/${paymentId}`);
+      toast.dismiss();
+      toast.success("Payment deleted successfully");
+      fetchDashboardData();
+    } catch (error) {
+      toast.dismiss();
+      console.error("Delete payment error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete payment");
     }
   };
 
@@ -84,7 +134,7 @@ const FinanceDashboard = () => {
   const filteredInvoices = React.useMemo(() => {
     if (filterType === "all") return financeInvoices;
     return financeInvoices.filter((inv) => inv.type === filterType);
-  }, [filterType]);
+  }, [filterType, financeInvoices]);
 
   // Invoice totals for summary cards
   const invoiceTotals = React.useMemo(
@@ -101,7 +151,7 @@ const FinanceDashboard = () => {
       count: financePayments.length,
       value: financePayments.reduce((sum, p) => sum + p.amount, 0),
     }),
-    []
+    [financePayments]
   );
 
   return (
@@ -109,6 +159,14 @@ const FinanceDashboard = () => {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Finance Dashboard</h1>
         <div className="flex gap-3">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-700 transition hover:bg-blue-100 font-medium"
+            onClick={() => navigate("/finance/invoices")}
+            title="View invoices to process"
+          >
+            <FileText className="h-4 w-4" /> Process Invoices
+          </button>
           <button
             type="button"
             className="flex items-center gap-1.5 rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
@@ -127,7 +185,7 @@ const FinanceDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {financeKPIs.map((kpi) => {
+        {kpis.map((kpi) => {
           const IconComponent = getIcon(kpi.icon);
           const trendDirection = getTrendIndicator(kpi.trend);
           const trendColor =
@@ -503,15 +561,17 @@ const FinanceDashboard = () => {
                             type="button"
                             className="rounded-full border border-transparent p-2 text-primary-600 transition hover:border-primary-200 hover:bg-primary-50"
                             aria-label="View invoice"
+                            onClick={() => handleViewInvoice(invoice)}
                           >
                             <Eye className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
-                            className="rounded-full border border-transparent p-2 text-gray-500 transition hover:border-gray-200 hover:bg-gray-50"
-                            aria-label="Edit invoice"
+                            className="rounded-full border border-transparent p-2 text-red-600 transition hover:border-red-200 hover:bg-red-50"
+                            aria-label="Delete invoice"
+                            onClick={() => handleDeleteInvoice(invoice.id)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -602,6 +662,9 @@ const FinanceDashboard = () => {
                     <th className="px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Reference
                     </th>
+                    <th className="px-2 py-2 text-xs text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -657,6 +720,16 @@ const FinanceDashboard = () => {
                       </td>
                       <td className="px-2 py-2 text-gray-600">
                         {payment.reference || "—"}
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          type="button"
+                          className="rounded-full border border-transparent p-2 text-red-600 transition hover:border-red-200 hover:bg-red-50"
+                          aria-label="Delete payment"
+                          onClick={() => handleDeletePayment(payment.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -812,7 +885,7 @@ const FinanceDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              {financeKPIs.map((kpi) => (
+              {kpis.map((kpi) => (
                 <div
                   key={`${kpi.id}-report`}
                   className="rounded border border-gray-200 bg-white p-4 shadow-sm"
@@ -844,9 +917,125 @@ const FinanceDashboard = () => {
             </div>
           </div>
         )}
+
+      {/* Invoice View Modal */}
+      {showInvoiceViewModal && selectedInvoice && (
+        <InvoiceViewModal
+          invoice={selectedInvoice}
+          onClose={() => {
+            setShowInvoiceViewModal(false);
+            setSelectedInvoice(null);
+          }}
+        />
+      )}
       </div>
     </div>
   );
 };
+
+function InvoiceViewModal({ invoice, onClose }) {
+  const getStatusColor = (status) => {
+    const colors = {
+      sent: 'bg-blue-100 text-blue-800',
+      pending: 'bg-yellow-100 text-yellow-800',
+      paid: 'bg-green-100 text-green-800',
+      overdue: 'bg-red-100 text-red-800',
+      cancelled: 'bg-gray-100 text-gray-800'
+    };
+    return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getPaymentStatusColor = (status) => {
+    const colors = {
+      partial: 'bg-orange-100 text-orange-800',
+      paid: 'bg-green-100 text-green-800',
+      unpaid: 'bg-red-100 text-red-800',
+      pending: 'bg-yellow-100 text-yellow-800'
+    };
+    return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-96 overflow-y-auto">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+          <h2 className="text-lg font-semibold text-gray-900">Invoice Details</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Invoice Number</p>
+              <p className="text-lg font-semibold text-gray-900 mt-1">{invoice.invoiceNo || invoice.invoice_number || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Status</p>
+              <p className={`text-sm mt-1 inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(invoice.status)}`}>
+                {invoice.status?.replace('_', ' ').toUpperCase()}
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Type</p>
+                <p className="text-sm text-gray-900 mt-1">{invoice.type?.replace('_', ' ').toUpperCase() || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Customer / Vendor</p>
+                <p className="text-sm text-gray-900 mt-1">{invoice.customerVendor || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Amount</p>
+                <p className="text-sm font-semibold text-blue-600 mt-1">₹{(invoice.amount || 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Due Date</p>
+                <p className="text-sm text-gray-900 mt-1">
+                  {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {invoice.paymentStatus && (
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Payment Information</h3>
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <p className="text-xs text-gray-600 font-medium">Payment Status</p>
+                  <p className={`text-sm mt-1 inline-block px-3 py-1 rounded-full text-xs font-semibold ${getPaymentStatusColor(invoice.paymentStatus)}`}>
+                    {invoice.paymentStatus.replace('_', ' ').toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(invoice.description || invoice.notes) && (
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Notes</h3>
+              <p className="text-sm text-gray-700">{invoice.description || invoice.notes || 'N/A'}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default FinanceDashboard;

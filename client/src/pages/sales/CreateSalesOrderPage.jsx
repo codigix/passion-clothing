@@ -16,6 +16,7 @@ const CreateSalesOrderPage = () => {
     email: '',
     phone: '',
     contactPerson: '',
+    clientPoNumber: '',
     
     // PRODUCT DETAILS
     productName: '',
@@ -24,6 +25,10 @@ const CreateSalesOrderPage = () => {
     color: '',
     quantity: '',
     qualitySpecification: '',
+    specialInstructions: '',
+    deliveryAddress: '',
+    department: '',
+    orderReference: '',
     
     // PRICING & DELIVERY
     pricePerPiece: '',
@@ -34,8 +39,7 @@ const CreateSalesOrderPage = () => {
     // OPTIONAL/ADVANCED
     gstNumber: '',
     address: '',
-    designFile: null,
-    designFileName: '',
+    designFiles: [], // Changed to array for multiple files
     
     // INTERNAL (not shown)
     orderDate: new Date().toISOString().split('T')[0],
@@ -48,7 +52,7 @@ const CreateSalesOrderPage = () => {
   const [submitError, setSubmitError] = useState('');
   const [createdOrder, setCreatedOrder] = useState(null);
   const [currentSection, setCurrentSection] = useState('primary'); // Tab control
-  const [imagePreview, setImagePreview] = useState(null); // Image preview URL
+  const [imagePreviews, setImagePreviews] = useState([]); // Changed to array for multiple previews
 
   const productTypes = [
     'Shirt',
@@ -75,7 +79,14 @@ const CreateSalesOrderPage = () => {
 
   // Auto-calculate values
   const calculations = useMemo(() => {
-    const totalQty = orderData.sizeDetails.reduce((sum, size) => sum + (parseFloat(size.quantity) || 0), 0);
+    // Calculate total qty from size details OR use main quantity field as fallback
+    let totalQty = orderData.sizeDetails.reduce((sum, size) => sum + (parseFloat(size.quantity) || 0), 0);
+    
+    // If size details are empty, use the main quantity field
+    if (totalQty === 0) {
+      totalQty = parseFloat(orderData.quantity) || 0;
+    }
+    
     const price = parseFloat(orderData.pricePerPiece) || 0;
     const orderPrice = totalQty * price;
     const advance = parseFloat(orderData.advancePaid) || 0;
@@ -92,7 +103,7 @@ const CreateSalesOrderPage = () => {
       totalWithGST: totalWithGST.toFixed(2),
       remainingAmount: remainingAmount.toFixed(2)
     };
-  }, [orderData.sizeDetails, orderData.pricePerPiece, orderData.advancePaid, orderData.gstPercentage]);
+  }, [orderData.sizeDetails, orderData.quantity, orderData.pricePerPiece, orderData.advancePaid, orderData.gstPercentage]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -130,41 +141,47 @@ const CreateSalesOrderPage = () => {
     }));
   };
 
-  // Handle file upload
+  // Handle multiple file uploads
   const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const files = Array.from(e.target.files);
+    const maxFiles = 5;
+    
+    if (imagePreviews.length + files.length > maxFiles) {
+      toast.error(`Maximum ${maxFiles} design files allowed`);
+      return;
+    }
+    
+    files.forEach(file => {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
+        toast.error(`File "${file.name}" exceeds 5MB limit`);
         return;
       }
       
       // Create image preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setOrderData(prev => ({
+          ...prev,
+          designFiles: [...prev.designFiles, { file, name: file.name, preview: reader.result }]
+        }));
+        setImagePreviews(prev => [...prev, { name: file.name, preview: reader.result, size: file.size }]);
+        toast.success(`"${file.name}" uploaded successfully`);
       };
       reader.readAsDataURL(file);
-      
-      setOrderData(prev => ({
-        ...prev,
-        designFile: file,
-        designFileName: file.name
-      }));
-      toast.success('Design file uploaded successfully');
-    }
+    });
   };
 
-  // Handle remove image
-  const handleRemoveImage = () => {
-    setImagePreview(null);
+  // Handle remove individual design file
+  const handleRemoveDesignFile = (index) => {
     setOrderData(prev => ({
       ...prev,
-      designFile: null,
-      designFileName: ''
+      designFiles: prev.designFiles.filter((_, i) => i !== index)
     }));
-    toast.success('Image removed');
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    toast.success('Design file removed');
   };
+
+
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -184,11 +201,11 @@ const CreateSalesOrderPage = () => {
       setSubmitError('Product name is required');
       return;
     }
-    if (!orderData.quantity || orderData.quantity <= 0) {
-      setSubmitError('Quantity must be greater than 0');
+    if (parseFloat(calculations.totalQty) <= 0) {
+      setSubmitError('Total quantity must be greater than 0. Please enter quantity or add size details.');
       return;
     }
-    if (!orderData.pricePerPiece || orderData.pricePerPiece <= 0) {
+    if (!orderData.pricePerPiece || parseFloat(orderData.pricePerPiece) <= 0) {
       setSubmitError('Price per piece must be greater than 0');
       return;
     }
@@ -206,12 +223,13 @@ const CreateSalesOrderPage = () => {
         customer_name: orderData.customerName.trim(),
         customer_email: orderData.email || null,
         customer_phone: orderData.phone || null,
-        customer_address: orderData.address || null,
+        customer_address: orderData.deliveryAddress || orderData.address || null,
         contact_person: orderData.contactPerson || null,
         gst_number: orderData.gstNumber || null,
         order_date: orderData.orderDate,
         project_title: orderData.projectTitle.trim(),
-        buyer_reference: orderData.projectTitle.trim(),
+        buyer_reference: orderData.orderReference || orderData.projectTitle.trim(),
+        client_po_number: orderData.clientPoNumber || null,
         delivery_date: orderData.expectedDeliveryDate,
         tax_percentage: parseFloat(orderData.gstPercentage) || 18,
         advance_paid: parseFloat(orderData.advancePaid) || 0,
@@ -224,7 +242,9 @@ const CreateSalesOrderPage = () => {
           quality_specification: orderData.qualitySpecification,
           size_option: orderData.sizeOption,
           size_details: orderData.sizeDetails,
-          design_file: orderData.designFileName
+          design_files: orderData.designFiles.map(df => df.name), // Store array of file names
+          special_instructions: orderData.specialInstructions || null,
+          department: orderData.department || null
         },
         items: [
           {
@@ -234,7 +254,7 @@ const CreateSalesOrderPage = () => {
             fabric_type: orderData.fabricType,
             color: orderData.color,
             description: orderData.productName,
-            quantity: parseFloat(orderData.quantity),
+            quantity: parseFloat(calculations.totalQty),
             unit_price: parseFloat(orderData.pricePerPiece),
             unit_of_measure: 'pcs',
             size_breakdown: orderData.sizeDetails || null,
@@ -245,6 +265,27 @@ const CreateSalesOrderPage = () => {
 
       const response = await api.post('/sales/orders', payload);
       const newOrder = response.data.order;
+      
+      // Upload design files if any
+      if (orderData.designFiles && orderData.designFiles.length > 0 && newOrder?.id) {
+        try {
+          const formData = new FormData();
+          orderData.designFiles.forEach(df => {
+            formData.append('files', df.file);
+          });
+          
+          await api.post(`/sales/orders/${newOrder.id}/upload-design-files`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+          toast.success('Design files uploaded successfully!');
+        } catch (uploadErr) {
+          console.warn('Failed to upload some design files:', uploadErr);
+          toast.warning('Order created but design file upload failed');
+        }
+      }
+      
       setCreatedOrder(newOrder);
       toast.success('Sales order created successfully!');
     } catch (err) {
@@ -286,19 +327,53 @@ const CreateSalesOrderPage = () => {
     }
     try {
       const response = await api.get(`/sales/orders/${createdOrder.id}/invoice`, {
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 30000,
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      // Verify it's actually a PDF
+      if (!response.data || response.data.size === 0) {
+        throw new Error('Empty invoice response');
+      }
+
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `Invoice-${createdOrder.order_number}.pdf`);
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      
+      // Cleanup
+      setTimeout(() => {
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      }, 100);
+      
       toast.success('Invoice downloaded successfully');
     } catch (error) {
-      toast.error('Failed to download invoice');
       console.error('Download invoice error:', error);
+      
+      let errorMsg = 'Failed to download invoice';
+      
+      // Handle different error types
+      if (error.response?.data instanceof Blob) {
+        // For blob errors, try to parse as JSON if it's JSON content
+        try {
+          const text = await error.response.data.text();
+          const json = JSON.parse(text);
+          errorMsg = json.message || errorMsg;
+        } catch {
+          errorMsg = `Server error: ${error.response?.status || 'Unknown'}`;
+        }
+      } else if (error.response?.data?.message) {
+        // For JSON errors
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        // For network/other errors
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg);
     }
   };
 
@@ -389,12 +464,17 @@ const CreateSalesOrderPage = () => {
                   email: '',
                   phone: '',
                   contactPerson: '',
+                  clientPoNumber: '',
                   productName: '',
                   productType: '',
                   fabricType: '',
                   color: '',
                   quantity: '',
                   qualitySpecification: '',
+                  specialInstructions: '',
+                  deliveryAddress: '',
+                  department: '',
+                  orderReference: '',
                   pricePerPiece: '',
                   expectedDeliveryDate: '',
                   advancePaid: '',
@@ -551,6 +631,20 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
+                {/* Client PO Number */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Client PO Number
+                  </label>
+                  <input
+                    type="text"
+                    value={orderData.clientPoNumber}
+                    onChange={(e) => handleInputChange('clientPoNumber', e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                    placeholder="e.g., PO-2024-001"
+                  />
+                </div>
+
                 {/* GST & Address - Optional Footer */}
                 <div className="lg:col-span-2 pt-2 border-t border-gray-200">
                   <details className="group cursor-pointer">
@@ -693,8 +787,8 @@ const CreateSalesOrderPage = () => {
                   />
                 </div>
 
-                {/* Quality Specification - Optional Footer */}
-                <div className="md:col-span-2 lg:col-span-3 pt-2 border-t border-gray-200">
+                {/* Quality Specification */}
+                <div className="md:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Quality Specification
                   </label>
@@ -705,6 +799,119 @@ const CreateSalesOrderPage = () => {
                     className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
                     placeholder="e.g., 220 GSM, Double Stitching, etc (Optional)"
                   />
+                </div>
+              </div>
+
+              {/* DIVIDER - NEW FIELDS SECTION */}
+              <div className="my-4 pt-4 border-t-2 border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">📦 Size Breakdown</h3>
+                
+                {/* Size Breakdown Table */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                  {orderData.sizeDetails.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-3">No sizes added yet. Click "Add Size" to start.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2 font-semibold text-xs text-gray-700 pb-2 border-b border-gray-200">
+                        <div>Size</div>
+                        <div>Quantity</div>
+                        <div>Action</div>
+                      </div>
+                      {orderData.sizeDetails.map((size, index) => (
+                        <div key={index} className="grid grid-cols-3 gap-2 items-center">
+                          <input
+                            type="text"
+                            value={size.size}
+                            onChange={(e) => handleSizeDetailChange(index, 'size', e.target.value)}
+                            className="px-2 py-1.5 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                            placeholder="XS, S, M, L, XL"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={size.quantity}
+                            onChange={(e) => handleSizeDetailChange(index, 'quantity', e.target.value)}
+                            className="px-2 py-1.5 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                            placeholder="0"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeSizeDetail(index)}
+                            className="px-2 py-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 transition text-xs font-medium flex items-center justify-center gap-1"
+                          >
+                            <FaTrash className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={addSizeDetail}
+                    className="mt-2 w-full px-3 py-1.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition font-medium text-xs flex items-center justify-center gap-1"
+                  >
+                    <FaPlus className="w-3 h-3" />
+                    Add Size
+                  </button>
+                </div>
+
+                {/* Additional Product Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Order Reference */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Order Reference Number
+                    </label>
+                    <input
+                      type="text"
+                      value={orderData.orderReference}
+                      onChange={(e) => handleInputChange('orderReference', e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                      placeholder="e.g., ORD-2024-001"
+                    />
+                  </div>
+
+                  {/* Department */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Department / Buyer
+                    </label>
+                    <input
+                      type="text"
+                      value={orderData.department}
+                      onChange={(e) => handleInputChange('department', e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                      placeholder="e.g., Sales, Marketing"
+                    />
+                  </div>
+
+                  {/* Delivery Address */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Delivery Address
+                    </label>
+                    <textarea
+                      value={orderData.deliveryAddress}
+                      onChange={(e) => handleInputChange('deliveryAddress', e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                      placeholder="Street address, City, Pincode"
+                      rows="2"
+                    />
+                  </div>
+
+                  {/* Special Instructions */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Special Instructions / Notes
+                    </label>
+                    <textarea
+                      value={orderData.specialInstructions}
+                      onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                      placeholder="Any special requirements or production notes..."
+                      rows="2"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -798,79 +1005,132 @@ const CreateSalesOrderPage = () => {
 
               {/* Price Summary Card */}
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-3">
-                <h3 className="font-semibold text-gray-900 mb-2 text-sm">Price Summary</h3>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Order Price (₹):</span>
-                    <span className="font-medium">₹{calculations.orderPrice}</span>
+                <h3 className="font-semibold text-gray-900 mb-2 text-sm">💰 Price Calculation Summary</h3>
+                <div className="space-y-1.5 text-xs bg-white rounded-lg p-2.5 border border-blue-100">
+                  {/* Calculation Breakdown */}
+                  <div className="pb-1.5 border-b border-blue-100">
+                    <div className="flex justify-between text-gray-600 mb-1">
+                      <span>Quantity:</span>
+                      <span className="font-semibold text-blue-600">{parseFloat(calculations.totalQty).toLocaleString()} pcs</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Price per Piece:</span>
+                      <span className="font-semibold text-blue-600">₹{parseFloat(orderData.pricePerPiece || 0).toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>GST ({orderData.gstPercentage}%):</span>
-                    <span className="font-medium">₹{calculations.gstAmount}</span>
+                  
+                  {/* Results */}
+                  <div className="pt-1.5 space-y-1">
+                    <div className="flex justify-between text-gray-700 font-medium">
+                      <span>Subtotal ({parseFloat(calculations.totalQty).toLocaleString()} × ₹{parseFloat(orderData.pricePerPiece || 0).toFixed(2)}):</span>
+                      <span className="text-gray-900">₹{calculations.orderPrice}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-700 font-medium">
+                      <span>GST ({orderData.gstPercentage}%):</span>
+                      <span className="text-amber-600">+ ₹{calculations.gstAmount}</span>
+                    </div>
                   </div>
-                  <div className="border-t border-blue-200 pt-1 flex justify-between text-gray-900 font-semibold">
+                  
+                  {/* Total */}
+                  <div className="border-t-2 border-blue-300 pt-1.5 flex justify-between text-gray-900 font-bold">
                     <span>Total Amount:</span>
-                    <span className="text-green-600">₹{calculations.totalWithGST}</span>
+                    <span className="text-green-600 text-sm">₹{calculations.totalWithGST}</span>
                   </div>
+                  
+                  {/* Advance Paid */}
                   {parseFloat(orderData.advancePaid) > 0 && (
-                    <div className="flex justify-between text-gray-600 bg-white rounded-lg p-1.5 px-2 text-xs">
-                      <span>Remaining:</span>
-                      <span className="font-medium text-orange-600">₹{calculations.remainingAmount}</span>
+                    <div className="mt-1.5 pt-1.5 border-t border-blue-100 flex justify-between text-gray-600 bg-orange-50 rounded-lg p-1.5 px-2">
+                      <span>Advance Paid:</span>
+                      <span className="font-medium text-orange-700">- ₹{parseFloat(orderData.advancePaid).toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  {/* Remaining Amount */}
+                  {parseFloat(orderData.advancePaid) > 0 && (
+                    <div className="flex justify-between text-gray-900 font-bold bg-blue-100 rounded-lg p-1.5 px-2">
+                      <span>Remaining Amount:</span>
+                      <span className="text-blue-700">₹{calculations.remainingAmount}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* File Upload */}
+              {/* Multiple Design Files Upload */}
               <div className="border-t border-gray-200 pt-3">
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Design File (Optional)
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-medium text-gray-700">
+                    🎨 Design Patterns (Optional) - Up to 5 files
+                  </label>
+                  {imagePreviews.length > 0 && (
+                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-medium">
+                      {imagePreviews.length} file{imagePreviews.length !== 1 ? 's' : ''} uploaded
+                    </span>
+                  )}
+                </div>
+                
+                {/* Upload Area */}
+                <label className="block w-full px-4 py-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-blue-50 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 mb-3">
+                  <FaCloudUploadAlt className="w-5 h-5 text-gray-400" />
+                  <div className="text-center">
+                    <p className="font-medium text-gray-700 text-xs">Click or drag to add more patterns</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Max 5MB per file • Images, PDF, DOC</p>
+                  </div>
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    accept="image/*,.pdf,.doc,.docx"
+                    multiple
+                    className="hidden"
+                  />
                 </label>
                 
-                {!imagePreview ? (
-                  <label className="w-full px-4 py-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-blue-50 cursor-pointer transition-all flex flex-col items-center justify-center gap-2">
-                    <FaCloudUploadAlt className="w-5 h-5 text-gray-400" />
-                    <div className="text-center">
-                      <p className="font-medium text-gray-700 text-xs">Click to upload</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Max 5MB</p>
-                    </div>
-                    <input
-                      type="file"
-                      onChange={handleFileUpload}
-                      accept="image/*,.pdf,.doc,.docx"
-                      className="hidden"
-                    />
-                  </label>
-                ) : (
-                  <div className="w-full border-2 border-gray-200 rounded-lg p-3 bg-white">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
-                        {imagePreview.startsWith('data:image') ? (
-                          <img 
-                            src={imagePreview} 
-                            alt="Preview" 
-                            className="h-20 w-20 object-cover rounded-lg border border-gray-200"
-                          />
-                        ) : (
-                          <div className="h-20 w-20 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                            <FileText className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-grow">
-                        <p className="text-xs font-medium text-gray-700">{orderData.designFileName}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {orderData.designFile && (orderData.designFile.size / 1024 / 1024).toFixed(2)}MB
-                        </p>
+                {/* File Preview Grid */}
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
+                    {imagePreviews.map((filePreview, index) => (
+                      <div
+                        key={index}
+                        className="relative group border-2 border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-lg transition-all"
+                      >
+                        {/* Preview Image/Icon */}
+                        <div className="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+                          {filePreview.preview.startsWith('data:image') ? (
+                            <img
+                              src={filePreview.preview}
+                              alt={`Pattern ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <FileText className="w-6 h-6 text-gray-400" />
+                              <span className="text-xs text-gray-500 text-center px-1">
+                                {filePreview.name.split('.').pop().toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* File Info */}
+                        <div className="p-2 border-t border-gray-200">
+                          <p className="text-xs font-medium text-gray-700 truncate" title={filePreview.name}>
+                            {filePreview.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(filePreview.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+
+                        {/* Remove Button */}
                         <button
                           type="button"
-                          onClick={handleRemoveImage}
-                          className="mt-2 px-3 py-1 bg-red-100 text-red-600 rounded text-xs font-medium hover:bg-red-200 transition-all"
+                          onClick={() => handleRemoveDesignFile(index)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                          title="Remove this design file"
                         >
-                          Remove
+                          <FaTrash className="w-3 h-3" />
                         </button>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>

@@ -989,31 +989,54 @@ const ManufacturingDashboard = () => {
 
   // --- FINAL STEP: Send to Shipment (Completed the truncated function) ---
   const handleSendToShipment = async (order) => {
-    const mainOrderId = order.order_id || order.id; // Use main SO ID or PO ID
-
     try {
-      // 1. Update main order status to ready_to_ship (valid status for SalesOrder)
-      await api.put(`/orders/${mainOrderId}/status`, {
-        status: "ready_to_ship", // ✅ Valid status for SalesOrder
-        department: "shipment",
-        action: "sent_to_shipment",
-        notes: "Order ready for shipment",
+      console.log("📦 Sending production order to shipment:", {
+        id: order.id,
+        orderNo: order.orderNo,
+        productName: order.productName,
       });
 
-      // 2. Update QR code/Tracking status
-      await api.put(`/orders/${mainOrderId}/qr-code`, {
-        department: "shipment",
-        status: "ready_to_ship", // ✅ Changed to match valid status
-        timestamp: new Date().toISOString(),
-        stage: "ready_for_dispatch",
-      });
-
-      toast.success("Order successfully sent to Shipment department!");
-      fetchActiveOrders(); // Refresh the active list
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to send to shipment"
+      // ✅ FIXED: Call the CORRECT manufacturing endpoint that creates shipment
+      // This endpoint:
+      // 1. Creates a Shipment record
+      // 2. Links production order to shipment via shipment_id
+      // 3. Updates production order status to "completed" with shipment_id
+      // 4. Sends notifications to shipment department
+      const response = await api.post(
+        `/manufacturing/orders/${order.id}/ready-for-shipment`,
+        {
+          notes: `Ready for shipment from manufacturing dashboard`,
+          special_instructions: "",
+        }
       );
+
+      toast.success(
+        `✅ Order ${order.orderNo} sent to Shipment Department!\nShipment ${response.data.shipment.shipment_number} created.`
+      );
+
+      console.log("✅ Shipment created successfully:", {
+        shipment_id: response.data.shipment.id,
+        shipment_number: response.data.shipment.shipment_number,
+        production_order_id: response.data.production_order_id,
+      });
+
+      // Refresh the active orders list
+      await fetchActiveOrders();
+
+      // Optional: Auto-navigate to shipment dashboard after brief delay
+      setTimeout(() => {
+        // You can optionally navigate to shipment dashboard here
+        // navigate('/shipment'); // Uncomment if desired
+      }, 1500);
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to send order to shipment";
+
+      console.error("❌ Error sending to shipment:", error);
+      toast.error(errorMsg);
     }
   };
 

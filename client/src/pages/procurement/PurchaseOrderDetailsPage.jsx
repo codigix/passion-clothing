@@ -40,6 +40,9 @@ const PurchaseOrderDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('details');
+  const [sendVendorModalOpen, setSendVendorModalOpen] = useState(false);
+  const [sendVendorOptions, setSendVendorOptions] = useState({ email: true, whatsapp: false });
+  const [sendingToVendor, setSendingToVendor] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -60,6 +63,11 @@ const PurchaseOrderDetailsPage = () => {
 
   const handleStatusUpdate = async (actionType) => {
     try {
+      if (actionType === 'send_to_vendor') {
+        setSendVendorModalOpen(true);
+        return;
+      }
+
       let statusToUpdate;
       switch (actionType) {
         case 'send_for_approval':
@@ -67,9 +75,6 @@ const PurchaseOrderDetailsPage = () => {
           break;
         case 'approve':
           statusToUpdate = 'approved';
-          break;
-        case 'send_to_vendor':
-          statusToUpdate = 'sent';
           break;
         case 'mark_as_ordered':
           statusToUpdate = 'acknowledged';
@@ -87,8 +92,36 @@ const PurchaseOrderDetailsPage = () => {
       await api.put(`/procurement/pos/${id}/status`, { status: statusToUpdate });
       toast.success('Status updated successfully');
       fetchOrderDetails();
+      
+      if (actionType === 'approve') {
+        setTimeout(() => setSendVendorModalOpen(true), 500);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update status');
+    }
+  };
+
+  const handleSendToVendor = async () => {
+    if (!sendVendorOptions.email && !sendVendorOptions.whatsapp) {
+      toast.error('Please select at least one communication method');
+      return;
+    }
+
+    setSendingToVendor(true);
+    try {
+      const response = await api.post(`/procurement/pos/${id}/send-to-vendor`, {
+        sendEmail: sendVendorOptions.email,
+        sendWhatsapp: sendVendorOptions.whatsapp
+      });
+      
+      toast.success(response.data.message || 'PO sent to vendor successfully!');
+      setSendVendorModalOpen(false);
+      setSendVendorOptions({ email: true, whatsapp: false });
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send PO to vendor');
+    } finally {
+      setSendingToVendor(false);
     }
   };
 
@@ -413,11 +446,11 @@ const PurchaseOrderDetailsPage = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {order.items?.map((item, index) => (
                             <tr key={index} className="hover:bg-purple-50 transition-colors">
-                              <td className="px-2 py-1 font-medium text-gray-900">{item.material_name}</td>
-                              <td className="px-2 py-1 text-gray-700">{item.description}</td>
+                              <td className="px-2 py-1 font-medium text-gray-900">{item.material}</td>
+                              <td className={`px-2 py-1 ${item.description ? 'text-gray-700' : 'text-gray-400 italic'}`}>{item.description || 'No description added'}</td>
                               <td className="px-2 py-1 font-medium text-gray-900">{item.quantity} {item.unit}</td>
-                              <td className="px-2 py-1 text-gray-700">₹{item.unit_price}</td>
-                              <td className="px-2 py-1 font-semibold text-green-600">₹{item.total_price?.toLocaleString()}</td>
+                              <td className="px-2 py-1 text-gray-700">₹{item.rate}</td>
+                              <td className="px-2 py-1 font-semibold text-green-600">₹{item.total?.toLocaleString()}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -504,10 +537,11 @@ const PurchaseOrderDetailsPage = () => {
                       {order.status === 'pending_approval' && (
                         <button
                           onClick={() => handleStatusUpdate('approve')}
-                          className="flex items-center gap-2 bg-green-500 text-white p-2 rounded hover:bg-green-600 transition-all shadow-sm text-xs"
+                          className="flex items-center gap-2 bg-green-500 text-white p-2 rounded hover:bg-green-600 transition-all shadow-sm text-xs font-medium"
+                          title="Approving will open the send to vendor dialog"
                         >
                           <FaCheckCircle className="w-3 h-3" />
-                          <span className="font-medium">Approve Order</span>
+                          <span>Approve & Send to Vendor</span>
                         </button>
                       )}
                       
@@ -606,7 +640,7 @@ const PurchaseOrderDetailsPage = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-purple-100">Created</span>
-                  <span className="font-semibold">{new Date(order.created_at).toLocaleDateString()}</span>
+                  <span className="font-semibold">{new Date(order.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -625,6 +659,108 @@ const PurchaseOrderDetailsPage = () => {
             )}
           </div>
         </div>
+
+        {sendVendorModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                <div className="text-blue-600 font-semibold text-xs">PROCUREMENT DEPARTMENT</div>
+              </div>
+              
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <FaPaperPlane className="text-blue-600" />
+                Send PO to Vendor
+              </h2>
+
+              <p className="text-sm text-gray-600 mb-6">
+                Choose how you want to send the PO to <strong>{order?.vendor?.name || 'Vendor'}</strong>:
+              </p>
+
+              <div className="space-y-3 mb-6">
+                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors" style={{borderColor: sendVendorOptions.email ? '#3b82f6' : '#e5e7eb'}}>
+                  <input
+                    type="checkbox"
+                    checked={sendVendorOptions.email}
+                    onChange={(e) => setSendVendorOptions({...sendVendorOptions, email: e.target.checked})}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900">Send via Email</div>
+                    <div className="text-xs text-gray-600">{order?.vendor?.email || 'email@vendor.com'}</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 transition-colors" style={{borderColor: sendVendorOptions.whatsapp ? '#22c55e' : '#e5e7eb'}}>
+                  <input
+                    type="checkbox"
+                    checked={sendVendorOptions.whatsapp}
+                    onChange={(e) => setSendVendorOptions({...sendVendorOptions, whatsapp: e.target.checked})}
+                    className="w-4 h-4 text-green-600"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900">Send via WhatsApp</div>
+                    <div className="text-xs text-gray-600">{order?.vendor?.phone || '+91 XXXXXXXXXX'}</div>
+                  </div>
+                </label>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 space-y-2">
+                <div className="text-xs text-blue-800">
+                  <p className="font-medium mb-2">📋 PO Details to be sent:</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white p-2 rounded border border-blue-100">
+                      <span className="text-gray-600">PO Number</span>
+                      <p className="font-semibold text-gray-900">{order?.po_number}</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-blue-100">
+                      <span className="text-gray-600">Amount</span>
+                      <p className="font-semibold text-gray-900">₹{parseFloat(order?.final_amount || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-blue-100">
+                      <span className="text-gray-600">Items</span>
+                      <p className="font-semibold text-gray-900">{order?.items?.length || 0}</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-blue-100">
+                      <span className="text-gray-600">Delivery</span>
+                      <p className="font-semibold text-gray-900">{new Date(order?.expected_delivery_date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 border border-green-200 rounded p-2">
+                  <p className="text-xs text-green-800 font-medium">✓ Status will be updated to 'Sent' after sending</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSendVendorModalOpen(false)}
+                  disabled={sendingToVendor}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-sm transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendToVendor}
+                  disabled={sendingToVendor || (!sendVendorOptions.email && !sendVendorOptions.whatsapp)}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {sendingToVendor ? (
+                    <>
+                      <span className="inline-block animate-spin">⟳</span>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <FaPaperPlane className="w-4 h-4" />
+                      Send Now
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

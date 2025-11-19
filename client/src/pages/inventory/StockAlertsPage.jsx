@@ -59,7 +59,7 @@ const formatAlertType = (type) =>
     .join(" ");
 
 const StockAlertsPage = () => {
-  const [tabValue, setTabValue] = useState("all");
+  const [activeTab, setActiveTab] = useState("all");
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,17 +72,14 @@ const StockAlertsPage = () => {
       setLoading(true);
       const api = (await import('../../utils/api')).default;
       
-      // Fetch low stock items from the API
       const lowStockRes = await api.get('/inventory/alerts/low-stock');
       const lowStockItems = lowStockRes.data.lowStockItems || [];
       
-      // Fetch all inventory to check for overstock
       const inventoryRes = await api.get('/inventory/stock');
       const allInventory = inventoryRes.data.inventory || [];
       
       const processedAlerts = [];
       
-      // Process low stock and out of stock items
       lowStockItems.forEach(item => {
         const currentStock = item.current_stock || 0;
         const minStock = item.reorder_level || item.minimum_level || 0;
@@ -112,7 +109,6 @@ const StockAlertsPage = () => {
         });
       });
       
-      // Check for overstock items
       allInventory.forEach(item => {
         const currentStock = item.current_stock || 0;
         const maxStock = item.maximum_level || (item.reorder_level * 3) || 0;
@@ -136,16 +132,15 @@ const StockAlertsPage = () => {
       setAlerts(processedAlerts);
     } catch (error) {
       console.error("Error fetching alerts:", error);
-      // Fallback to empty array on error
       setAlerts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getFilteredAlerts = () => {
-    if (tabValue === "all") return alerts;
-    return alerts.filter((alert) => alert.alertType === tabValue);
+  const getTabFilteredAlerts = () => {
+    if (activeTab === "all") return alerts;
+    return alerts.filter((alert) => alert.alertType === activeTab);
   };
 
   const counts = {
@@ -167,168 +162,127 @@ const StockAlertsPage = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-3">
+      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between mb-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Stock Alerts</h1>
-          <p className="text-sm text-gray-500">
-            Monitor inventory levels and take action to avoid shortages.
-          </p>
+          <h1 className="text-xl font-bold text-gray-900">📦 Stock Alerts</h1>
+          <p className="text-xs text-gray-500">Monitor inventory levels and take action</p>
         </div>
         <button
           type="button"
           onClick={fetchAlerts}
-          className="inline-flex items-center justify-center rounded border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+          className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md transition"
         >
-          <span className="mr-2 text-lg" aria-hidden>🔄</span>
+          <span>🔄</span>
           Refresh
         </button>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {summaryConfigs.map(({ key, title, description, bgClass, textClass }) =>
-          counts[key] ? (
-            <div key={key} className={`rounded p-4 ${bgClass}`}>
-              <h2 className={`text-sm font-semibold uppercase ${textClass}`}>
-                {title}
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">{description}</p>
-              <p className="mt-4 text-2xl font-bold text-gray-900">{counts[key]}</p>
-            </div>
-          ) : null,
-        )}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 border border-red-200 relative overflow-hidden">
+          <div className="absolute top-2 right-2 text-3xl opacity-20">⛔</div>
+          <p className="text-xs font-semibold text-red-700 uppercase">Critical</p>
+          <p className="text-2xl font-bold text-red-900 mt-1">{counts.critical}</p>
+        </div>
+        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 border border-yellow-200 relative overflow-hidden">
+          <div className="absolute top-2 right-2 text-3xl opacity-20">⚠️</div>
+          <p className="text-xs font-semibold text-yellow-700 uppercase">High</p>
+          <p className="text-2xl font-bold text-yellow-900 mt-1">{counts.high}</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200 relative overflow-hidden">
+          <div className="absolute top-2 right-2 text-3xl opacity-20">ℹ️</div>
+          <p className="text-xs font-semibold text-blue-700 uppercase">Medium</p>
+          <p className="text-2xl font-bold text-blue-900 mt-1">{counts.medium}</p>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded border border-gray-200 bg-white">
-        <div className="flex flex-wrap border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow-sm mb-3 overflow-hidden">
+        <div className="flex gap-1 border-b border-gray-200 p-2">
           {alertTabs.map((tab) => {
-            const isActive = tabValue === tab.key;
+            const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setTabValue(tab.key)}
-                className={`relative px-4 py-3 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
                   isActive
-                    ? "border-b-2 border-blue-500 text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                {tab.label}
-                <span className="ml-2 text-xs font-semibold text-gray-400">
-                  ({counts[tab.key] || 0})
-                </span>
+                {tab.key === "all" && "📦"}
+                {tab.key === "out_of_stock" && "⛔"}
+                {tab.key === "low_stock" && "⚠️"}
+                {tab.key === "overstock" && "ℹ️"}
+                {tab.label.split(" ")[0]}
+                <span className="text-xs opacity-75">({counts[tab.key] || 0})</span>
               </button>
             );
           })}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Alert
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Item Name
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Category
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Current Stock
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Min/Max Stock
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Location
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Severity
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Last Updated
-                </th>
-                <th className="whitespace-nowrap px-2 py-2 text-xs text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {getFilteredAlerts().map((alert) => (
-                <tr key={alert.id} className="hover:bg-gray-50">
-                  <td className="px-2 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-lg" aria-hidden>
+        <div className="p-3">
+          {getTabFilteredAlerts().length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-xs text-gray-500">No alerts found</p>
+            </div>
+          ) : (
+            <div className="grid gap-2 max-h-[600px] overflow-y-auto">
+              {getTabFilteredAlerts().map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`border rounded-lg p-3 ${
+                    alert.severity === "critical"
+                      ? "bg-red-50 border-red-200"
+                      : alert.severity === "high"
+                      ? "bg-yellow-50 border-yellow-200"
+                      : "bg-blue-50 border-blue-200"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start gap-2 flex-1">
+                      <span className="text-lg">
                         {alertIcon[alert.alertType] || "⚠️"}
                       </span>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                          alertTypeStyles[alert.alertType] || alertTypeStyles.default
-                        }`}
-                      >
-                        {formatAlertType(alert.alertType)}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-gray-900 truncate">
+                          {alert.itemName}
+                        </p>
+                        <p className="text-xs text-gray-600">{alert.category}</p>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-2 py-2 text-sm font-medium text-gray-900">
-                    {alert.itemName}
-                  </td>
-                  <td className="px-2 py-2 text-sm text-gray-500">{alert.category}</td>
-                  <td className="px-2 py-2 text-sm text-gray-900">
                     <span
-                      className={
-                        alert.currentStock === 0
-                          ? "font-semibold text-red-600"
-                          : "text-gray-900"
-                      }
-                    >
-                      {alert.currentStock}
-                    </span>
-                  </td>
-                  <td className="px-2 py-2 text-sm text-gray-500">
-                    {alert.minStock}
-                    {alert.maxStock ? ` / ${alert.maxStock}` : ""}
-                  </td>
-                  <td className="px-2 py-2 text-sm text-gray-500">{alert.location}</td>
-                  <td className="px-2 py-2">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase ${
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${
                         severityStyles[alert.severity] || severityStyles.default
                       }`}
                     >
                       {alert.severity.toUpperCase()}
                     </span>
-                  </td>
-                  <td className="px-2 py-2 text-sm text-gray-500">{alert.lastUpdated}</td>
-                  <td className="px-2 py-2 text-sm">
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                    <div className="bg-white bg-opacity-50 rounded p-1.5">
+                      <p className="text-gray-600">Stock: <span className={alert.currentStock === 0 ? "font-bold text-red-600" : "font-bold text-gray-900"}>{alert.currentStock}</span></p>
+                    </div>
+                    <div className="bg-white bg-opacity-50 rounded p-1.5">
+                      <p className="text-gray-600">Min: <span className="font-bold text-gray-900">{alert.minStock}</span></p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-600">📍 {alert.location}</p>
                     <button
                       type="button"
-                      className="inline-flex items-center rounded border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 transition hover:border-blue-200 hover:bg-blue-100"
+                      className="inline-flex items-center gap-1 rounded-lg bg-blue-500 hover:bg-blue-600 px-2 py-1 text-xs font-semibold text-white transition"
                     >
-                      <span className="mr-2 text-base" aria-hidden>
-                        🛒
-                      </span>
-                      Create PO
+                      🛒 PO
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       </div>
-
-      {getFilteredAlerts().length === 0 && (
-        <div className="rounded border border-dashed border-gray-300 bg-white p-10 text-center">
-          <h2 className="text-lg font-semibold text-gray-900">No alerts found</h2>
-          <p className="mt-2 text-sm text-gray-500">
-            All stock levels are currently within normal ranges.
-          </p>
-        </div>
-      )}
     </div>
   );
 };

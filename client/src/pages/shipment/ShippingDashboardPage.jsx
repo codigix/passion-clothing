@@ -220,14 +220,13 @@ const ShippingDashboardPage = () => {
     const statusMap = {
       'preparing': ['packed', 'ready_to_ship'],
       'packed': ['ready_to_ship'],
-      'ready_to_ship': ['shipped', 'dispatched'],
+      'ready_to_ship': ['shipped'],
       'shipped': ['in_transit'],
-      'dispatched': ['in_transit'],
       'in_transit': ['out_for_delivery'],
       'out_for_delivery': ['delivered'],
       'delivered': [],
-      'failed_delivery': ['pending'],
-      'returned': ['pending'],
+      'failed_delivery': ['in_transit', 'returned'],
+      'returned': [],
       'cancelled': []
     };
     return statusMap[currentStatus] || [];

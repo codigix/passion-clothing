@@ -1,6 +1,9 @@
 // Send sales order to procurement (dedicated endpoint)
 const express = require("express");
 const { Op, fn, col, literal } = require("sequelize");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const {
   SalesOrder,
   Customer,
@@ -19,6 +22,30 @@ const { authenticateToken, checkDepartment } = require("../middleware/auth");
 const NotificationService = require("../utils/notificationService");
 
 const router = express.Router();
+
+// Multer configuration for design file uploads
+const uploadDir = path.join(__dirname, '../uploads');
+
+// Ensure temp upload directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const sanitizedName = file.originalname.replace(/\s+/g, '_');
+    cb(null, uniqueSuffix + '-' + sanitizedName);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 const generateProductionRequestNumber = async (transaction) => {
   const today = new Date();
@@ -506,6 +533,9 @@ router.get(
             "approved_at",
             "created_at",
             "updated_at",
+            "project_name",
+            "project_reference",
+            "ready_for_procurement",
           ],
         },
         include: [
@@ -2430,6 +2460,628 @@ router.get(
     } catch (error) {
       console.error("Recent activities error:", error);
       res.status(500).json({ message: "Failed to fetch recent activities" });
+    }
+  }
+);
+
+// Download invoice as PDF
+router.get(
+  "/orders/:id/invoice",
+  authenticateToken,
+  async (req, res) => {
+    let doc;
+    try {
+      const order = await SalesOrder.findByPk(req.params.id, {
+        include: [
+          { model: Customer, as: "customer" },
+          { model: Product, as: "product" },
+        ],
+      });
+
+      if (!order) {
+        return res.status(404).json({ message: "Sales order not found" });
+      }
+
+      // Find or create invoice
+      let invoice = await Invoice.findOne({
+        where: { sales_order_id: order.id },
+      });
+      
+      if (!invoice) {
+        // Auto-generate invoice if it doesn't exist
+        console.log("Creating invoice for order:", order.id, order.order_number);
+        
+        const today = new Date();
+        const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+        const invoiceNumber = `INV-${dateStr}-${order.id
+          .toString()
+          .padStart(4, "0")}`;
+
+        const subtotal = parseFloat(order.final_amount || 0);
+        const paidAmount = parseFloat(order.advance_paid || 0);
+        const outstandingAmount = subtotal - paidAmount;
+
+        invoice = await Invoice.create({
+          invoice_number: invoiceNumber,
+          invoice_type: "sales",
+          customer_id: order.customer_id,
+          sales_order_id: order.id,
+          invoice_date: new Date(),
+          due_date:
+            order.delivery_date ||
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          items: order.items || [],
+          subtotal: subtotal,
+          total_amount: subtotal,
+          paid_amount: paidAmount,
+          outstanding_amount: outstandingAmount,
+          status: "sent",
+          payment_status: outstandingAmount > 0 ? "partial" : "paid",
+          payment_terms: "Net 30",
+          currency: "INR",
+          billing_address: order.customer?.billing_address,
+          shipping_address: order.customer?.shipping_address,
+          notes: `Invoice for Sales Order ${order.order_number}`,
+          created_by: req.user?.id || 1,
+        });
+
+        await order.update({
+          invoice_status: "generated",
+          invoice_number: invoiceNumber,
+          invoice_date: new Date(),
+        });
+      }
+
+      // Log order data for debugging
+      console.log("=== Invoice PDF Generation ===");
+      console.log("Order ID:", order.id);
+      console.log("Order Number:", order.order_number);
+      console.log("Customer Name:", order.customer?.name);
+      console.log("Items Count:", order.items?.length || 0);
+      console.log("Total Amount:", order.final_amount);
+      console.log("Invoice Number:", invoice.invoice_number);
+      
+      // Generate PDF using pdfkit
+      const PDFDocument = require("pdfkit");
+      doc = new PDFDocument({ margin: 40, size: 'A4' });
+      
+      // Set response headers FIRST
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="Invoice-${order.order_number}.pdf"`
+      );
+
+      // Handle errors on the PDF document
+      doc.on('error', (err) => {
+        console.error("PDF Generation Error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ message: "Failed to generate invoice PDF" });
+        } else {
+          res.end();
+        }
+      });
+
+      // Pipe to response
+      doc.pipe(res);
+
+      try {
+        // Header
+        doc.fontSize(24);
+        doc.font('Helvetica', 'bold');
+        doc.text("INVOICE", { align: "center" });
+        doc.fontSize(11);
+        doc.font('Helvetica', 'normal');
+        doc.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", { align: "center" });
+        
+        // Invoice Details
+        doc.moveDown(0.5);
+        doc.fontSize(9);
+        doc.font('Helvetica', 'bold');
+        
+        const col1 = 50;
+        const col2 = 280;
+        const col3 = 430;
+        let currentY = doc.y;
+        
+        // Row 1
+        doc.text("Invoice #:", col1, currentY);
+        doc.font('Helvetica', 'normal');
+        doc.text(invoice.invoice_number || "N/A", col1 + 80, currentY);
+        
+        doc.font('Helvetica', 'bold');
+        doc.text("Order #:", col2, currentY);
+        doc.font('Helvetica', 'normal');
+        doc.text(order.order_number || "N/A", col2 + 65, currentY);
+        
+        // Row 2
+        currentY += 18;
+        doc.font('Helvetica', 'bold');
+        doc.text("Invoice Date:", col1, currentY);
+        doc.font('Helvetica', 'normal');
+        doc.text(new Date(invoice.invoice_date).toLocaleDateString("en-IN"), col1 + 80, currentY);
+        
+        doc.font('Helvetica', 'bold');
+        doc.text("Order Date:", col2, currentY);
+        doc.font('Helvetica', 'normal');
+        doc.text(new Date(order.order_date).toLocaleDateString("en-IN"), col2 + 65, currentY);
+        
+        // Row 3
+        currentY += 18;
+        doc.font('Helvetica', 'bold');
+        doc.text("Delivery Date:", col1, currentY);
+        doc.font('Helvetica', 'normal');
+        doc.text(new Date(order.delivery_date).toLocaleDateString("en-IN"), col1 + 80, currentY);
+        
+        if (order.order_type) {
+          doc.font('Helvetica', 'bold');
+          doc.text("Order Type:", col2, currentY);
+          doc.font('Helvetica', 'normal');
+          doc.text(order.order_type, col2 + 65, currentY);
+        }
+        
+        // Row 4 - Optional fields
+        if (order.buyer_reference || order.project_name) {
+          currentY += 18;
+          if (order.buyer_reference) {
+            doc.font('Helvetica', 'bold');
+            doc.text("Buyer Ref:", col1, currentY);
+            doc.font('Helvetica', 'normal');
+            doc.text(order.buyer_reference, col1 + 80, currentY);
+          }
+          
+          if (order.project_name) {
+            doc.font('Helvetica', 'bold');
+            doc.text("Project:", col2, currentY);
+            doc.font('Helvetica', 'normal');
+            doc.text(order.project_name, col2 + 65, currentY);
+          }
+        }
+        
+        doc.moveDown(1.2);
+
+        // Customer details
+        doc.fontSize(11);
+        doc.font('Helvetica', 'bold');
+        doc.text("Bill To:", { underline: true });
+        doc.fontSize(9);
+        doc.font('Helvetica', 'normal');
+        doc.text(order.customer?.name || "N/A");
+        if (order.customer?.email) {
+          doc.text(`Email: ${order.customer.email}`);
+        }
+        if (order.customer?.phone) {
+          doc.text(`Phone: ${order.customer.phone}`);
+        }
+        if (order.customer?.billing_address) {
+          doc.text(order.customer.billing_address, { width: 250 });
+        }
+        
+        // Shipping address if different
+        if (order.shipping_address && order.shipping_address !== order.customer?.billing_address) {
+          doc.moveDown(0.3);
+          doc.fontSize(11);
+          doc.font('Helvetica', 'bold');
+          doc.text("Ship To:", { underline: true });
+          doc.fontSize(9);
+          doc.font('Helvetica', 'normal');
+          doc.text(order.shipping_address, { width: 250 });
+        }
+        
+        doc.moveDown(0.5);
+
+        // Product/Order Specifications
+        if (order.garment_specifications) {
+          const specs = order.garment_specifications;
+          doc.fontSize(10);
+          doc.font('Helvetica', 'bold');
+          doc.text("Product Specifications:");
+          doc.fontSize(9);
+          doc.font('Helvetica', 'normal');
+          
+          if (specs.product_type) doc.text(`Product Type: ${specs.product_type}`);
+          if (specs.fabric_type) doc.text(`Fabric: ${specs.fabric_type}`);
+          if (specs.color) doc.text(`Color: ${specs.color}`);
+          if (specs.gsm) doc.text(`GSM: ${specs.gsm}`);
+          
+          doc.moveDown(0.3);
+        }
+        
+        // Items table header
+        doc.fontSize(10);
+        doc.font('Helvetica', 'bold');
+        const tableTop = doc.y;
+        doc.text("Item Details", 50, tableTop);
+        doc.text("Qty", 300, tableTop);
+        doc.text("Unit Price", 360, tableTop);
+        doc.text("Amount", 480, tableTop);
+        doc.font('Helvetica', 'normal');
+        
+        doc.moveTo(50, tableTop + 12).lineTo(550, tableTop + 12).stroke();
+        
+        let itemY = tableTop + 20;
+        doc.fontSize(8);
+        
+        // Items
+        if (order.items && Array.isArray(order.items)) {
+          order.items.forEach((item, idx) => {
+            const amount = (item.quantity || 0) * (item.unit_price || 0);
+            
+            // Build item description
+            let desc = item.description || item.product_name || "Product";
+            if (item.style_no) desc += ` (Style: ${item.style_no})`;
+            if (item.fabric_type) desc += ` - ${item.fabric_type}`;
+            if (item.color) desc += ` - ${item.color}`;
+            
+            // Draw item row
+            doc.text(desc, 50, itemY, { width: 240, lineBreak: true });
+            doc.text((item.quantity || 0).toString(), 300, itemY);
+            doc.text(`₹${(item.unit_price || 0).toFixed(2)}`, 360, itemY);
+            doc.text(`₹${amount.toFixed(2)}`, 480, itemY);
+            itemY += 20;
+            
+            if (item.remarks) {
+              doc.fontSize(7);
+              doc.text(`Remarks: ${item.remarks}`, 50, itemY, { width: 480 });
+              doc.fontSize(8);
+              itemY += 12;
+            }
+          });
+        }
+
+        doc.moveTo(50, itemY).lineTo(550, itemY).stroke();
+        itemY += 10;
+
+        // Totals section
+        doc.fontSize(9);
+        const subtotal = order.total_amount || order.final_amount || 0;
+        const discount = order.discount_amount || 0;
+        const tax = order.tax_amount || 0;
+        const total = order.final_amount || subtotal - discount + tax;
+        
+        // Subtotal
+        doc.text("Subtotal:", 350, itemY);
+        doc.text(`₹${subtotal.toFixed(2)}`, 480, itemY);
+        itemY += 15;
+        
+        // Discount
+        if (discount > 0 || order.discount_percentage > 0) {
+          const discountPercent = order.discount_percentage || 0;
+          doc.text(`Discount${discountPercent > 0 ? ` (${discountPercent}%)` : ''}:`, 350, itemY);
+          doc.text(`₹${discount.toFixed(2)}`, 480, itemY);
+          itemY += 15;
+        }
+        
+        // Tax
+        if (tax > 0 || order.tax_percentage > 0) {
+          const taxPercent = order.tax_percentage || 0;
+          doc.text(`Tax${taxPercent > 0 ? ` (${taxPercent}%)` : ''}:`, 350, itemY);
+          doc.text(`₹${tax.toFixed(2)}`, 480, itemY);
+          itemY += 15;
+        }
+        
+        // Total
+        doc.fontSize(11);
+        doc.font('Helvetica', 'bold');
+        doc.text("Total Amount:", 350, itemY);
+        doc.text(`₹${total.toFixed(2)}`, 480, itemY);
+        doc.font('Helvetica', 'normal');
+        itemY += 15;
+
+        // Payment information
+        const paidAmount = order.advance_paid || 0;
+        if (paidAmount > 0) {
+          doc.fontSize(9);
+          doc.text("Advance Paid:", 350, itemY);
+          doc.text(`₹${paidAmount.toFixed(2)}`, 480, itemY);
+          itemY += 15;
+        }
+
+        const balance = total - paidAmount;
+        doc.fontSize(10);
+        doc.font('Helvetica', 'bold');
+        doc.text("Balance Due:", 350, itemY);
+        doc.text(`₹${balance.toFixed(2)}`, 480, itemY);
+        doc.font('Helvetica', 'normal');
+        
+        doc.moveDown(1);
+
+        // Additional information section
+        if (order.special_instructions || order.payment_terms) {
+          doc.fontSize(9);
+          doc.font('Helvetica', 'bold');
+          doc.text("Additional Information:", 50);
+          doc.fontSize(8);
+          doc.font('Helvetica', 'normal');
+          
+          if (order.payment_terms) {
+            doc.text(`Payment Terms: ${order.payment_terms}`);
+          }
+          
+          if (order.special_instructions) {
+            doc.text(`Special Instructions: ${order.special_instructions}`, { width: 450, align: 'left' });
+          }
+        }
+
+        // Footer
+        doc.moveDown(1);
+        doc.fontSize(8);
+        if (order.payment_terms) {
+          doc.text(`Payment Terms: ${order.payment_terms}`, { align: "center" });
+        }
+        doc.text("Thank you for your business!", { align: "center" });
+
+        // Finalize PDF
+        doc.end();
+      } catch (docError) {
+        console.error("PDF document generation error:", docError);
+        doc.end();
+      }
+    } catch (error) {
+      console.error("Invoice download error:", error);
+      // Only send error response if headers haven't been sent
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to generate invoice PDF" });
+      } else {
+        res.end();
+      }
+    }
+  }
+);
+
+// Upload design files for an order
+router.post(
+  "/orders/:id/upload-design-files",
+  authenticateToken,
+  upload.array('files', 5),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Verify the order exists
+      const order = await SalesOrder.findByPk(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Check if files were uploaded
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No files provided" });
+      }
+
+      // Create order-specific uploads directory
+      const orderUploadsDir = path.join(__dirname, '../uploads', 'design-files', String(id));
+      if (!fs.existsSync(orderUploadsDir)) {
+        fs.mkdirSync(orderUploadsDir, { recursive: true });
+      }
+
+      const uploadedFiles = [];
+      const errors = [];
+
+      // Move uploaded files to the order-specific directory
+      for (const file of req.files) {
+        try {
+          const tempPath = file.path;
+          const targetPath = path.join(orderUploadsDir, file.filename);
+          
+          // Verify temp file exists before moving
+          if (!fs.existsSync(tempPath)) {
+            console.warn(`Temp file not found: ${tempPath}`);
+            errors.push(file.originalname);
+            continue;
+          }
+
+          // Move/rename the file
+          fs.renameSync(tempPath, targetPath);
+          
+          // Verify the file was moved successfully
+          if (!fs.existsSync(targetPath)) {
+            console.warn(`File move verification failed: ${targetPath}`);
+            errors.push(file.originalname);
+            continue;
+          }
+
+          uploadedFiles.push({
+            filename: file.filename,
+            originalname: file.originalname
+          });
+          console.log(`File uploaded successfully: ${file.originalname} -> ${file.filename}`);
+        } catch (err) {
+          console.error(`Failed to move file ${file.originalname}:`, err);
+          errors.push(file.originalname);
+        }
+      }
+
+      // Update order with design file metadata
+      if (uploadedFiles.length > 0 && order.garment_specifications) {
+        const currentFiles = order.garment_specifications.design_files || [];
+        // Store file metadata for reference
+        const newFiles = uploadedFiles.map(f => ({
+          storedName: f.filename,
+          originalName: f.originalname
+        }));
+        const allFiles = [...currentFiles, ...newFiles];
+        
+        order.garment_specifications.design_files = allFiles;
+        await order.update({
+          garment_specifications: order.garment_specifications
+        });
+      }
+
+      res.json({
+        message: "Files uploaded successfully",
+        uploaded: uploadedFiles,
+        failed: errors
+      });
+    } catch (error) {
+      console.error('Design file upload error:', error);
+      res.status(500).json({ message: "Failed to upload design files" });
+    }
+  }
+);
+
+// Download individual design file
+router.get(
+  "/orders/:id/design-file/:fileName",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id, fileName } = req.params;
+
+      // Verify the order exists and user has access
+      const order = await SalesOrder.findByPk(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Decode the filename (which could be the stored name or original name)
+      const decodedFileName = decodeURIComponent(fileName);
+      
+      // Validate filename to prevent directory traversal
+      if (decodedFileName.includes('..') || decodedFileName.includes('/') || decodedFileName.includes('\\')) {
+        return res.status(400).json({ message: "Invalid file name" });
+      }
+
+      // Try to find the file - it could be stored with generated name
+      const orderDesignFilesDir = path.join(__dirname, '../uploads', 'design-files', String(id));
+      let filePath = path.join(orderDesignFilesDir, decodedFileName);
+      let downloadName = decodedFileName;
+
+      // If not found directly, try to find by original name in metadata
+      if (!fs.existsSync(filePath) && order.garment_specifications?.design_files) {
+        const fileMetadata = order.garment_specifications.design_files.find(f => 
+          f.originalName === decodedFileName || f === decodedFileName
+        );
+        if (fileMetadata) {
+          const storedName = fileMetadata.storedName || fileMetadata;
+          filePath = path.join(orderDesignFilesDir, storedName);
+          downloadName = fileMetadata.originalName || decodedFileName;
+        }
+      }
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.warn(`Design file not found: ${filePath}`);
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      // Send the file with original name
+      res.download(filePath, downloadName, (err) => {
+        if (err) {
+          console.error('File download error:', err);
+        }
+      });
+    } catch (error) {
+      console.error('Design file download error:', error);
+      res.status(500).json({ message: "Failed to download design file" });
+    }
+  }
+);
+
+// Send invoice to accounting department
+router.post(
+  "/orders/:id/send-invoice-to-accounting",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const order = await SalesOrder.findByPk(req.params.id, {
+        include: [
+          { model: Customer, as: "customer" },
+          { model: User, as: "creator" },
+        ],
+      });
+
+      if (!order) {
+        return res.status(404).json({ message: "Sales order not found" });
+      }
+
+      // Find or create invoice
+      let invoice = await Invoice.findOne({
+        where: { sales_order_id: order.id },
+      });
+
+      if (!invoice) {
+        const today = new Date();
+        const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+        const invoiceNumber = `INV-${dateStr}-${order.id
+          .toString()
+          .padStart(4, "0")}`;
+
+        const subtotal = parseFloat(order.final_amount || 0);
+        const paidAmount = parseFloat(order.advance_paid || 0);
+
+        invoice = await Invoice.create({
+          invoice_number: invoiceNumber,
+          invoice_type: "sales",
+          customer_id: order.customer_id,
+          sales_order_id: order.id,
+          invoice_date: new Date(),
+          due_date:
+            order.delivery_date ||
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          items: order.items || [],
+          subtotal: subtotal,
+          total_amount: subtotal,
+          paid_amount: paidAmount,
+          outstanding_amount: subtotal - paidAmount,
+          status: "generated",
+          notes: `Invoice generated for ${order.order_number}`,
+        });
+      }
+
+      // Send notification to finance/accounting department
+      try {
+        const financeUsers = await User.findAll({
+          where: { department: "finance" },
+        });
+
+        if (financeUsers.length > 0) {
+          await NotificationService.notifyUsers(
+            financeUsers.map((u) => u.id),
+            `Invoice sent for processing`,
+            `Invoice ${invoice.invoice_number} for order ${order.order_number} (Customer: ${order.customer?.name}) has been sent to accounting. Amount: ₹${order.final_amount}`,
+            {
+              type: "invoice_sent",
+              sales_order_id: order.id,
+              invoice_id: invoice.id,
+              invoice_number: invoice.invoice_number,
+              order_number: order.order_number,
+            },
+            req.user.id
+          );
+        }
+      } catch (notificationError) {
+        console.error("Failed to send notification:", notificationError);
+      }
+
+      // Create history entry
+      try {
+        await SalesOrderHistory.create({
+          sales_order_id: order.id,
+          action: "invoice_sent_to_accounting",
+          description: `Invoice ${invoice.invoice_number} sent to accounting department by ${req.user.username}`,
+          changed_by_id: req.user.id,
+        });
+      } catch (historyError) {
+        console.error("Failed to create history entry:", historyError);
+      }
+
+      res.json({
+        message: "Invoice sent to accounting department successfully",
+        invoice: {
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          status: invoice.status,
+        },
+      });
+    } catch (error) {
+      console.error("Send invoice to accounting error:", error);
+      res
+        .status(500)
+        .json({
+          message: "Failed to send invoice to accounting",
+          error: error.message,
+        });
     }
   }
 );

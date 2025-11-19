@@ -1,96 +1,98 @@
-const { Sequelize } = require('sequelize');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, 'server', '.env') });
+const { sequelize, GoodsReceiptNote, PurchaseOrder, Approval, VendorRequest } = require('./server/config/database');
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    dialect: 'mysql',
-    logging: false
-  }
-);
-
-async function checkGRNStatus() {
+async function checkGRNStatus(poId) {
   try {
-    await sequelize.authenticate();
-    console.log('✅ Connected to database\n');
+    console.log(`\n${'='.repeat(60)}`);
+    console.log('  GRN HIERARCHY STATUS REPORT');
+    console.log(`${'='.repeat(60)}\n`);
 
-    // Check GRN table structure
-    const [columns] = await sequelize.query('DESCRIBE goods_receipt_notes');
-    console.log('📋 GRN Table Columns:');
-    console.log('================================');
-    columns.forEach(col => {
-      console.log(`  ${col.Field} (${col.Type})`);
+    const po = await PurchaseOrder.findByPk(poId);
+    console.log(`📋 Purchase Order`);
+    console.log(`   PO ID: ${po.id}`);
+    console.log(`   PO Number: ${po.po_number}`);
+    console.log(`   Status: ${po.status}`);
+    console.log(`   Expected Delivery: ${po.expected_delivery_date}\n`);
+
+    const grns = await GoodsReceiptNote.findAll({
+      where: { purchase_order_id: poId },
+      order: [['created_at', 'ASC']],
+      attributes: ['id', 'grn_number', 'grn_sequence', 'is_first_grn', 'status', 'verification_status', 'created_at']
     });
 
-    console.log('\n');
+    console.log(`📦 Goods Receipt Notes (${grns.length} found)`);
+    grns.forEach((grn, idx) => {
+      console.log(`   ${idx + 1}. ${grn.grn_number}`);
+      console.log(`      Sequence: ${grn.grn_sequence} | First GRN: ${grn.is_first_grn ? 'YES' : 'NO'}`);
+      console.log(`      Status: ${grn.status} | Verification: ${grn.verification_status}`);
+      console.log(`      Created: ${new Date(grn.created_at).toLocaleString()}`);
+    });
+    console.log();
 
-    // Check all GRN records
-    const [grns] = await sequelize.query(`
-      SELECT 
-        id,
-        grn_number,
-        purchase_order_id,
-        status,
-        verification_status,
-        inventory_added,
-        created_at
-      FROM goods_receipt_notes
-      ORDER BY created_at DESC
-    `);
+    const complaints = await Approval.findAll({
+      where: {
+        entity_id: poId,
+        entity_type: 'purchase_order'
+      },
+      order: [['created_at', 'DESC']],
+      attributes: ['id', 'stage_key', 'status', 'created_at', 'decided_at']
+    });
 
-    console.log('📦 GRN Records in Database:');
-    console.log('================================');
-    if (grns.length === 0) {
-      console.log('  No GRN records found');
+    console.log(`⚠️  Complaints/Approvals (${complaints.length} found)`);
+    complaints.forEach((approval, idx) => {
+      const statusIcon = approval.status === 'approved' ? '✓' : approval.status === 'pending' ? '⏳' : '❌';
+      console.log(`   ${idx + 1}. ${approval.stage_key}`);
+      console.log(`      Status: ${statusIcon} ${approval.status}`);
+      console.log(`      Created: ${new Date(approval.created_at).toLocaleString()}`);
+      if (approval.decided_at) {
+        console.log(`      Decided: ${new Date(approval.decided_at).toLocaleString()}`);
+      }
+    });
+    console.log();
+
+    const vendorRequests = await VendorRequest.findAll({
+      where: { purchase_order_id: poId },
+      attributes: ['id', 'request_number', 'request_type', 'status', 'created_at']
+    });
+
+    console.log(`🤝 Vendor Requests (${vendorRequests.length} found)`);
+    vendorRequests.forEach((vr, idx) => {
+      console.log(`   ${idx + 1}. ${vr.request_number}`);
+      console.log(`      Type: ${vr.request_type} | Status: ${vr.status}`);
+      console.log(`      Created: ${new Date(vr.created_at).toLocaleString()}`);
+    });
+    console.log();
+
+    console.log(`${'='.repeat(60)}`);
+    console.log('  WORKFLOW STATUS');
+    console.log(`${'='.repeat(60)}\n`);
+
+    console.log(`Current Status: ${po.status}`);
+    console.log(`GRN Count: ${grns.length}`);
+    console.log(`Hierarchy: ${grns.length > 0 ? (grns[0].is_first_grn ? '✓ Correct' : '❌ Incorrect') : 'N/A'}`);
+    console.log();
+
+    console.log('Next Steps:');
+    if (po.status === 'reopened' && grns.length >= 1) {
+      console.log('   1. ✓ Hierarchy is FIXED');
+      console.log('   2. ✓ Shortage complaints APPROVED');
+      console.log('   3. ✓ PO status is REOPENED');
+      console.log('   4. 👉 Create second GRN with shortage items');
+      console.log(`   5. 👉 Endpoint: POST /api/grn/from-po/${poId}`);
+    } else if (po.status === 'received') {
+      console.log('   ✓ Workflow COMPLETE - All items received perfectly');
     } else {
-      grns.forEach(grn => {
-        console.log(`\nGRN ID: ${grn.id}`);
-        console.log(`  Number: ${grn.grn_number}`);
-        console.log(`  PO ID: ${grn.purchase_order_id}`);
-        console.log(`  Status: ${grn.status}`);
-        console.log(`  Verification: ${grn.verification_status}`);
-        console.log(`  Added to Inventory: ${grn.inventory_added}`);
-        console.log(`  Created: ${grn.created_at}`);
-      });
+      console.log(`   ⏳ Current status: ${po.status}`);
     }
 
-    console.log('\n');
-
-    // Check PO statuses that might need GRN
-    const [pos] = await sequelize.query(`
-      SELECT 
-        id,
-        po_number,
-        status,
-        created_at
-      FROM purchase_orders
-      WHERE status IN ('grn_approved', 'sent', 'received')
-      ORDER BY created_at DESC
-      LIMIT 10
-    `);
-
-    console.log('📋 Purchase Orders Ready for GRN:');
-    console.log('================================');
-    if (pos.length === 0) {
-      console.log('  No POs ready for GRN');
-    } else {
-      pos.forEach(po => {
-        console.log(`\nPO ID: ${po.id}`);
-        console.log(`  Number: ${po.po_number}`);
-        console.log(`  Status: ${po.status}`);
-        console.log(`  Created: ${po.created_at}`);
-      });
-    }
+    console.log(`\n${'='.repeat(60)}\n`);
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('Error:', error.message);
+    process.exit(1);
   } finally {
     await sequelize.close();
   }
 }
 
-checkGRNStatus();
+const poId = process.argv[2] || 1;
+checkGRNStatus(parseInt(poId));

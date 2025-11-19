@@ -8,7 +8,7 @@ const departments = [
   { value: 'sales', label: '📊 Sales' },
   { value: 'procurement', label: '🛒 Procurement' },
   { value: 'manufacturing', label: '🏭 Manufacturing' },
-  { value: 'outsourcing', label: '🚚 Outsourcing' },
+  { value: 'outsourcing', label: '🔄 Outsourcing' },
   { value: 'inventory', label: '📦 Inventory' },
   { value: 'shipment', label: '✈️ Shipment' },
   { value: 'store', label: '🏪 Store' },
@@ -16,6 +16,30 @@ const departments = [
   { value: 'admin', label: '⚙️ Administration' },
   { value: 'samples', label: '🎨 Samples' }
 ];
+
+// ✅ MOVED OUTSIDE: Prevent re-mounting on every render
+const FormField = ({ icon: Icon, label, name, type = 'text', placeholder, required = true, value, onChange }) => (
+  <div>
+    <label className="block text-xs font-semibold text-slate-700 mb-1">
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <div className="relative group">
+      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+        <Icon className="w-3 h-3" />
+      </span>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        className="pl-10 pr-4 py-2 w-full border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors placeholder-slate-400 text-sm"
+      />
+    </div>
+  </div>
+);
 
 const RegistrationPage = () => {
   const navigate = useNavigate();
@@ -32,11 +56,18 @@ const RegistrationPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Input changed: ${name} = ${value}`); // Debug log
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted with data:', form); // Debug log
+    
+    if (!form.employee_id || !form.name || !form.email || !form.password || !form.department) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
     
     if (!agreedToTerms) {
       toast.error('Please agree to the terms and conditions');
@@ -55,29 +86,6 @@ const RegistrationPage = () => {
       setLoading(false);
     }
   };
-
-  const FormField = ({ icon: Icon, label, name, type = 'text', placeholder, required = true }) => (
-    <div>
-      <label className="block text-xs font-semibold text-slate-700 mb-1">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      <div className="relative group">
-        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-          <Icon className="w-3 h-3" />
-        </span>
-        <input
-          type={type}
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          placeholder={placeholder}
-          required={required}
-          className="pl-10 pr-4 py-2 w-full border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-0 transition-colors placeholder-slate-400 text-sm"
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center py-4 px-3">
@@ -110,8 +118,8 @@ const RegistrationPage = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField icon={FaIdBadge} label="Employee ID" name="employee_id" placeholder="EMP001" />
-                  <FormField icon={FaUser} label="Full Name" name="name" placeholder="John Doe" />
+                  <FormField icon={FaIdBadge} label="Employee ID" name="employee_id" placeholder="EMP001" value={form.employee_id} onChange={handleChange} />
+                  <FormField icon={FaUser} label="Full Name" name="name" placeholder="John Doe" value={form.name} onChange={handleChange} />
                 </div>
               </div>
 
@@ -123,8 +131,8 @@ const RegistrationPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField icon={FaEnvelope} label="Email Address" name="email" type="email" placeholder="john@example.com" />
-                  <FormField icon={FaPhone} label="Phone Number" name="phone" placeholder="+91 98765 43210" required={false} />
+                  <FormField icon={FaEnvelope} label="Email Address" name="email" type="email" placeholder="john@example.com" value={form.email} onChange={handleChange} />
+                  <FormField icon={FaPhone} label="Phone Number" name="phone" placeholder="+91 98765 43210" required={false} value={form.phone} onChange={handleChange} />
                 </div>
               </div>
 

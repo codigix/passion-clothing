@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Package, CheckCircle, ChevronLeft, MapPin } from 'lucide-react';
+import { Package, CheckCircle, ChevronLeft, MapPin, AlertTriangle, Plus } from 'lucide-react';
 import api from '../../utils/api';
+import toast from 'react-hot-toast';
 
 const AddGRNToInventoryPage = () => {
   const { id } = useParams();
@@ -11,6 +12,14 @@ const AddGRNToInventoryPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [grn, setGrn] = useState(null);
   const [location, setLocation] = useState('Main Warehouse');
+  const [showMismatchModal, setShowMismatchModal] = useState(false);
+  const [mismatchForm, setMismatchForm] = useState({
+    mismatched_items: [],
+    requested_action: 'accept_shortage',
+    requested_action_notes: '',
+    request_description: ''
+  });
+  const [mismatchSubmitting, setMismatchSubmitting] = useState(false);
 
   useEffect(() => {
     fetchGRN();
@@ -51,6 +60,85 @@ const AddGRNToInventoryPage = () => {
       alert(error.response?.data?.message || 'Failed to add items to inventory');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const checkForMismatches = () => {
+    if (!grn || !grn.items_received) return { hasShortages: false, hasOverages: false, items: [] };
+    
+    const mismatchedItems = [];
+    grn.items_received.forEach((item) => {
+      if ((item.shortage_quantity && item.shortage_quantity > 0) || (item.overage_quantity && item.overage_quantity > 0)) {
+        mismatchedItems.push(item);
+      }
+    });
+
+    return {
+      hasShortages: mismatchedItems.some(item => item.shortage_quantity > 0),
+      hasOverages: mismatchedItems.some(item => item.overage_quantity > 0),
+      items: mismatchedItems
+    };
+  };
+
+  const handleCreateMismatchRequest = () => {
+    const { items } = checkForMismatches();
+    const processedItems = items.map(item => ({
+      item_name: item.material_name,
+      color: item.color || '',
+      gsm: item.gsm || '',
+      uom: item.uom || '',
+      po_quantity: item.ordered_quantity || item.po_quantity || 0,
+      received_quantity: item.received_quantity || 0,
+      invoiced_quantity: item.invoiced_qty || item.invoiced_quantity || 0,
+      shortage_quantity: item.shortage_quantity || 0,
+      overage_quantity: item.overage_quantity || 0,
+      rate: item.rate || 0,
+      notes: item.remarks || ''
+    }));
+
+    setMismatchForm({
+      mismatched_items: processedItems,
+      requested_action: 'accept_shortage',
+      requested_action_notes: '',
+      request_description: ''
+    });
+    setShowMismatchModal(true);
+  };
+
+  const handleMismatchSubmit = async () => {
+    try {
+      if (!mismatchForm.mismatched_items || mismatchForm.mismatched_items.length === 0) {
+        toast.error('No mismatched items selected');
+        return;
+      }
+
+      if (!mismatchForm.requested_action) {
+        toast.error('Please select a requested action');
+        return;
+      }
+
+      setMismatchSubmitting(true);
+
+      const payload = {
+        mismatch_items: mismatchForm.mismatched_items,
+        requested_action: mismatchForm.requested_action,
+        requested_action_notes: mismatchForm.requested_action_notes,
+        request_description: mismatchForm.request_description
+      };
+
+      const response = await api.post(`/grn/${id}/create-mismatch-request`, payload);
+
+      toast.success(`Mismatch request created: ${response.data.request_number}`);
+      setShowMismatchModal(false);
+      
+      setTimeout(() => {
+        fetchGRN();
+      }, 1000);
+    } catch (error) {
+      console.error('Error creating mismatch request:', error);
+      toast.error(error.response?.data?.message || 'Failed to create mismatch request');
+    } finally {
+      setMismatchSubmitting(false);
     }
   };
 
@@ -184,6 +272,37 @@ const AddGRNToInventoryPage = () => {
           </div>
         </div>
 
+        {/* Mismatch Alert */}
+        {(() => {
+          const { hasShortages, hasOverages, items } = checkForMismatches();
+          return (hasShortages || hasOverages) && (
+            <div className="bg-amber-50 border border-amber-200 rounded p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-900 mb-2">Material Mismatches Detected</h3>
+                  <p className="text-sm text-amber-800 mb-3">
+                    {hasShortages && hasOverages ? (
+                      `${items.filter(i => i.shortage_quantity > 0).length} shortage(s) and ${items.filter(i => i.overage_quantity > 0).length} overage(s) detected in received materials.`
+                    ) : hasShortages ? (
+                      `${items.length} item(s) with shortages detected. Expected quantity was not fully received.`
+                    ) : (
+                      `${items.length} item(s) with overages detected. More quantity was received than ordered.`
+                    )}
+                  </p>
+                  <button
+                    onClick={handleCreateMismatchRequest}
+                    className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded text-sm hover:bg-amber-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Mismatch Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Items to Add */}
         <div className="bg-white rounded shadow-sm border overflow-hidden mb-6">
           <div className="px-5 py-3 border-b bg-gradient-to-r from-gray-50 to-white">
@@ -316,6 +435,144 @@ const AddGRNToInventoryPage = () => {
             <li>Notifications will be sent to relevant departments</li>
           </ul>
         </div>
+
+        {/* Mismatch Request Modal */}
+        {showMismatchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-screen overflow-y-auto shadow-xl">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">Create Material Mismatch Request</h2>
+                <button
+                  onClick={() => setShowMismatchModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-6">
+                {/* Mismatch Items Summary */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Mismatched Items</h3>
+                  <div className="bg-gray-50 rounded overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100 border-b">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium text-gray-700">Item</th>
+                          <th className="px-4 py-2 text-center font-medium text-gray-700">PO Qty</th>
+                          <th className="px-4 py-2 text-center font-medium text-gray-700">Received</th>
+                          <th className="px-4 py-2 text-center font-medium text-gray-700">Shortage</th>
+                          <th className="px-4 py-2 text-center font-medium text-gray-700">Overage</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {mismatchForm.mismatched_items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-100">
+                            <td className="px-4 py-2 text-gray-900 font-medium">
+                              {item.item_name}
+                              {item.color && <div className="text-xs text-gray-600">{item.color}</div>}
+                            </td>
+                            <td className="px-4 py-2 text-center text-gray-900">{item.po_quantity} {item.uom}</td>
+                            <td className="px-4 py-2 text-center text-gray-900">{item.received_quantity} {item.uom}</td>
+                            <td className="px-4 py-2 text-center">
+                              {item.shortage_quantity > 0 ? (
+                                <span className="text-red-600 font-semibold">{item.shortage_quantity} {item.uom}</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              {item.overage_quantity > 0 ? (
+                                <span className="text-orange-600 font-semibold">{item.overage_quantity} {item.uom}</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Request Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description of Mismatches
+                  </label>
+                  <textarea
+                    value={mismatchForm.request_description}
+                    onChange={(e) => setMismatchForm({...mismatchForm, request_description: e.target.value})}
+                    placeholder="Describe the situation, impact, and any observations about the mismatches..."
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows="3"
+                  />
+                </div>
+
+                {/* Requested Action */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Requested Action <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={mismatchForm.requested_action}
+                    onChange={(e) => setMismatchForm({...mismatchForm, requested_action: e.target.value})}
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="accept_shortage">Accept Shortage & Close PO</option>
+                    <option value="return_overage">Return Overage to Vendor</option>
+                    <option value="wait_for_remaining">Wait for Remaining Materials</option>
+                    <option value="accept_and_adjust">Accept with Price Adjustment</option>
+                    <option value="request_replacement">Request Replacement from Vendor</option>
+                    <option value="cancel_remaining">Cancel Remaining PO Quantity</option>
+                    <option value="other">Other (Specify in Notes)</option>
+                  </select>
+                </div>
+
+                {/* Action Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Notes
+                  </label>
+                  <textarea
+                    value={mismatchForm.requested_action_notes}
+                    onChange={(e) => setMismatchForm({...mismatchForm, requested_action_notes: e.target.value})}
+                    placeholder="Any additional details about the requested action..."
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows="2"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t p-6 flex justify-end gap-3 bg-gray-50">
+                <button
+                  onClick={() => setShowMismatchModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
+                  disabled={mismatchSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleMismatchSubmit}
+                  disabled={mismatchSubmitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {mismatchSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Request'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

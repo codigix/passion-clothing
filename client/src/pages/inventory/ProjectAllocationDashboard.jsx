@@ -54,15 +54,72 @@ const ProjectAllocationDashboard = () => {
     }
 
     try {
-      const response = await api.get(`/inventory/allocations/project/${salesOrderId}`);
+      const [projectRes, requestsRes] = await Promise.all([
+        api.get(`/inventory/allocations/project/${salesOrderId}`),
+        api.get(`/inventory/allocations/requests/${salesOrderId}`)
+      ]);
+      
       setProjectDetails(prev => ({
         ...prev,
-        [salesOrderId]: response.data
+        [salesOrderId]: {
+          ...projectRes.data.project,
+          requests: requestsRes.data.requests || []
+        }
       }));
       setExpandedProjectId(salesOrderId);
     } catch (error) {
       console.error('Error fetching project details:', error);
       toast.error('Failed to load project details');
+    }
+  };
+
+  // Handle approve allocation request
+  const handleApproveRequest = async (requestId, projectId) => {
+    try {
+      const response = await api.patch(`/inventory/allocations/request/${requestId}/approve`, {
+        reason: 'Approved by inventory team'
+      });
+      
+      if (response.data.success) {
+        toast.success('Allocation request approved');
+        setProjectDetails(prev => ({
+          ...prev,
+          [projectId]: {
+            ...prev[projectId],
+            requests: prev[projectId].requests.map(r => 
+              r.id === requestId ? { ...r, status: 'approved' } : r
+            )
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      toast.error('Failed to approve request');
+    }
+  };
+
+  // Handle reject allocation request
+  const handleRejectRequest = async (requestId, projectId) => {
+    try {
+      const response = await api.patch(`/inventory/allocations/request/${requestId}/reject`, {
+        reason: 'Rejected - insufficient stock or other reason'
+      });
+      
+      if (response.data.success) {
+        toast.success('Allocation request rejected');
+        setProjectDetails(prev => ({
+          ...prev,
+          [projectId]: {
+            ...prev[projectId],
+            requests: prev[projectId].requests.map(r => 
+              r.id === requestId ? { ...r, status: 'rejected' } : r
+            )
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast.error('Failed to reject request');
     }
   };
 
@@ -86,6 +143,8 @@ const ProjectAllocationDashboard = () => {
       setWarehouseLoading(false);
     }
   };
+
+
 
   // Initial load and search/sort updates
   useEffect(() => {
@@ -251,7 +310,11 @@ const ProjectAllocationDashboard = () => {
                     {expandedProjectId === project.sales_order_id && projectDetails[project.sales_order_id] && (
                       <tr>
                         <td colSpan="9" className="px-4 py-4 bg-gray-50">
-                          <ProjectDetailsPanel details={projectDetails[project.sales_order_id]} />
+                          <ProjectDetailsPanel 
+                            details={projectDetails[project.sales_order_id]}
+                            onApproveRequest={handleApproveRequest}
+                            onRejectRequest={handleRejectRequest}
+                          />
                         </td>
                       </tr>
                     )}
@@ -440,14 +503,37 @@ const ProjectAllocationDashboard = () => {
         {activeTab === 'projects' && <ProjectsTab />}
         {activeTab === 'warehouse' && <WarehouseTab />}
       </div>
+
+
     </div>
   );
 };
 
 // Project Details Panel Component
-const ProjectDetailsPanel = ({ details }) => {
+const ProjectDetailsPanel = ({ details, onApproveRequest, onRejectRequest }) => {
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'bg-yellow-100 text-yellow-700 border border-yellow-300',
+      approved: 'bg-green-100 text-green-700 border border-green-300',
+      rejected: 'bg-red-100 text-red-700 border border-red-300',
+      completed: 'bg-blue-100 text-blue-700 border border-blue-300'
+    };
+    return colors[status] || colors.pending;
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      low: 'bg-blue-100 text-blue-700',
+      medium: 'bg-amber-100 text-amber-700',
+      high: 'bg-orange-100 text-orange-700',
+      urgent: 'bg-red-100 text-red-700'
+    };
+    return colors[priority] || colors.medium;
+  };
+
   return (
     <div className="space-y-6">
+
       {/* Project Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded border border-gray-200">
@@ -528,7 +614,75 @@ const ProjectDetailsPanel = ({ details }) => {
         </div>
       </div>
 
-      {/* Material Requests */}
+      {/* Material Allocation Requests */}
+      {details.requests && details.requests.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-3">Material Allocation Requests</h4>
+          <div className="bg-white rounded border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Request #</th>
+                    <th className="px-4 py-2 text-center font-medium text-gray-700">Priority</th>
+                    <th className="px-4 py-2 text-center font-medium text-gray-700">Status</th>
+                    <th className="px-4 py-2 text-center font-medium text-gray-700">Items</th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-700">Value</th>
+                    <th className="px-4 py-2 text-center font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {details.requests.map((request) => (
+                    <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-2 text-gray-900 font-medium">{request.request_number}</td>
+                      <td className="px-4 py-2 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getPriorityColor(request.priority)}`}>
+                          {request.priority}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(request.status)}`}>
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-center text-gray-900">{request.total_items}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">₹{parseFloat(request.total_value || 0).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-center">
+                        {request.status === 'pending' && (
+                          <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => onApproveRequest(request.id, details.sales_order_id)}
+                              className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded font-medium transition-colors"
+                              title="Approve request"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => onRejectRequest(request.id, details.sales_order_id)}
+                              className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded font-medium transition-colors"
+                              title="Reject request"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+                        {request.status === 'approved' && (
+                          <span className="text-green-600 text-xs font-medium">✓ Approved</span>
+                        )}
+                        {request.status === 'rejected' && (
+                          <span className="text-red-600 text-xs font-medium">✕ Rejected</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Material Requests (Legacy - if still available) */}
       {details.material_requests?.length > 0 && (
         <div>
           <h4 className="font-semibold text-gray-900 mb-3">Associated Material Requests</h4>
@@ -563,5 +717,7 @@ const ProjectDetailsPanel = ({ details }) => {
     </div>
   );
 };
+
+
 
 export default ProjectAllocationDashboard;

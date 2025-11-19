@@ -115,7 +115,7 @@ module.exports = (sequelize) => {
       defaultValue: 0.00
     },
     status: {
-      type: DataTypes.ENUM('draft', 'sent', 'viewed', 'partial_paid', 'paid', 'overdue', 'cancelled'),
+      type: DataTypes.ENUM('draft', 'generated', 'sent', 'viewed', 'partial_paid', 'paid', 'overdue', 'cancelled', 'recorded'),
       defaultValue: 'draft'
     },
     payment_status: {

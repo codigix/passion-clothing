@@ -55,19 +55,43 @@ const QRCodeScanner = ({ onClose, onScanSuccess, embedded = false }) => {
           const qrData = JSON.parse(decodedText);
           setScannedData(qrData);
 
-          // Try to fetch additional order details if it's a production order
-          if (qrData.order_id && qrData.production_progress) {
+          // Log the QR scan and get updated order details
+          if (qrData.order_id) {
             try {
-              const response = await api.get(`/sales/orders/${qrData.order_id}`);
-              if (response.data.order) {
+              const scanResponse = await api.post('/manufacturing/qr-scan', {
+                qrData: qrData,
+                status_to: qrData.status || undefined
+              });
+
+              if (scanResponse.data?.data) {
                 setScannedData(prev => ({
                   ...prev,
-                  ...response.data.order,
-                  qrData: qrData
+                  ...scanResponse.data.data,
+                  qrData: qrData,
+                  qr_scan_metadata: {
+                    qr_scan_count: scanResponse.data.data.qr_scan_count,
+                    last_scanned_at: scanResponse.data.data.last_scanned_at,
+                    updated_at: scanResponse.data.data.updated_at
+                  }
                 }));
+                toast.success(`QR scan logged! (Scan #${scanResponse.data.data.qr_scan_count})`);
               }
             } catch (error) {
-              console.warn('Could not fetch order details:', error);
+              console.warn('Could not log QR scan:', error);
+              
+              // Fallback: fetch order details
+              try {
+                const response = await api.get(`/sales/orders/${qrData.order_id}`);
+                if (response.data.order) {
+                  setScannedData(prev => ({
+                    ...prev,
+                    ...response.data.order,
+                    qrData: qrData
+                  }));
+                }
+              } catch (fallbackError) {
+                console.warn('Could not fetch order details:', fallbackError);
+              }
             }
           }
 
@@ -223,68 +247,100 @@ const QRCodeScanner = ({ onClose, onScanSuccess, embedded = false }) => {
                     Order Information
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Order Number</label>
-                        <p className="text-lg font-semibold text-gray-900">{scannedData.order_id}</p>
-                      </div>
-
-                      {scannedData.customer && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600">Customer</label>
-                          <p className="text-gray-900">{scannedData.customer}</p>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Status</label>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ml-2 ${getStatusColor(scannedData.status)}`}>
-                          {scannedData.status?.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </div>
-
-                      {scannedData.delivery_date && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            Delivery Date
-                          </label>
-                          <p className="text-gray-900">
-                            {new Date(scannedData.delivery_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      {scannedData.total_quantity && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600">Total Quantity</label>
-                          <p className="text-gray-900">{scannedData.total_quantity}</p>
-                        </div>
-                      )}
-
-                      {scannedData.qrData?.current_stage && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600">Current Stage</label>
-                          <p className="text-gray-900">{scannedData.qrData.current_stage}</p>
-                        </div>
-                      )}
-
-                      {scannedData.last_updated && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600 flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            Last Updated
-                          </label>
-                          <p className="text-gray-900">
-                            {new Date(scannedData.last_updated).toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <tbody>
+                        <tr className="border-b border-gray-200">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100 w-1/3">Order ID</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{scannedData.order_id}</td>
+                        </tr>
+                        {scannedData.order_number && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100">Order Number</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">{scannedData.order_number}</td>
+                          </tr>
+                        )}
+                        {scannedData.customer && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100">Customer</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{scannedData.customer}</td>
+                          </tr>
+                        )}
+                        <tr className="border-b border-gray-200">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100">Status</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(scannedData.status)}`}>
+                              {scannedData.status?.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                        {scannedData.total_quantity && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100">Total Quantity</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{scannedData.total_quantity}</td>
+                          </tr>
+                        )}
+                        {scannedData.delivery_date && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100 flex items-center">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              Delivery Date
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {new Date(scannedData.delivery_date).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        )}
+                        {scannedData.final_amount && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100">Final Amount</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">₹{scannedData.final_amount?.toFixed(2)}</td>
+                          </tr>
+                        )}
+                        {scannedData.qrData?.current_stage && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100">Current Stage</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{scannedData.qrData.current_stage}</td>
+                          </tr>
+                        )}
+                        {scannedData.last_updated && (
+                          <tr className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-gray-100 flex items-center">
+                              <Clock className="h-4 w-4 mr-2" />
+                              Last Updated
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {new Date(scannedData.last_updated).toLocaleString()}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
+
+                  {/* QR Scan Metadata */}
+                  {scannedData.qr_scan_metadata && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="bg-blue-50 rounded p-3">
+                          <label className="text-xs font-semibold text-blue-600 block">QR Scans</label>
+                          <p className="text-2xl font-bold text-blue-900">{scannedData.qr_scan_metadata.qr_scan_count}</p>
+                        </div>
+                        <div className="bg-green-50 rounded p-3">
+                          <label className="text-xs font-semibold text-green-600 block">Last Scanned</label>
+                          <p className="text-sm text-green-900">
+                            {new Date(scannedData.qr_scan_metadata.last_scanned_at).toLocaleTimeString()}
+                          </p>
+                        </div>
+                        <div className="bg-purple-50 rounded p-3">
+                          <label className="text-xs font-semibold text-purple-600 block">Updated</label>
+                          <p className="text-sm text-purple-900">
+                            {new Date(scannedData.qr_scan_metadata.updated_at).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -338,22 +394,31 @@ const QRCodeScanner = ({ onClose, onScanSuccess, embedded = false }) => {
 
                   {/* Stages */}
                   {scannedData.qrData.production_progress.stages && (
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-gray-900">Production Stages</h5>
-                      <div className="space-y-2">
-                        {scannedData.qrData.production_progress.stages.map((stage, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                            <div className="flex items-center">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mr-2 ${getStatusColor(stage.status)}`}>
-                                {stage.status?.replace('_', ' ')}
-                              </span>
-                              <span className="text-sm font-medium">{stage.name}</span>
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              {stage.quantity_processed || 0} processed
-                            </div>
-                          </div>
-                        ))}
+                    <div>
+                      <h5 className="font-medium text-gray-900 mb-3">Production Stages</h5>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-blue-200">
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 bg-blue-100">Stage Name</th>
+                              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 bg-blue-100">Status</th>
+                              <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600 bg-blue-100 w-1/4">Quantity Processed</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scannedData.qrData.production_progress.stages.map((stage, index) => (
+                              <tr key={index} className="border-b border-blue-200">
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{stage.name}</td>
+                                <td className="px-4 py-3 text-sm text-center">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(stage.status)}`}>
+                                    {stage.status?.replace('_', ' ')}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-600">{stage.quantity_processed || 0}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}
@@ -368,23 +433,33 @@ const QRCodeScanner = ({ onClose, onScanSuccess, embedded = false }) => {
                     Challan Information
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Challan Number</label>
-                      <p className="text-lg font-semibold text-gray-900">{scannedData.challan_number}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Type</label>
-                      <p className="text-gray-900">{scannedData.type?.toUpperCase()}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Total Quantity</label>
-                      <p className="text-gray-900">{scannedData.total_quantity}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Total Amount</label>
-                      <p className="text-gray-900">₹{scannedData.total_amount?.toFixed(2)}</p>
-                    </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <tbody>
+                        <tr className="border-b border-green-200">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-green-100 w-1/3">Challan Number</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900">{scannedData.challan_number}</td>
+                        </tr>
+                        {scannedData.type && (
+                          <tr className="border-b border-green-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-green-100">Type</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{scannedData.type?.toUpperCase()}</td>
+                          </tr>
+                        )}
+                        {scannedData.total_quantity && (
+                          <tr className="border-b border-green-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-green-100">Total Quantity</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">{scannedData.total_quantity}</td>
+                          </tr>
+                        )}
+                        {scannedData.total_amount && (
+                          <tr className="border-b border-green-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-600 bg-green-100">Total Amount</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">₹{scannedData.total_amount?.toFixed(2)}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -393,13 +468,23 @@ const QRCodeScanner = ({ onClose, onScanSuccess, embedded = false }) => {
               {scannedData.qrData?.materials && scannedData.qrData.materials.length > 0 && (
                 <div className="bg-purple-50 rounded-lg p-6">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">Materials Required</h4>
-                  <div className="space-y-2">
-                    {scannedData.qrData.materials.map((material, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-white rounded border">
-                        <span className="font-medium">{material.name}</span>
-                        <span className="text-gray-600">{material.quantity} {material.unit}</span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-purple-200">
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 bg-purple-100">Material Name</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600 bg-purple-100 w-1/3">Quantity & Unit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scannedData.qrData.materials.map((material, index) => (
+                          <tr key={index} className="border-b border-purple-200">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{material.name}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900">{material.quantity} {material.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}

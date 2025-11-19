@@ -68,6 +68,9 @@ const GRNExcessApprovalPage = () => {
         notes: approvalNotes,
       });
 
+      // After rejection, handle the ordered quantity allocation
+      await handlePostApprovalAllocation("auto_reject");
+
       toast.success("Excess quantity auto-rejected and Vendor Return created");
       navigate("/inventory/grn");
     } catch (error) {
@@ -95,6 +98,9 @@ const GRNExcessApprovalPage = () => {
         notes: approvalNotes,
       });
 
+      // After approval, handle the full quantity allocation (ordered + excess)
+      await handlePostApprovalAllocation("approve_excess");
+
       toast.success("Excess quantity approved and added to inventory");
       navigate("/inventory/grn");
     } catch (error) {
@@ -104,6 +110,37 @@ const GRNExcessApprovalPage = () => {
       );
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Handle stock allocation after excess approval/rejection
+  const handlePostApprovalAllocation = async (action) => {
+    try {
+      const isProjectStock = grn.purchaseOrder?.linked_sales_order_id;
+
+      if (isProjectStock) {
+        // Allocate to project
+        const allocationResponse = await api.post(`/inventory/allocate-to-project`, {
+          grn_id: grnId,
+          sales_order_id: grn.purchaseOrder.linked_sales_order_id,
+          include_excess: action === "approve_excess"
+        });
+
+        toast.success(`Stock allocated to project ${grn.purchaseOrder.project_name || grn.purchaseOrder.linked_sales_order_id}`);
+        navigate('/inventory/allocations');
+      } else {
+        // Store in warehouse
+        const warehouseResponse = await api.post(`/inventory/add-to-warehouse`, {
+          grn_id: grnId,
+          include_excess: action === "approve_excess"
+        });
+
+        toast.success("Stock added to warehouse inventory");
+        navigate('/inventory/stock');
+      }
+    } catch (allocationError) {
+      console.error("Error allocating stock:", allocationError);
+      toast.error("GRN processed but stock allocation failed. Please check manually.");
     }
   };
 
@@ -269,7 +306,7 @@ const GRNExcessApprovalPage = () => {
                   <ul className="text-sm text-gray-700 space-y-1">
                     <li>✅ Vendor Return (VR) auto-generated</li>
                     <li>📋 Only ordered quantity accepted in inventory</li>
-                    <li>🚚 Excess materials will be returned to vendor</li>
+                    <li>📤 Excess materials will be returned to vendor</li>
                     <li>
                       💰 PO status remains 'received' (not excess_received)
                     </li>

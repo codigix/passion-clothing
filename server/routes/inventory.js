@@ -2738,4 +2738,1075 @@ router.get('/allocations/warehouse-stock', authenticateToken, checkDepartment(['
   }
 });
 
+// POST: Add Received Material to Project Allocation
+router.post('/allocations/add-material', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
+  try {
+    const { sales_order_id, inventory_id, quantity, notes } = req.body;
+
+    // Validate inputs
+    if (!sales_order_id || !inventory_id || !quantity) {
+      return res.status(400).json({ message: 'Missing required fields: sales_order_id, inventory_id, quantity' });
+    }
+
+    const qty = parseFloat(quantity);
+    if (qty <= 0) {
+      return res.status(400).json({ message: 'Quantity must be greater than 0' });
+    }
+
+    // Fetch the source inventory item (warehouse stock)
+    const sourceInventory = await Inventory.findByPk(inventory_id);
+    if (!sourceInventory) {
+      return res.status(404).json({ message: 'Source inventory item not found' });
+    }
+
+    // Check if quantity is available
+    if (sourceInventory.current_stock < qty) {
+      return res.status(400).json({ 
+        message: `Insufficient stock. Available: ${sourceInventory.current_stock.toFixed(2)}` 
+      });
+    }
+
+    // Create new inventory record for project allocation (copy from warehouse stock)
+    const newProjectInventory = await Inventory.create({
+      product_name: sourceInventory.product_name,
+      category: sourceInventory.category,
+      stock_type: 'project_specific',
+      sales_order_id: sales_order_id,
+      purchase_order_id: sourceInventory.purchase_order_id,
+      current_stock: qty,
+      reserved_stock: 0,
+      consumed_quantity: 0,
+      unit_of_measurement: sourceInventory.unit_of_measurement,
+      unit_cost: sourceInventory.unit_cost,
+      reorder_level: sourceInventory.reorder_level,
+      location: sourceInventory.location,
+      batch_number: sourceInventory.batch_number,
+      is_active: 1,
+      created_by: req.user.id,
+      notes: notes || `Allocated from warehouse to project SO-${sales_order_id}`
+    });
+
+    // Reduce source inventory (warehouse stock)
+    sourceInventory.current_stock -= qty;
+    await sourceInventory.save();
+
+    // Create inventory movement record
+    await InventoryMovement.create({
+      inventory_id: inventory_id,
+      movement_type: 'allocation',
+      from_location: sourceInventory.location,
+      to_location: `Project-${sales_order_id}`,
+      quantity_moved: qty,
+      reference_type: 'sales_order',
+      reference_id: sales_order_id,
+      notes: notes || `Material allocated to project`,
+      created_by: req.user.id
+    });
+
+    // Create movement for new project inventory
+    await InventoryMovement.create({
+      inventory_id: newProjectInventory.id,
+      movement_type: 'allocation_receipt',
+      from_location: 'warehouse',
+      to_location: `Project-${sales_order_id}`,
+      quantity_moved: qty,
+      reference_type: 'sales_order',
+      reference_id: sales_order_id,
+      notes: notes || `Material received for project`,
+      created_by: req.user.id
+    });
+
+    res.json({
+      success: true,
+      message: 'Material added to project allocation successfully',
+      data: {
+        inventory_id: newProjectInventory.id,
+        product_name: newProjectInventory.product_name,
+        quantity_allocated: qty,
+        warehouse_stock_remaining: sourceInventory.current_stock
+      }
+    });
+  } catch (error) {
+    console.error('Error adding material to project:', error);
+    res.status(500).json({ 
+      message: 'Failed to add material to project', 
+      error: error.message 
+    });
+  }
+});
+
+// =================== ALLOCATION ENDPOINTS ===================
+
+// Get projects overview with material allocation summary
+router.get('/allocations/projects-overview', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement', 'manufacturing']), async (req, res) => {
+  try {
+    const { search = '', sort = 'latest' } = req.query;
+
+    let query = `
+      SELECT 
+        so.id as sales_order_id,
+        so.order_number,
+        so.customer_name,
+        so.project_name,
+        so.status as order_status,
+        so.created_at as order_date,
+        COUNT(DISTINCT CASE WHEN i.sales_order_id = so.id AND i.is_active = 1 THEN i.id END) as material_count,
+        COALESCE(SUM(CASE WHEN i.sales_order_id = so.id AND i.is_active = 1 THEN i.current_stock ELSE 0 END), 0) as total_allocated,
+        COALESCE(SUM(CASE WHEN i.sales_order_id = so.id AND i.is_active = 1 THEN COALESCE(i.consumed_quantity, 0) ELSE 0 END), 0) as total_consumed,
+        COALESCE(SUM(CASE WHEN i.sales_order_id = so.id AND i.is_active = 1 THEN i.current_stock ELSE 0 END), 0) - 
+        COALESCE(SUM(CASE WHEN i.sales_order_id = so.id AND i.is_active = 1 THEN COALESCE(i.consumed_quantity, 0) ELSE 0 END), 0) as remaining_quantity
+      FROM sales_orders so
+      LEFT JOIN inventory i ON so.id = i.sales_order_id
+      WHERE so.status IN ('active', 'processing', 'confirmed')
+      AND (so.order_number LIKE ? OR so.customer_name LIKE ?)
+      GROUP BY so.id
+    `;
+
+    const searchPattern = `%${search}%`;
+    const projects = await sequelize.query(query, {
+      replacements: [searchPattern, searchPattern],
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    const processedProjects = projects.map(p => ({
+      sales_order_id: p.sales_order_id,
+      order_number: p.order_number || `SO-${p.sales_order_id}`,
+      customer_name: p.customer_name || 'N/A',
+      project_name: p.project_name || 'Unnamed Project',
+      material_count: parseInt(p.material_count) || 0,
+      total_allocated: parseFloat(p.total_allocated) || 0,
+      total_consumed: parseFloat(p.total_consumed) || 0,
+      remaining_quantity: parseFloat(p.remaining_quantity) || 0,
+      utilization_percent: parseFloat(p.total_allocated) > 0 
+        ? ((parseFloat(p.total_consumed) / parseFloat(p.total_allocated)) * 100)
+        : 0,
+      health_status: parseFloat(p.total_consumed) > parseFloat(p.total_allocated) 
+        ? 'over_consumed' 
+        : (parseFloat(p.total_consumed) / parseFloat(p.total_allocated)) > 0.75 
+        ? 'high_usage' 
+        : 'normal'
+    })).sort((a, b) => {
+      if (sort === 'latest') return new Date(b.order_date) - new Date(a.order_date);
+      if (sort === 'high_value') return b.total_allocated - a.total_allocated;
+      if (sort === 'high_usage') return b.utilization_percent - a.utilization_percent;
+      return 0;
+    });
+
+    const summary = {
+      total_projects: processedProjects.length,
+      total_allocated: processedProjects.reduce((sum, p) => sum + p.total_allocated, 0),
+      total_consumed: processedProjects.reduce((sum, p) => sum + p.total_consumed, 0),
+      avg_utilization: processedProjects.length > 0 
+        ? processedProjects.reduce((sum, p) => sum + p.utilization_percent, 0) / processedProjects.length
+        : 0
+    };
+
+    res.json({
+      success: true,
+      projects: processedProjects,
+      summary
+    });
+  } catch (error) {
+    console.error('Error fetching projects overview:', error);
+    res.status(500).json({
+      message: 'Failed to fetch projects overview',
+      error: error.message
+    });
+  }
+});
+
+// Get project-wise material allocation details
+router.get('/allocations/project/:salesOrderId', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement', 'manufacturing']), async (req, res) => {
+  try {
+    const { salesOrderId } = req.params;
+
+    const salesOrder = await SalesOrder.findByPk(salesOrderId, {
+      attributes: ['id', 'order_number', 'customer_name', 'project_name', 'status', 'order_date']
+    });
+
+    if (!salesOrder) {
+      return res.status(404).json({ message: 'Sales order not found' });
+    }
+
+    const materials = await Inventory.findAll({
+      attributes: [
+        'id',
+        'product_name',
+        'category',
+        'current_stock',
+        'consumed_quantity',
+        'unit_cost',
+        'barcode'
+      ],
+      where: {
+        sales_order_id: salesOrderId,
+        is_active: true
+      },
+      raw: true
+    });
+
+    const processedMaterials = materials.map(m => ({
+      id: m.id,
+      product_name: m.product_name,
+      category: m.category || 'General',
+      allocated_quantity: parseFloat(m.current_stock) || 0,
+      consumed_quantity: parseFloat(m.consumed_quantity) || 0,
+      remaining_quantity: (parseFloat(m.current_stock) || 0) - (parseFloat(m.consumed_quantity) || 0),
+      unit_cost: parseFloat(m.unit_cost) || 0,
+      material_value: ((parseFloat(m.current_stock) || 0) * (parseFloat(m.unit_cost) || 0))
+    }));
+
+    const consumptionAnalysis = {
+      material_count: processedMaterials.length,
+      total_allocated: processedMaterials.reduce((sum, m) => sum + m.allocated_quantity, 0),
+      total_consumed: processedMaterials.reduce((sum, m) => sum + m.consumed_quantity, 0),
+      total_remaining: processedMaterials.reduce((sum, m) => sum + m.remaining_quantity, 0),
+      consumption_percent: processedMaterials.reduce((sum, m) => sum + m.allocated_quantity, 0) > 0 
+        ? (processedMaterials.reduce((sum, m) => sum + m.consumed_quantity, 0) / processedMaterials.reduce((sum, m) => sum + m.allocated_quantity, 0)) * 100
+        : 0
+    };
+
+    const materialRequests = await sequelize.query(`
+      SELECT 
+        pmr.id,
+        pmr.request_number,
+        pmr.status,
+        COUNT(DISTINCT pmri.id) as items_count,
+        SUM(COALESCE(pmri.quantity, 0) * COALESCE(i.unit_cost, 0)) as total_value
+      FROM project_material_requests pmr
+      LEFT JOIN project_material_request_items pmri ON pmr.id = pmri.request_id
+      LEFT JOIN inventory i ON pmri.inventory_id = i.id
+      WHERE pmr.sales_order_id = ?
+      GROUP BY pmr.id
+    `, {
+      replacements: [salesOrderId],
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    res.json({
+      success: true,
+      project: {
+        sales_order_id: salesOrder.id,
+        order_number: salesOrder.order_number,
+        customer_name: salesOrder.customer_name,
+        project_name: salesOrder.project_name,
+        status: salesOrder.status,
+        consumption_analysis: consumptionAnalysis,
+        materials: processedMaterials,
+        material_requests: materialRequests
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching project details:', error);
+    res.status(500).json({
+      message: 'Failed to fetch project details',
+      error: error.message
+    });
+  }
+});
+
+// Get warehouse stock overview
+router.get('/allocations/warehouse-stock', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement']), async (req, res) => {
+  try {
+    const { search = '', category = 'all' } = req.query;
+
+    let categoryFilter = '';
+    if (category !== 'all') {
+      categoryFilter = `AND i.category = '${category}'`;
+    }
+
+    const query = `
+      SELECT 
+        i.id,
+        p.product_name,
+        i.category,
+        i.current_stock,
+        COALESCE((
+          SELECT SUM(quantity_allocated - quantity_consumed)
+          FROM material_allocations ma
+          WHERE ma.inventory_id = i.id
+        ), 0) as reserved_stock,
+        i.current_stock - COALESCE((
+          SELECT SUM(quantity_allocated - quantity_consumed)
+          FROM material_allocations ma
+          WHERE ma.inventory_id = i.id
+        ), 0) as available_stock,
+        i.unit_cost,
+        i.current_stock * i.unit_cost as total_value,
+        i.location,
+        i.reorder_level
+      FROM inventory i
+      JOIN products p ON i.product_id = p.id
+      WHERE i.stock_type = 'general_extra'
+      AND i.is_active = 1
+      AND i.sales_order_id IS NULL
+      AND (p.product_name LIKE ? OR i.barcode LIKE ?)
+      ${categoryFilter}
+    `;
+
+    const searchPattern = `%${search}%`;
+    const stock = await sequelize.query(query, {
+      replacements: [searchPattern, searchPattern],
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    const processedStock = stock.map(s => ({
+      id: s.id,
+      product_name: s.product_name,
+      category: s.category || 'General',
+      current_stock: parseFloat(s.current_stock) || 0,
+      reserved_stock: parseFloat(s.reserved_stock) || 0,
+      available_stock: Math.max(0, parseFloat(s.available_stock) || 0),
+      unit_cost: parseFloat(s.unit_cost) || 0,
+      total_value: parseFloat(s.total_value) || 0,
+      location: s.location || 'Warehouse',
+      reorder_level: parseFloat(s.reorder_level) || 0
+    }));
+
+    const summary = {
+      total_items: processedStock.length,
+      total_current_stock: processedStock.reduce((sum, s) => sum + s.current_stock, 0),
+      total_reserved: processedStock.reduce((sum, s) => sum + s.reserved_stock, 0),
+      total_available: processedStock.reduce((sum, s) => sum + s.available_stock, 0),
+      low_stock_items: processedStock.filter(s => s.current_stock > 0 && s.current_stock <= s.reorder_level).length
+    };
+
+    res.json({
+      success: true,
+      stock: processedStock,
+      summary
+    });
+  } catch (error) {
+    console.error('Error fetching warehouse stock:', error);
+    res.status(500).json({
+      message: 'Failed to fetch warehouse stock',
+      error: error.message
+    });
+  }
+});
+
+// Create material allocation request
+router.post('/allocations/request', authenticateToken, checkDepartment(['inventory', 'manufacturing', 'admin']), async (req, res) => {
+  try {
+    const { sales_order_id, materials, priority = 'medium', notes = '' } = req.body;
+
+    if (!sales_order_id || !materials || materials.length === 0) {
+      return res.status(400).json({ message: 'Sales order ID and materials are required' });
+    }
+
+    const { ProjectMaterialRequest } = require('../config/database');
+    
+    const salesOrder = await SalesOrder.findByPk(sales_order_id);
+    if (!salesOrder) {
+      return res.status(404).json({ message: 'Sales order not found' });
+    }
+
+    const requestNumber = `MAR-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    
+    const materialsWithStatus = materials.map(m => ({
+      inventory_id: m.inventory_id,
+      product_name: m.product_name,
+      quantity_requested: parseFloat(m.quantity) || 0,
+      quantity_available: 0,
+      quantity_allocated: 0,
+      status: 'pending',
+      notes: m.notes || ''
+    }));
+
+    const allocationRequest = await ProjectMaterialRequest.create({
+      request_number: requestNumber,
+      sales_order_id: sales_order_id,
+      project_name: salesOrder.project_name || 'Unnamed Project',
+      requesting_department: req.user.department || 'inventory',
+      materials_requested: materialsWithStatus,
+      total_items: materials.length,
+      total_value: materials.reduce((sum, m) => sum + ((m.quantity || 0) * (m.unit_cost || 0)), 0),
+      status: 'pending',
+      priority: priority,
+      created_by: req.user.id,
+      manufacturing_notes: notes
+    });
+
+    await Notification.create({
+      user_id: null,
+      department: 'inventory',
+      title: 'New Material Allocation Request',
+      message: `Material allocation request ${requestNumber} created for project ${salesOrder.project_name}`,
+      type: 'material_request',
+      reference_type: 'material_allocation_request',
+      reference_id: allocationRequest.id,
+      status: 'unread'
+    });
+
+    res.json({
+      success: true,
+      message: 'Material allocation request created successfully',
+      request: allocationRequest
+    });
+  } catch (error) {
+    console.error('Error creating allocation request:', error);
+    res.status(500).json({
+      message: 'Failed to create allocation request',
+      error: error.message
+    });
+  }
+});
+
+// Get allocation requests for a project
+router.get('/allocations/requests/:salesOrderId', authenticateToken, checkDepartment(['inventory', 'manufacturing', 'admin', 'procurement']), async (req, res) => {
+  try {
+    const { salesOrderId } = req.params;
+    const { status = 'all' } = req.query;
+
+    const { ProjectMaterialRequest } = require('../config/database');
+
+    const where = { sales_order_id: salesOrderId };
+    if (status !== 'all') {
+      where.status = status;
+    }
+
+    const requests = await ProjectMaterialRequest.findAll({
+      where,
+      order: [['created_at', 'DESC']],
+      raw: true
+    });
+
+    res.json({
+      success: true,
+      requests: requests || []
+    });
+  } catch (error) {
+    console.error('Error fetching allocation requests:', error);
+    res.status(500).json({
+      message: 'Failed to fetch allocation requests',
+      error: error.message
+    });
+  }
+});
+
+// Approve material allocation request
+router.patch('/allocations/request/:requestId/approve', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { reason = '' } = req.body;
+
+    const { ProjectMaterialRequest } = require('../config/database');
+
+    const request = await ProjectMaterialRequest.findByPk(requestId);
+    if (!request) {
+      return res.status(404).json({ message: 'Allocation request not found' });
+    }
+
+    await request.update({
+      status: 'approved',
+      processed_by: req.user.id,
+      processed_at: new Date(),
+      inventory_notes: reason
+    });
+
+    const salesOrder = await SalesOrder.findByPk(request.sales_order_id);
+
+    await Notification.create({
+      user_id: request.created_by,
+      department: 'manufacturing',
+      title: 'Material Allocation Approved',
+      message: `Material allocation request ${request.request_number} has been approved`,
+      type: 'material_request',
+      reference_type: 'material_allocation_request',
+      reference_id: requestId,
+      status: 'unread'
+    });
+
+    res.json({
+      success: true,
+      message: 'Material allocation request approved',
+      request
+    });
+  } catch (error) {
+    console.error('Error approving allocation request:', error);
+    res.status(500).json({
+      message: 'Failed to approve allocation request',
+      error: error.message
+    });
+  }
+});
+
+// Reject material allocation request
+router.patch('/allocations/request/:requestId/reject', authenticateToken, checkDepartment(['inventory', 'admin']), async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { reason = '' } = req.body;
+
+    const { ProjectMaterialRequest } = require('../config/database');
+
+    const request = await ProjectMaterialRequest.findByPk(requestId);
+    if (!request) {
+      return res.status(404).json({ message: 'Allocation request not found' });
+    }
+
+    await request.update({
+      status: 'rejected',
+      processed_by: req.user.id,
+      processed_at: new Date(),
+      inventory_notes: reason
+    });
+
+    const salesOrder = await SalesOrder.findByPk(request.sales_order_id);
+
+    await Notification.create({
+      user_id: request.created_by,
+      department: 'manufacturing',
+      title: 'Material Allocation Rejected',
+      message: `Material allocation request ${request.request_number} has been rejected. Reason: ${reason}`,
+      type: 'material_request',
+      reference_type: 'material_allocation_request',
+      reference_id: requestId,
+      status: 'unread'
+    });
+
+    res.json({
+      success: true,
+      message: 'Material allocation request rejected',
+      request
+    });
+  } catch (error) {
+    console.error('Error rejecting allocation request:', error);
+    res.status(500).json({
+      message: 'Failed to reject allocation request',
+      error: error.message
+    });
+  }
+});
+
+// =================== GRN INVENTORY CATEGORIZATION ===================
+
+// Get categorized inventory summary for a PO
+router.get('/summary/:poId', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement']), async (req, res) => {
+  try {
+    const { poId } = req.params;
+
+    // Get PO details
+    const po = await PurchaseOrder.findByPk(poId);
+    if (!po) {
+      return res.status(404).json({ message: 'Purchase Order not found' });
+    }
+
+    // Get all GRNs for this PO
+    const { GoodsReceiptNote, VendorRequest } = require('../config/database');
+    const grns = await GoodsReceiptNote.findAll({
+      where: { purchase_order_id: poId },
+      order: [['created_at', 'ASC']]
+    });
+
+    // Get all inventory items for this PO
+    const inventoryItems = await Inventory.findAll({
+      where: { purchase_order_id: poId },
+      order: [['created_at', 'ASC']]
+    });
+
+    // Get vendor requests (shortage items)
+    const vendorRequests = await VendorRequest.findAll({
+      where: { purchase_order_id: poId }
+    });
+
+    // Categorize items
+    const matchOrder = [];
+    const receivedOrder = [];
+    const shortageItems = [];
+    let totalReceived = 0;
+    let totalWithShortage = 0;
+    let totalPerfectMatch = 0;
+    let totalOverage = 0;
+
+    // Process each GRN
+    for (const grn of grns) {
+      const items = grn.items_received || [];
+      
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const inventoryForItem = inventoryItems.find(
+          inv => inv.notes?.includes(grn.grn_number) && inv.po_item_index === i
+        );
+
+        // Calculate totals
+        totalReceived += item.received_quantity || 0;
+
+        if (item.shortage_quantity > 0) {
+          totalWithShortage += item.received_quantity || 0;
+        } else if (item.overage_quantity > 0) {
+          totalOverage += item.overage_quantity || 0;
+        } else {
+          totalPerfectMatch += item.received_quantity || 0;
+        }
+
+        // Categorize by type
+        if (item.received_quantity === item.ordered_quantity &&
+            item.received_quantity === item.invoiced_quantity) {
+          // Perfect match
+          matchOrder.push({
+            grn_number: grn.grn_number,
+            grn_id: grn.id,
+            grn_sequence: grn.grn_sequence,
+            product_name: item.material_name,
+            quantity: item.received_quantity,
+            uom: item.uom,
+            quality_status: 'approved',
+            inventory_id: inventoryForItem?.id,
+            status: 'complete'
+          });
+        } else {
+          // Received but with discrepancy
+          receivedOrder.push({
+            grn_number: grn.grn_number,
+            grn_id: grn.id,
+            grn_sequence: grn.grn_sequence,
+            product_name: item.material_name,
+            quantity_received: item.received_quantity,
+            quantity_ordered: item.ordered_quantity,
+            shortage_qty: item.shortage_quantity,
+            overage_qty: item.overage_quantity,
+            uom: item.uom,
+            quality_status: inventoryForItem?.quality_status || 'pending',
+            inventory_id: inventoryForItem?.id,
+            status: grn.status,
+            verification_status: grn.verification_status
+          });
+        }
+      }
+    }
+
+    // Get shortage items from vendor requests
+    for (const vr of vendorRequests) {
+      if (vr.request_type === 'shortage') {
+        const items = vr.items || [];
+        for (const item of items) {
+          shortageItems.push({
+            vendor_request_id: vr.id,
+            vendor_request_number: vr.request_number,
+            product_name: item.material_name,
+            shortage_qty: item.shortage_qty || item.shortage_quantity,
+            uom: item.uom,
+            status: vr.status,
+            sent_at: vr.sent_at,
+            fulfilled_at: vr.fulfilled_at,
+            action_required: vr.status === 'sent' ? true : false
+          });
+        }
+      }
+    }
+
+    // Get inventory summary by quality status
+    const qualitySummary = {};
+    for (const inv of inventoryItems) {
+      if (!qualitySummary[inv.quality_status]) {
+        qualitySummary[inv.quality_status] = 0;
+      }
+      qualitySummary[inv.quality_status] += inv.current_stock;
+    }
+
+    res.json({
+      success: true,
+      po: {
+        id: po.id,
+        po_number: po.po_number,
+        status: po.status,
+        vendor_id: po.vendor_id
+      },
+      summary: {
+        total_received: parseFloat(totalReceived.toFixed(2)),
+        total_with_shortage: parseFloat(totalWithShortage.toFixed(2)),
+        total_perfect_match: parseFloat(totalPerfectMatch.toFixed(2)),
+        total_overage: parseFloat(totalOverage.toFixed(2)),
+        total_inventory_items: inventoryItems.length,
+        total_shortage_requests: shortageItems.length
+      },
+      quality_summary: qualitySummary,
+      categories: {
+        match_order: matchOrder,
+        received_order: receivedOrder,
+        shortage_items: shortageItems
+      },
+      grn_details: grns.map(grn => ({
+        grn_number: grn.grn_number,
+        grn_id: grn.id,
+        grn_sequence: grn.grn_sequence,
+        is_first_grn: grn.is_first_grn,
+        status: grn.status,
+        verification_status: grn.verification_status,
+        inventory_added: grn.inventory_added,
+        created_at: grn.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching inventory summary:', error);
+    res.status(500).json({
+      message: 'Failed to fetch inventory summary',
+      error: error.message
+    });
+  }
+});
+
+router.post('/allocate-to-project', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement']), async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { grn_id, sales_order_id, include_excess } = req.body;
+
+    if (!grn_id || !sales_order_id) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'GRN ID and Sales Order ID required' });
+    }
+
+    const { GoodsReceiptNote } = require('../config/database');
+    const grn = await GoodsReceiptNote.findByPk(grn_id, { transaction });
+
+    if (!grn) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'GRN not found' });
+    }
+
+    const items = grn.items_received || [];
+    const itemsToAllocate = include_excess 
+      ? items 
+      : items.filter(item => !item.overage_quantity || item.overage_quantity === 0);
+
+    for (const item of itemsToAllocate) {
+      const quantityToAllocate = include_excess ? item.quantity_received : (item.quantity_received - (item.overage_quantity || 0));
+      
+      const [inventory, created] = await Inventory.findOrCreate({
+        where: {
+          product_id: item.product_id,
+          sales_order_id: sales_order_id,
+          stock_type: 'project_specific'
+        },
+        defaults: {
+          current_stock: quantityToAllocate,
+          total_value: quantityToAllocate * item.rate,
+          reorder_level: 0,
+          warehouse_location: 'Project Allocation',
+          batch_number: item.batch_number || '',
+          expiry_date: item.expiry_date || null,
+          purchase_order_id: grn.purchase_order_id
+        },
+        transaction
+      });
+
+      if (!created) {
+        await inventory.increment('current_stock', {
+          by: quantityToAllocate,
+          transaction
+        });
+        inventory.total_value = parseFloat(inventory.total_value || 0) + (quantityToAllocate * item.rate);
+        await inventory.save({ transaction });
+      }
+
+      await InventoryMovement.create({
+        inventory_id: inventory.id,
+        movement_type: 'grn_allocation',
+        quantity: quantityToAllocate,
+        reference_id: grn_id,
+        notes: `Allocated from GRN ${grn.grn_number} to project`,
+        created_by: req.user.id
+      }, { transaction });
+    }
+
+    await transaction.commit();
+    res.json({
+      success: true,
+      message: 'Stock allocated to project successfully',
+      grn_number: grn.grn_number,
+      allocated_items: itemsToAllocate.length
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error allocating to project:', error);
+    res.status(500).json({ message: 'Failed to allocate stock to project', error: error.message });
+  }
+});
+
+router.post('/add-to-warehouse', authenticateToken, checkDepartment(['inventory', 'admin', 'procurement']), async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { grn_id, include_excess } = req.body;
+
+    if (!grn_id) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'GRN ID required' });
+    }
+
+    const { GoodsReceiptNote } = require('../config/database');
+    const grn = await GoodsReceiptNote.findByPk(grn_id, { transaction });
+
+    if (!grn) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'GRN not found' });
+    }
+
+    const items = grn.items_received || [];
+    const itemsToAllocate = include_excess 
+      ? items 
+      : items.filter(item => !item.overage_quantity || item.overage_quantity === 0);
+
+    for (const item of itemsToAllocate) {
+      const quantityToAllocate = include_excess ? item.quantity_received : (item.quantity_received - (item.overage_quantity || 0));
+      
+      const [inventory, created] = await Inventory.findOrCreate({
+        where: {
+          product_id: item.product_id,
+          batch_number: item.batch_number || '',
+          stock_type: 'general_extra'
+        },
+        defaults: {
+          current_stock: quantityToAllocate,
+          total_value: quantityToAllocate * item.rate,
+          reorder_level: 0,
+          warehouse_location: 'Main Warehouse',
+          expiry_date: item.expiry_date || null,
+          purchase_order_id: grn.purchase_order_id
+        },
+        transaction
+      });
+
+      if (!created) {
+        await inventory.increment('current_stock', {
+          by: quantityToAllocate,
+          transaction
+        });
+        inventory.total_value = parseFloat(inventory.total_value || 0) + (quantityToAllocate * item.rate);
+        await inventory.save({ transaction });
+      }
+
+      await InventoryMovement.create({
+        inventory_id: inventory.id,
+        movement_type: 'grn_warehouse',
+        quantity: quantityToAllocate,
+        reference_id: grn_id,
+        notes: `Added to warehouse from GRN ${grn.grn_number}`,
+        created_by: req.user.id
+      }, { transaction });
+    }
+
+    await transaction.commit();
+    res.json({
+      success: true,
+      message: 'Stock added to warehouse successfully',
+      grn_number: grn.grn_number,
+      added_items: itemsToAllocate.length
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error adding to warehouse:', error);
+    res.status(500).json({ message: 'Failed to add stock to warehouse', error: error.message });
+  }
+});
+
+// =================== MATERIAL ALLOCATION ENDPOINTS ===================
+
+router.get('/allocations/projects-overview', authenticateToken, checkDepartment(['inventory', 'admin', 'manufacturing', 'procurement']), async (req, res) => {
+  try {
+    const { search, sort } = req.query;
+    const { MaterialAllocation, ProductionOrder, Product } = require('../config/database');
+
+    let where = {
+      is_active: true,
+      sales_order_id: { [Op.not]: null }
+    };
+
+    if (search) {
+      where = {
+        ...where,
+        [Op.or]: [
+          sequelize.where(sequelize.col('SalesOrder.order_number'), Op.like, `%${search}%`),
+          sequelize.where(sequelize.col('SalesOrder.customer_name'), Op.like, `%${search}%`)
+        ]
+      };
+    }
+
+    const projects = await Inventory.findAll({
+      attributes: [
+        'sales_order_id',
+        [sequelize.fn('COUNT', sequelize.col('Inventory.id')), 'material_count'],
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('Inventory.current_stock')), 0), 'total_allocated'],
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('Inventory.consumed_quantity')), 0), 'total_consumed'],
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('Inventory.total_value')), 0), 'total_value']
+      ],
+      include: [{
+        model: SalesOrder,
+        attributes: ['id', 'order_number', 'customer_name', 'project_name', 'status'],
+        required: true
+      }],
+      where,
+      group: ['Inventory.sales_order_id'],
+      raw: false,
+      subQuery: false
+    });
+
+    const projectsWithMetrics = projects.map(project => {
+      const allocated = parseFloat(project.dataValues.total_allocated) || 0;
+      const consumed = parseFloat(project.dataValues.total_consumed) || 0;
+      const remaining = allocated - consumed;
+      const utilization = allocated > 0 ? (consumed / allocated) * 100 : 0;
+
+      let health_status = 'normal';
+      if (utilization > 110) health_status = 'over_consumed';
+      else if (utilization > 90) health_status = 'high_usage';
+
+      return {
+        sales_order_id: project.dataValues.sales_order_id,
+        order_number: project.SalesOrder?.order_number || `SO-${project.dataValues.sales_order_id}`,
+        customer_name: project.SalesOrder?.customer_name || 'Unknown',
+        project_name: project.SalesOrder?.project_name || 'Project',
+        status: project.SalesOrder?.status || 'active',
+        material_count: parseInt(project.dataValues.material_count) || 0,
+        total_allocated: allocated,
+        total_consumed: consumed,
+        total_remaining: Math.max(0, remaining),
+        utilization_percent: parseFloat(utilization.toFixed(1)),
+        health_status,
+        total_value: parseFloat(project.dataValues.total_value) || 0
+      };
+    });
+
+    let sorted = projectsWithMetrics;
+    if (sort === 'high_value') {
+      sorted = projectsWithMetrics.sort((a, b) => b.total_value - a.total_value);
+    } else if (sort === 'high_usage') {
+      sorted = projectsWithMetrics.sort((a, b) => b.utilization_percent - a.utilization_percent);
+    } else {
+      sorted = projectsWithMetrics.reverse();
+    }
+
+    res.json({ success: true, projects: sorted });
+  } catch (error) {
+    console.error('Error fetching projects overview:', error);
+    res.status(500).json({ message: 'Failed to fetch projects overview', error: error.message });
+  }
+});
+
+router.get('/allocations/project/:salesOrderId', authenticateToken, checkDepartment(['inventory', 'admin', 'manufacturing', 'procurement']), async (req, res) => {
+  try {
+    const { salesOrderId } = req.params;
+    const { ProjectMaterialRequest } = require('../config/database');
+
+    const materials = await Inventory.findAll({
+      attributes: ['id', 'product_id', 'product_name', 'category', 'current_stock', 'consumed_quantity', 'total_value', 'warehouse_location', 'unit_of_measurement'],
+      where: {
+        sales_order_id: salesOrderId,
+        is_active: true
+      },
+      raw: true
+    });
+
+    const materialsWithMetrics = materials.map(material => ({
+      id: material.id,
+      product_name: material.product_name,
+      category: material.category,
+      allocated_quantity: parseFloat(material.current_stock) || 0,
+      consumed_quantity: parseFloat(material.consumed_quantity) || 0,
+      remaining_quantity: Math.max(0, parseFloat(material.current_stock || 0) - parseFloat(material.consumed_quantity || 0)),
+      unit_of_measurement: material.unit_of_measurement || 'units',
+      unit_cost: material.total_value > 0 && material.current_stock > 0 ? (material.total_value / material.current_stock) : 0,
+      location: material.warehouse_location || 'Main Warehouse'
+    }));
+
+    const materialRequests = await ProjectMaterialRequest.findAll({
+      where: { sales_order_id: salesOrderId },
+      attributes: ['id', 'request_number', 'status'],
+      raw: true
+    });
+
+    const requestsWithCounts = await Promise.all(
+      materialRequests.map(async (req) => {
+        const itemsCount = req.items ? (typeof req.items === 'string' ? JSON.parse(req.items) : req.items).length : 0;
+        return {
+          request_id: req.id,
+          request_number: req.request_number,
+          status: req.status,
+          items_count: itemsCount
+        };
+      })
+    );
+
+    const totalAllocated = materialsWithMetrics.reduce((sum, m) => sum + m.allocated_quantity, 0);
+    const totalConsumed = materialsWithMetrics.reduce((sum, m) => sum + m.consumed_quantity, 0);
+    const totalRemaining = materialsWithMetrics.reduce((sum, m) => sum + m.remaining_quantity, 0);
+
+    res.json({
+      success: true,
+      project: {
+        materials: materialsWithMetrics,
+        material_requests: requestsWithCounts,
+        consumption_analysis: {
+          total_allocated: totalAllocated,
+          total_consumed: totalConsumed,
+          total_remaining: totalRemaining,
+          consumption_percent: totalAllocated > 0 ? (totalConsumed / totalAllocated) * 100 : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching project details:', error);
+    res.status(500).json({ message: 'Failed to fetch project details', error: error.message });
+  }
+});
+
+router.get('/allocations/warehouse-stock', authenticateToken, checkDepartment(['inventory', 'admin', 'manufacturing', 'procurement']), async (req, res) => {
+  try {
+    const { search, category, sort } = req.query;
+
+    let where = {
+      is_active: true,
+      stock_type: 'general_extra'
+    };
+
+    if (search) {
+      where.product_name = { [Op.like]: `%${search}%` };
+    }
+
+    if (category && category !== 'all') {
+      where.category = category;
+    }
+
+    const stock = await Inventory.findAll({
+      where,
+      raw: true
+    });
+
+    const stockWithMetrics = stock.map(item => ({
+      id: item.id,
+      product_name: item.product_name,
+      category: item.category,
+      current_stock: parseFloat(item.current_stock) || 0,
+      reserved_stock: parseFloat(item.consumed_quantity) || 0,
+      available_stock: Math.max(0, (parseFloat(item.current_stock) || 0) - (parseFloat(item.consumed_quantity) || 0)),
+      unit_cost: item.total_value > 0 && item.current_stock > 0 ? (item.total_value / item.current_stock) : 0,
+      total_value: parseFloat(item.total_value) || 0,
+      location: item.warehouse_location || 'Main Warehouse',
+      is_low_stock: (item.current_stock || 0) <= (item.reorder_level || 0)
+    }));
+
+    let sorted = stockWithMetrics;
+    if (sort === 'high_value') {
+      sorted = stockWithMetrics.sort((a, b) => b.total_value - a.total_value);
+    } else if (sort === 'high_usage') {
+      sorted = stockWithMetrics.sort((a, b) => (b.reserved_stock / b.current_stock || 0) - (a.reserved_stock / a.current_stock || 0));
+    } else {
+      sorted = stockWithMetrics;
+    }
+
+    const summary = {
+      total_items: stockWithMetrics.length,
+      total_current_stock: stockWithMetrics.reduce((sum, s) => sum + s.current_stock, 0),
+      total_reserved: stockWithMetrics.reduce((sum, s) => sum + s.reserved_stock, 0),
+      total_available: stockWithMetrics.reduce((sum, s) => sum + s.available_stock, 0),
+      total_value: stockWithMetrics.reduce((sum, s) => sum + s.total_value, 0),
+      low_stock_count: stockWithMetrics.filter(s => s.is_low_stock).length
+    };
+
+    res.json({ success: true, stock: sorted, summary });
+  } catch (error) {
+    console.error('Error fetching warehouse stock:', error);
+    res.status(500).json({ message: 'Failed to fetch warehouse stock', error: error.message });
+  }
+});
+
 module.exports = router;

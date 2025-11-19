@@ -2,26 +2,42 @@
  * QR Code generation utility for order tracking
  * Generates QR codes containing order information and status
  */
+import QRCode from 'qrcode';
+import { getNetworkBaseUrl } from './networkUtils';
 
-// Generate QR code data URL using a simple canvas-based approach
-export const generateQRCode = (data, size = 200) => {
-  // For now, we'll create a simple data URL with encoded information
-  // In a real application, you'd use a library like qrcode.js or react-qr-code
-  const qrData = JSON.stringify(data);
-  const encodedData = btoa(qrData);
-
-  // Create a simple data URL (this is a placeholder - real QR generation would be more complex)
-  const qrString = `QR:${encodedData}`;
-
-  // Return a promise that resolves with a data URL
-  return new Promise((resolve) => {
-    // Simulate QR code generation delay
-    setTimeout(() => {
-      // For demo purposes, return a placeholder
-      // In real implementation, use a proper QR library
-      resolve(`data:text/plain;base64,${btoa(qrString)}`);
-    }, 100);
-  });
+// Generate QR code data URL as actual scannable QR code
+export const generateQRCode = async (data, size = 200, useUrl = true) => {
+  try {
+    let qrData;
+    
+    if (useUrl) {
+      // Generate a URL instead of embedding raw JSON
+      const dataParam = encodeURIComponent(JSON.stringify(data));
+      const baseUrl = await getNetworkBaseUrl();
+      qrData = `${baseUrl}/qr/view?data=${dataParam}`;
+    } else {
+      // Fallback to embedding raw JSON
+      qrData = JSON.stringify(data);
+    }
+    
+    // Generate actual QR code as data URL
+    const dataUrl = await QRCode.toDataURL(qrData, {
+      errorCorrectionLevel: 'H',
+      type: 'image/png',
+      quality: 0.95,
+      margin: 1,
+      width: size,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+    });
+    
+    return dataUrl;
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    throw error;
+  }
 };
 
 // Generate order QR code data structure

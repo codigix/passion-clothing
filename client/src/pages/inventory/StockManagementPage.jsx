@@ -188,11 +188,17 @@ const StockManagementPage = () => {
     return { status: 'Normal', color: 'success' };
   };
 
-  const filteredStocks = stocks.filter(stock =>
+  const searchFiltered = stocks.filter(stock =>
     stock.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     stock.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     stock.location?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const filteredStocks = tabValue === 0 
+    ? searchFiltered 
+    : tabValue === 1 
+    ? searchFiltered.filter(stock => stock.currentStock <= stock.minStock)
+    : searchFiltered.filter(stock => stock.currentStock >= stock.maxStock);
 
   const lowStockItems = stocks.filter(stock => stock.currentStock <= stock.minStock);
   const overstockItems = stocks.filter(stock => stock.currentStock >= stock.maxStock);
@@ -238,11 +244,14 @@ const StockManagementPage = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Stock Management
-        </h1>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            📦 Stock Management
+          </h1>
+          <p className="text-gray-600 text-sm mt-1">Monitor and manage your inventory stock levels</p>
+        </div>
         <div className="flex gap-3">
           {/* Column Manager */}
           <div className="relative" ref={columnMenuRef}>
@@ -313,237 +322,259 @@ const StockManagementPage = () => {
       </div>
 
       {/* Stock Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900">{stocks.length}</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 mb-2">Total Items</p>
+              <p className="text-3xl font-bold text-gray-900">{stocks.length}</p>
             </div>
-            <Package className="text-blue-600" size={32} />
+            <Package className="text-blue-600 opacity-20" size={48} />
           </div>
         </div>
-        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Low Stock Items</p>
-              <p className="text-2xl font-bold text-red-600">{lowStockItems.length}</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 mb-2">Low Stock Items</p>
+              <p className="text-3xl font-bold text-red-600">{lowStockItems.length}</p>
+              <p className="text-xs text-red-600 mt-1">{lowStockItems.length > 0 ? 'Action needed' : 'All good'}</p>
             </div>
-            <AlertTriangle className="text-red-600" size={32} />
+            <AlertTriangle className="text-red-600 opacity-20" size={48} />
           </div>
         </div>
-        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-sm border border-yellow-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Overstock Items</p>
-              <p className="text-2xl font-bold text-yellow-600">{overstockItems.length}</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 mb-2">Overstock Items</p>
+              <p className="text-3xl font-bold text-yellow-600">{overstockItems.length}</p>
+              <p className="text-xs text-yellow-600 mt-1">{overstockItems.length > 0 ? 'Review needed' : 'Balanced'}</p>
             </div>
-            <AlertTriangle className="text-yellow-600" size={32} />
+            <AlertTriangle className="text-yellow-600 opacity-20" size={48} />
           </div>
         </div>
-        <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
+        <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Normal Stock</p>
-              <p className="text-2xl font-bold text-green-600">{stocks.length - lowStockItems.length - overstockItems.length}</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 mb-2">Normal Stock</p>
+              <p className="text-3xl font-bold text-green-600">{stocks.length - lowStockItems.length - overstockItems.length}</p>
+              <p className="text-xs text-green-600 mt-1">Optimal level</p>
             </div>
-            <Package className="text-green-600" size={32} />
+            <Package className="text-green-600 opacity-20" size={48} />
           </div>
         </div>
       </div>
 
-      <div className="bg-white  shadow border mb-4">
-        <div className="flex border-b">
+      <div className="bg-white shadow border mb-4">
+        <div className="flex items-center border-b">
           <button
-            className={`px-4 py-3 text-sm font-medium ${
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
               tabValue === 0
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => setTabValue(0)}
           >
-            All Stock
+            📦 All Stock ({stocks.length})
           </button>
           <button
-            className={`px-4 py-3 text-sm font-medium ${
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
               tabValue === 1
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'border-red-500 text-red-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => setTabValue(1)}
           >
-            Low Stock
+            🔴 Low Stock ({lowStockItems.length})
           </button>
           <button
-            className={`px-4 py-3 text-sm font-medium ${
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
               tabValue === 2
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'border-yellow-500 text-yellow-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => setTabValue(2)}
           >
-            Overstock
+            🟡 Overstock ({overstockItems.length})
           </button>
         </div>
       </div>
 
-      <div className="bg-white  shadow border mb-4 p-4">
+      <div className="bg-white shadow border mb-4 p-4 rounded-lg">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            placeholder="Search stock items..."
+            placeholder="🔍 Search by item name, category, or location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
           />
         </div>
       </div>
 
       <div className="bg-white rounded shadow border overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              {isColumnVisible('barcode') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barcode / Batch</th>
-              )}
-              {isColumnVisible('item_name') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
-              )}
-              {isColumnVisible('category') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              )}
-              {isColumnVisible('current_stock') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-              )}
-              {isColumnVisible('min_stock') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stock</th>
-              )}
-              {isColumnVisible('max_stock') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Stock</th>
-              )}
-              {isColumnVisible('unit') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-              )}
-              {isColumnVisible('location') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-              )}
-              {isColumnVisible('status') && (
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              )}
-              {isColumnVisible('actions') && (
-                <th className="sticky right-0 bg-gray-50 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">Actions</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredStocks.map((stock) => {
-              const stockStatus = getStockStatus(stock.currentStock, stock.minStock, stock.maxStock);
-              return (
-                <tr key={stock.id} className="group hover:bg-gray-50">
-                  {isColumnVisible('barcode') && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {stock.barcode || stock.batchNumber ? (
-                        <div className="flex items-center gap-1.5">
-                          <FaBarcode className="text-gray-400" />
-                          <div>
-                            {stock.barcode && (
-                              <div className="text-sm font-medium text-gray-900">{stock.barcode}</div>
-                            )}
-                            {stock.batchNumber && (
-                              <div className="text-xs text-gray-500">{stock.batchNumber}</div>
-                            )}
+        {filteredStocks.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="text-5xl mb-4">
+              {tabValue === 0 ? '📦' : tabValue === 1 ? '🔴' : '🟡'}
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {tabValue === 0 ? 'No stock items found' : tabValue === 1 ? 'No low stock items' : 'No overstock items'}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {searchTerm ? 'Try adjusting your search criteria' : 'Start by adding stock items'}
+            </p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                {isColumnVisible('barcode') && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Barcode / Batch</th>
+                )}
+                {isColumnVisible('item_name') && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Item Name</th>
+                )}
+                {isColumnVisible('category') && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Category</th>
+                )}
+                {isColumnVisible('current_stock') && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
+                )}
+                {isColumnVisible('min_stock') && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
+                )}
+                {isColumnVisible('max_stock') && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Max Stock</th>
+                )}
+                {isColumnVisible('unit') && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit</th>
+                )}
+                {isColumnVisible('location') && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Location</th>
+                )}
+                {isColumnVisible('status') && (
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                )}
+                {isColumnVisible('actions') && (
+                  <th className="sticky right-0 bg-gray-50 px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider shadow-[-2px_0_4px_rgba(0,0,0,0.05)] border-b border-gray-200">Actions</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredStocks.map((stock) => {
+                const stockStatus = getStockStatus(stock.currentStock, stock.minStock, stock.maxStock);
+                return (
+                  <tr key={stock.id} className="group hover:bg-gray-50 transition">
+                    {isColumnVisible('barcode') && (
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {stock.barcode || stock.batchNumber ? (
+                          <div className="flex items-center gap-2">
+                            <FaBarcode className="text-gray-400 flex-shrink-0" size={14} />
+                            <div className="min-w-0">
+                              {stock.barcode && (
+                                <div className="text-sm font-medium text-gray-900 truncate">{stock.barcode}</div>
+                              )}
+                              {stock.batchNumber && (
+                                <div className="text-xs text-gray-500 truncate">{stock.batchNumber}</div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">No barcode</span>
-                      )}
-                    </td>
-                  )}
-                  {isColumnVisible('item_name') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{stock.itemName}</td>
-                  )}
-                  {isColumnVisible('category') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.category}</td>
-                  )}
-                  {isColumnVisible('current_stock') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.currentStock}</td>
-                  )}
-                  {isColumnVisible('min_stock') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.minStock}</td>
-                  )}
-                  {isColumnVisible('max_stock') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.maxStock}</td>
-                  )}
-                  {isColumnVisible('unit') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.unit}</td>
-                  )}
-                  {isColumnVisible('location') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.location}</td>
-                  )}
-                  {isColumnVisible('status') && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        stockStatus.color === 'error' ? 'bg-red-100 text-red-800' :
-                        stockStatus.color === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {stockStatus.status}
-                      </span>
-                    </td>
-                  )}
-                  {isColumnVisible('actions') && (
-                    <td className="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-sm font-medium shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
-                      <ActionDropdown
-                        stock={stock}
-                        onAdd={() => { setSelected(stock); setAdjustMode('add'); setAdjustOpen(true); }}
-                        onRemove={() => { setSelected(stock); setAdjustMode('remove'); setAdjustOpen(true); }}
-                        onEdit={() => { setSelected(stock); setAdjustMode('edit'); setAdjustOpen(true); }}
-                        showQRModal={showQRModal}
-                        setSelectedQRItem={setSelectedQRItem}
-                        setShowQRModal={setShowQRModal}
-                      />
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                    )}
+                    {isColumnVisible('item_name') && (
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{stock.itemName}</td>
+                    )}
+                    {isColumnVisible('category') && (
+                      <td className="px-4 py-3 text-xs text-gray-600">{stock.category}</td>
+                    )}
+                    {isColumnVisible('current_stock') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{stock.currentStock}</td>
+                    )}
+                    {isColumnVisible('min_stock') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">{stock.minStock}</td>
+                    )}
+                    {isColumnVisible('max_stock') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600">{stock.maxStock}</td>
+                    )}
+                    {isColumnVisible('unit') && (
+                      <td className="px-4 py-3 text-xs text-gray-600">{stock.unit}</td>
+                    )}
+                    {isColumnVisible('location') && (
+                      <td className="px-4 py-3 text-xs text-gray-600">{stock.location}</td>
+                    )}
+                    {isColumnVisible('status') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
+                          stockStatus.color === 'error' ? 'bg-red-100 text-red-800' :
+                          stockStatus.color === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {stockStatus.status}
+                        </span>
+                      </td>
+                    )}
+                    {isColumnVisible('actions') && (
+                      <td className="sticky right-0 bg-white group-hover:bg-gray-50 px-4 py-3 whitespace-nowrap text-center shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
+                        <ActionDropdown
+                          stock={stock}
+                          onAdd={() => { setSelected(stock); setAdjustMode('add'); setAdjustOpen(true); }}
+                          onRemove={() => { setSelected(stock); setAdjustMode('remove'); setAdjustOpen(true); }}
+                          onEdit={() => { setSelected(stock); setAdjustMode('edit'); setAdjustOpen(true); }}
+                          showQRModal={showQRModal}
+                          setSelectedQRItem={setSelectedQRItem}
+                          setShowQRModal={setShowQRModal}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Modals */}
       {/* Create Stock Simple Dialog */}
       {createOpen && (
-        <div className="mt-6">
-          <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
-            <h3 className="text-lg font-semibold mb-4">New Stock</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Stock</h3>
+            </div>
+            <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Product ID *</label>
                 <input
                   type="text"
                   value={creatingForm.product_id}
                   onChange={(e) => setCreatingForm({ ...creatingForm, product_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  placeholder="Enter product ID"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
                 <input
                   type="text"
                   value={creatingForm.location}
                   onChange={(e) => setCreatingForm({ ...creatingForm, location: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  placeholder="e.g., Warehouse A, Shelf 1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Qty</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                 <input
                   type="number"
                   value={creatingForm.current_stock}
                   onChange={(e) => setCreatingForm({ ...creatingForm, current_stock: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -553,22 +584,23 @@ const StockManagementPage = () => {
                   step="0.01"
                   value={creatingForm.unit_cost}
                   onChange={(e) => setCreatingForm({ ...creatingForm, unit_cost: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  placeholder="0.00"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setCreateOpen(false)}
-                className="px-4 py-1 text-sm font-medium text-white bg-gray-700 border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-gray-700 hover:text-gray-700 :bg-transparent flex gap-2 items-center"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleCreateStock(creatingForm)}
-                className="px-4 py-1 text-sm font-medium text-white bg-secondary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition"
               >
-                Create
+                Create Stock
               </button>
             </div>
           </div>
@@ -577,60 +609,68 @@ const StockManagementPage = () => {
 
       {/* Adjust Dialog */}
       {adjustOpen && (
-        <div className="mt-6">
-          <div className="p-4 bg-white text-gray-800 rounded shadow-[0_0.75rem_6rem_rgba(56,65,74,0.03)] border-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 flex justify-between items-center ">
-            <h3 className="text-lg font-semibold mb-4">
-              {adjustMode === 'add' ? 'Increase Stock' : adjustMode === 'remove' ? 'Decrease Stock' : 'Edit Stock'}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {adjustMode === 'add' ? '➕ Increase Stock' : adjustMode === 'remove' ? '➖ Decrease Stock' : '✏️ Edit Stock Details'}
+              </h3>
+              {selected && (
+                <p className="text-sm text-gray-600 mt-1">{selected.itemName}</p>
+              )}
+            </div>
+            <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
                 <input
                   type="number"
                   defaultValue={selected?.currentStock ?? 0}
                   onChange={(e) => setSelected({ ...selected, currentStock: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reserved Stock</label>
+                  <input
+                    type="number"
+                    defaultValue={selected?.reserved_stock ?? 0}
+                    onChange={(e) => setSelected({ ...selected, reserved_stock: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit Cost</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    defaultValue={selected?.unit_cost ?? 0}
+                    onChange={(e) => setSelected({ ...selected, unit_cost: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reserved Stock</label>
-                <input
-                  type="number"
-                  defaultValue={selected?.reserved_stock ?? 0}
-                  onChange={(e) => setSelected({ ...selected, reserved_stock: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Cost</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  defaultValue={selected?.unit_cost ?? 0}
-                  onChange={(e) => setSelected({ ...selected, unit_cost: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
-                />
-              </div>
-              <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
+                  placeholder="Add any notes about this adjustment"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => { setAdjustOpen(false); setSelected(null); }}
-                className="px-4 py-1 text-sm font-medium text-white bg-gray-700 border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-gray-700 hover:text-gray-700 :bg-transparent flex gap-2 items-center"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleAdjustStock({ current_stock: selected?.currentStock, unit_cost: selected?.unit_cost })}
-                className="px-4 py-1 text-sm font-medium text-white bg-secondary border border-transparent rounded shadow cursor-pointer select-none transition ease-in-out duration-150 hover:border-primary hover:text-primary  hover:bg-transparent flex gap-2 items-center"
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition"
               >
-                Save
+                Save Changes
               </button>
             </div>
           </div>

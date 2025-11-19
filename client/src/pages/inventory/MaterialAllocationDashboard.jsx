@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   ChevronDown, ChevronUp, Search, Filter, Download, BarChart3,
-  AlertCircle, CheckCircle, Clock, TrendingUp, Boxes, Warehouse
+  AlertCircle, CheckCircle, Clock, TrendingUp, Boxes, Warehouse,
+  Package, Layers, Zap, AlertTriangle, GripHorizontal, TrendingDown, DollarSign
 } from 'lucide-react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -124,267 +125,352 @@ const MaterialAllocationDashboard = () => {
   // =================== RENDER FUNCTIONS ===================
 
   const renderOverviewTab = () => (
-    <div className="space-y-4">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+    <div className="space-y-6">
+      {/* Key Metrics - Enhanced Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border-l-4 border-blue-500 shadow-sm hover:shadow-md transition">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Active Projects</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{projects.length}</p>
+              <p className="text-blue-600 text-sm font-semibold uppercase tracking-wide">Active Projects</p>
+              <p className="text-4xl font-bold text-blue-900 mt-2">{projects.length}</p>
+              <p className="text-xs text-blue-600 mt-2">Currently tracked</p>
             </div>
-            <Boxes className="w-8 h-8 text-blue-500" />
+            <div className="p-3 bg-blue-200 rounded-lg">
+              <Boxes className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border-l-4 border-purple-500 shadow-sm hover:shadow-md transition">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Total Allocated</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {projects.reduce((sum, p) => sum + p.total_allocated, 0).toFixed(0)} Units
+              <p className="text-purple-600 text-sm font-semibold uppercase tracking-wide">Total Allocated</p>
+              <p className="text-4xl font-bold text-purple-900 mt-2">
+                {projects.reduce((sum, p) => sum + p.total_allocated, 0).toFixed(0)}
               </p>
+              <p className="text-xs text-purple-600 mt-2">Units in projects</p>
             </div>
-            <BarChart3 className="w-8 h-8 text-indigo-500" />
+            <div className="p-3 bg-purple-200 rounded-lg">
+              <Package className="w-6 h-6 text-purple-600" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border-l-4 border-green-500 shadow-sm hover:shadow-md transition">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Total Consumed</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {projects.reduce((sum, p) => sum + p.total_consumed, 0).toFixed(0)} Units
+              <p className="text-green-600 text-sm font-semibold uppercase tracking-wide">Total Consumed</p>
+              <p className="text-4xl font-bold text-green-900 mt-2">
+                {projects.reduce((sum, p) => sum + p.total_consumed, 0).toFixed(0)}
               </p>
+              <p className="text-xs text-green-600 mt-2">Units used</p>
             </div>
-            <TrendingUp className="w-8 h-8 text-green-500" />
+            <div className="p-3 bg-green-200 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-6 rounded-xl border-l-4 border-amber-500 shadow-sm hover:shadow-md transition">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Avg Utilization</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {projects.length > 0 
-                  ? (projects.reduce((sum, p) => sum + p.utilization_percent, 0) / projects.length).toFixed(1)
-                  : 0}%
+              <p className="text-amber-600 text-sm font-semibold uppercase tracking-wide">Total Value</p>
+              <p className="text-4xl font-bold text-amber-900 mt-2">
+                ₹{projects.reduce((sum, p) => sum + p.total_value, 0).toFixed(0)}
               </p>
+              <p className="text-xs text-amber-600 mt-2">Allocated inventory</p>
             </div>
-            <BarChart3 className="w-8 h-8 text-purple-500" />
+            <div className="p-3 bg-amber-200 rounded-lg">
+              <DollarSign className="w-6 h-6 text-amber-600" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Sort */}
-      <div className="flex gap-4 items-center bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by order number or customer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+      {/* Search and Filter Controls */}
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-1 min-w-64">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Search Projects</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by order # or customer name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
+            </div>
+          </div>
+          <div className="w-full md:w-48">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            >
+              <option value="latest">📅 Latest First</option>
+              <option value="high_value">💰 High Value</option>
+              <option value="high_usage">📊 High Usage</option>
+            </select>
+          </div>
         </div>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="latest">Latest First</option>
-          <option value="high_value">High Value</option>
-          <option value="high_usage">High Usage</option>
-        </select>
       </div>
 
-      {/* Projects Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Project</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Materials</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Allocated</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Consumed</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Utilization</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map((project) => (
-              <React.Fragment key={project.sales_order_id}>
-                <tr
-                  className={`border-b border-gray-200 hover:bg-gray-50 cursor-pointer ${getHealthColor(
-                    project.health_status
-                  )}`}
-                  onClick={() => toggleProjectExpand(project.sales_order_id)}
-                >
-                  <td className="px-6 py-4 font-medium text-gray-900">{project.order_number}</td>
-                  <td className="px-6 py-4 text-gray-700">{project.customer_name}</td>
-                  <td className="px-6 py-4 text-gray-700">
-                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                      {project.material_count} items
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 font-mono">
-                    {project.total_allocated.toFixed(1)}
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 font-mono">
-                    {project.total_consumed.toFixed(1)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all ${
-                            project.utilization_percent > 110
-                              ? 'bg-red-500'
-                              : project.utilization_percent >= 90
-                              ? 'bg-amber-500'
-                              : 'bg-green-500'
-                          }`}
-                          style={{ width: `${Math.min(project.utilization_percent, 100)}%` }}
-                        ></div>
+      {/* Projects Cards Grid */}
+      <div className="space-y-4">
+        {projects.length === 0 && !loading ? (
+          <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
+            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600 text-lg font-medium">No projects found</p>
+            <p className="text-gray-500 text-sm mt-2">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          projects.map((project) => (
+            <React.Fragment key={project.sales_order_id}>
+              {/* Project Card */}
+              <div
+                onClick={() => toggleProjectExpand(project.sales_order_id)}
+                className={`${getHealthColor(
+                  project.health_status
+                )} border-2 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-all duration-200 bg-white`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Boxes className="w-5 h-5 text-blue-600" />
                       </div>
-                      <span className="text-sm font-medium text-gray-700 w-12">
-                        {project.utilization_percent.toFixed(1)}%
-                      </span>
+                      <div>
+                        <p className="text-sm text-gray-600">Order #</p>
+                        <p className="text-xl font-bold text-gray-900">{project.order_number}</p>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">{getHealthBadge(project.health_status)}</td>
-                  <td className="px-6 py-4">
-                    {expandedProject === project.sales_order_id ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
-                    )}
-                  </td>
-                </tr>
+                  </div>
+                  <div className="text-right">
+                    {getHealthBadge(project.health_status)}
+                    <p className="text-xs text-gray-500 mt-2">{project.project_name}</p>
+                  </div>
+                </div>
 
-                {/* Expanded Row - Project Details */}
-                {expandedProject === project.sales_order_id && (
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <td colSpan="8" className="px-6 py-4">
-                      {loadingDetails ? (
-                        <div className="text-center py-4">
-                          <div className="inline-block animate-spin">⏳</div>
-                          <p className="text-gray-600 mt-2">Loading materials...</p>
-                        </div>
-                      ) : projectDetails ? (
-                        <div className="space-y-4">
-                          {/* Material Requests */}
-                          {projectDetails.material_requests.length > 0 && (
-                            <div className="mb-4">
-                              <h4 className="font-semibold text-gray-900 mb-2">Material Requests ({projectDetails.material_requests.length})</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                {projectDetails.material_requests.map((req) => (
-                                  <div key={req.request_id} className="bg-white p-3 rounded border border-gray-300">
-                                    <p className="font-mono text-sm text-blue-600">{req.request_number}</p>
-                                    <p className="text-xs text-gray-600 mt-1">Status: {req.status}</p>
-                                    <p className="text-xs text-gray-600">{req.items_count} items</p>
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                  <div>
+                    <p className="text-sm text-gray-600">Customer</p>
+                    <p className="text-lg font-semibold text-gray-900">{project.customer_name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Materials</p>
+                    <p className="text-2xl font-bold text-blue-600">{project.material_count}</p>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg">
+                    <p className="text-xs text-purple-600 font-semibold">Allocated</p>
+                    <p className="text-lg font-bold text-purple-900">{project.total_allocated.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg">
+                    <p className="text-xs text-green-600 font-semibold">Consumed</p>
+                    <p className="text-lg font-bold text-green-900">{project.total_consumed.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg">
+                    <p className="text-xs text-blue-600 font-semibold">Remaining</p>
+                    <p className="text-lg font-bold text-blue-900">{project.total_remaining.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-3 rounded-lg">
+                    <p className="text-xs text-amber-600 font-semibold">Value</p>
+                    <p className="text-lg font-bold text-amber-900">₹{(project.total_value/1000).toFixed(0)}K</p>
+                  </div>
+                </div>
+
+                {/* Utilization Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-semibold text-gray-700">Material Utilization</p>
+                    <span className={`text-sm font-bold ${
+                      project.utilization_percent > 110 ? 'text-red-600' :
+                      project.utilization_percent >= 90 ? 'text-amber-600' :
+                      'text-green-600'
+                    }`}>
+                      {project.utilization_percent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-3 rounded-full transition-all ${
+                        project.utilization_percent > 110
+                          ? 'bg-red-500'
+                          : project.utilization_percent >= 90
+                          ? 'bg-amber-500'
+                          : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(project.utilization_percent, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Expand Indicator */}
+                <div className="flex justify-center mt-4 pt-4 border-t border-gray-200">
+                  {expandedProject === project.sales_order_id ? (
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+              </div>
+
+              {/* Expanded Details - Material Breakdowns & Requests */}
+              {expandedProject === project.sales_order_id && (
+                <div className="bg-white border-t-4 border-blue-500 rounded-b-xl p-8 space-y-8">
+                  {loadingDetails ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin">⏳</div>
+                      <p className="text-gray-600 mt-4 font-semibold">Loading material details...</p>
+                    </div>
+                  ) : projectDetails ? (
+                    <div className="space-y-8">
+                      {/* Material Allocation Requests Section */}
+                      {projectDetails.material_requests.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <Layers className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">Material Allocation Requests</h3>
+                            <span className="ml-auto px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
+                              {projectDetails.material_requests.length} Requests
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {projectDetails.material_requests.map((req) => (
+                              <div key={req.request_id} className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 hover:shadow-md transition">
+                                <div className="flex items-start justify-between mb-3">
+                                  <p className="font-mono text-sm font-bold text-blue-700">{req.request_number}</p>
+                                  <span className={`px-2 py-1 text-xs rounded-full font-semibold ${
+                                    req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                    req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {req.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Package className="w-4 h-4 text-gray-500" />
+                                    <p className="text-sm text-gray-600">{req.items_count} items</p>
                                   </div>
-                                ))}
+                                </div>
                               </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Material Breakdown Section */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="p-2 bg-purple-100 rounded-lg">
+                            <GripHorizontal className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <h3 className="text-lg font-bold text-gray-900">Material Breakdown</h3>
+                          <span className="ml-auto px-3 py-1 bg-purple-100 text-purple-800 text-sm font-semibold rounded-full">
+                            {projectDetails.materials.length} Items
+                          </span>
+                        </div>
+                        <div className="space-y-3 overflow-x-auto">
+                          {projectDetails.materials.length > 0 ? (
+                            projectDetails.materials.map((material, idx) => (
+                              <div key={idx} className="bg-white p-4 rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1">
+                                    <p className="font-semibold text-gray-900">{material.product_name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-semibold">
+                                        {material.category}
+                                      </span>
+                                      <span className="text-xs text-gray-600">📍 {material.location}</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-gray-600">Cost</p>
+                                    <p className="text-lg font-bold text-amber-600">₹{material.unit_cost.toFixed(2)}</p>
+                                  </div>
+                                </div>
+
+                                {/* Material Stats Grid */}
+                                <div className="grid grid-cols-4 gap-2">
+                                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded text-center">
+                                    <p className="text-xs text-purple-600 font-semibold">Allocated</p>
+                                    <p className="text-sm font-bold text-purple-900">{material.allocated_quantity.toFixed(0)}</p>
+                                    <p className="text-xs text-purple-600">{material.unit_of_measurement}</p>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded text-center">
+                                    <p className="text-xs text-green-600 font-semibold">Consumed</p>
+                                    <p className="text-sm font-bold text-green-900">{material.consumed_quantity.toFixed(0)}</p>
+                                    <p className="text-xs text-green-600">{material.unit_of_measurement}</p>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded text-center">
+                                    <p className="text-xs text-blue-600 font-semibold">Remaining</p>
+                                    <p className="text-sm font-bold text-blue-900">{material.remaining_quantity.toFixed(0)}</p>
+                                    <p className="text-xs text-blue-600">{material.unit_of_measurement}</p>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-2 rounded text-center">
+                                    <p className="text-xs text-amber-600 font-semibold">Usage %</p>
+                                    <p className="text-sm font-bold text-amber-900">
+                                      {material.allocated_quantity > 0 
+                                        ? ((material.consumed_quantity / material.allocated_quantity) * 100).toFixed(0)
+                                        : 0}%
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <p>No materials allocated yet</p>
                             </div>
                           )}
+                        </div>
+                      </div>
 
-                          {/* Materials Table */}
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mb-2">Allocated Materials ({projectDetails.materials.length})</h4>
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
-                                <thead className="bg-white border-b border-gray-300">
-                                  <tr>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-700">Material</th>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
-                                    <th className="px-3 py-2 text-right font-medium text-gray-700">Allocated</th>
-                                    <th className="px-3 py-2 text-right font-medium text-gray-700">Consumed</th>
-                                    <th className="px-3 py-2 text-right font-medium text-gray-700">Remaining</th>
-                                    <th className="px-3 py-2 text-right font-medium text-gray-700">Unit Cost</th>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-700">Location</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {projectDetails.materials.map((material, idx) => (
-                                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                                      <td className="px-3 py-2 font-medium text-gray-900">{material.product_name}</td>
-                                      <td className="px-3 py-2 text-gray-700">
-                                        <span className="inline-block px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded">
-                                          {material.category}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-2 text-right text-gray-700 font-mono">
-                                        {material.allocated_quantity.toFixed(1)} {material.unit_of_measurement}
-                                      </td>
-                                      <td className="px-3 py-2 text-right text-gray-700 font-mono">
-                                        {material.consumed_quantity.toFixed(1)}
-                                      </td>
-                                      <td className="px-3 py-2 text-right text-gray-700 font-mono">
-                                        {material.remaining_quantity.toFixed(1)}
-                                      </td>
-                                      <td className="px-3 py-2 text-right text-gray-700 font-mono">
-                                        ₹{material.unit_cost.toFixed(2)}
-                                      </td>
-                                      <td className="px-3 py-2 text-gray-700 text-xs">{material.location}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                      {/* Consumption Analysis Summary */}
+                      {projectDetails.consumption_analysis && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 bg-indigo-100 rounded-lg">
+                              <BarChart3 className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">Consumption Analysis</h3>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                              <p className="text-xs text-purple-600 font-semibold mb-2">Total Allocated</p>
+                              <p className="text-3xl font-bold text-purple-900">{projectDetails.consumption_analysis.total_allocated.toFixed(0)}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                              <p className="text-xs text-green-600 font-semibold mb-2">Total Consumed</p>
+                              <p className="text-3xl font-bold text-green-900">{projectDetails.consumption_analysis.total_consumed.toFixed(0)}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                              <p className="text-xs text-blue-600 font-semibold mb-2">Total Remaining</p>
+                              <p className="text-3xl font-bold text-blue-900">{projectDetails.consumption_analysis.total_remaining.toFixed(0)}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-lg border border-indigo-200">
+                              <p className="text-xs text-indigo-600 font-semibold mb-2">Overall Utilization</p>
+                              <p className="text-3xl font-bold text-indigo-900">{projectDetails.consumption_analysis.consumption_percent.toFixed(1)}%</p>
                             </div>
                           </div>
-
-                          {/* Consumption Analysis */}
-                          {projectDetails.consumption_analysis && (
-                            <div className="bg-white p-4 rounded border border-gray-300">
-                              <h4 className="font-semibold text-gray-900 mb-3">Consumption Analysis</h4>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1">Total Allocated</p>
-                                  <p className="font-bold text-lg text-gray-900">
-                                    {projectDetails.consumption_analysis.total_allocated.toFixed(1)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1">Consumed</p>
-                                  <p className="font-bold text-lg text-green-600">
-                                    {projectDetails.consumption_analysis.total_consumed.toFixed(1)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1">Remaining</p>
-                                  <p className="font-bold text-lg text-blue-600">
-                                    {projectDetails.consumption_analysis.total_remaining.toFixed(1)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1">Utilization</p>
-                                  <p className="font-bold text-lg text-purple-600">
-                                    {projectDetails.consumption_analysis.consumption_percent.toFixed(1)}%
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                         </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                )}
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-
-        {projects.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-600">
-            <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-            <p>No projects found</p>
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

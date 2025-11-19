@@ -177,6 +177,77 @@ const respondWithProductionOrder = async (productionOrderId, res) => {
   });
 };
 
+// Get list of production orders with filtering
+router.get(
+  "/orders",
+  authenticateToken,
+  checkDepartment(["manufacturing", "admin"]),
+  async (req, res) => {
+    try {
+      const { status, limit = 100, offset = 0, product_id } = req.query;
+      
+      const where = {};
+      
+      // Filter by status if provided
+      if (status) {
+        const statuses = status.split(",").map(s => s.trim());
+        if (statuses.length === 1) {
+          where.status = statuses[0];
+        } else {
+          where.status = { [Op.in]: statuses };
+        }
+      }
+      
+      // Filter by product_id if provided
+      if (product_id) {
+        where.product_id = product_id;
+      }
+
+      const productionOrders = await ProductionOrder.findAll({
+        where,
+        include: [
+          {
+            model: Product,
+            as: "product",
+            attributes: ["id", "name", "product_code", "specifications"],
+          },
+          {
+            model: SalesOrder,
+            as: "salesOrder",
+            attributes: ["id", "order_number", "customer_id", "status"],
+            include: [
+              {
+                model: Customer,
+                as: "customer",
+                attributes: ["id", "name", "company_name"],
+              },
+            ],
+          },
+          {
+            model: ProductionStage,
+            as: "stages",
+            attributes: ["id", "stage_name", "status"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+      });
+
+      res.json({
+        productionOrders,
+        count: productionOrders.length,
+      });
+    } catch (error) {
+      console.error("Failed to fetch production orders:", error);
+      res.status(500).json({
+        message: "Failed to fetch production orders",
+        error: error.message,
+      });
+    }
+  }
+);
+
 // Get production order detail
 router.get(
   "/orders/:id",
@@ -3312,19 +3383,20 @@ router.post(
         return res.status(404).json({ message: "Production order not found" });
       }
 
-      // Check if order is completed
-      if (order.status !== "completed") {
+      // Check if order is in a final/completion stage
+      const finalStages = ["completed", "finishing", "quality_check"];
+      if (!finalStages.includes(order.status)) {
         await transaction.rollback();
         return res.status(400).json({
-          message: `Cannot mark as ready for shipment. Order status is '${order.status}', must be 'completed'`,
+          message: `Cannot mark as ready for shipment. Order status is '${order.status}', must be one of: ${finalStages.join(", ")}`,
         });
       }
 
-      // Check if shipment already exists
+      // Check if shipment already exists (active shipments only - exclude delivered/returned/cancelled)
       const existingShipment = await Shipment.findOne({
         where: {
           sales_order_id: order.sales_order_id,
-          status: { [Op.notIn]: ["returned", "cancelled", "failed_delivery"] },
+          status: { [Op.notIn]: ["returned", "cancelled", "failed_delivery", "delivered"] },
         },
       });
 
@@ -3466,21 +3538,30 @@ router.post(
         { transaction }
       );
 
-      // Send notifications to shipment department
-      await NotificationService.sendToDepartment(
-        "shipment",
-        {
-          title: "Production Ready for Shipment",
-          message: `Production order ${order.production_number} is ready for shipment. Shipment ${shipment_number} created.`,
-          type: "manufacturing",
-          priority: "high",
-          related_entity_id: shipment.id,
-          related_entity_type: "shipment",
-        },
-        transaction
-      );
-
+      // Commit transaction BEFORE sending notifications (non-blocking)
+      // This ensures shipment and production order update are persisted
+      // even if notifications fail
       await transaction.commit();
+
+      // Send notifications to shipment department (non-blocking)
+      // Notifications are sent AFTER transaction commit to prevent rollback
+      try {
+        await NotificationService.sendToDepartment(
+          "shipment",
+          {
+            title: "Production Ready for Shipment",
+            message: `Production order ${order.production_number} is ready for shipment. Shipment ${shipment_number} created.`,
+            type: "manufacturing",
+            priority: "high",
+            related_entity_id: shipment.id,
+            related_entity_type: "shipment",
+          }
+          // NOTE: transaction parameter removed - notifications sent outside transaction
+        );
+      } catch (notifError) {
+        console.warn('Warning: Failed to send shipment notification:', notifError.message);
+        // Don't throw - notification failure shouldn't block the response
+      }
 
       // Return complete shipment details
       const completeShipment = await Shipment.findByPk(shipment.id, {
@@ -3631,6 +3712,116 @@ router.get(
       res
         .status(500)
         .json({ message: "Failed to fetch ready for shipment orders" });
+    }
+  }
+);
+
+// QR Code Scan Endpoint - Log scan and update status
+router.post(
+  "/qr-scan",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { qrData, stage_to, status_to } = req.body;
+      const userId = req.user?.id;
+
+      if (!qrData || !qrData.order_id) {
+        return res.status(400).json({ message: "Invalid QR data" });
+      }
+
+      // Find the order
+      const order = await SalesOrder.findByPk(qrData.order_id, {
+        include: [
+          { model: Customer, as: "customer" },
+          {
+            model: ProductionOrder,
+            as: "productionOrders",
+            include: [{ model: ProductionStage, as: "stages" }],
+          },
+        ],
+      });
+
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Update order QR metadata
+      const updatedQRData = await updateOrderQRCode(
+        qrData.order_id,
+        status_to || qrData.status || order.status
+      );
+
+      // Update SalesOrder with scan metadata
+      const now = new Date();
+      await order.update({
+        lifecycle_qr_last_scanned_at: now,
+        lifecycle_qr_scan_count: (order.lifecycle_qr_scan_count || 0) + 1,
+      });
+
+      // If transitioning to a new stage/status, update order status
+      if (status_to && status_to !== order.status) {
+        await order.update({ status: status_to });
+
+        // Add to history
+        await SalesOrderHistory.create({
+          sales_order_id: order.id,
+          event: `QR Code Scanned - Status Updated`,
+          details: `Order status changed from ${order.status} to ${status_to}`,
+          timestamp: now,
+          updated_by: userId,
+        });
+      }
+
+      // Return updated order data with scan metadata
+      const responseData = {
+        order_id: order.id,
+        order_number: order.order_number,
+        status: status_to || order.status,
+        customer: order.customer?.name,
+        delivery_date: order.delivery_date,
+        total_quantity: order.total_quantity,
+        qr_scan_count: (order.lifecycle_qr_scan_count || 0) + 1,
+        last_scanned_at: now,
+        updated_at: now,
+        qrData: updatedQRData,
+      };
+
+      res.json({
+        message: "QR code scanned successfully",
+        data: responseData,
+      });
+    } catch (error) {
+      console.error("QR scan error:", error);
+      res.status(500).json({ message: "Failed to process QR scan" });
+    }
+  }
+);
+
+// Get QR scan history for an order
+router.get(
+  "/orders/:orderId/qr-history",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { orderId } = req.params;
+
+      const order = await SalesOrder.findByPk(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Return QR metadata
+      res.json({
+        order_id: order.id,
+        order_number: order.order_number,
+        qr_scan_count: order.lifecycle_qr_scan_count || 0,
+        last_scanned_at: order.lifecycle_qr_last_scanned_at,
+        lifecycle_qr_status: order.lifecycle_qr_status || "active",
+        lifecycle_qr_token: order.lifecycle_qr_token,
+      });
+    } catch (error) {
+      console.error("QR history fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch QR history" });
     }
   }
 );

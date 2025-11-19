@@ -1409,7 +1409,7 @@ const ProductionWizardPage = () => {
               </div>
 
               {/* Step Content */}
-              <div className="min-h-[450px] space-y-6">
+              <div className="min-h-[auto] space-y-6">
                 {renderStepContent}
               </div>
             </div>
@@ -2307,7 +2307,7 @@ const CustomizationStep = ({ canCustomize, vendors = [], loadingVendors = false 
               label="Work Type"
               options={[
                 { value: 'false', label: '🏭 In-House Production' },
-                { value: 'true', label: '🚚 Outsourced to Vendor' },
+                { value: 'true', label: '🔄 Outsourced to Vendor' },
               ]}
             />
             {isOutsourced && (

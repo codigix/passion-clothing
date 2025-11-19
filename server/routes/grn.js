@@ -13,6 +13,9 @@ const {
   Customer,
   Notification,
   VendorReturn,
+  Approval,
+  VendorRequest,
+  Challan,
 } = require("../config/database");
 const { authenticateToken, checkDepartment } = require("../middleware/auth");
 const {
@@ -80,8 +83,23 @@ router.get(
         order: [["created_at", "DESC"]],
       });
 
+      const grnWithHierarchy = grns.map(grn => {
+        let label = grn.is_first_grn ? "Original Receipt" : "Shortage Fulfillment Receipt";
+        let badge = grn.is_first_grn ? "1st GRN" : `${grn.grn_sequence === 2 ? "2nd" : grn.grn_sequence + "th"} GRN`;
+        
+        return {
+          ...grn.toJSON(),
+          hierarchy: {
+            is_first_grn: grn.is_first_grn,
+            grn_sequence: grn.grn_sequence,
+            grn_label: label,
+            grn_status_badge: badge,
+          }
+        };
+      });
+
       res.json({
-        grns,
+        grns: grnWithHierarchy,
         pagination: {
           total: count,
           page: parseInt(page),
@@ -142,7 +160,22 @@ router.get(
         return res.status(404).json({ message: "GRN not found" });
       }
 
-      res.json(grn);
+      let label = grn.is_first_grn ? "Original Receipt" : "Shortage Fulfillment Receipt";
+      let badge = grn.is_first_grn ? "1st GRN" : `${grn.grn_sequence === 2 ? "2nd" : grn.grn_sequence + "th"} GRN`;
+
+      const grnData = {
+        ...grn.toJSON(),
+        hierarchy: {
+          is_first_grn: grn.is_first_grn,
+          grn_sequence: grn.grn_sequence,
+          grn_label: label,
+          grn_status_badge: badge,
+          original_grn_id: grn.original_grn_id,
+          shortage_fulfillment_metadata: grn.shortage_fulfillment_metadata,
+        }
+      };
+
+      res.json(grnData);
     } catch (error) {
       console.error("Error fetching GRN:", error);
       res
@@ -175,29 +208,155 @@ router.get(
       }
 
       // Check if PO status allows GRN creation
-      if (po.status !== "grn_approved" && po.status !== "sent") {
+      const allowedStatuses = ["grn_approved", "sent", "reopened", "grn_requested"];
+      if (!allowedStatuses.includes(po.status)) {
         return res.status(400).json({
           message:
-            "GRN creation not allowed for this PO. Status must be approved or GRN approved.",
+            "GRN creation not allowed for this PO. Status must be: grn_approved, sent, reopened, or grn_requested.",
         });
       }
 
-      // Check if GRN already exists
-      const existingGRN = await GoodsReceiptNote.findOne({
+      // For reopened or grn_requested POs, check if this is a shortage fulfillment
+      let isReopenedForShortage = false;
+      let shortageItems = [];
+      let vendorRequest = null;
+      const { VendorReturn } = require("../config/database");
+
+      if (["reopened", "grn_requested"].includes(po.status)) {
+        // First try VendorRequest (from approval workflow)
+        vendorRequest = await VendorRequest.findOne({
+          where: {
+            purchase_order_id: poId,
+            request_type: "shortage",
+            status: ["sent", "acknowledged", "in_transit", "pending", "draft"],
+          },
+          order: [["created_at", "DESC"]],
+        });
+
+        // If no VendorRequest, try VendorReturn (from GRN shortage detection)
+        if (!vendorRequest) {
+          const vendorReturn = await VendorReturn.findOne({
+            where: {
+              purchase_order_id: poId,
+              return_type: "shortage",
+              status: ["pending", "approved", "in_transit"],
+            },
+            order: [["created_at", "DESC"]],
+          });
+
+          if (vendorReturn) {
+            isReopenedForShortage = true;
+            shortageItems = (vendorReturn.items || []).map((item) => ({
+              ...item,
+              shortage_qty: item.shortage_qty,
+              shortage_quantity: item.shortage_qty,
+            }));
+          }
+        } else {
+          isReopenedForShortage = true;
+          shortageItems = vendorRequest.items || [];
+        }
+      }
+
+      // Check for existing GRNs for this PO to determine hierarchy
+      const existingGRNs = await GoodsReceiptNote.findAll({
         where: { purchase_order_id: poId },
+        order: [["created_at", "ASC"]],
+        attributes: ["id", "grn_number", "grn_sequence", "is_first_grn", "created_at"],
       });
 
-      if (existingGRN) {
-        return res.status(400).json({
-          message: "GRN already exists for this Purchase Order",
-          grn_id: existingGRN.id,
-        });
+      let isFirstGRN = true;
+      let grnSequence = 1;
+      let shouldShowAllItems = true;
+
+      if (existingGRNs.length > 0) {
+        isFirstGRN = false;
+        grnSequence = existingGRNs.length + 1;
+        
+        if (!["reopened", "grn_shortage", "grn_overage", "grn_requested"].includes(po.status)) {
+          return res.status(400).json({
+            message: "A GRN already exists for this Purchase Order. To create additional GRNs, the PO must be in 'reopened', 'grn_requested', 'grn_shortage', or 'grn_overage' status.",
+            grn_id: existingGRNs[0].id,
+            existing_grns: existingGRNs,
+            current_po_status: po.status,
+            workflow: {
+              step_1: "First GRN created with shortage/overage detected",
+              step_2: "PO status changes to 'grn_requested' (ready for shortage GRN)",
+              step_3: "When shortage materials are received, create second GRN with shortages",
+              step_4: "Second GRN materials automatically added to inventory with status tracking"
+            },
+            next_step: `PO is in '${po.status}' status. Please check workflow or material receipt status.`,
+          });
+        }
+        
+        shouldShowAllItems = false;
       }
+
+      let items = [];
+
+      // Decision logic: show all items for first GRN, only shortage items for subsequent
+      if (!isFirstGRN && isReopenedForShortage && shortageItems.length > 0) {
+        // For reopened PO with shortage (2nd+ GRN), show only shortage items
+        items = shortageItems.map((item, index) => ({
+          item_index: index,
+          product_id: item.product_id || null,
+          product_name: item.material_name,
+          product_code: item.product_code || "",
+          ordered_qty: item.shortage_qty || item.shortage_quantity || 0,
+          unit: item.uom || item.unit || "Meters",
+          rate: item.rate || 0,
+          amount: (item.shortage_qty || item.shortage_quantity || 0) * (item.rate || 0),
+          received_qty: 0,
+          weight: 0,
+          remarks: `Shortage fulfillment - Original ordered: ${item.ordered_qty}, Received: ${item.received_qty}`,
+          color: item.color || "",
+          hsn: item.hsn || "",
+          gsm: item.gsm || "",
+          width: item.width || "",
+          description: item.description || "",
+        }));
+      } else {
+        // For normal PO (first GRN) or reopened without shortage items, show all items
+        items = (po.items || []).map((item, index) => ({
+          item_index: index,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_code: item.product_code,
+          ordered_qty: item.quantity,
+          unit: item.unit,
+          rate: item.rate,
+          amount: item.amount,
+          received_qty: 0,
+          weight: 0,
+          remarks: "",
+        }));
+      }
+
+      // Determine GRN label and status badge
+      let grnLabel = "Original Receipt";
+      let grnStatusBadge = "1st GRN";
+      if (!isFirstGRN) {
+        grnLabel = "Shortage Fulfillment Receipt";
+        grnStatusBadge = `${grnSequence === 2 ? "2nd" : grnSequence + "th"} GRN`;
+      }
+
+      // Fetch associated challan for this PO
+      const challan = await Challan.findOne({
+        where: {
+          order_id: poId,
+          order_type: 'purchase_order',
+          type: 'inward',
+          sub_type: 'purchase'
+        },
+        order: [['created_at', 'DESC']]
+      });
 
       // Format PO data for GRN form
       const grnData = {
         po_id: po.id,
         po_number: po.po_number,
+        po_date: po.po_date,
+        total_amount: po.total_amount,
         project_name: po.project_name,
         customer: po.customer
           ? {
@@ -211,19 +370,26 @@ router.get(
         },
         order_date: po.order_date,
         expected_delivery_date: po.expected_delivery_date,
-        items: (po.items || []).map((item, index) => ({
-          item_index: index,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          product_code: item.product_code,
-          ordered_qty: item.quantity,
-          unit: item.unit,
-          rate: item.rate,
-          amount: item.amount,
-          received_qty: 0, // To be filled
-          weight: 0, // To be filled
-          remarks: "", // To be filled
-        })),
+        items: items,
+        
+        challan: challan ? {
+          id: challan.id,
+          challan_number: challan.challan_number,
+          status: challan.status
+        } : null,
+        
+        hierarchy: {
+          is_first_grn: isFirstGRN,
+          grn_sequence: grnSequence,
+          grn_label: grnLabel,
+          grn_status_badge: grnStatusBadge,
+          existing_grns_count: existingGRNs.length,
+          existing_grns: existingGRNs,
+        },
+        
+        is_shortage_fulfillment: isReopenedForShortage,
+        vendor_request_id: vendorRequest?.id || null,
+        vendor_request_number: vendorRequest?.request_number || null,
       };
 
       res.json(grnData);
@@ -297,62 +463,181 @@ router.post(
         .toString()
         .padStart(5, "0")}`;
 
-      // Map items from PO with received quantities
-      const poItems = po.items || [];
-      console.log("PO Items count:", poItems.length);
-      if (poItems.length > 0) {
+      // Check if this is a shortage fulfillment GRN
+      let isShortageFulfillment = false;
+      let originalGRNReference = null;
+      let vendorRequest = null;
+      let isFirstGRN = true;
+      let grnSequence = 1;
+      let originalFirstGRN = null;
+      
+      // Get all existing GRNs for this PO to determine sequence
+      const existingGRNsForPO = await GoodsReceiptNote.findAll({
+        where: { purchase_order_id: poId },
+        order: [["created_at", "ASC"]],
+        attributes: ["id", "grn_number", "is_first_grn"],
+        transaction,
+      });
+
+      if (existingGRNsForPO.length > 0) {
+        isFirstGRN = false;
+        grnSequence = existingGRNsForPO.length + 1;
+        originalFirstGRN = existingGRNsForPO[0];
+      }
+      
+      if (["reopened", "grn_requested"].includes(po.status)) {
+        const { VendorReturn } = require("../config/database");
+        
+        // First try VendorRequest
+        vendorRequest = await VendorRequest.findOne({
+          where: {
+            purchase_order_id: poId,
+            request_type: "shortage",
+            status: ["sent", "acknowledged", "in_transit", "pending", "draft"],
+          },
+          order: [["created_at", "DESC"]],
+          transaction,
+        });
+
+        // If no VendorRequest, try VendorReturn (from GRN shortage detection)
+        if (!vendorRequest) {
+          const vendorReturn = await VendorReturn.findOne({
+            where: {
+              purchase_order_id: poId,
+              return_type: "shortage",
+              status: ["pending", "approved", "in_transit"],
+            },
+            order: [["created_at", "DESC"]],
+            transaction,
+          });
+
+          if (vendorReturn) {
+            isShortageFulfillment = true;
+            // Get the associated GRN
+            const originalGRN = await GoodsReceiptNote.findByPk(vendorReturn.grn_id, {
+              attributes: ["id", "grn_number"],
+              transaction,
+            });
+            
+            if (originalGRN) {
+              originalGRNReference = {
+                grn_id: originalGRN.id,
+                grn_number: originalGRN.grn_number,
+                vendor_return_id: vendorReturn.id,
+                vendor_return_number: vendorReturn.return_number,
+              };
+            }
+            
+            // Transform VendorReturn items to match VendorRequest format
+            vendorRequest = {
+              items: (vendorReturn.items || []).map((item) => ({
+                ...item,
+                shortage_qty: item.shortage_qty || item.shortage_quantity,
+              })),
+            };
+          }
+        } else {
+          isShortageFulfillment = true;
+          const originalGRN = await GoodsReceiptNote.findByPk(vendorRequest.grn_id, {
+            attributes: ["id", "grn_number"],
+            transaction,
+          });
+          
+          if (originalGRN) {
+            originalGRNReference = {
+              grn_id: originalGRN.id,
+              grn_number: originalGRN.grn_number,
+              vendor_request_id: vendorRequest.id,
+              vendor_request_number: vendorRequest.request_number,
+            };
+          }
+        }
+      }
+
+      // Map items from PO or vendor request (for shortage fulfillment)
+      let sourceItems = [];
+      
+      if (isShortageFulfillment && vendorRequest) {
+        sourceItems = vendorRequest.items || [];
+        console.log("Shortage fulfillment - using vendor request items:", sourceItems.length);
+      } else {
+        sourceItems = po.items || [];
+        console.log("Normal GRN - using PO items:", sourceItems.length);
+      }
+
+      if (sourceItems.length > 0) {
         console.log(
-          "PO Item sample structure:",
-          JSON.stringify(poItems[0], null, 2)
+          "Source Item sample structure:",
+          JSON.stringify(sourceItems[0], null, 2)
         );
       }
 
       const mappedItems = items_received.map((receivedItem) => {
-        const poItem = poItems[receivedItem.item_index];
+        const sourceItem = sourceItems[receivedItem.item_index];
 
-        if (!poItem) {
+        if (!sourceItem) {
           throw new Error(
-            `Invalid item_index: ${receivedItem.item_index}. PO has ${poItems.length} items.`
+            `Invalid item_index: ${receivedItem.item_index}. Source has ${sourceItems.length} items.`
           );
         }
 
-        const orderedQty = parseFloat(poItem.quantity);
+        let orderedQty, materialName, color, hsn, gsm, width, description, uom, rate;
+
+        if (isShortageFulfillment) {
+          orderedQty = parseFloat(sourceItem.shortage_qty || sourceItem.shortage_quantity || 0);
+          materialName = sourceItem.material_name;
+          color = sourceItem.color || "";
+          hsn = sourceItem.hsn || "";
+          gsm = sourceItem.gsm || "";
+          width = sourceItem.width || "";
+          description = sourceItem.description || "";
+          uom = sourceItem.uom || sourceItem.unit || "Meters";
+          rate = parseFloat(sourceItem.rate) || 0;
+        } else {
+          orderedQty = parseFloat(sourceItem.quantity);
+          
+          if (sourceItem.type === "fabric") {
+            materialName =
+              sourceItem.fabric_name ||
+              sourceItem.material_name ||
+              sourceItem.name ||
+              sourceItem.item_name ||
+              "Unknown Fabric";
+          } else {
+            materialName =
+              sourceItem.item_name ||
+              sourceItem.material_name ||
+              sourceItem.name ||
+              sourceItem.fabric_name ||
+              "Unknown Item";
+          }
+          
+          color = sourceItem.color || "";
+          hsn = sourceItem.hsn || sourceItem.hsn_code || "";
+          gsm = sourceItem.gsm || "";
+          width = sourceItem.width || "";
+          description = sourceItem.description || "";
+          uom = sourceItem.uom || sourceItem.unit || "Meters";
+          rate = parseFloat(sourceItem.rate) || 0;
+        }
+
         const invoicedQty = receivedItem.invoiced_qty
           ? parseFloat(receivedItem.invoiced_qty)
           : orderedQty;
         const receivedQty = parseFloat(receivedItem.received_qty);
 
-        // Detect discrepancies
         const hasShortage = receivedQty < Math.min(orderedQty, invoicedQty);
         const hasOverage = receivedQty > Math.max(orderedQty, invoicedQty);
         const invoiceVsOrderMismatch = invoicedQty !== orderedQty;
 
-        // Extract material name with multiple fallback options
-        let materialName = "";
-        if (poItem.type === "fabric") {
-          materialName =
-            poItem.fabric_name ||
-            poItem.material_name ||
-            poItem.name ||
-            poItem.item_name ||
-            "Unknown Fabric";
-        } else {
-          materialName =
-            poItem.item_name ||
-            poItem.material_name ||
-            poItem.name ||
-            poItem.fabric_name ||
-            "Unknown Item";
-        }
-
         return {
           material_name: materialName,
-          color: poItem.color || "",
-          hsn: poItem.hsn || poItem.hsn_code || "",
-          gsm: poItem.gsm || "",
-          width: poItem.width || "",
-          description: poItem.description || "",
-          uom: poItem.uom || poItem.unit || "Meters",
+          color: color,
+          hsn: hsn,
+          gsm: gsm,
+          width: width,
+          description: description,
+          uom: uom,
           ordered_quantity: orderedQty,
           invoiced_quantity: invoicedQty,
           received_quantity: receivedQty,
@@ -363,11 +648,12 @@ router.post(
             ? receivedQty - Math.max(orderedQty, invoicedQty)
             : 0,
           weight: receivedItem.weight ? parseFloat(receivedItem.weight) : null,
-          rate: parseFloat(poItem.rate) || 0,
-          total: receivedQty * (parseFloat(poItem.rate) || 0),
+          rate: rate,
+          total: receivedQty * rate,
           quality_status: "pending_inspection",
           discrepancy_flag: hasShortage || hasOverage || invoiceVsOrderMismatch,
           remarks: receivedItem.remarks || "",
+          is_shortage_fulfillment: isShortageFulfillment,
         };
       });
 
@@ -384,8 +670,9 @@ router.post(
       const grnData = {
         grn_number: grnNumber,
         purchase_order_id: po.id,
-        bill_of_materials_id: null, // Optional
-        sales_order_id: po.linked_sales_order_id || null, // Optional
+        vendor_id: po.vendor_id,
+        bill_of_materials_id: null,
+        sales_order_id: po.linked_sales_order_id || null,
         received_date: received_date || new Date(),
         supplier_name: po.vendor.name,
         supplier_invoice_number: supplier_invoice_number || null,
@@ -394,32 +681,331 @@ router.post(
         total_received_value: totalReceivedValue,
         status: "received",
         verification_status: "pending",
-        remarks: remarks || "",
+        remarks: isShortageFulfillment && originalGRNReference
+          ? `${remarks || ''}\n\nShortage fulfillment for original GRN ${originalGRNReference.grn_number} (Vendor Request: ${originalGRNReference.vendor_request_number})`.trim()
+          : remarks || "",
         attachments: attachments || [],
         created_by: req.user.id,
         inventory_added: false,
+        
+        grn_sequence: grnSequence,
+        is_first_grn: isFirstGRN,
+        original_grn_id: isShortageFulfillment ? originalFirstGRN?.id : null,
+        shortage_fulfillment_metadata: isShortageFulfillment && originalGRNReference ? {
+          is_shortage_fulfillment: true,
+          original_grn_id: originalGRNReference.grn_id,
+          original_grn_number: originalGRNReference.grn_number,
+          vendor_request_id: originalGRNReference.vendor_request_id,
+          vendor_request_number: originalGRNReference.vendor_request_number,
+          complaint_date: new Date(),
+        } : null,
+        
+        metadata: originalGRNReference ? {
+          is_shortage_fulfillment: true,
+          original_grn_id: originalGRNReference.grn_id,
+          original_grn_number: originalGRNReference.grn_number,
+          vendor_request_id: originalGRNReference.vendor_request_id,
+          vendor_request_number: originalGRNReference.vendor_request_number,
+        } : null,
       };
 
       console.log("GRN Data being saved:", JSON.stringify(grnData, null, 2));
 
       const grn = await GoodsReceiptNote.create(grnData, { transaction });
 
-      // Update PO status
-      await po.update(
-        {
-          status: "received", // Material received, pending verification
-          received_date: received_date || new Date(),
-        },
-        { transaction }
-      );
+      // AUTO-ADD RECEIVED ITEMS TO INVENTORY IMMEDIATELY
+      // This ensures inventory is tracked even when shortages are detected
+      console.log("=== AUTO-ADDING ITEMS TO INVENTORY ===");
+      const createdInventoryItems = [];
+      const createdMovements = [];
 
-      // Check for shortages and create vendor return request if needed
+      for (let i = 0; i < mappedItems.length; i++) {
+        const item = mappedItems[i];
+        if (!item.received_quantity || parseFloat(item.received_quantity) <= 0) {
+          continue;
+        }
+
+        try {
+          // Try to find or create product
+          let product = null;
+          const productName = item.material_name;
+
+          if (productName) {
+            product = await Product.findOne({
+              where: { name: productName },
+              transaction,
+            });
+
+            if (!product) {
+              const isFabric = item.color || item.gsm || item.width;
+              const category = isFabric ? "fabric" : "accessories";
+              const productType = isFabric ? "raw_material" : "accessory";
+
+              let unitOfMeasurement = "meter";
+              if (item.uom) {
+                const uomLower = item.uom.toLowerCase();
+                if (uomLower.includes("meter") || uomLower.includes("mtr")) {
+                  unitOfMeasurement = "meter";
+                } else if (uomLower.includes("piece") || uomLower.includes("pcs")) {
+                  unitOfMeasurement = "piece";
+                } else if (uomLower.includes("kg") || uomLower.includes("kilogram")) {
+                  unitOfMeasurement = "kg";
+                } else if (uomLower.includes("gram") || uomLower.includes("gm")) {
+                  unitOfMeasurement = "gram";
+                } else if (uomLower.includes("yard")) {
+                  unitOfMeasurement = "yard";
+                } else if (uomLower.includes("dozen")) {
+                  unitOfMeasurement = "dozen";
+                } else if (uomLower.includes("set")) {
+                  unitOfMeasurement = "set";
+                } else if (uomLower.includes("liter") || uomLower.includes("litre")) {
+                  unitOfMeasurement = "liter";
+                }
+              }
+
+              product = await Product.create(
+                {
+                  product_code: `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                  name: productName,
+                  description: item.description || "",
+                  category: category,
+                  product_type: productType,
+                  unit_of_measurement: unitOfMeasurement,
+                  hsn_code: item.hsn || null,
+                  color: item.color || null,
+                  cost_price: parseFloat(item.rate) || 0,
+                  selling_price: parseFloat(item.rate) * 1.2 || 0,
+                  specifications: {
+                    gsm: item.gsm || null,
+                    width: item.width || null,
+                    source: "grn_auto_created",
+                  },
+                  minimum_stock_level: 10,
+                  reorder_level: 20,
+                  status: "active",
+                  is_batch_tracked: true,
+                  created_by: req.user.id,
+                },
+                { transaction }
+              );
+            }
+          }
+
+          // Generate barcode and batch number
+          const barcode = generateBarcode("INV");
+          const batchBarcode = generateBatchBarcode(po.po_number, i);
+
+          // Prepare QR code data
+          const inventoryDataForQR = {
+            id: null, // Will be set after creation
+            barcode: barcode,
+            product_id: null,
+            location: "Main Warehouse",
+            current_stock: item.received_quantity,
+            batch_number: batchBarcode,
+          };
+
+          const qr_code = generateInventoryQRData(inventoryDataForQR, po.po_number);
+
+          // Determine quality status based on shortage
+          let qualityStatus = "approved";
+          if (item.shortage_quantity > 0) {
+            qualityStatus = "quarantine"; // Mark shortage items as quarantine for review
+          }
+
+          // Determine unit of measurement from item.uom
+          let unitOfMeasurement = "piece";
+          if (item.uom) {
+            const uomLower = item.uom.toLowerCase();
+            if (uomLower.includes("meter") || uomLower.includes("mtr")) {
+              unitOfMeasurement = "meter";
+            } else if (uomLower.includes("piece") || uomLower.includes("pcs")) {
+              unitOfMeasurement = "piece";
+            } else if (uomLower.includes("kg") || uomLower.includes("kilogram")) {
+              unitOfMeasurement = "kg";
+            } else if (uomLower.includes("gram") || uomLower.includes("gm")) {
+              unitOfMeasurement = "gram";
+            } else if (uomLower.includes("yard")) {
+              unitOfMeasurement = "yard";
+            } else if (uomLower.includes("dozen")) {
+              unitOfMeasurement = "dozen";
+            } else if (uomLower.includes("set")) {
+              unitOfMeasurement = "set";
+            } else if (uomLower.includes("liter") || uomLower.includes("litre")) {
+              unitOfMeasurement = "liter";
+            }
+          }
+
+          const isFabric = item.color || item.gsm || item.width;
+          const category = isFabric ? "fabric" : "raw_material";
+
+          // Create inventory entry
+          const inventoryData = {
+            product_id: product ? product.id : null,
+            purchase_order_id: po.id,
+            po_item_index: i,
+            product_code: product ? product.product_code : barcode,
+            product_name: item.material_name || "Unnamed Material",
+            description: item.description || item.material_name || "",
+            category: category,
+            product_type: isFabric ? "raw_material" : "raw_material",
+            unit_of_measurement: unitOfMeasurement,
+            hsn_code: item.hsn || null,
+            color: item.color || null,
+            specifications: {
+              gsm: item.gsm || null,
+              width: item.width || null,
+              uom: item.uom || null,
+              source: "grn_received",
+              grn_number: grnNumber,
+            },
+            cost_price: parseFloat(item.rate) || 0,
+            selling_price: parseFloat(item.rate) * 1.2 || 0,
+            location: "Main Warehouse",
+            batch_number: batchBarcode,
+            serial_number: null,
+            current_stock: parseFloat(item.received_quantity),
+            initial_quantity: parseFloat(item.received_quantity),
+            consumed_quantity: 0,
+            reserved_stock: 0,
+            available_stock: parseFloat(item.received_quantity),
+            minimum_level: 0,
+            maximum_level: parseFloat(item.received_quantity) * 2,
+            reorder_level: parseFloat(item.received_quantity) * 0.2,
+            unit_cost: parseFloat(item.rate) || 0,
+            total_value: parseFloat(item.total) || 0,
+            last_purchase_date: new Date(),
+            quality_status: qualityStatus,
+            condition: "new",
+            notes: item.shortage_quantity > 0 
+              ? `Received from GRN: ${grnNumber}, PO: ${po.po_number}. ⚠️ SHORTAGE: ${item.shortage_quantity} ${item.uom || 'units'} short (expected ${item.ordered_quantity}, received ${item.received_quantity})`
+              : `Received from GRN: ${grnNumber}, PO: ${po.po_number}`,
+            barcode: barcode,
+            qr_code: qr_code,
+            is_active: true,
+            movement_type: "inward",
+            last_movement_date: new Date(),
+            project_id: po.customer_id || null,
+            stock_type: po.linked_sales_order_id ? "project_specific" : "general_extra",
+            created_by: req.user.id,
+            updated_by: req.user.id,
+          };
+
+          const inventoryItem = await Inventory.create(inventoryData, { transaction });
+          createdInventoryItems.push(inventoryItem);
+
+          console.log(`✓ Inventory item ${i + 1} created: ${item.material_name} (${item.received_quantity} ${item.uom})`);
+
+          // Create inventory movement record
+          const movement = await InventoryMovement.create(
+            {
+              inventory_id: inventoryItem.id,
+              purchase_order_id: po.id,
+              movement_type: "inward",
+              quantity: parseFloat(item.received_quantity),
+              previous_quantity: 0,
+              new_quantity: parseFloat(item.received_quantity),
+              unit_cost: parseFloat(item.rate) || 0,
+              total_cost: parseFloat(item.total) || 0,
+              location_from: po.vendor.name,
+              location_to: "Main Warehouse",
+              reference_number: grnNumber,
+              performed_by: req.user.id,
+              movement_date: new Date(),
+              notes: `Auto-added from GRN: ${grnNumber}, PO: ${po.po_number}. Unit: ${item.uom || "Meters"}`,
+              metadata: {
+                grn_id: grn.id,
+                po_number: po.po_number,
+                item_index: i,
+                uom: item.uom || "Meters",
+                auto_added: true,
+              },
+            },
+            { transaction }
+          );
+          createdMovements.push(movement);
+
+          console.log(`✓ Inventory movement ${i + 1} created for tracking`);
+        } catch (invError) {
+          console.error(`✗ Failed to auto-add inventory item ${i + 1}:`, invError.message);
+          // Don't fail the entire GRN creation if inventory add fails
+          // Just log it and continue
+        }
+      }
+
+      // Update GRN to mark inventory as added
+      if (createdInventoryItems.length > 0) {
+        await grn.update(
+          {
+            inventory_added: true,
+            inventory_added_date: new Date(),
+          },
+          { transaction }
+        );
+        console.log(`✓ GRN marked as inventory_added (${createdInventoryItems.length} items)`);
+      }
+
+      // Determine PO status based on discrepancies (will be updated after checking items)
+      let poStatus = "received"; // Default status
+
+      // Check for discrepancies (shortages, overages, invoice mismatches)
       const shortageItems = mappedItems.filter(
         (item) => item.shortage_quantity > 0
       );
-      let vendorReturn = null;
+      const overageItems = mappedItems.filter(
+        (item) => item.overage_quantity > 0
+      );
+      const invoiceMismatchItems = mappedItems.filter(
+        (item) => item.invoiced_quantity !== item.ordered_quantity
+      );
+      const perfectMatchItems = mappedItems.filter(
+        (item) => 
+          item.received_quantity === item.ordered_quantity &&
+          item.received_quantity === item.invoiced_quantity
+      );
 
+      let vendorReturn = null;
+      const complaints = [];
+
+      // Create complaint for SHORTAGES
       if (shortageItems.length > 0) {
+        const totalShortageValue = shortageItems.reduce(
+          (sum, item) => sum + item.shortage_quantity * item.rate,
+          0
+        );
+
+        const complaint = await Approval.create(
+          {
+            entity_type: "purchase_order",
+            entity_id: po.id,
+            stage_key: "grn_shortage_complaint",
+            stage_label: `GRN Shortage Complaint - ${shortageItems.length} item(s)`,
+            status: "pending",
+            metadata: {
+              grn_id: grn.id,
+              grn_number: grnNumber,
+              complaint_type: "shortage",
+              po_number: po.po_number,
+              vendor_name: po.vendor.name,
+              items_affected: shortageItems.map((item) => ({
+                material_name: item.material_name,
+                ordered_qty: item.ordered_quantity,
+                invoiced_qty: item.invoiced_quantity,
+                received_qty: item.received_quantity,
+                shortage_qty: item.shortage_quantity,
+                shortage_value: (item.shortage_quantity * item.rate).toFixed(2),
+                remarks: item.remarks,
+              })),
+              total_shortage_value: totalShortageValue.toFixed(2),
+              action_required: "Approve shortage and coordinate with vendor for replacement",
+              created_at: new Date(),
+            },
+            created_by: req.user.id,
+          },
+          { transaction }
+        );
+        complaints.push(complaint);
+
         // Generate return number: VR-YYYYMMDD-XXXXX
         const returnDateStr = today
           .toISOString()
@@ -445,12 +1031,6 @@ router.post(
         const returnNumber = `VR-${returnDateStr}-${returnSequence
           .toString()
           .padStart(5, "0")}`;
-
-        // Calculate total shortage value
-        const totalShortageValue = shortageItems.reduce(
-          (sum, item) => sum + item.shortage_quantity * item.rate,
-          0
-        );
 
         // Create vendor return request
         vendorReturn = await VendorReturn.create(
@@ -482,18 +1062,205 @@ router.post(
           { transaction }
         );
 
-        // Create notification for procurement team about shortage
+        // Create broadcast notification for all users
         await Notification.create(
           {
             user_id: null,
             type: "vendor_shortage",
-            title: "Vendor Shortage Detected",
+            title: "⚠️ GRN Shortage Detected",
             message: `Shortage detected in GRN ${grnNumber} for PO ${
               po.po_number
             }. Vendor return request ${returnNumber} created. Total shortage value: ₹${totalShortageValue.toFixed(
               2
-            )}`,
-            data: { grn_id: grn.id, po_id: po.id, return_id: vendorReturn.id },
+            )}. Complaint logged in Procurement Dashboard.`,
+            data: { grn_id: grn.id, po_id: po.id, return_id: vendorReturn.id, complaint_id: complaint.id },
+            read: false,
+          },
+          { transaction }
+        );
+
+        // Send targeted notifications to procurement department
+        const procurementUsers = await require("../config/database").User.findAll({
+          where: { department: "procurement", status: "active" },
+          transaction,
+        });
+
+        for (const procUser of procurementUsers) {
+          await Notification.create(
+            {
+              user_id: procUser.id,
+              type: "procurement_action_required",
+              title: "🔔 Shortage Request - Action Required",
+              message: `Material shortage in PO ${po.po_number} (GRN ${grnNumber}). ${shortageItems.length} item(s) short, total value: ₹${totalShortageValue.toFixed(2)}. Vendor return ${returnNumber} created. Please review and approve in Pending Requests.`,
+              data: { grn_id: grn.id, po_id: po.id, return_id: vendorReturn.id, complaint_id: complaint.id, action_type: "shortage" },
+              read: false,
+            },
+            { transaction }
+          );
+        }
+
+        // Send notification to PO creator
+        if (po.created_by) {
+          await Notification.create(
+            {
+              user_id: po.created_by,
+              type: "vendor_shortage",
+              title: "⚠️ Shortage in Your PO",
+              message: `Shortage detected in GRN ${grnNumber} for your PO ${
+                po.po_number
+              }. ${shortageItems.length} item(s) short. Vendor return ${returnNumber} created. Total shortage: ₹${totalShortageValue.toFixed(
+                2
+              )}. Please review and coordinate with vendor.`,
+              data: { grn_id: grn.id, po_id: po.id, return_id: vendorReturn.id, complaint_id: complaint.id },
+              read: false,
+            },
+            { transaction }
+          );
+        }
+
+        // Update PO status to indicate shortage
+        poStatus = "grn_shortage";
+      }
+
+      // Create complaint for OVERAGES
+      if (overageItems.length > 0) {
+        const totalOverageValue = overageItems.reduce(
+          (sum, item) => sum + item.overage_quantity * item.rate,
+          0
+        );
+
+        const complaint = await Approval.create(
+          {
+            entity_type: "purchase_order",
+            entity_id: po.id,
+            stage_key: "grn_overage_complaint",
+            stage_label: `GRN Overage Complaint - ${overageItems.length} item(s)`,
+            status: "pending",
+            metadata: {
+              grn_id: grn.id,
+              grn_number: grnNumber,
+              complaint_type: "overage",
+              po_number: po.po_number,
+              vendor_name: po.vendor.name,
+              items_affected: overageItems.map((item) => ({
+                material_name: item.material_name,
+                ordered_qty: item.ordered_quantity,
+                invoiced_qty: item.invoiced_quantity,
+                received_qty: item.received_quantity,
+                overage_qty: item.overage_quantity,
+                overage_value: (item.overage_quantity * item.rate).toFixed(2),
+                remarks: item.remarks,
+              })),
+              total_overage_value: totalOverageValue.toFixed(2),
+              action_required: "Approve overage, coordinate with vendor for credit note or return",
+              created_at: new Date(),
+            },
+            created_by: req.user.id,
+          },
+          { transaction }
+        );
+        complaints.push(complaint);
+
+        // Create broadcast notification for all users
+        await Notification.create(
+          {
+            user_id: null,
+            type: "vendor_overage",
+            title: "📦 GRN Overage Detected",
+            message: `Overage detected in GRN ${grnNumber} for PO ${
+              po.po_number
+            }. ${overageItems.length} item(s) received more than ordered. Total overage value: ₹${totalOverageValue.toFixed(
+              2
+            )}. Complaint logged in Procurement Dashboard.`,
+            data: { grn_id: grn.id, po_id: po.id, complaint_id: complaint.id },
+            read: false,
+          },
+          { transaction }
+        );
+
+        // Send targeted notifications to procurement department
+        const procurementUsers = await require("../config/database").User.findAll({
+          where: { department: "procurement", status: "active" },
+          transaction,
+        });
+
+        for (const procUser of procurementUsers) {
+          await Notification.create(
+            {
+              user_id: procUser.id,
+              type: "procurement_action_required",
+              title: "🔔 Overage Request - Action Required",
+              message: `Material overage in PO ${po.po_number} (GRN ${grnNumber}). ${overageItems.length} item(s) over, total value: ₹${totalOverageValue.toFixed(2)}. Please review and decide action (accept/return/credit note) in Pending Requests.`,
+              data: { grn_id: grn.id, po_id: po.id, complaint_id: complaint.id, action_type: "overage" },
+              read: false,
+            },
+            { transaction }
+          );
+        }
+
+        // Send notification to PO creator
+        if (po.created_by) {
+          await Notification.create(
+            {
+              user_id: po.created_by,
+              type: "vendor_overage",
+              title: "📦 Overage in Your PO",
+              message: `Overage detected in GRN ${grnNumber} for your PO ${
+                po.po_number
+              }. ${overageItems.length} item(s) received more than ordered. Total overage: ₹${totalOverageValue.toFixed(
+                2
+              )}. Please review and decide on action (accept/return/credit note).`,
+              data: { grn_id: grn.id, po_id: po.id, complaint_id: complaint.id },
+              read: false,
+            },
+            { transaction }
+          );
+        }
+
+        // Update PO status to indicate overage (only if not already shortage)
+        if (poStatus !== "grn_shortage") {
+          poStatus = "grn_overage";
+        }
+      }
+
+      // Create complaint for INVOICE MISMATCHES (Invoice != PO qty)
+      if (invoiceMismatchItems.length > 0 && shortageItems.length === 0 && overageItems.length === 0) {
+        const complaint = await Approval.create(
+          {
+            entity_type: "purchase_order",
+            entity_id: po.id,
+            stage_key: "grn_invoice_mismatch",
+            stage_label: `GRN Invoice Mismatch - ${invoiceMismatchItems.length} item(s)`,
+            status: "pending",
+            metadata: {
+              grn_number: grnNumber,
+              complaint_type: "invoice_mismatch",
+              po_number: po.po_number,
+              vendor_name: po.vendor.name,
+              items_affected: invoiceMismatchItems.map((item) => ({
+                material_name: item.material_name,
+                ordered_qty: item.ordered_quantity,
+                invoiced_qty: item.invoiced_quantity,
+                received_qty: item.received_quantity,
+                mismatch_notes: `Invoice shows ${item.invoiced_quantity} but PO ordered ${item.ordered_quantity}`,
+              })),
+              action_required: "Verify invoice accuracy with vendor and resolve discrepancy",
+              created_at: new Date(),
+            },
+            created_by: req.user.id,
+          },
+          { transaction }
+        );
+        complaints.push(complaint);
+
+        // Create notification
+        await Notification.create(
+          {
+            user_id: null,
+            type: "vendor_mismatch",
+            title: "🔍 GRN Invoice Mismatch",
+            message: `Invoice discrepancy in GRN ${grnNumber} for PO ${po.po_number}. ${invoiceMismatchItems.length} item(s) have invoice quantities different from PO. Complaint logged in Procurement Dashboard.`,
+            data: { grn_id: grn.id, po_id: po.id, complaint_id: complaint.id },
             read: false,
           },
           { transaction }
@@ -517,18 +1284,116 @@ router.post(
         { transaction }
       );
 
+      // Update GRN verification status based on discrepancies
+      let verificationStatus = "verified"; // Default to verified for perfect matches
+      let grnStatus = "verified"; // Will be auto-approved for perfect matches
+
+      if (shortageItems.length > 0 || overageItems.length > 0 || invoiceMismatchItems.length > 0) {
+        verificationStatus = "discrepancy";
+        grnStatus = "received"; // Needs manual verification
+      }
+
+      // Update GRN with verification status
+      if (perfectMatchItems.length === mappedItems.length && mappedItems.length > 0) {
+        // All items are perfect matches - auto-verify
+        await grn.update(
+          {
+            verification_status: "verified",
+            status: "inspected",
+            verified_by: req.user.id,
+            verification_date: new Date(),
+            verification_notes: "Auto-verified: All items match perfectly (Ordered = Invoiced = Received)",
+          },
+          { transaction }
+        );
+      } else if (shortageItems.length > 0 || overageItems.length > 0 || invoiceMismatchItems.length > 0) {
+        // Discrepancies detected
+        await grn.update(
+          {
+            verification_status: "discrepancy",
+            status: "received",
+          },
+          { transaction }
+        );
+      }
+
+      // Update vendor request if this is a shortage fulfillment
+      if (vendorRequest) {
+        await vendorRequest.update(
+          {
+            status: "fulfilled",
+            fulfillment_grn_id: grn.id,
+            fulfilled_at: new Date(),
+          },
+          { transaction }
+        );
+
+        await po.update(
+          {
+            status: "completed",
+            received_date: received_date || new Date(),
+          },
+          { transaction }
+        );
+
+        await Notification.create(
+          {
+            user_id: null,
+            type: "vendor_request_sent",
+            title: "✅ Vendor Request Fulfilled",
+            message: `Vendor request ${vendorRequest.request_number} has been fulfilled. Shortage materials received via GRN ${grnNumber}.`,
+            data: {
+              vendor_request_id: vendorRequest.id,
+              request_number: vendorRequest.request_number,
+              grn_id: grn.id,
+              grn_number: grnNumber,
+              po_id: po.id,
+            },
+            read: false,
+          },
+          { transaction }
+        );
+      } else {
+        await po.update(
+          {
+            status: poStatus,
+            received_date: received_date || new Date(),
+          },
+          { transaction }
+        );
+      }
+
       await transaction.commit();
 
+      // Build response message
+      let message = "";
+      if (perfectMatchItems.length === mappedItems.length && mappedItems.length > 0) {
+        message = "✅ GRN created successfully! All items verified (perfect match).";
+      } else {
+        const issues = [];
+        if (shortageItems.length > 0) issues.push(`${shortageItems.length} shortage(s)`);
+        if (overageItems.length > 0) issues.push(`${overageItems.length} overage(s)`);
+        if (invoiceMismatchItems.length > 0) issues.push(`${invoiceMismatchItems.length} invoice mismatch(es)`);
+        message = `⚠️ GRN created with discrepancies: ${issues.join(", ")}. Complaints logged in Procurement Dashboard.`;
+      }
+
       res.status(201).json({
-        message:
-          shortageItems.length > 0
-            ? `GRN created with ${shortageItems.length} shortage(s). Vendor return request auto-generated.`
-            : "GRN created successfully. Pending verification.",
+        message: `✅ ${message} ${createdInventoryItems.length > 0 ? `\n✅ ${createdInventoryItems.length} item(s) automatically added to inventory.` : ""}`,
         grn,
         vendor_return: vendorReturn,
+        complaints,
         has_shortages: shortageItems.length > 0,
         shortage_count: shortageItems.length,
-        next_step: "verification",
+        has_overages: overageItems.length > 0,
+        overage_count: overageItems.length,
+        has_invoice_mismatches: invoiceMismatchItems.length > 0,
+        invoice_mismatch_count: invoiceMismatchItems.length,
+        perfect_match_count: perfectMatchItems.length,
+        all_items_verified: perfectMatchItems.length === mappedItems.length,
+        inventory_items_created: createdInventoryItems.length,
+        inventory_items: createdInventoryItems,
+        inventory_movements: createdMovements,
+        next_step: perfectMatchItems.length === mappedItems.length ? "none_needed" : "review_shortages",
       });
     } catch (error) {
       await transaction.rollback();
@@ -693,8 +1558,9 @@ router.post(
       const grnData = {
         grn_number: grnNumber,
         purchase_order_id: mrn.purchase_order_id,
-        bill_of_materials_id: null, // Optional
-        sales_order_id: mrn.sales_order_id || null, // Optional
+        vendor_id: mrn.purchaseOrder?.vendor_id,
+        bill_of_materials_id: null,
+        sales_order_id: mrn.sales_order_id || null,
         received_date: received_date || new Date(),
         supplier_name: mrn.purchaseOrder?.vendor?.name || "Internal",
         supplier_invoice_number: supplier_invoice_number || null,
@@ -782,7 +1648,10 @@ router.post(
         return res.status(404).json({ message: "GRN not found" });
       }
 
-      if (grn.verification_status !== "pending") {
+      if (
+        grn.verification_status !== "pending" &&
+        grn.verification_status !== "discrepancy"
+      ) {
         await transaction.rollback();
         return res
           .status(400)
@@ -798,7 +1667,10 @@ router.post(
           verification_notes: verification_notes || "",
           discrepancy_details:
             verification_status === "discrepancy" ? discrepancy_details : null,
-          status: verification_status === "verified" ? "inspected" : "received",
+          status:
+            verification_status === "verified" || verification_status === "discrepancy"
+              ? "inspected"
+              : "received",
         },
         { transaction }
       );
@@ -806,9 +1678,14 @@ router.post(
       let nextStep = "";
       let notificationMessage = "";
 
-      if (verification_status === "verified") {
-        // No issues - automatically add to inventory
-        console.log("=== Auto-adding verified GRN to inventory ===");
+      if (
+        verification_status === "verified" ||
+        verification_status === "discrepancy"
+      ) {
+        // Add to inventory - verified items clean, discrepancy items marked for review
+        console.log(
+          `=== Auto-adding GRN to inventory (${verification_status}) ===`
+        );
 
         const createdInventoryItems = [];
         const createdMovements = [];
@@ -1004,12 +1881,20 @@ router.post(
                 total_value: parseFloat(item.total) || 0,
                 last_purchase_date: new Date(),
                 quality_status:
-                  item.quality_status === "pending_inspection" ||
-                  item.quality_status === "passed"
-                    ? "approved"
-                    : item.quality_status || "approved",
+                  verification_status === "discrepancy" &&
+                  (item.shortage_quantity > 0 || item.overage_quantity > 0)
+                    ? "quarantine"
+                    : item.quality_status === "pending_inspection" ||
+                        item.quality_status === "passed"
+                      ? "approved"
+                      : item.quality_status || "approved",
                 condition: "new",
-                notes: `Received from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}`,
+                notes: `Received from GRN: ${grn.grn_number}, PO: ${grn.purchaseOrder.po_number}${
+                  verification_status === "discrepancy" &&
+                  (item.shortage_quantity > 0 || item.overage_quantity > 0)
+                    ? ` - Shortage: ${item.shortage_quantity || 0}`
+                    : ""
+                }`,
                 barcode: barcode,
                 qr_code: qr_code,
                 is_active: true,
@@ -1070,12 +1955,18 @@ router.post(
           { transaction }
         );
 
-        nextStep = "completed";
-        notificationMessage = `GRN ${grn.grn_number} verified and automatically added to inventory. ${createdInventoryItems.length} items added with barcodes generated.`;
+        if (verification_status === "verified") {
+          nextStep = "completed";
+          notificationMessage = `GRN ${grn.grn_number} verified and automatically added to inventory. ${createdInventoryItems.length} items added with barcodes generated.`;
+        } else {
+          // Discrepancy - items added to inventory but marked as quarantine
+          nextStep = "review_quarantine";
+          notificationMessage = `GRN ${grn.grn_number} has shortages/overages. ${createdInventoryItems.length} items added to inventory in quarantine status. Pending vendor request for remaining materials.`;
+        }
       } else {
-        // Has discrepancies - needs approval
-        nextStep = "discrepancy_approval";
-        notificationMessage = `GRN ${grn.grn_number} has discrepancies. Requires manager approval.`;
+        // Should not reach here, but handle gracefully
+        nextStep = "pending";
+        notificationMessage = `GRN ${grn.grn_number} verification status: ${verification_status}`;
       }
 
       // Create notification
@@ -2510,6 +3401,648 @@ router.post(
           message: "Failed to handle excess quantity",
           error: error.message,
         });
+    }
+  }
+);
+
+router.post(
+  "/:id/create-mismatch-request",
+  authenticateToken,
+  checkDepartment(["inventory", "admin"]),
+  async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { mismatch_items, requested_action, requested_action_notes, request_description } = req.body;
+
+      // Fetch GRN with related data
+      const grn = await GoodsReceiptNote.findByPk(id, {
+        include: [
+          {
+            model: PurchaseOrder,
+            as: "purchaseOrder",
+            include: [{ model: Vendor, as: "vendor" }],
+          },
+        ],
+      });
+
+      if (!grn) {
+        return res.status(404).json({ message: "GRN not found" });
+      }
+
+      // Validate mismatch items
+      if (!mismatch_items || !Array.isArray(mismatch_items) || mismatch_items.length === 0) {
+        return res.status(400).json({ message: "At least one mismatched item must be provided" });
+      }
+
+      if (!requested_action) {
+        return res.status(400).json({ message: "Requested action is required" });
+      }
+
+      // Calculate totals
+      let total_shortage_items = 0;
+      let total_overage_items = 0;
+      let total_shortage_value = 0;
+      let total_overage_value = 0;
+      let mismatch_type = null;
+
+      mismatch_items.forEach((item) => {
+        if (item.shortage_quantity > 0) {
+          total_shortage_items++;
+          total_shortage_value += item.shortage_quantity * (item.rate || 0);
+        }
+        if (item.overage_quantity > 0) {
+          total_overage_items++;
+          total_overage_value += item.overage_quantity * (item.rate || 0);
+        }
+      });
+
+      if (total_shortage_items > 0 && total_overage_items > 0) {
+        mismatch_type = "both";
+      } else if (total_shortage_items > 0) {
+        mismatch_type = "shortage";
+      } else if (total_overage_items > 0) {
+        mismatch_type = "overage";
+      } else {
+        return res.status(400).json({ message: "No valid shortages or overages found in items" });
+      }
+
+      // Generate request number
+      const { GRNMismatchRequest } = require("../config/database");
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const lastRequest = await GRNMismatchRequest.findOne({
+        where: {
+          request_number: {
+            [require("sequelize").Op.like]: `GMR-${dateStr}-%`,
+          },
+        },
+        order: [["id", "DESC"]],
+      });
+
+      let sequence = 1;
+      if (lastRequest) {
+        const lastSequence = parseInt(lastRequest.request_number.split("-")[2]);
+        sequence = lastSequence + 1;
+      }
+
+      const request_number = `GMR-${dateStr}-${String(sequence).padStart(5, "0")}`;
+
+      // Create mismatch request
+      const mismatchRequest = await GRNMismatchRequest.create(
+        {
+          request_number,
+          grn_id: grn.id,
+          purchase_order_id: grn.purchase_order_id,
+          grn_number: grn.grn_number,
+          po_number: grn.purchaseOrder.po_number,
+          vendor_name: grn.purchaseOrder.vendor?.name || "Unknown Vendor",
+          mismatch_type,
+          mismatch_items,
+          total_shortage_items,
+          total_overage_items,
+          total_shortage_value: parseFloat(total_shortage_value.toFixed(2)),
+          total_overage_value: parseFloat(total_overage_value.toFixed(2)),
+          request_description,
+          requested_action,
+          requested_action_notes,
+          status: "pending",
+          created_by: req.user.id,
+        },
+        { transaction }
+      );
+
+      // Create notification for procurement team
+      await Notification.create(
+        {
+          user_id: null,
+          type: "grn_mismatch_request",
+          title: `GRN Mismatch Request - ${mismatch_type === "both" ? "Shortage & Overage" : mismatch_type === "shortage" ? "Shortage" : "Overage"}`,
+          message: `Material mismatch detected in GRN ${grn.grn_number} (PO: ${grn.purchaseOrder.po_number}). ${mismatch_type === "shortage" ? `${total_shortage_items} item(s) with shortage (₹${total_shortage_value.toFixed(2)})` : mismatch_type === "overage" ? `${total_overage_items} item(s) with overage (₹${total_overage_value.toFixed(2)})` : `${total_shortage_items} shortage and ${total_overage_items} overage items (Total: ₹${(total_shortage_value + total_overage_value).toFixed(2)})`}. Request: ${request_number}`,
+          data: {
+            grn_id: grn.id,
+            po_id: grn.purchase_order_id,
+            mismatch_request_id: mismatchRequest.id,
+            request_number,
+          },
+          read: false,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      res.json({
+        message: "Mismatch request created successfully",
+        mismatch_request: mismatchRequest,
+        request_number,
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error creating mismatch request:", error);
+      res.status(500).json({
+        message: "Failed to create mismatch request",
+        error: error.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/mismatch-requests",
+  authenticateToken,
+  checkDepartment(["procurement", "inventory", "admin"]),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 10, status, grn_id, po_id } = req.query;
+      const offset = (page - 1) * limit;
+
+      const { GRNMismatchRequest } = require("../config/database");
+
+      const whereClause = {};
+      if (status) whereClause.status = status;
+      if (grn_id) whereClause.grn_id = grn_id;
+      if (po_id) whereClause.purchase_order_id = po_id;
+
+      const { count, rows: requests } = await GRNMismatchRequest.findAndCountAll({
+        where: whereClause,
+        include: [
+          {
+            model: GoodsReceiptNote,
+            as: "grn",
+            attributes: ["id", "grn_number", "received_date"],
+          },
+          {
+            model: PurchaseOrder,
+            as: "purchaseOrder",
+            attributes: ["id", "po_number", "po_date"],
+            include: [{ model: Vendor, as: "vendor" }],
+          },
+          { model: User, as: "creator", attributes: ["id", "email", "name"] },
+          { model: User, as: "reviewer", attributes: ["id", "email", "name"] },
+        ],
+        limit: parseInt(limit),
+        offset: offset,
+        order: [["created_at", "DESC"]],
+      });
+
+      res.json({
+        mismatch_requests: requests,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          pages: Math.ceil(count / limit),
+          limit: parseInt(limit),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching mismatch requests:", error);
+      res.status(500).json({
+        message: "Failed to fetch mismatch requests",
+        error: error.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/mismatch-requests/:id",
+  authenticateToken,
+  checkDepartment(["procurement", "inventory", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { GRNMismatchRequest } = require("../config/database");
+
+      const mismatchRequest = await GRNMismatchRequest.findByPk(id, {
+        include: [
+          {
+            model: GoodsReceiptNote,
+            as: "grn",
+            attributes: ["id", "grn_number", "received_date"],
+          },
+          {
+            model: PurchaseOrder,
+            as: "purchaseOrder",
+            attributes: ["id", "po_number", "po_date", "final_amount"],
+            include: [{ model: Vendor, as: "vendor" }],
+          },
+          { model: User, as: "creator", attributes: ["id", "email", "name"] },
+          { model: User, as: "reviewer", attributes: ["id", "email", "name"] },
+        ],
+      });
+
+      if (!mismatchRequest) {
+        return res.status(404).json({ message: "Mismatch request not found" });
+      }
+
+      res.json(mismatchRequest);
+    } catch (error) {
+      console.error("Error fetching mismatch request:", error);
+      res.status(500).json({
+        message: "Failed to fetch mismatch request",
+        error: error.message,
+      });
+    }
+  }
+);
+
+router.post(
+  "/mismatch-requests/:id/approve",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { approval_notes } = req.body;
+      const { GRNMismatchRequest } = require("../config/database");
+
+      const mismatchRequest = await GRNMismatchRequest.findByPk(id, {
+        include: [
+          { model: GoodsReceiptNote, as: "grn" },
+          { model: PurchaseOrder, as: "purchaseOrder" },
+        ],
+      });
+
+      if (!mismatchRequest) {
+        return res.status(404).json({ message: "Mismatch request not found" });
+      }
+
+      if (mismatchRequest.status !== "pending") {
+        return res.status(400).json({ message: "Only pending requests can be approved" });
+      }
+
+      await mismatchRequest.update(
+        {
+          status: "approved",
+          approval_notes,
+          reviewed_by: req.user.id,
+          reviewed_at: new Date(),
+        },
+        { transaction }
+      );
+
+      // Create notification for inventory team
+      await Notification.create(
+        {
+          user_id: null,
+          type: "grn_mismatch_approved",
+          title: "GRN Mismatch Request Approved",
+          message: `Mismatch request ${mismatchRequest.request_number} has been approved by Procurement. Action: ${mismatchRequest.requested_action}`,
+          data: {
+            grn_id: mismatchRequest.grn_id,
+            po_id: mismatchRequest.purchase_order_id,
+            mismatch_request_id: mismatchRequest.id,
+          },
+          read: false,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      res.json({
+        message: "Mismatch request approved successfully",
+        mismatch_request: mismatchRequest,
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error approving mismatch request:", error);
+      res.status(500).json({
+        message: "Failed to approve mismatch request",
+        error: error.message,
+      });
+    }
+  }
+);
+
+router.post(
+  "/mismatch-requests/:id/reject",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { approval_notes } = req.body;
+      const { GRNMismatchRequest } = require("../config/database");
+
+      const mismatchRequest = await GRNMismatchRequest.findByPk(id, {
+        include: [
+          { model: GoodsReceiptNote, as: "grn" },
+          { model: PurchaseOrder, as: "purchaseOrder" },
+        ],
+      });
+
+      if (!mismatchRequest) {
+        return res.status(404).json({ message: "Mismatch request not found" });
+      }
+
+      if (mismatchRequest.status !== "pending") {
+        return res.status(400).json({ message: "Only pending requests can be rejected" });
+      }
+
+      await mismatchRequest.update(
+        {
+          status: "rejected",
+          approval_notes,
+          reviewed_by: req.user.id,
+          reviewed_at: new Date(),
+        },
+        { transaction }
+      );
+
+      // Create notification for inventory team
+      await Notification.create(
+        {
+          user_id: null,
+          type: "grn_mismatch_rejected",
+          title: "GRN Mismatch Request Rejected",
+          message: `Mismatch request ${mismatchRequest.request_number} has been rejected by Procurement. Reason: ${approval_notes || "No reason provided"}`,
+          data: {
+            grn_id: mismatchRequest.grn_id,
+            po_id: mismatchRequest.purchase_order_id,
+            mismatch_request_id: mismatchRequest.id,
+          },
+          read: false,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      res.json({
+        message: "Mismatch request rejected successfully",
+        mismatch_request: mismatchRequest,
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error rejecting mismatch request:", error);
+      res.status(500).json({
+        message: "Failed to reject mismatch request",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Diagnostics endpoint - helps understand GRN hierarchy and workflow status
+router.get(
+  "/diagnostics/:poId",
+  authenticateToken,
+  checkDepartment(["procurement", "inventory", "admin"]),
+  async (req, res) => {
+    try {
+      const { poId } = req.params;
+
+      const po = await PurchaseOrder.findByPk(poId, {
+        include: [
+          { model: Vendor, as: "vendor" },
+          { model: Customer, as: "customer", required: false },
+        ],
+      });
+
+      if (!po) {
+        return res.status(404).json({ message: "Purchase Order not found" });
+      }
+
+      const grns = await GoodsReceiptNote.findAll({
+        where: { purchase_order_id: poId },
+        order: [["created_at", "ASC"]],
+        attributes: [
+          "id",
+          "grn_number",
+          "grn_sequence",
+          "is_first_grn",
+          "created_at",
+          "status",
+          "verification_status",
+        ],
+      });
+
+      const approvals = await Approval.findAll({
+        where: { entity_id: poId, entity_type: "purchase_order" },
+        order: [["created_at", "DESC"]],
+        attributes: ["id", "stage_key", "status", "created_at"],
+      });
+
+      const vendorRequests = await VendorRequest.findAll({
+        where: { purchase_order_id: poId },
+        order: [["created_at", "DESC"]],
+        attributes: [
+          "id",
+          "request_number",
+          "request_type",
+          "status",
+          "created_at",
+        ],
+      });
+
+      const hierarchyIssues = [];
+      if (grns.length > 1) {
+        const wrongSequence = grns.filter(
+          (grn, idx) => grn.grn_sequence !== idx + 1
+        );
+        if (wrongSequence.length > 0) {
+          hierarchyIssues.push(
+            `Found ${wrongSequence.length} GRN(s) with incorrect sequence numbers`
+          );
+        }
+
+        const wrongIsFirst = grns.filter(
+          (grn, idx) => grn.is_first_grn !== (idx === 0)
+        );
+        if (wrongIsFirst.length > 0) {
+          hierarchyIssues.push(
+            `Found ${wrongIsFirst.length} GRN(s) with incorrect is_first_grn flag`
+          );
+        }
+      }
+
+      const shortageComplaints = approvals.filter(
+        (a) => a.stage_key === "grn_shortage_complaint"
+      );
+
+      const diagnostics = {
+        po_details: {
+          po_id: po.id,
+          po_number: po.po_number,
+          status: po.status,
+          vendor: po.vendor?.name,
+        },
+        grn_count: grns.length,
+        grns,
+        approvals_count: approvals.length,
+        shortage_complaints: shortageComplaints,
+        vendor_requests: vendorRequests,
+        hierarchy_issues: hierarchyIssues,
+        workflow_status: {
+          can_create_first_grn: grns.length === 0,
+          can_create_subsequent_grn:
+            grns.length > 0 &&
+            (po.status === "reopened" ||
+              po.status === "grn_shortage" ||
+              po.status === "grn_overage"),
+          expected_next_step:
+            grns.length === 0
+              ? "Create first GRN with all items"
+              : po.status === "reopened" ||
+                  po.status === "grn_shortage" ||
+                  po.status === "grn_overage"
+                ? "Create subsequent GRN with shortage items"
+                : po.status === "grn_requested"
+                ? "First GRN not yet created"
+                : "PO is in completed or final state",
+        },
+        recommendations:
+          hierarchyIssues.length > 0
+            ? [
+                "Hierarchy issues detected. Consider clearing old test data and recreating GRNs.",
+                "Use the database or a cleanup script to delete old test GRNs for a fresh start.",
+              ]
+            : ["Workflow appears to be correct"],
+      };
+
+      res.json(diagnostics);
+    } catch (error) {
+      console.error("Error in diagnostics:", error);
+      res.status(500).json({
+        message: "Failed to get diagnostics",
+        error: error.message,
+      });
+    }
+  }
+);
+
+router.post(
+  "/:id/send-overage-notification",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const grn = await GoodsReceiptNote.findByPk(id, {
+        include: [
+          { model: PurchaseOrder, as: "purchaseOrder" },
+          { model: Vendor, as: "vendor" },
+        ],
+      });
+
+      if (!grn) {
+        return res.status(404).json({ message: "GRN not found" });
+      }
+
+      const po = grn.purchaseOrder;
+      if (!po) {
+        return res.status(400).json({ message: "Associated PO not found" });
+      }
+
+      const vendor = po.vendor || grn.vendor;
+      if (!vendor) {
+        return res.status(400).json({ message: "Vendor information not found" });
+      }
+
+      if (!vendor.email && !vendor.phone) {
+        return res.status(400).json({
+          message: "Vendor has no email or phone number configured",
+        });
+      }
+
+      const grnItems = grn.items || [];
+      const overageItems = grnItems.filter((item) => (item.overage_qty || item.overage_quantity) > 0);
+
+      if (overageItems.length === 0) {
+        return res.status(400).json({
+          message: "No overage items found in this GRN",
+        });
+      }
+
+      const totalOverageValue = overageItems.reduce(
+        (sum, item) =>
+          sum + ((item.overage_qty || item.overage_quantity) || 0) * (item.rate || 0),
+        0
+      );
+
+      const { sendOverageMaterialToVendor, sendOverageMaterialWhatsApp } =
+        require("../utils/emailService");
+
+      const emailResult = { success: false };
+      const whatsappResult = { success: false };
+
+      if (vendor.email) {
+        try {
+          const emailRes = await sendOverageMaterialToVendor(
+            {
+              grn_number: grn.grn_number,
+              po_number: po.po_number,
+              grn_date: grn.grn_date,
+            },
+            vendor,
+            overageItems.map((item) => ({
+              material_name: item.material_name || item.item_code || "N/A",
+              ordered_qty: item.ordered_qty || item.quantity_expected,
+              received_qty: item.received_qty || item.quantity_received,
+              overage_qty: item.overage_qty || item.overage_quantity,
+              uom: item.uom,
+              rate: item.rate || item.unit_price,
+            })),
+            totalOverageValue
+          );
+          emailResult.success = emailRes.success;
+          emailResult.messageId = emailRes.messageId;
+        } catch (emailError) {
+          console.error("Error sending email:", emailError);
+          emailResult.error = emailError.message;
+        }
+      }
+
+      if (vendor.phone) {
+        try {
+          const whatsappRes = await sendOverageMaterialWhatsApp(
+            {
+              grn_number: grn.grn_number,
+              po_number: po.po_number,
+              grn_date: grn.grn_date,
+            },
+            vendor,
+            overageItems.map((item) => ({
+              material_name: item.material_name || item.item_code || "N/A",
+              ordered_qty: item.ordered_qty || item.quantity_expected,
+              received_qty: item.received_qty || item.quantity_received,
+              overage_qty: item.overage_qty || item.overage_quantity,
+              uom: item.uom,
+              rate: item.rate || item.unit_price,
+            })),
+            totalOverageValue
+          );
+          whatsappResult.success = whatsappRes.success;
+          whatsappResult.messageId = whatsappRes.messageId;
+        } catch (whatsappError) {
+          console.error("Error sending WhatsApp:", whatsappError);
+          whatsappResult.error = whatsappError.message;
+        }
+      }
+
+      res.json({
+        message: "Overage material notification sent successfully",
+        grn: {
+          id: grn.id,
+          grn_number: grn.grn_number,
+          overage_items_count: overageItems.length,
+          total_overage_value: totalOverageValue,
+        },
+        communication: {
+          email: emailResult,
+          whatsapp: whatsappResult,
+        },
+      });
+    } catch (error) {
+      console.error("Error sending overage notification:", error);
+      res.status(500).json({
+        message: "Failed to send overage notification",
+        error: error.message,
+      });
     }
   }
 );

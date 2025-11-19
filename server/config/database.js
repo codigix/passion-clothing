@@ -14,7 +14,7 @@ const defaultDbConfig = {
   database: "passion_erp",
   username: "root",
   password: "root",
-  host: "localhost",
+  host: "127.0.0.1",
   port: 3306,
 };
 
@@ -101,6 +101,17 @@ const ProductionCompletion = require("../models/ProductionCompletion")(
   sequelize
 );
 const CourierAgent = require("../models/CourierAgent")(sequelize);
+const StageReworkHistory = require("../models/StageReworkHistory")(sequelize);
+const MaterialReturn = require("../models/MaterialReturn")(sequelize);
+const HSNCode = require("../models/HSNCode")(sequelize);
+const GRNMismatchRequest = require("../models/GRNMismatchRequest")(sequelize);
+const InventoryShortageRequest = require("../models/InventoryShortageRequest")(
+  sequelize
+);
+const VendorRequest = require("../models/VendorRequest")(sequelize);
+const CreditNote = require("../models/CreditNote")(sequelize);
+const AuditTrail = require("../models/AuditTrail")(sequelize);
+const FinancialRecord = require("../models/FinancialRecord")(sequelize);
 
 // Define associations
 const defineAssociations = () => {
@@ -206,6 +217,10 @@ const defineAssociations = () => {
     foreignKey: "purchase_order_id",
     as: "grns",
   });
+  PurchaseOrder.hasMany(Invoice, {
+    foreignKey: "purchase_order_id",
+    as: "invoices",
+  });
 
   SalesOrder.hasOne(PurchaseOrder, {
     foreignKey: "linked_sales_order_id",
@@ -217,12 +232,20 @@ const defineAssociations = () => {
     foreignKey: "vendor_id",
     as: "purchaseOrders",
   });
+  Vendor.hasMany(GoodsReceiptNote, {
+    foreignKey: "vendor_id",
+    as: "grns",
+  });
   Vendor.belongsTo(User, { foreignKey: "created_by", as: "creator" });
 
   // Goods Receipt Note associations
   GoodsReceiptNote.belongsTo(PurchaseOrder, {
     foreignKey: "purchase_order_id",
     as: "purchaseOrder",
+  });
+  GoodsReceiptNote.belongsTo(Vendor, {
+    foreignKey: "vendor_id",
+    as: "vendor",
   });
   GoodsReceiptNote.belongsTo(BillOfMaterials, {
     foreignKey: "bill_of_materials_id",
@@ -256,6 +279,70 @@ const defineAssociations = () => {
   GoodsReceiptNote.belongsTo(User, {
     foreignKey: "vendor_revert_requested_by",
     as: "vendorRevertRequester",
+  });
+  GoodsReceiptNote.hasMany(GRNMismatchRequest, {
+    foreignKey: "grn_id",
+    as: "mismatchRequests",
+  });
+
+  // GRN Mismatch Request associations
+  GRNMismatchRequest.belongsTo(GoodsReceiptNote, {
+    foreignKey: "grn_id",
+    as: "grn",
+  });
+  GRNMismatchRequest.belongsTo(PurchaseOrder, {
+    foreignKey: "purchase_order_id",
+    as: "purchaseOrder",
+  });
+  GRNMismatchRequest.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+  });
+  GRNMismatchRequest.belongsTo(User, {
+    foreignKey: "reviewed_by",
+    as: "reviewer",
+  });
+
+  // Credit Note associations
+  CreditNote.belongsTo(GoodsReceiptNote, {
+    foreignKey: "grn_id",
+    as: "GRN",
+  });
+  CreditNote.belongsTo(PurchaseOrder, {
+    foreignKey: "purchase_order_id",
+    as: "PurchaseOrder",
+  });
+  CreditNote.belongsTo(Vendor, {
+    foreignKey: "vendor_id",
+    as: "Vendor",
+  });
+  CreditNote.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "CreatedBy",
+  });
+  CreditNote.belongsTo(User, {
+    foreignKey: "issued_by",
+    as: "IssuedBy",
+  });
+  CreditNote.belongsTo(User, {
+    foreignKey: "approved_by",
+    as: "ApprovedBy",
+  });
+  CreditNote.belongsTo(Invoice, {
+    foreignKey: "invoice_adjustment_id",
+    as: "invoiceAdjustment",
+  });
+  GoodsReceiptNote.hasMany(CreditNote, {
+    foreignKey: "grn_id",
+    as: "creditNotes",
+  });
+  PurchaseOrder.hasMany(CreditNote, {
+    foreignKey: "purchase_order_id",
+    as: "creditNotes",
+  });
+  Vendor.hasMany(CreditNote, {
+    foreignKey: "vendor_id",
+    as: "creditNotes",
   });
 
   // Production Order associations
@@ -293,6 +380,11 @@ const defineAssociations = () => {
     foreignKey: "production_order_id",
     as: "qualityCheckpoints",
   });
+  ProductionOrder.belongsTo(Shipment, {
+    foreignKey: "shipment_id",
+    as: "shipment",
+    allowNull: true,
+  });
 
   // Production Stage associations
   ProductionStage.belongsTo(ProductionOrder, {
@@ -315,6 +407,10 @@ const defineAssociations = () => {
   ProductionStage.hasMany(MaterialConsumption, {
     foreignKey: "production_stage_id",
     as: "materialConsumptions",
+  });
+  ProductionStage.hasMany(StageReworkHistory, {
+    foreignKey: "production_stage_id",
+    as: "reworkHistory",
   });
 
   // Stage Operation associations
@@ -490,6 +586,10 @@ const defineAssociations = () => {
     foreignKey: "shipment_id",
     as: "trackingUpdates",
   });
+  Shipment.hasMany(ProductionOrder, {
+    foreignKey: "shipment_id",
+    as: "productionOrders",
+  });
 
   // Courier Partner associations
   CourierPartner.hasMany(Shipment, {
@@ -523,6 +623,12 @@ const defineAssociations = () => {
   });
   Approval.belongsTo(User, { foreignKey: "reviewer_id", as: "reviewer" });
   Approval.belongsTo(User, { foreignKey: "created_by", as: "creator" });
+  Approval.belongsTo(PurchaseOrder, {
+    foreignKey: "entity_id",
+    as: "relatedEntity",
+    constraints: false,
+    scope: { entity_type: "purchase_order" },
+  });
 
   Approval.addHook("beforeValidate", (approval) => {
     if (!approval.entity_type) {
@@ -545,7 +651,11 @@ const defineAssociations = () => {
   Invoice.belongsTo(Vendor, { foreignKey: "vendor_id", as: "vendor" });
   Invoice.belongsTo(Customer, { foreignKey: "customer_id", as: "customer" });
   Invoice.belongsTo(Challan, { foreignKey: "challan_id", as: "challan" });
+  Invoice.belongsTo(SalesOrder, { foreignKey: "sales_order_id", as: "salesOrder" });
+  Invoice.belongsTo(PurchaseOrder, { foreignKey: "purchase_order_id", as: "purchaseOrder" });
   Invoice.hasMany(Payment, { foreignKey: "invoice_id", as: "payments" });
+  
+  SalesOrder.hasMany(Invoice, { foreignKey: "sales_order_id", as: "invoices" });
 
   // Payment associations
   Payment.belongsTo(Invoice, { foreignKey: "invoice_id", as: "invoice" });
@@ -854,6 +964,77 @@ const defineAssociations = () => {
     foreignKey: "production_stage_id",
     as: "stageQualityCheckpoints",
   });
+
+  // Stage Rework History associations
+  StageReworkHistory.belongsTo(ProductionStage, {
+    foreignKey: "production_stage_id",
+    as: "productionStage",
+  });
+  StageReworkHistory.belongsTo(User, {
+    foreignKey: "failed_by",
+    as: "failedByUser",
+  });
+  StageReworkHistory.belongsTo(User, {
+    foreignKey: "completed_by",
+    as: "completedByUser",
+  });
+
+  // Inventory Shortage Request associations
+  InventoryShortageRequest.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+  });
+  InventoryShortageRequest.belongsTo(User, {
+    foreignKey: "approved_by",
+    as: "approver",
+  });
+  InventoryShortageRequest.belongsTo(User, {
+    foreignKey: "rejected_by",
+    as: "rejector",
+  });
+  InventoryShortageRequest.belongsTo(PurchaseOrder, {
+    foreignKey: "related_po_id",
+    as: "relatedPO",
+  });
+
+  // Vendor Request associations
+  VendorRequest.belongsTo(PurchaseOrder, {
+    foreignKey: "purchase_order_id",
+    as: "purchaseOrder",
+  });
+  VendorRequest.belongsTo(GoodsReceiptNote, {
+    foreignKey: "grn_id",
+    as: "grn",
+  });
+  VendorRequest.belongsTo(GoodsReceiptNote, {
+    foreignKey: "fulfillment_grn_id",
+    as: "fulfillmentGrn",
+  });
+  VendorRequest.belongsTo(Vendor, {
+    foreignKey: "vendor_id",
+    as: "vendor",
+  });
+  VendorRequest.belongsTo(Approval, {
+    foreignKey: "complaint_id",
+    as: "complaint",
+  });
+  VendorRequest.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+  });
+  VendorRequest.belongsTo(User, {
+    foreignKey: "sent_by",
+    as: "sender",
+  });
+
+  PurchaseOrder.hasMany(VendorRequest, {
+    foreignKey: "purchase_order_id",
+    as: "vendorRequests",
+  });
+  Vendor.hasMany(VendorRequest, {
+    foreignKey: "vendor_id",
+    as: "vendorRequests",
+  });
 };
 
 defineAssociations();
@@ -904,6 +1085,15 @@ const db = {
   MaterialConsumption,
   ProductionCompletion,
   CourierAgent,
+  StageReworkHistory,
+  MaterialReturn,
+  HSNCode,
+  GRNMismatchRequest,
+  InventoryShortageRequest,
+  VendorRequest,
+  CreditNote,
+  AuditTrail,
+  FinancialRecord,
 };
 
 module.exports = db;

@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const { sequelize } = require('./config/database');
@@ -36,11 +38,21 @@ const materialDispatchRoutes = require('./routes/materialDispatch');
 const materialReceiptRoutes = require('./routes/materialReceipt');
 const materialVerificationRoutes = require('./routes/materialVerification');
 const productionApprovalRoutes = require('./routes/productionApproval');
+const productionTrackingRoutes = require('./routes/productionTracking');
 const ordersRoutes = require('./routes/orders');
 const courierAgentRoutes = require('./routes/courierAgent');
+const vendorRequestRoutes = require('./routes/vendorRequests');
+const approvalsRoutes = require('./routes/approvals');
+const creditNotesRoutes = require('./routes/creditNotes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Rate limiting
 const limiter = rateLimit({
@@ -55,12 +67,29 @@ const limiter = rateLimit({
 });
 
 // Middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+const corsOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.CORS_ORIGIN
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || corsOrigins.includes(origin)) {
+      callback(null, true);
+    } else if (process.env.NODE_ENV === 'development') {
+      // In development, allow any origin (including 192.168.x.x)
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+};
+
+app.use(cors(corsOptions));
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
@@ -109,7 +138,11 @@ app.use('/api/material-dispatch', materialDispatchRoutes);
 app.use('/api/material-receipt', materialReceiptRoutes);
 app.use('/api/material-verification', materialVerificationRoutes);
 app.use('/api/production-approval', productionApprovalRoutes);
+app.use('/api/production-tracking', productionTrackingRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/vendor-requests', vendorRequestRoutes);
+app.use('/api/approvals', approvalsRoutes);
+app.use('/api/credit-notes', creditNotesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

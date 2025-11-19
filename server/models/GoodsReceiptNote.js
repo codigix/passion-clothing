@@ -20,9 +20,18 @@ module.exports = (sequelize) => {
       key: 'id'
     }
   },
+  vendor_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'vendors',
+      key: 'id'
+    },
+    comment: 'Vendor associated with this GRN (denormalized from PO for reliability)'
+  },
   bill_of_materials_id: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Optional - GRN can be created from PO alone
+    allowNull: true,
     references: {
       model: 'bill_of_materials',
       key: 'id'
@@ -30,7 +39,7 @@ module.exports = (sequelize) => {
   },
   sales_order_id: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Optional - GRN can be created from PO alone
+    allowNull: true,
     references: {
       model: 'sales_orders',
       key: 'id'
@@ -70,7 +79,6 @@ module.exports = (sequelize) => {
   items_received: {
     type: DataTypes.JSON,
     allowNull: false,
-    // Structure: [{ material_id, material_name, ordered_quantity, invoiced_quantity, received_quantity, unit, quality_status, remarks, variance_type }]
   },
   total_received_value: {
     type: DataTypes.DECIMAL(10, 2),
@@ -78,7 +86,7 @@ module.exports = (sequelize) => {
     defaultValue: 0.00
   },
   status: {
-    type: DataTypes.ENUM('draft', 'received', 'inspected', 'approved', 'rejected', 'vendor_revert_requested'),
+    type: DataTypes.ENUM('draft', 'received', 'inspected', 'approved', 'rejected', 'vendor_revert_requested', 'excess_received'),
     defaultValue: 'draft'
   },
   inspection_notes: {
@@ -120,9 +128,7 @@ module.exports = (sequelize) => {
   attachments: {
     type: DataTypes.JSON,
     allowNull: true,
-    // Array of file paths or URLs
   },
-  // Verification workflow fields
   verification_status: {
     type: DataTypes.ENUM('pending', 'verified', 'discrepancy', 'approved', 'rejected'),
     defaultValue: 'pending',
@@ -147,7 +153,6 @@ module.exports = (sequelize) => {
   discrepancy_details: {
     type: DataTypes.JSON,
     allowNull: true,
-    // Structure: { qty_mismatch: boolean, weight_mismatch: boolean, quality_issue: boolean, details: string }
   },
   discrepancy_approved_by: {
     type: DataTypes.INTEGER,
@@ -174,7 +179,6 @@ module.exports = (sequelize) => {
     type: DataTypes.DATE,
     allowNull: true
   },
-  // Vendor Revert/Dispute fields
   vendor_revert_requested: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
@@ -187,7 +191,6 @@ module.exports = (sequelize) => {
   vendor_revert_items: {
     type: DataTypes.JSON,
     allowNull: true,
-    // Structure: [{ material_name, ordered_qty, received_qty, shortage_qty, notes }]
   },
   vendor_revert_requested_by: {
     type: DataTypes.INTEGER,
@@ -208,12 +211,39 @@ module.exports = (sequelize) => {
   vendor_response_date: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  grn_sequence: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1,
+    comment: 'Sequence number for GRN against same PO (1st GRN, 2nd GRN, etc.)'
+  },
+  is_first_grn: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+    comment: 'Whether this is the first GRN for the PO'
+  },
+  original_grn_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'goods_receipt_notes',
+      key: 'id'
+    },
+    comment: 'Reference to first GRN when this is a shortage fulfillment GRN'
+  },
+  shortage_fulfillment_metadata: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: 'Metadata for shortage fulfillment: { original_grn_number, vendor_request_id, vendor_request_number, complaint_date }'
   }
 }, {
   tableName: 'goods_receipt_notes',
   timestamps: true,
   indexes: [
     { fields: ['purchase_order_id'] },
+    { fields: ['vendor_id'] },
     { fields: ['bill_of_materials_id'] },
     { fields: ['sales_order_id'] },
     { fields: ['product_id'] },

@@ -23,11 +23,13 @@ const PendingApprovalsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [pendingPOs, setPendingPOs] = useState([]);
+  const [shortageRequests, setShortageRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     totalValue: 0,
-    urgent: 0
+    urgent: 0,
+    shortageRequests: 0
   });
 
   // Check if user is admin
@@ -40,21 +42,36 @@ const PendingApprovalsPage = () => {
   const fetchPendingApprovals = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/procurement/pos', {
+      
+      // Fetch pending purchase orders
+      const poResponse = await api.get('/procurement/pos', {
         params: { status: 'pending_approval' }
       });
-      
-      const pos = response.data.purchaseOrders || response.data.pos || [];
+      const pos = poResponse.data.purchaseOrders || poResponse.data.pos || [];
       setPendingPOs(pos);
+
+      // Fetch incoming shortage/overage requests
+      let shortageReqs = [];
+      try {
+        const shortageResponse = await api.get('/procurement/inventory-requests', {
+          params: { status: 'pending_approval' }
+        });
+        shortageReqs = shortageResponse.data.requests || [];
+      } catch (err) {
+        console.log('Shortage requests endpoint not available yet');
+      }
+      setShortageRequests(shortageReqs);
 
       // Calculate stats
       const totalValue = pos.reduce((sum, po) => sum + (parseFloat(po.final_amount) || 0), 0);
-      const urgentCount = pos.filter(po => po.priority === 'high' || po.priority === 'urgent').length;
+      const urgentPOCount = pos.filter(po => po.priority === 'high' || po.priority === 'urgent').length;
+      const urgentReqCount = shortageReqs.filter(req => req.priority === 'high' || req.priority === 'urgent').length;
 
       setStats({
-        total: pos.length,
+        total: pos.length + shortageReqs.length,
         totalValue,
-        urgent: urgentCount
+        urgent: urgentPOCount + urgentReqCount,
+        shortageRequests: shortageReqs.length
       });
     } catch (error) {
       console.error('Error fetching pending approvals:', error);
@@ -78,6 +95,35 @@ const PendingApprovalsPage = () => {
     } catch (error) {
       console.error('Error rejecting PO:', error);
       alert('Failed to reject PO');
+    }
+  };
+
+  const handleApproveShortageRequest = async (requestId) => {
+    try {
+      await api.patch(`/procurement/inventory-requests/${requestId}/approve`, {
+        notes: 'Approved for procurement'
+      });
+      alert('Shortage request approved successfully');
+      fetchPendingApprovals();
+    } catch (error) {
+      console.error('Error approving shortage request:', error);
+      alert('Failed to approve shortage request');
+    }
+  };
+
+  const handleRejectShortageRequest = async (requestId) => {
+    const reason = prompt('Enter rejection reason:');
+    if (!reason) return;
+
+    try {
+      await api.patch(`/procurement/inventory-requests/${requestId}/reject`, {
+        rejection_reason: reason
+      });
+      alert('Shortage request rejected successfully');
+      fetchPendingApprovals();
+    } catch (error) {
+      console.error('Error rejecting shortage request:', error);
+      alert('Failed to reject shortage request');
     }
   };
 
@@ -120,11 +166,11 @@ const PendingApprovalsPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-8">
         <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Pending Orders</p>
+              <p className="text-sm text-gray-600 mb-1">Total Pending</p>
               <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center">
@@ -136,11 +182,23 @@ const PendingApprovalsPage = () => {
         <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Total Value</p>
+              <p className="text-sm text-gray-600 mb-1">PO Value</p>
               <p className="text-2xl font-bold text-gray-900">{formatINR(stats.totalValue)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Shortage Requests</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.shortageRequests}</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-100 rounded flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-orange-600" />
             </div>
           </div>
         </div>
@@ -158,14 +216,14 @@ const PendingApprovalsPage = () => {
         </div>
       </div>
 
-      {/* PO List */}
-      {pendingPOs.length === 0 ? (
+      {/* PO and Shortage Requests List */}
+      {pendingPOs.length === 0 && shortageRequests.length === 0 ? (
         <div className="bg-white rounded shadow-sm border border-gray-200 p-12 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up! 🎉</h3>
-          <p className="text-gray-600">No purchase orders pending approval at the moment.</p>
+          <p className="text-gray-600">No purchase orders or requests pending approval at the moment.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -248,6 +306,99 @@ const PendingApprovalsPage = () => {
               </div>
             </div>
           ))}
+
+          {/* Shortage/Overage Requests Section */}
+          {shortageRequests.length > 0 && (
+            <>
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Inventory Shortage & Overage Requests</h2>
+              </div>
+              {shortageRequests.map((request) => (
+                <div key={request.id} className="bg-white rounded shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {request.request_number}
+                        </h3>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getPriorityBadge(request.priority)}`}>
+                          {PRIORITY_BADGES[request.priority?.toLowerCase()]?.label || 'Medium'}
+                        </span>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${request.request_type === 'shortage' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                          {request.request_type === 'shortage' ? 'Shortage' : 'Overage'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-2">
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                          <Package size={14} />
+                          <span className="truncate">{request.product_name}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                          <TrendingUp size={14} />
+                          <span>Qty: {request.required_quantity} {request.uom || 'units'}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                          <User size={14} />
+                          <span>{safePath(request, 'creator.name', 'Unknown')}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                          <Calendar size={14} />
+                          <span>{formatDate(request.created_at)}</span>
+                        </div>
+                      </div>
+
+                      {request.reason && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium">Reason:</span> {request.reason}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-right ml-4">
+                      <p className="text-sm text-gray-600 mb-1">Current Stock</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {request.current_stock}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons for Shortage Requests */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => handleApproveShortageRequest(request.id)}
+                          className="flex items-center gap-1.5 px-6 py-2 text-sm font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors flex-1"
+                        >
+                          <CheckCircle size={14} />
+                          Approve
+                        </button>
+
+                        <button
+                          onClick={() => handleRejectShortageRequest(request.id)}
+                          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
+                        >
+                          <XCircle size={14} />
+                          Reject
+                        </button>
+                      </>
+                    )}
+
+                    {!isAdmin && (
+                      <div className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500 bg-gray-50 rounded border border-gray-200 flex-1">
+                        <ShieldAlert size={12} />
+                        <span>Admin approval required</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 

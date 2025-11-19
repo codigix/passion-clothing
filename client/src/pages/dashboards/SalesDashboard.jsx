@@ -76,8 +76,6 @@ const SalesDashboard = () => {
     { id: "amount", label: "Amount", defaultVisible: true, fixed: false },
     { id: "advance_paid", label: "Advance Paid", defaultVisible: false, fixed: false },
     { id: "balance", label: "Balance", defaultVisible: false, fixed: false },
-    { id: "procurement_status", label: "📋 Procurement", defaultVisible: true, fixed: false },
-    { id: "production_status", label: "🏭 Production", defaultVisible: true, fixed: false },
     { id: "status", label: "Status", defaultVisible: true, fixed: false },
     { id: "progress", label: "Progress", defaultVisible: false, fixed: false },
     { id: "delivery_date", label: "Delivery", defaultVisible: true, fixed: false },
@@ -225,7 +223,7 @@ const SalesDashboard = () => {
 
   // Handle edit order
   const handleEditOrder = (orderId) => {
-    navigate(`/sales/orders/edit/${orderId}`);
+    navigate(`/sales/orders/${orderId}/edit`);
   };
 
   // Handle show QR code
@@ -467,7 +465,7 @@ const SalesDashboard = () => {
                 <option value="confirmed">✅ Confirmed</option>
                 <option value="in_production">🏭 In Production</option>
                 <option value="ready_to_ship">📦 Ready to Ship</option>
-                <option value="shipped">🚚 Shipped</option>
+                <option value="shipped">📦 Shipped</option>
                 <option value="delivered">✔️ Delivered</option>
                 <option value="completed">🎯 Completed</option>
                 <option value="cancelled">❌ Cancelled</option>
@@ -796,31 +794,7 @@ const SalesDashboard = () => {
                       </div>
 
                       {/* Process Stages */}
-                      <div className="grid grid-cols-2 gap-2 mb-3 pb-3 border-b border-slate-300/40">
-                        {/* Procurement Stage */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">📋</span>
-                          <div>
-                            <p className="text-xs text-slate-600 font-semibold">Procurement</p>
-                            <p className="text-xs font-bold text-slate-900">
-                              {order.purchase_order_id ? "🔗 Under PO" : "❌ No PO"}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Production Stage */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">🏭</span>
-                          <div>
-                            <p className="text-xs text-slate-600 font-semibold">Production</p>
-                            <p className="text-xs font-bold text-slate-900">
-                              {order.status === "confirmed" ? "⏱️ Pending" : 
-                               order.status === "in_production" ? "🏭 Active" :
-                               order.status === "ready_to_ship" ? "📦 Ready" : "—"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                     
 
                       {/* Status and Progress */}
                       <div className="mb-3">
@@ -871,15 +845,18 @@ const SalesDashboard = () => {
                           <FaEye size={12} />
                           <span className="hidden sm:inline">View</span>
                         </button>
-                        <button
-                          className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-white transition-colors font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditOrder(order.id);
-                          }}
-                        >
-                          <FaEdit size={12} />
-                        </button>
+                        {order.status === 'draft' && (
+                          <button
+                            className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-blue-50 transition-colors font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditOrder(order.id);
+                            }}
+                            title="Edit draft order"
+                          >
+                            <FaEdit size={12} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1016,25 +993,7 @@ const SalesDashboard = () => {
                                     </span>
                                   )}
 
-                                  {/* Procurement Status */}
-                                  {column.id === "procurement_status" && (
-                                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
-                                      order.purchase_order_id 
-                                        ? "bg-green-100 text-green-700" 
-                                        : "bg-red-100 text-red-700"
-                                    }`}>
-                                      {order.purchase_order_id ? "🔗 Under PO" : "❌ No PO"}
-                                    </span>
-                                  )}
-
-                                  {/* Production Status */}
-                                  {column.id === "production_status" && (
-                                    <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-blue-100 text-blue-700">
-                                      {order.status === "confirmed" ? "⏱️ Pending" : 
-                                       order.status === "in_production" ? "🏭 Active" :
-                                       order.status === "ready_to_ship" ? "📦 Ready" : "—"}
-                                    </span>
-                                  )}
+                                  
 
                                   {/* Main Status */}
                                   {column.id === "status" && (
@@ -1116,17 +1075,19 @@ const SalesDashboard = () => {
                                           <FaEye size={13} />
                                         </button>
                                       </Tooltip>
-                                      <Tooltip text="Edit">
-                                        <button
-                                          className="p-2 hover:bg-amber-100 rounded-lg transition-colors text-amber-600"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEditOrder(order.id);
-                                          }}
-                                        >
-                                          <FaEdit size={13} />
-                                        </button>
-                                      </Tooltip>
+                                      {order.status === 'draft' && (
+                                        <Tooltip text="Edit draft order">
+                                          <button
+                                            className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditOrder(order.id);
+                                            }}
+                                          >
+                                            <FaEdit size={13} />
+                                          </button>
+                                        </Tooltip>
+                                      )}
                                     </div>
                                   )}
                                 </td>

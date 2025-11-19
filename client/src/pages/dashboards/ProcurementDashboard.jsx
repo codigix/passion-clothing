@@ -48,6 +48,7 @@ import {
   FaExclamationCircle,
   FaBoxOpen,
   FaClipboardList,
+  FaRedo,
 } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../utils/api";
@@ -55,6 +56,8 @@ import toast from "react-hot-toast";
 import QRCodeScanner from "../../components/manufacturing/QRCodeScanner";
 import QRCodeDisplay from "../../components/QRCodeDisplay";
 import PurchaseOrderForm from "../../components/procurement/PurchaseOrderForm";
+import SalesOrderDetailModal from "../../components/dialogs/SalesOrderDetailModal";
+import CreditNoteModal from "../../components/dialogs/CreditNoteModal";
 
 // Define all available columns
 const AVAILABLE_COLUMNS = [
@@ -120,7 +123,7 @@ const PO_STATUS_BADGES = {
     description: "Vendor acknowledged",
   },
   dispatched: {
-    label: "🚚 Dispatched",
+    label: "📤 Dispatched",
     color: "bg-cyan-100",
     text: "text-cyan-700",
     description: "Materials dispatched",
@@ -154,6 +157,24 @@ const PO_STATUS_BADGES = {
     color: "bg-emerald-100",
     text: "text-emerald-700",
     description: "Fully received",
+  },
+  grn_shortage: {
+    label: "⚠️ GRN Shortage",
+    color: "bg-red-100",
+    text: "text-red-700",
+    description: "Material shortage detected",
+  },
+  grn_overage: {
+    label: "📦 GRN Overage",
+    color: "bg-yellow-100",
+    text: "text-yellow-700",
+    description: "Material overage detected",
+  },
+  reopened: {
+    label: "🔄 Reopened",
+    color: "bg-purple-100",
+    text: "text-purple-700",
+    description: "PO reopened for vendor request",
   },
   completed: {
     label: "Completed",
@@ -202,11 +223,17 @@ const ProcurementDashboard = () => {
     openPOs: 0,
     vendorCount: 0,
     pendingOrders: 0,
+    pendingExcessApprovals: 0,
+    pendingVendorReturns: 0,
   });
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [incomingOrders, setIncomingOrders] = useState([]);
   const [incomingPurchaseOrders, setIncomingPurchaseOrders] = useState([]);
+  const [excessApprovals, setExcessApprovals] = useState([]);
+  const [vendorReturns, setVendorReturns] = useState([]);
+  const [grnRequests, setGrnRequests] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -237,6 +264,32 @@ const ProcurementDashboard = () => {
   const [poSummary, setPoSummary] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
   const [poCountByOrder, setPoCountByOrder] = useState({}); // Track PO count per sales order
+  
+  // Sales Order Detail Modal state
+  const [orderDetailModalOpen, setOrderDetailModalOpen] = useState(false);
+  const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
+  
+  // Create PO Modal state
+  const [createPOModalOpen, setCreatePOModalOpen] = useState(false);
+  const [salesOrdersForPO, setSalesOrdersForPO] = useState([]);
+  const [selectedSOForPO, setSelectedSOForPO] = useState(null);
+  const [filterSOSearch, setFilterSOSearch] = useState("");
+  const [filterSOStatus, setFilterSOStatus] = useState("all");
+  const [showPOFormStep, setShowPOFormStep] = useState(false);
+  const [showProjectStep, setShowProjectStep] = useState(true);
+  const [vendorOptionsForPO, setVendorOptionsForPO] = useState([]);
+  const [projectNamesForPO, setProjectNamesForPO] = useState([]);
+  const [allSOForProjecting, setAllSOForProjecting] = useState([]);
+  const [selectedProjectForPO, setSelectedProjectForPO] = useState("");
+  const [poFormData, setPoFormData] = useState({
+    projectName: "",
+    vendor: "",
+    materialType: "fabric",
+  });
+
+  // Credit Note Modal states
+  const [creditNoteModalOpen, setCreditNoteModalOpen] = useState(false);
+  const [selectedOverageRequest, setSelectedOverageRequest] = useState(null);
 
   // Show success message if navigated from PO creation
   useEffect(() => {
@@ -326,14 +379,18 @@ const ProcurementDashboard = () => {
       const totalIncoming =
         (incomingRes.data.orders?.length || 0) +
         (incomingPORes.data.purchaseOrders?.length || 0);
-      setStats((prevStats) => ({
-        ...prevStats,
-        pendingOrders: totalIncoming,
-      }));
 
       // Fetch vendors
       const vendorsRes = await api.get("/procurement/vendors?limit=10");
       setVendors(vendorsRes.data.vendors || []);
+
+      // Update stats
+      setStats((prevStats) => ({
+        ...prevStats,
+        pendingOrders: totalIncoming,
+        pendingExcessApprovals: 0,
+        pendingVendorReturns: 0,
+      }));
 
       // Fetch PO summary stats
       try {
@@ -341,6 +398,38 @@ const ProcurementDashboard = () => {
         setPoSummary(summaryRes.data);
       } catch (err) {
         console.error("Error fetching PO summary:", err);
+      }
+
+      // Fetch pending requests (shortage/overage complaints)
+      try {
+        const pendingRes = await api.get("/approvals?entity_type=purchase_order&status=pending,in_progress");
+        const complaints = (pendingRes.data.approvals || []).filter(
+          (approval) =>
+            approval.stage_key === "grn_shortage_complaint" ||
+            approval.stage_key === "grn_overage_complaint"
+        );
+        setPendingRequests(complaints);
+      } catch (err) {
+        console.error("Error fetching pending requests:", err);
+        setPendingRequests([]);
+      }
+
+      // Fetch excess approvals
+      try {
+        const excessRes = await api.get("/approvals?entity_type=purchase_order&stage_key=excess_material_approval&status=pending");
+        setExcessApprovals(excessRes.data.approvals || []);
+      } catch (err) {
+        console.error("Error fetching excess approvals:", err);
+        setExcessApprovals([]);
+      }
+
+      // Fetch vendor returns
+      try {
+        const returnsRes = await api.get("/vendor-returns?status=pending&status=approved");
+        setVendorReturns(returnsRes.data.returns || []);
+      } catch (err) {
+        console.error("Error fetching vendor returns:", err);
+        setVendorReturns([]);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -352,6 +441,25 @@ const ProcurementDashboard = () => {
     } finally {
       setLoading(false);
       setIsFetching(false);
+    }
+  };
+
+  const handleReopenPOAndSendRequest = async (complaintId) => {
+    try {
+      const result = await toast.promise(
+        api.post("/vendor-requests/reopen-po-and-send-request", {
+          complaint_id: complaintId,
+        }),
+        {
+          loading: "Reopening PO and sending vendor request...",
+          success: "PO reopened and vendor request sent successfully!",
+          error: "Failed to reopen PO and send vendor request",
+        }
+      );
+
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Error reopening PO:", error);
     }
   };
 
@@ -536,17 +644,31 @@ const ProcurementDashboard = () => {
   };
 
   const handleSendToVendor = async (order) => {
-    if (
-      !window.confirm(
-        `Send PO ${order.po_number} to vendor ${order.vendor?.name}?`
-      )
-    ) {
+    const vendorName = order.vendor?.name || "vendor";
+    const vendorEmail = order.vendor?.email;
+    const vendorPhone = order.vendor?.phone;
+    
+    if (!vendorEmail && !vendorPhone) {
+      toast.error("Vendor has no email or phone number configured");
+      return;
+    }
+
+    const message = `Send PO ${order.po_number} to ${vendorName}?\n\n` +
+      (vendorEmail ? `📧 Email: ${vendorEmail}\n` : '') +
+      (vendorPhone ? `📱 WhatsApp: ${vendorPhone}\n` : '') +
+      `\nPO will be sent via both channels if available.`;
+
+    if (!window.confirm(message)) {
       return;
     }
 
     try {
-      await api.patch(`/procurement/pos/${order.id}`, { status: "sent" });
-      toast.success("Purchase order sent to vendor successfully!");
+      const response = await api.post(`/procurement/pos/${order.id}/send-to-vendor`, {
+        sendEmail: !!vendorEmail,
+        sendWhatsapp: !!vendorPhone
+      });
+      
+      toast.success(response.data.message || "Purchase order sent to vendor successfully!");
       fetchDashboardData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send to vendor");
@@ -575,6 +697,46 @@ const ProcurementDashboard = () => {
     }
   };
 
+  const handleRequestGRN = async (order) => {
+    const isReopenedPO = order.status === "reopened";
+    const confirmMessage = isReopenedPO
+      ? `Confirm that shortage materials have been received for PO ${order.po_number}?\n\nThis will send a GRN request to Inventory Department to verify and add materials to inventory.`
+      : `Send GRN request for PO ${order.po_number} to Inventory Department?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const notes = isReopenedPO
+        ? `Shortage materials received - GRN request for fulfillment`
+        : `GRN request sent from Procurement Dashboard`;
+      
+      await api.post(`/procurement/purchase-orders/${order.id}/request-grn`, {
+        notes,
+      });
+      
+      if (isReopenedPO) {
+        toast.success(
+          `✓ Shortage materials receipt confirmed for PO ${order.po_number}!`
+        );
+        toast.success("GRN request sent to Inventory Department for verification");
+      } else {
+        toast.success(
+          `✓ GRN request sent for PO ${order.po_number}!`
+        );
+        toast.success("Inventory Department has been notified");
+      }
+      
+      setTimeout(() => {
+        fetchDashboardData();
+      }, 1000);
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || "Failed to request GRN";
+      toast.error(errorMsg);
+    }
+  };
+
   // Handle QR code scanning
   const handleQrScanSuccess = (qrData) => {
     setSelectedOrder(qrData);
@@ -589,35 +751,90 @@ const ProcurementDashboard = () => {
     );
   };
 
-  // Handle viewing sales order details
+  // Handle viewing sales order details in modal
   const handleViewOrder = (order) => {
-    console.log("handleViewOrder called with:", order);
-    console.log("Order ID:", order?.id);
-    
     if (!order) {
-      console.error("Order is null or undefined");
       toast.error("Order data is unavailable");
       return;
     }
 
-    // Try multiple property names for ID
-    const orderId = order.id || order.order_id || order.salesOrderId;
-    console.log("Order ID to navigate to:", orderId);
+    setSelectedSalesOrder(order);
+    setOrderDetailModalOpen(true);
+  };
 
-    if (!orderId) {
-      console.error("Cannot find order ID. Order object:", order);
-      toast.error("Cannot open order - order ID is missing");
+  // Handle opening Create PO modal
+  const handleOpenCreatePOModal = async () => {
+    try {
+      const [ordersRes, vendorsRes] = await Promise.all([
+        api.get("/sales/orders?limit=200"),
+        api.get("/procurement/vendors?limit=100"),
+      ]);
+
+      const allOrders = ordersRes.data.orders || [];
+      console.log("Total orders fetched:", allOrders.length);
+      console.log("Sample order:", allOrders[0]);
+      
+      const availableOrders = allOrders.filter(
+        (order) => order.status !== "cancelled"
+      );
+      console.log("Available orders for procurement:", availableOrders.length);
+      console.log("Available orders:", availableOrders);
+      
+      const vendorOptions = vendorsRes.data.vendors || [];
+      const projectNames = [
+        ...new Set(availableOrders.map((o) => o.project_name || "Unassigned")),
+      ].filter(name => name && name.trim() !== "").sort();
+      console.log("Project names extracted:", projectNames);
+      
+      setSalesOrdersForPO(availableOrders);
+      setAllSOForProjecting(availableOrders);
+      setVendorOptionsForPO(vendorOptions);
+      setProjectNamesForPO(projectNames);
+      setFilterSOSearch("");
+      setFilterSOStatus("all");
+      setSelectedSOForPO(null);
+      setSelectedProjectForPO("");
+      setShowPOFormStep(false);
+      setShowProjectStep(true);
+      setPoFormData({ projectName: "", vendor: "", materialType: "fabric" });
+      setCreatePOModalOpen(true);
+    } catch (error) {
+      console.error("Failed to fetch sales orders:", error);
+      toast.error("Failed to load sales orders");
+    }
+  };
+
+  // Handle proceeding to create PO with selected sales order
+  const handleProceedToCreatePO = (salesOrder) => {
+    if (showProjectStep) {
+      if (!selectedSOForPO) {
+        toast.error("Please select a sales order");
+        return;
+      }
+      setPoFormData({
+        ...poFormData,
+        projectName: selectedSOForPO.project_name || "",
+      });
+      setShowProjectStep(false);
+      setShowPOFormStep(true);
       return;
     }
 
-    try {
-      const navigationPath = `/sales/orders/${orderId}`;
-      console.log(`Navigating to: ${navigationPath}`);
-      navigate(navigationPath);
-    } catch (error) {
-      console.error("Error navigating to order:", error);
-      toast.error("Failed to open order details");
+    const finalProjectName = selectedProjectForPO || poFormData.projectName || selectedSOForPO?.project_name || "";
+    
+    if (!poFormData.vendor) {
+      toast.error("Please select a vendor");
+      return;
     }
+
+    setCreatePOModalOpen(false);
+    const queryParams = new URLSearchParams({
+      from_sales_order: selectedSOForPO.id,
+      project_name: finalProjectName,
+      vendor_id: poFormData.vendor,
+      material_type: poFormData.materialType,
+    });
+    navigate(`/procurement/purchase-orders/create?${queryParams.toString()}`);
   };
 
   // Handle accepting incoming order request
@@ -781,8 +998,8 @@ const ProcurementDashboard = () => {
                 <Building size={16} /> Vendors
               </button>
               <button
-                onClick={() => navigate("/procurement/purchase-orders")}
-                className="flex items-center gap-2 px-3 py-1.5 text-white rounded-lg transition font-medium text-xs shadow-sm"
+                onClick={handleOpenCreatePOModal}
+                className="flex items-center gap-2 px-3 py-1.5 text-white rounded-lg transition font-medium text-xs shadow-sm hover:shadow-md"
                 style={{ backgroundColor: "#0f172a" }}
               >
                 <Plus size={16} /> Create PO
@@ -881,6 +1098,21 @@ const ProcurementDashboard = () => {
               icon: Receipt,
             },
             { label: "Vendors", count: vendors.length, icon: Building },
+            {
+              label: "Pending Requests",
+              count: pendingRequests.length,
+              icon: FaClipboardList,
+            },
+            {
+              label: "Excess Approvals",
+              count: excessApprovals.length,
+              icon: AlertTriangle,
+            },
+            {
+              label: "Vendor Returns",
+              count: vendorReturns.length,
+              icon: Truck,
+            },
           ].map((tab, idx) => {
             const TabIcon = tab.icon;
             return (
@@ -1458,7 +1690,7 @@ const ProcurementDashboard = () => {
                         <tr>
                           {isColumnVisible("po_number") && (
                             <th className="px-3 py-1 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                              PO Number
+                              Project Name
                             </th>
                           )}
                           {isColumnVisible("po_date") && (
@@ -1530,7 +1762,8 @@ const ProcurementDashboard = () => {
                             <tr className="hover:bg-slate-50 transition">
                               {isColumnVisible("po_number") && (
                                 <td className="px-3 py-1.5 text-xs font-semibold text-slate-800">
-                                  {po.po_number}
+                                  <p>{po.project_name}</p>
+                                 <span className="text-xs text-slate-600"> {po.po_number}</span>
                                 </td>
                               )}
                               {isColumnVisible("po_date") && (
@@ -1670,28 +1903,27 @@ const ProcurementDashboard = () => {
                                             className="text-green-600 group-hover:scale-110 transition-transform"
                                           />
                                           <span className="text-xs font-medium text-green-700">
-                                            Submit
+                                            Submit to Admin
                                           </span>
                                         </button>
                                       )}
 
                                       {/* Send to Vendor Button */}
-                                      {(po.status === "draft" ||
-                                        po.status === "pending_approval") && (
+                                      {po.status === "approved" && (
                                         <button
                                           onClick={() => {
                                             handleSendToVendor(po);
                                             setExpandedRows(new Set());
                                           }}
-                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all group"
-                                          title="Send to vendor"
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-green-50 hover:bg-green-100 border border-green-200 transition-all group"
+                                          title="Send approved PO to vendor via Email & WhatsApp"
                                         >
                                           <Truck
                                             size={16}
-                                            className="text-amber-600 group-hover:scale-110 transition-transform"
+                                            className="text-green-600 group-hover:scale-110 transition-transform"
                                           />
-                                          <span className="text-xs font-medium text-amber-700">
-                                            Send
+                                          <span className="text-xs font-medium text-green-700">
+                                            Send to Vendor
                                           </span>
                                         </button>
                                       )}
@@ -1712,6 +1944,62 @@ const ProcurementDashboard = () => {
                                           />
                                           <span className="text-xs font-medium text-teal-700">
                                             Received
+                                          </span>
+                                        </button>
+                                      )}
+
+                                      {/* Request GRN Button */}
+                                      {(po.status === "sent" || 
+                                        po.status === "acknowledged" ||
+                                        po.status === "partial_received" ||
+                                        po.status === "received" ||
+                                        po.status === "reopened") && (
+                                        <button
+                                          onClick={() => {
+                                            handleRequestGRN(po);
+                                            setExpandedRows(new Set());
+                                          }}
+                                          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all group ${
+                                            po.status === "reopened"
+                                              ? "bg-purple-50 hover:bg-purple-100 border border-purple-200"
+                                              : "bg-orange-50 hover:bg-orange-100 border border-orange-200"
+                                          }`}
+                                          title={po.status === "reopened" ? "Shortage materials received - Request GRN" : "Request GRN creation"}
+                                        >
+                                          <Receipt
+                                            size={16}
+                                            className={`group-hover:scale-110 transition-transform ${
+                                              po.status === "reopened" ? "text-purple-600" : "text-orange-600"
+                                            }`}
+                                          />
+                                          <span className={`text-xs font-medium ${
+                                            po.status === "reopened" ? "text-purple-700" : "text-orange-700"
+                                          }`}>
+                                            {po.status === "reopened" ? "Materials Received" : "Request GRN"}
+                                          </span>
+                                        </button>
+                                      )}
+
+                                      {/* Create GRN Button - Direct creation */}
+                                      {(po.status === "sent" || 
+                                        po.status === "acknowledged" ||
+                                        po.status === "partial_received" ||
+                                        po.status === "received" ||
+                                        po.status === "grn_requested") && (
+                                        <button
+                                          onClick={() => {
+                                            navigate(`/inventory/grn/create?from_po=${po.id}`);
+                                            setExpandedRows(new Set());
+                                          }}
+                                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-green-50 hover:bg-green-100 border border-green-200 transition-all group"
+                                          title="Create GRN for this PO"
+                                        >
+                                          <Package
+                                            size={16}
+                                            className="text-green-600 group-hover:scale-110 transition-transform"
+                                          />
+                                          <span className="text-xs font-medium text-green-700">
+                                            Create GRN
                                           </span>
                                         </button>
                                       )}
@@ -1799,6 +2087,377 @@ const ProcurementDashboard = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Pending Requests Tab */}
+          {tabValue === 3 && (
+            <div>
+              {pendingRequests.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 border border-slate-200 rounded-lg">
+                  <FaCheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    No Pending Requests
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    All shortage and overage requests have been resolved
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingRequests.map((request) => {
+                    const isShortage = request.stage_key === "grn_shortage_complaint";
+                    const metadata = request.metadata || {};
+                    const items = metadata.items_affected || [];
+                    
+                    return (
+                      <div
+                        key={request.id}
+                        className={`border-2 rounded-lg p-4 ${
+                          isShortage
+                            ? "border-red-200 bg-red-50"
+                            : "border-yellow-200 bg-yellow-50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {isShortage ? (
+                                <FaExclamationCircle className="text-red-600 w-5 h-5" />
+                              ) : (
+                                <FaBoxOpen className="text-yellow-600 w-5 h-5" />
+                              )}
+                              <h3 className="text-base font-bold text-slate-800">
+                                {isShortage ? "⚠️ Material Shortage" : "📦 Material Overage"}
+                              </h3>
+                            </div>
+                            <p className="text-sm text-slate-600">
+                              {request.stage_label}
+                            </p>
+                          </div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              isShortage
+                                ? "bg-red-100 text-red-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {request.status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 p-3 bg-white rounded-lg border border-slate-200">
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">GRN Number</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {metadata.grn_number || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">PO Number</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {metadata.po_number || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Vendor</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {metadata.vendor_name || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Total Value</p>
+                            <p className="text-sm font-bold text-blue-600">
+                              ₹{metadata.total_shortage_value || metadata.total_overage_value || "0"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-xs font-semibold text-slate-700 mb-2">
+                            Affected Items ({items.length})
+                          </p>
+                          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-xs">
+                              <thead className="bg-slate-50">
+                                <tr>
+                                  <th className="px-2 py-2 text-left font-semibold text-slate-700">Material</th>
+                                  <th className="px-2 py-2 text-center font-semibold text-slate-700">Ordered</th>
+                                  <th className="px-2 py-2 text-center font-semibold text-slate-700">Invoiced</th>
+                                  <th className="px-2 py-2 text-center font-semibold text-slate-700">Received</th>
+                                  <th className="px-2 py-2 text-center font-semibold text-slate-700">
+                                    {isShortage ? "Shortage" : "Overage"}
+                                  </th>
+                                  <th className="px-2 py-2 text-right font-semibold text-slate-700">Value</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200">
+                                {items.map((item, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50">
+                                    <td className="px-2 py-2 font-medium text-slate-800">
+                                      {item.material_name}
+                                    </td>
+                                    <td className="px-2 py-2 text-center text-slate-600">
+                                      {item.ordered_qty}
+                                    </td>
+                                    <td className="px-2 py-2 text-center text-slate-600">
+                                      {item.invoiced_qty}
+                                    </td>
+                                    <td className="px-2 py-2 text-center text-slate-600">
+                                      {item.received_qty}
+                                    </td>
+                                    <td className={`px-2 py-2 text-center font-bold ${
+                                      isShortage ? "text-red-600" : "text-yellow-600"
+                                    }`}>
+                                      {item.shortage_qty || item.overage_qty}
+                                    </td>
+                                    <td className="px-2 py-2 text-right font-semibold text-blue-600">
+                                      ₹{item.shortage_value || item.overage_value}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-xs font-semibold text-blue-800 mb-1">
+                            Action Required:
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            {metadata.action_required}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            {isShortage ? (
+                              <>
+                                <button
+                                  onClick={() => handleReopenPOAndSendRequest(request.id)}
+                                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-semibold text-sm"
+                                  title="Reopen PO and send vendor request for shortage materials"
+                                >
+                                  <FaRedo className="w-4 h-4" />
+                                  Request Shortage Materials
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (metadata.grn_id) {
+                                      navigate(`/procurement/grn/${metadata.grn_id}`);
+                                    } else {
+                                      toast.error("GRN ID not found");
+                                    }
+                                  }}
+                                  className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold text-sm"
+                                  title="View GRN details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View GRN
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedOverageRequest(request);
+                                    setCreditNoteModalOpen(true);
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold text-sm"
+                                  title="Request credit note for overage materials"
+                                >
+                                  <FaMoneyBillWave className="w-4 h-4" />
+                                  Request Credit Note
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (metadata.grn_id) {
+                                      navigate(`/procurement/grn/${metadata.grn_id}`);
+                                    } else {
+                                      toast.error("GRN ID not found");
+                                    }
+                                  }}
+                                  className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold text-sm"
+                                  title="View GRN details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View GRN
+                                </button>
+                              </>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => navigate(`/procurement/pos/${request.entity_id}`)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition font-semibold text-sm"
+                            title="View Purchase Order details"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Purchase Order
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Excess Approvals Tab */}
+          {tabValue === 4 && (
+            <div>
+              {excessApprovals.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 border border-slate-200 rounded-lg">
+                  <FaCheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    No Pending Excess Approvals
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    All excess material approvals have been processed
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {excessApprovals.map((approval) => {
+                    const metadata = approval.metadata || {};
+                    return (
+                      <div
+                        key={approval.id}
+                        className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-base font-bold text-slate-800">
+                              📦 Excess Material Approval
+                            </h3>
+                            <p className="text-sm text-slate-600">
+                              {approval.stage_label}
+                            </p>
+                          </div>
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                            {approval.status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 p-3 bg-white rounded-lg border border-slate-200">
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">PO Number</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {metadata.po_number || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Vendor</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {metadata.vendor_name || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Created</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {new Date(approval.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/procurement/pos/${approval.entity_id}`)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition font-semibold text-sm"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vendor Returns Tab */}
+          {tabValue === 5 && (
+            <div>
+              {vendorReturns.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 border border-slate-200 rounded-lg">
+                  <FaCheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    No Vendor Returns
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    No materials have been returned to vendors
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vendorReturns.map((vendorReturn) => {
+                    return (
+                      <div
+                        key={vendorReturn.id}
+                        className="border-2 border-orange-200 bg-orange-50 rounded-lg p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-base font-bold text-slate-800">
+                              🔄 Vendor Return
+                            </h3>
+                            <p className="text-sm text-slate-600">
+                              Return #{vendorReturn.return_number}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            vendorReturn.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            vendorReturn.status === 'approved' ? 'bg-green-100 text-green-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {vendorReturn.status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 p-3 bg-white rounded-lg border border-slate-200">
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Return Type</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {vendorReturn.return_type || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Total Value</p>
+                            <p className="text-sm font-bold text-blue-600">
+                              ₹{vendorReturn.total_value || "0"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Items Count</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {vendorReturn.items?.length || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Created</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {new Date(vendorReturn.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/procurement/vendor-returns/${vendorReturn.id}`)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition font-semibold text-sm"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1902,6 +2561,237 @@ const ProcurementDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Sales Order Detail Modal */}
+      <SalesOrderDetailModal
+        isOpen={orderDetailModalOpen}
+        onClose={() => {
+          setOrderDetailModalOpen(false);
+          setSelectedSalesOrder(null);
+        }}
+        order={selectedSalesOrder}
+        onApprove={handleAcceptOrder}
+        onCreatePO={handleCreatePO}
+      />
+
+      {/* Create PO Modal - Multi-step */}
+      {createPOModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 sticky top-0 bg-white">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">Create Purchase Order</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  {showProjectStep
+                    ? "Step 1: Select Sales Order"
+                    : "Step 2: Configure PO Details"}
+                </p>
+              </div>
+              <button
+                onClick={() => setCreatePOModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-2xl transition"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Sales Order Selection Step */}
+            {showProjectStep && (
+              <div className="p-4 border-b border-slate-200 space-y-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Select Sales Order <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedSOForPO?.id || ""}
+                    onChange={(e) => {
+                      const selectedOrder = allSOForProjecting.find(o => o.id === parseInt(e.target.value));
+                      setSelectedSOForPO(selectedOrder);
+                      setSelectedProjectForPO(selectedOrder?.project_name || "");
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Choose a Sales Order --</option>
+                    {allSOForProjecting.map((order) => (
+                      <option key={order.id} value={order.id}>
+                        {order.order_number} - {order.customer?.name || order.customer_name || 'N/A'} 
+                        {order.project_name ? ` (${order.project_name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedSOForPO && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-sm text-green-900">
+                      ✓ <strong>Selected:</strong> {selectedSOForPO.order_number}
+                    </p>
+                    <p className="text-xs text-green-700 mt-1">
+                      Customer: {selectedSOForPO.customer?.name || selectedSOForPO.customer_name || 'N/A'}
+                    </p>
+                    {selectedSOForPO.project_name && (
+                      <p className="text-xs text-green-700">
+                        Project: {selectedSOForPO.project_name}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+
+
+            {/* Content - Sales Orders List or Form */}
+            <div className="p-4">
+              {showPOFormStep ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    {selectedProjectForPO && (
+                      <p className="text-sm text-blue-900">
+                        <strong>Project:</strong> {selectedProjectForPO}
+                      </p>
+                    )}
+                    <p className="text-sm text-blue-900 mt-1">
+                      <strong>Sales Order:</strong> {selectedSOForPO?.order_number}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Project Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={selectedProjectForPO ? "Project name (auto-filled from selected project)..." : "Enter project name or leave blank"}
+                        value={selectedProjectForPO || poFormData.projectName}
+                        onChange={(e) => !selectedProjectForPO && setPoFormData({...poFormData, projectName: e.target.value})}
+                        readOnly={!!selectedProjectForPO}
+                        className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm ${selectedProjectForPO ? 'bg-slate-50' : ''}`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Vendor <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={poFormData.vendor}
+                        onChange={(e) =>
+                          setPoFormData({
+                            ...poFormData,
+                            vendor: e.target.value,
+                            projectName: selectedProjectForPO,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select vendor</option>
+                        {vendorOptionsForPO.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>
+                            {vendor.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Material Type
+                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="materialType"
+                            value="fabric"
+                            checked={poFormData.materialType === "fabric"}
+                            onChange={(e) =>
+                              setPoFormData({
+                                ...poFormData,
+                                materialType: e.target.value,
+                                projectName: selectedProjectForPO,
+                              })
+                            }
+                          />
+                          <span className="text-sm text-slate-700">Fabric</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="materialType"
+                            value="accessories"
+                            checked={poFormData.materialType === "accessories"}
+                            onChange={(e) =>
+                              setPoFormData({
+                                ...poFormData,
+                                materialType: e.target.value,
+                                projectName: selectedProjectForPO,
+                              })
+                            }
+                          />
+                          <span className="text-sm text-slate-700">
+                            Accessories
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer with Actions */}
+            <div className="flex gap-2 p-4 border-t border-slate-200 bg-slate-50 sticky bottom-0">
+              <button
+                onClick={() => {
+                  if (showPOFormStep) {
+                    setShowPOFormStep(false);
+                    setShowProjectStep(true);
+                    setPoFormData({ projectName: "", vendor: "", materialType: "fabric" });
+                  } else {
+                    setCreatePOModalOpen(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-white transition font-medium text-sm text-slate-700"
+              >
+                {showPOFormStep ? "Back" : "Cancel"}
+              </button>
+              <button
+                onClick={() => handleProceedToCreatePO(selectedSOForPO)}
+                disabled={
+                  showProjectStep ? !selectedSOForPO : !poFormData.vendor
+                }
+                className="flex-1 px-4 py-2 text-white rounded-lg transition font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor:
+                    showProjectStep
+                      ? selectedSOForPO ? "#0f172a" : "#ccc"
+                      : poFormData.vendor ? "#0f172a" : "#ccc",
+                }}
+              >
+                <Plus size={16} />
+                {showPOFormStep ? "Create PO" : "Next"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credit Note Modal */}
+      <CreditNoteModal
+        isOpen={creditNoteModalOpen}
+        onClose={() => {
+          setCreditNoteModalOpen(false);
+          setSelectedOverageRequest(null);
+        }}
+        grnData={selectedOverageRequest}
+        onSuccess={() => {
+          setCreditNoteModalOpen(false);
+          setSelectedOverageRequest(null);
+          fetchDashboardData();
+        }}
+      />
     </div>
   );
 };

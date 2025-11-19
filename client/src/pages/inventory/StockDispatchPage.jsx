@@ -181,8 +181,10 @@ const StockDispatchPage = () => {
 
       const response = await api.post('/material-dispatch/create', dispatchData);
       
+      await api.put(`/project-material-requests/${mrnId}`, { status: 'issued' });
+      
       toast.success('Materials dispatched successfully!');
-      navigate('/inventory/material-requests');
+      navigate('/inventory/mrn-requests');
     } catch (error) {
       console.error('Error dispatching materials:', error);
       toast.error(error.response?.data?.message || 'Failed to dispatch materials');

@@ -12,7 +12,10 @@ import {
   FaIndustry,
   FaInfoCircle,
   FaCut,
-  FaTags
+  FaTags,
+  FaImage,
+  FaTimes,
+  FaPalette
 } from 'react-icons/fa';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -36,23 +39,30 @@ const CreateMRMPage  = () => {
       {
         material_type: 'fabric',
         // Common fields
-        quantity_required: '',
         unit: 'meters',
         description: '',
         // Fabric fields
         fabric_name: '',
         fabric_type: '',
-        color: '',
         gsm: '',
         width: '',
         shrinkage: '',
         finish_type: '',
+        // Color variants with quantities
+        colorVariants: [
+          {
+            color: '',
+            quantity: '',
+            notes: ''
+          }
+        ],
         // Accessories fields
         accessory_type: '',
         accessory_color: '',
         size_length: '',
         quantity_per_unit: '',
-        brand: ''
+        brand: '',
+        images: []
       }
     ]
   });
@@ -90,23 +100,30 @@ const CreateMRMPage  = () => {
       if (prefilled.material_requirements && Array.isArray(prefilled.material_requirements) && prefilled.material_requirements.length > 0) {
         materialsToAdd = prefilled.material_requirements.map(item => ({
           material_type: item.material_type || 'fabric',
-          quantity_required: item.quantity || item.quantity_required || '',
           unit: item.unit || 'meters',
           description: item.description || item.specifications || '',
           // Fabric fields
           fabric_name: item.product_name || item.item_name || item.name || '',
           fabric_type: item.fabric_type || '',
-          color: item.color || '',
           gsm: item.gsm || '',
           width: item.width || '',
           shrinkage: item.shrinkage || '',
           finish_type: item.finish_type || '',
+          // Color variants
+          colorVariants: [
+            {
+              color: item.color || '',
+              quantity: item.quantity || item.quantity_required || '',
+              notes: ''
+            }
+          ],
           // Accessories fields
           accessory_type: item.accessory_type || '',
           accessory_color: item.color || '',
           size_length: item.size || item.length || '',
           quantity_per_unit: item.quantity_per_unit || '',
-          brand: item.brand || ''
+          brand: item.brand || '',
+          images: []
         }));
       }
       
@@ -176,6 +193,69 @@ const CreateMRMPage  = () => {
     }));
   };
 
+  const handleColorVariantChange = (materialIndex, variantIndex, field, value) => {
+    const updatedMaterials = [...formData.materials];
+    updatedMaterials[materialIndex].colorVariants[variantIndex][field] = value;
+    setFormData(prev => ({
+      ...prev,
+      materials: updatedMaterials
+    }));
+  };
+
+  const addColorVariant = (materialIndex) => {
+    const updatedMaterials = [...formData.materials];
+    updatedMaterials[materialIndex].colorVariants.push({
+      color: '',
+      quantity: '',
+      notes: ''
+    });
+    setFormData(prev => ({
+      ...prev,
+      materials: updatedMaterials
+    }));
+  };
+
+  const removeColorVariant = (materialIndex, variantIndex) => {
+    const updatedMaterials = [...formData.materials];
+    if (updatedMaterials[materialIndex].colorVariants.length > 1) {
+      updatedMaterials[materialIndex].colorVariants.splice(variantIndex, 1);
+      setFormData(prev => ({
+        ...prev,
+        materials: updatedMaterials
+      }));
+    } else {
+      toast.error('At least one color variant is required');
+    }
+  };
+
+  const handleImageUpload = (materialIndex, files) => {
+    const updatedMaterials = [...formData.materials];
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updatedMaterials[materialIndex].images.push({
+          file: file,
+          preview: reader.result,
+          name: file.name
+        });
+        setFormData(prev => ({
+          ...prev,
+          materials: updatedMaterials
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (materialIndex, imageIndex) => {
+    const updatedMaterials = [...formData.materials];
+    updatedMaterials[materialIndex].images.splice(imageIndex, 1);
+    setFormData(prev => ({
+      ...prev,
+      materials: updatedMaterials
+    }));
+  };
+
   const addMaterialRow = () => {
     setFormData(prev => ({
       ...prev,
@@ -184,23 +264,30 @@ const CreateMRMPage  = () => {
         {
           material_type: defaultMaterialType,
           // Common fields
-          quantity_required: '',
           unit: defaultMaterialType === 'fabric' ? 'meters' : 'pieces',
           description: '',
           // Fabric fields
           fabric_name: '',
           fabric_type: '',
-          color: '',
           gsm: '',
           width: '',
           shrinkage: '',
           finish_type: '',
+          // Color variants
+          colorVariants: [
+            {
+              color: '',
+              quantity: '',
+              notes: ''
+            }
+          ],
           // Accessories fields
           accessory_type: '',
           accessory_color: '',
           size_length: '',
           quantity_per_unit: '',
-          brand: ''
+          brand: '',
+          images: []
         }
       ]
     }));
@@ -250,14 +337,7 @@ const CreateMRMPage  = () => {
           toast.error(`Fabric name is required for item ${i + 1}`);
           return false;
         }
-        if (!material.fabric_type.trim()) {
-          toast.error(`Fabric type is required for item ${i + 1}`);
-          return false;
-        }
-        if (!material.color.trim()) {
-          toast.error(`Color is required for fabric item ${i + 1}`);
-          return false;
-        }
+        // Fabric type is now optional
       } else if (material.material_type === 'accessories') {
         if (!material.accessory_type.trim()) {
           toast.error(`Accessory type is required for item ${i + 1}`);
@@ -265,10 +345,22 @@ const CreateMRMPage  = () => {
         }
       }
       
-      if (!material.quantity_required || parseFloat(material.quantity_required) <= 0) {
-        const itemName = material.material_type === 'fabric' ? material.fabric_name : material.accessory_type;
-        toast.error(`Valid quantity is required for ${itemName || `item ${i + 1}`}`);
+      // Validate color variants
+      if (!material.colorVariants || material.colorVariants.length === 0) {
+        toast.error(`At least one color variant is required for item ${i + 1}`);
         return false;
+      }
+      
+      for (let j = 0; j < material.colorVariants.length; j++) {
+        const variant = material.colorVariants[j];
+        if (!variant.color.trim()) {
+          toast.error(`Color is required for all variants in item ${i + 1}`);
+          return false;
+        }
+        if (!variant.quantity || parseFloat(variant.quantity) <= 0) {
+          toast.error(`Valid quantity is required for ${variant.color} variant in item ${i + 1}`);
+          return false;
+        }
       }
     }
 
@@ -287,31 +379,42 @@ const CreateMRMPage  = () => {
     try {
       // Prepare materials_requested in the format expected by backend
       const materials_requested = formData.materials.map(m => {
+        // Calculate total quantity from all color variants
+        const totalQuantity = m.colorVariants.reduce((sum, cv) => sum + (parseFloat(cv.quantity) || 0), 0);
+        
         const baseMaterial = {
           material_type: m.material_type,
           description: m.description,
-          quantity_required: parseFloat(m.quantity_required),
+          quantity_required: totalQuantity,
           unit: m.unit,
           // Initialize tracking fields
           available_qty: 0,
           issued_qty: 0,
-          balance_qty: parseFloat(m.quantity_required),
-          status: 'pending'
+          balance_qty: totalQuantity,
+          status: 'pending',
+          color_variants: m.colorVariants,
+          images: m.images.map(img => ({
+            name: img.name,
+            data: img.preview
+          }))
         };
 
         // Add type-specific fields
         if (m.material_type === 'fabric') {
+          // Build color list from variants
+          const colorList = m.colorVariants.map(cv => cv.color).join(', ');
+          
           return {
             ...baseMaterial,
             material_name: m.fabric_name,
             fabric_name: m.fabric_name,
             fabric_type: m.fabric_type,
-            color: m.color,
+            color: colorList,
             gsm: m.gsm,
             width: m.width,
             shrinkage: m.shrinkage,
             finish_type: m.finish_type,
-            specifications: `${m.fabric_type} - ${m.color}${m.gsm ? ` - ${m.gsm} GSM` : ''}${m.width ? ` - ${m.width}` : ''}`
+            specifications: `${m.fabric_type || 'Fabric'} - ${colorList}${m.gsm ? ` - ${m.gsm} GSM` : ''}${m.width ? ` - ${m.width}` : ''}`
           };
         } else {
           return {
@@ -837,21 +940,77 @@ const CreateMRMPage  = () => {
                       </select>
                     </div>
 
-                    {/* Quantity */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Quantity <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={material.quantity_required}
-                        onChange={(e) => handleMaterialChange(index, 'quantity_required', e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
-                        required
-                      />
+                    {/* Color Variants */}
+                    <div className="md:col-span-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          <FaPalette className="text-purple-500" />
+                          Color Variants <span className="text-red-500">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => addColorVariant(index)}
+                          className="flex items-center text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                        >
+                          <FaPlus className="mr-1" />
+                          Add Color
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3 bg-white p-3 rounded border border-purple-200">
+                        {material.colorVariants?.map((variant, variantIndex) => (
+                          <div key={variantIndex} className="flex gap-3 items-end p-2 bg-purple-50 rounded">
+                            {/* Color */}
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Color</label>
+                              <input
+                                type="text"
+                                value={variant.color}
+                                onChange={(e) => handleColorVariantChange(index, variantIndex, 'color', e.target.value)}
+                                placeholder="e.g., Navy Blue"
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                              />
+                            </div>
+                            
+                            {/* Quantity */}
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Qty</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                value={variant.quantity}
+                                onChange={(e) => handleColorVariantChange(index, variantIndex, 'quantity', e.target.value)}
+                                placeholder="0.00"
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                              />
+                            </div>
+                            
+                            {/* Notes */}
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                              <input
+                                type="text"
+                                value={variant.notes}
+                                onChange={(e) => handleColorVariantChange(index, variantIndex, 'notes', e.target.value)}
+                                placeholder="Optional notes"
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                              />
+                            </div>
+                            
+                            {/* Remove Button */}
+                            {material.colorVariants.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeColorVariant(index, variantIndex)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <FaTimes />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Unit */}
@@ -865,10 +1024,30 @@ const CreateMRMPage  = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                         required
                       >
-                        <option value="meters">Meters</option>
-                        <option value="yards">Yards</option>
-                        <option value="kilograms">Kilograms</option>
-                        <option value="rolls">Rolls</option>
+                        <optgroup label="Length">
+                          <option value="meters">Meters (m)</option>
+                          <option value="centimeters">Centimeters (cm)</option>
+                          <option value="yards">Yards (yd)</option>
+                          <option value="inches">Inches (in)</option>
+                          <option value="feet">Feet (ft)</option>
+                        </optgroup>
+                        <optgroup label="Weight">
+                          <option value="kilograms">Kilograms (kg)</option>
+                          <option value="grams">Grams (g)</option>
+                          <option value="pounds">Pounds (lbs)</option>
+                          <option value="ounces">Ounces (oz)</option>
+                        </optgroup>
+                        <optgroup label="Volume">
+                          <option value="liters">Liters (L)</option>
+                          <option value="milliliters">Milliliters (ml)</option>
+                          <option value="gallons">Gallons (gal)</option>
+                        </optgroup>
+                        <optgroup label="Others">
+                          <option value="rolls">Rolls</option>
+                          <option value="bolts">Bolts</option>
+                          <option value="pieces">Pieces</option>
+                          <option value="sets">Sets</option>
+                        </optgroup>
                       </select>
                     </div>
 
@@ -884,6 +1063,56 @@ const CreateMRMPage  = () => {
                         rows="2"
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-blue-500"
                       />
+                    </div>
+
+                    {/* Image Upload for Design Reference */}
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <FaImage className="text-purple-500" />
+                        Design / Reference Images
+                      </label>
+                      
+                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-4 bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(index, e.target.files)}
+                          className="hidden"
+                          id={`image-upload-${index}`}
+                        />
+                        <label htmlFor={`image-upload-${index}`} className="cursor-pointer text-center block">
+                          <FaImage className="mx-auto text-purple-500 mb-2 text-2xl" />
+                          <p className="text-sm font-medium text-gray-700">Click to upload or drag & drop</p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB each</p>
+                        </label>
+                      </div>
+
+                      {/* Uploaded Images Preview */}
+                      {material.images && material.images.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Uploaded Images:</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {material.images.map((image, imgIndex) => (
+                              <div key={imgIndex} className="relative group">
+                                <img
+                                  src={image.preview}
+                                  alt={image.name}
+                                  className="w-full h-24 object-cover rounded border border-gray-300"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(index, imgIndex)}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <FaTimes className="text-xs" />
+                                </button>
+                                <p className="text-xs text-gray-600 mt-1 truncate">{image.name}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1003,12 +1232,25 @@ const CreateMRMPage  = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-blue-500"
                         required
                       >
-                        <option value="pieces">Pieces</option>
-                        <option value="units">Units</option>
-                        <option value="meters">Meters</option>
-                        <option value="boxes">Boxes</option>
-                        <option value="dozens">Dozens</option>
-                        <option value="gross">Gross (144)</option>
+                        <optgroup label="Count">
+                          <option value="pieces">Pieces</option>
+                          <option value="units">Units</option>
+                          <option value="boxes">Boxes</option>
+                          <option value="dozens">Dozens</option>
+                          <option value="gross">Gross (144)</option>
+                        </optgroup>
+                        <optgroup label="Length">
+                          <option value="meters">Meters (m)</option>
+                          <option value="centimeters">Centimeters (cm)</option>
+                          <option value="yards">Yards (yd)</option>
+                          <option value="inches">Inches (in)</option>
+                          <option value="feet">Feet (ft)</option>
+                        </optgroup>
+                        <optgroup label="Weight">
+                          <option value="kilograms">Kilograms (kg)</option>
+                          <option value="grams">Grams (g)</option>
+                          <option value="pounds">Pounds (lbs)</option>
+                        </optgroup>
                       </select>
                     </div>
 

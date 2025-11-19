@@ -18,9 +18,13 @@ import {
   Download,
   Package,
   Calculator,
+  BarChart3,
+  RotateCcw,
 } from "lucide-react";
 import api from "../../utils/api";
 import toast from "react-hot-toast";
+import StageTrackingModal from "./StageTrackingModal";
+import MaterialReturnModal from "./MaterialReturnModal";
 
 // ✅ NEW: Helper function to extract product name from multiple sources
 const getProductName = (order) => {
@@ -104,6 +108,13 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
   const [reconciliationDialog, setReconciliationDialog] = useState(false);
   const [materials, setMaterials] = useState([]);
   const [reconciliationData, setReconciliationData] = useState([]);
+
+  // Stage Tracking Modal
+  const [stageTrackingOpen, setStageTrackingOpen] = useState(false);
+  const [selectedTrackingStage, setSelectedTrackingStage] = useState(null);
+
+  // Material Return Modal
+  const [materialReturnOpen, setMaterialReturnOpen] = useState(false);
 
   useEffect(() => {
     fetchProductionOrder();
@@ -500,6 +511,22 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
       toast.error("Failed to create inward challan");
       console.error(error);
     }
+  };
+
+  // Handle opening stage tracking modal
+  const handleOpenStageTracking = () => {
+    if (currentStage) {
+      setSelectedTrackingStage(currentStage);
+      setStageTrackingOpen(true);
+    }
+  };
+
+  // Handle stage tracking update
+  const handleStageTrackingUpdate = () => {
+    toast.success("Stage tracking updated successfully");
+    setStageTrackingOpen(false);
+    fetchProductionOrder();
+    if (onUpdate) onUpdate();
   };
 
   if (loading) {
@@ -991,28 +1018,40 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
 
                   {/* Material Reconciliation (for last stage) */}
                   {isLastStage() && currentStage.status === "in_progress" && (
-                    <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <h3 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+                    <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                      <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1">
                         <Calculator
                           style={{ fontSize: "12px" }}
                           className="w-3 h-3 text-amber-600"
                         />
-                        Material Reconciliation
+                        Material Reconciliation & Return
                       </h3>
-                      <p className="text-xs text-gray-600 mb-2">
+                      <p className="text-xs text-gray-600">
                         Final stage: Calculate material usage and return
                         leftovers to inventory.
                       </p>
-                      <button
-                        onClick={openMaterialReconciliation}
-                        className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700"
-                      >
-                        <Package
-                          style={{ fontSize: "10px" }}
-                          className="w-3 h-3"
-                        />
-                        Open Reconciliation
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={openMaterialReconciliation}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700"
+                        >
+                          <Package
+                            style={{ fontSize: "10px" }}
+                            className="w-3 h-3"
+                          />
+                          Reconcile
+                        </button>
+                        <button
+                          onClick={() => setMaterialReturnOpen(true)}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700"
+                        >
+                          <RotateCcw
+                            style={{ fontSize: "10px" }}
+                            className="w-3 h-3"
+                          />
+                          Return
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1031,6 +1070,19 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
                     </button>
 
                     <div className="flex gap-1">
+                      {/* Track Button - Available for all stages */}
+                      <button
+                        onClick={handleOpenStageTracking}
+                        className="flex items-center gap-1 px-2 py-1 bg-cyan-600 text-white rounded text-xs font-semibold hover:bg-cyan-700"
+                        title="Open detailed stage tracking: times, materials, checkpoints, rework"
+                      >
+                        <BarChart3
+                          style={{ fontSize: "10px" }}
+                          className="w-3 h-3"
+                        />
+                        Track
+                      </button>
+
                       {currentStage.status === "pending" && (
                         <button
                           onClick={handleStartStage}
@@ -1101,6 +1153,21 @@ const ProductionTrackingWizard = ({ orderId, onClose, onUpdate }) => {
           </div>
         </div>
       </div>
+
+      {/* Stage Tracking Modal */}
+      {stageTrackingOpen && selectedTrackingStage && (
+        <StageTrackingModal
+          isOpen={stageTrackingOpen}
+          onClose={() => setStageTrackingOpen(false)}
+          stageId={selectedTrackingStage.id}
+          stageName={selectedTrackingStage.stage_name
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase())}
+          productionOrderId={productionOrder?.production_number}
+          onUpdate={handleStageTrackingUpdate}
+          stage={selectedTrackingStage}
+        />
+      )}
 
       {/* Material Reconciliation Dialog */}
       {reconciliationDialog && (
