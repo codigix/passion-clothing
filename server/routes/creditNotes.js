@@ -338,12 +338,12 @@ router.get(
           {
             model: Vendor,
             as: 'Vendor',
-            attributes: ['id', 'vendor_name', 'contact_email']
+            attributes: ['id', 'name', 'email']
           },
           {
             model: User,
             as: 'CreatedBy',
-            attributes: ['id', 'username', 'email']
+            attributes: ['id', 'name', 'email']
           }
         ],
         order: [['created_at', 'DESC']],
@@ -390,22 +390,22 @@ router.get(
           {
             model: Vendor,
             as: 'Vendor',
-            attributes: ['id', 'vendor_name', 'contact_email', 'contact_number']
+            attributes: ['id', 'name', 'email', 'phone', 'mobile']
           },
           {
             model: User,
             as: 'CreatedBy',
-            attributes: ['id', 'username', 'email']
+            attributes: ['id', 'name', 'email']
           },
           {
             model: User,
             as: 'IssuedBy',
-            attributes: ['id', 'username', 'email']
+            attributes: ['id', 'name', 'email']
           },
           {
             model: User,
             as: 'ApprovedBy',
-            attributes: ['id', 'username', 'email']
+            attributes: ['id', 'name', 'email']
           }
         ]
       });

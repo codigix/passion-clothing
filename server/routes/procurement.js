@@ -1,5 +1,5 @@
 const express = require("express");
-const { Op } = require("sequelize");
+const { Op, fn, col, literal } = require("sequelize");
 const {
   PurchaseOrder,
   Vendor,
@@ -635,7 +635,39 @@ router.post(
       });
     } catch (error) {
       console.error("Purchase order creation error:", error);
-      res.status(500).json({ message: "Failed to create purchase order" });
+
+      // Provide more detailed error information
+      let errorMessage = "Failed to create purchase order";
+      let errorDetails = null;
+
+      if (error.name === 'SequelizeValidationError') {
+        errorMessage = "Validation error";
+        errorDetails = error.errors.map(err => ({
+          field: err.path,
+          message: err.message,
+          value: err.value
+        }));
+      } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+        errorMessage = "Foreign key constraint error";
+        errorDetails = {
+          message: error.message,
+          fields: error.fields
+        };
+      } else if (error.name === 'SequelizeUniqueConstraintError') {
+        errorMessage = "Unique constraint error";
+        errorDetails = {
+          message: error.message,
+          fields: error.fields
+        };
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      res.status(500).json({
+        message: errorMessage,
+        error: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   }
 );
@@ -1402,6 +1434,13 @@ router.get(
             model: User,
             as: "approver",
             attributes: ["id", "name", "email"],
+            required: false,
+          },
+          {
+            model: Challan,
+            as: "challan",
+            attributes: ["id", "challan_number", "status", "created_at"],
+            where: { type: "inward", sub_type: "purchase" },
             required: false,
           },
         ],
@@ -4340,8 +4379,28 @@ router.post(
           id: invoice.id,
           invoice_number: invoice.invoice_number,
           po_number: purchaseOrder.po_number,
-          vendor_name: purchaseOrder.vendor?.name,
+          po_date: purchaseOrder.po_date,
+          invoice_date: invoice.invoice_date,
+          due_date: invoice.due_date,
+          status: purchaseOrder.status,
+          priority: purchaseOrder.priority,
+          vendor: purchaseOrder.vendor,
+          customer: purchaseOrder.customer,
+          client_name: purchaseOrder.client_name,
+          project_name: purchaseOrder.project_name,
+          items: items,
+          subtotal: invoice.subtotal,
+          discount_percentage: invoice.discount_percentage,
+          discount_amount: invoice.discount_amount,
+          tax_percentage: purchaseOrder.tax_percentage || 0,
+          total_tax_amount: invoice.total_tax_amount,
+          freight: purchaseOrder.freight || 0,
           total_amount: invoice.total_amount,
+          payment_terms: purchaseOrder.payment_terms,
+          special_instructions: purchaseOrder.special_instructions,
+          terms_conditions: purchaseOrder.terms_conditions,
+          delivery_address: purchaseOrder.delivery_address,
+          expected_delivery_date: purchaseOrder.expected_delivery_date,
           created_at: invoice.created_at
         }
       });
@@ -4351,6 +4410,262 @@ router.post(
         message: "Failed to generate invoice",
         error: error.message
       });
+    }
+  }
+);
+
+// Get procurement dashboard statistics
+router.get(
+  "/dashboard/stats",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const totalPOs = await PurchaseOrder.count();
+      
+      const openPOs = await PurchaseOrder.count({
+        where: { status: { [Op.in]: ["draft", "pending_approval", "approved", "sent"] } },
+      });
+
+      const vendorCount = await Vendor.count({
+        where: { status: "active" },
+      });
+
+      const pendingOrders = await PurchaseOrder.count({
+        where: { status: { [Op.in]: ["draft", "pending_approval"] } },
+      });
+
+      const totalSpend = await PurchaseOrder.sum("final_amount", {
+        where: { status: { [Op.in]: ["approved", "sent", "received", "completed"] } },
+      }) || 0;
+
+      const inTransit = await PurchaseOrder.count({
+        where: { status: { [Op.in]: ["dispatched", "in_transit"] } },
+      });
+
+      const received = await PurchaseOrder.count({
+        where: { status: { [Op.in]: ["received", "partial_received"] } },
+      });
+
+      res.json({
+        totalPOs,
+        openPOs,
+        vendorCount,
+        pendingOrders,
+        totalSpend: parseFloat(totalSpend),
+        inTransit,
+        received,
+      });
+    } catch (error) {
+      console.error("Procurement stats error:", error);
+      res.status(500).json({ message: "Failed to fetch procurement statistics" });
+    }
+  }
+);
+
+// Get vendor performance metrics
+router.get(
+  "/dashboard/vendor-performance",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const topVendors = await PurchaseOrder.findAll({
+        attributes: [
+          [col("Vendor.id"), "vendor_id"],
+          [col("Vendor.name"), "vendor_name"],
+          [fn("COUNT", col("PurchaseOrder.id")), "po_count"],
+          [fn("SUM", col("PurchaseOrder.final_amount")), "total_spent"],
+          [fn("AVG", col("PurchaseOrder.final_amount")), "avg_order_value"],
+        ],
+        include: [
+          {
+            model: Vendor,
+            as: "vendor",
+            attributes: ["id", "name", "vendor_code"],
+            required: true,
+          },
+        ],
+        group: ["vendor.id", "vendor.name", "vendor.vendor_code"],
+        order: [[literal("total_spent"), "DESC"]],
+        limit: 10,
+        raw: true,
+        subQuery: false,
+      });
+
+      const averageDeliveryTime = await PurchaseOrder.findAll({
+        attributes: [
+          [col("Vendor.id"), "vendor_id"],
+          [col("Vendor.name"), "vendor_name"],
+          [fn("AVG", col("delivery_days")), "avg_delivery_days"],
+        ],
+        include: [
+          {
+            model: Vendor,
+            as: "vendor",
+            attributes: ["id", "name"],
+            required: true,
+          },
+        ],
+        group: ["vendor.id", "vendor.name"],
+        order: [[literal("avg_delivery_days"), "ASC"]],
+        raw: true,
+        subQuery: false,
+      });
+
+      res.json({
+        topVendors: topVendors.map((vendor) => ({
+          id: vendor.vendor_id,
+          name: vendor.vendor_name,
+          vendor_code: vendor.vendor_code,
+          po_count: parseInt(vendor.po_count || 0),
+          total_spent: parseFloat(vendor.total_spent || 0),
+          avg_order_value: parseFloat(vendor.avg_order_value || 0),
+        })),
+        delivery_performance: averageDeliveryTime.map((vendor) => ({
+          name: vendor.vendor_name,
+          avg_delivery_days: parseFloat(vendor.avg_delivery_days || 0),
+        })),
+      });
+    } catch (error) {
+      console.error("Vendor performance error:", error);
+      res.status(500).json({ message: "Failed to fetch vendor performance" });
+    }
+  }
+);
+
+// Get material analysis (breakdown by material type)
+router.get(
+  "/dashboard/material-analysis",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const materialBreakdown = await PurchaseOrder.findAll({
+        attributes: [
+          "material_type",
+          [fn("COUNT", col("id")), "count"],
+          [fn("SUM", col("final_amount")), "total_amount"],
+          [fn("SUM", col("total_quantity")), "total_quantity"],
+        ],
+        where: { material_type: { [Op.not]: null } },
+        group: ["material_type"],
+        order: [[literal("total_amount"), "DESC"]],
+        raw: true,
+      });
+
+      const totalAmount = materialBreakdown.reduce(
+        (sum, item) => sum + (parseFloat(item.total_amount) || 0),
+        0
+      );
+
+      res.json({
+        material_breakdown: materialBreakdown.map((item) => ({
+          material_type: item.material_type || "Unknown",
+          count: parseInt(item.count || 0),
+          total_amount: parseFloat(item.total_amount || 0),
+          total_quantity: parseInt(item.total_quantity || 0),
+          percentage:
+            totalAmount > 0
+              ? (
+                  ((parseFloat(item.total_amount) || 0) / totalAmount) *
+                  100
+                ).toFixed(1)
+              : 0,
+        })),
+        total_amount: totalAmount,
+      });
+    } catch (error) {
+      console.error("Material analysis error:", error);
+      res.status(500).json({ message: "Failed to fetch material analysis" });
+    }
+  }
+);
+
+// Get pending actions for procurement
+router.get(
+  "/dashboard/pending-actions",
+  authenticateToken,
+  checkDepartment(["procurement", "admin"]),
+  async (req, res) => {
+    try {
+      const pendingApprovals = await PurchaseOrder.findAll({
+        where: { status: "pending_approval" },
+        attributes: ["id", "po_number", "vendor_id", "final_amount", "created_at"],
+        include: [
+          {
+            model: Vendor,
+            as: "vendor",
+            attributes: ["name"],
+          },
+        ],
+        limit: 10,
+        order: [["created_at", "ASC"]],
+      });
+
+      const pendingGRN = await PurchaseOrder.findAll({
+        where: { status: "grn_requested" },
+        attributes: ["id", "po_number", "vendor_id", "final_amount", "created_at"],
+        include: [
+          {
+            model: Vendor,
+            as: "vendor",
+            attributes: ["name"],
+          },
+        ],
+        limit: 10,
+        order: [["created_at", "ASC"]],
+      });
+
+      const inTransit = await PurchaseOrder.findAll({
+        where: { status: "in_transit" },
+        attributes: ["id", "po_number", "vendor_id", "expected_delivery_date", "created_at"],
+        include: [
+          {
+            model: Vendor,
+            as: "vendor",
+            attributes: ["name"],
+          },
+        ],
+        limit: 10,
+        order: [["expected_delivery_date", "ASC"]],
+      });
+
+      res.json({
+        pending_approvals: pendingApprovals.map((po) => ({
+          id: po.id,
+          po_number: po.po_number,
+          vendor: po.vendor?.name,
+          amount: parseFloat(po.final_amount || 0),
+          days_pending: Math.floor(
+            (Date.now() - new Date(po.created_at)) / (1000 * 60 * 60 * 24)
+          ),
+        })),
+        pending_approvals_count: pendingApprovals.length,
+        pending_grn: pendingGRN.map((po) => ({
+          id: po.id,
+          po_number: po.po_number,
+          vendor: po.vendor?.name,
+          amount: parseFloat(po.final_amount || 0),
+          days_pending: Math.floor(
+            (Date.now() - new Date(po.created_at)) / (1000 * 60 * 60 * 24)
+          ),
+        })),
+        pending_grn_count: pendingGRN.length,
+        in_transit: inTransit.map((po) => ({
+          id: po.id,
+          po_number: po.po_number,
+          vendor: po.vendor?.name,
+          expected_delivery: po.expected_delivery_date,
+          days_in_transit: Math.floor(
+            (Date.now() - new Date(po.created_at)) / (1000 * 60 * 60 * 24)
+          ),
+        })),
+        in_transit_count: inTransit.length,
+      });
+    } catch (error) {
+      console.error("Pending actions error:", error);
+      res.status(500).json({ message: "Failed to fetch pending actions" });
     }
   }
 );

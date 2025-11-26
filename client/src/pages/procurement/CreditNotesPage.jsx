@@ -74,7 +74,7 @@ const CreditNotesPage = () => {
     if (searchTerm) {
       filtered = filtered.filter(note =>
         note.credit_note_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.Vendor?.vendor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.Vendor?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.GRN?.grn_number?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -268,7 +268,7 @@ const CreditNotesPage = () => {
                         </td>
                         <td className="px-6 py-4">
                           <p className="font-semibold text-slate-800">
-                            {note.Vendor?.vendor_name || 'N/A'}
+                            {note.Vendor?.name || 'N/A'}
                           </p>
                         </td>
                         <td className="px-6 py-4">
@@ -276,7 +276,7 @@ const CreditNotesPage = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <p className="font-bold text-blue-600 text-lg">
-                            ₹{(note.total_amount || 0).toFixed(2)}
+                            ₹{Number(note.total_credit_amount || 0).toFixed(2)}
                           </p>
                           <p className="text-xs text-slate-500">
                             {note.credit_note_type?.replace('_', ' ')}

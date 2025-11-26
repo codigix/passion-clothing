@@ -412,7 +412,7 @@ const PurchaseOrderDetailsPage = () => {
                       </div>
                       <div className="bg-white rounded p-1.5 shadow-sm">
                         <span className="text-xs text-gray-500">Order Date</span>
-                        <p className="text-xs font-semibold text-gray-900 mt-0.5">{new Date(order.order_date).toLocaleDateString()}</p>
+                        <p className="text-xs font-semibold text-gray-900 mt-0.5">{new Date(order.po_date).toLocaleDateString()}</p>
                       </div>
                       <div className="bg-white rounded p-1.5 shadow-sm">
                         <span className="text-xs text-gray-500">Expected Delivery</span>

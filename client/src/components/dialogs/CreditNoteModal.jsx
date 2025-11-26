@@ -116,6 +116,41 @@ const CreditNoteModal = ({ isOpen, onClose, grnData, onSuccess }) => {
 
       const response = await api.post('/credit-notes/', payload);
       
+      const creditNoteNumber = response.data.credit_note_number || response.data.data?.credit_note_number;
+      
+      if (formData.settlement_method === 'adjust_invoice') {
+        try {
+          await api.post('/notifications/send', {
+            type: 'credit_note_adjustment',
+            department: 'finance',
+            credit_note_id: response.data.id || response.data.data?.id,
+            credit_note_number: creditNoteNumber,
+            po_number: grnData.metadata?.po_number,
+            vendor_name: grnData.metadata?.vendor_name,
+            amount: totals.total,
+            action_required: 'Adjust invoice and process payment',
+            settlement_method: formData.settlement_method
+          });
+        } catch (notificationError) {
+          console.error('Error sending notification:', notificationError);
+        }
+      } else if (formData.settlement_method === 'future_deduction') {
+        try {
+          await api.post('/notifications/send', {
+            type: 'credit_note_deduction',
+            department: 'finance',
+            credit_note_id: response.data.id || response.data.data?.id,
+            credit_note_number: creditNoteNumber,
+            vendor_name: grnData.metadata?.vendor_name,
+            amount: totals.total,
+            action_required: 'Track future deduction against vendor',
+            settlement_method: formData.settlement_method
+          });
+        } catch (notificationError) {
+          console.error('Error sending notification:', notificationError);
+        }
+      }
+      
       toast.success('Credit note created successfully');
       
       if (onSuccess) {

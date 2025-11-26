@@ -56,6 +56,9 @@ const SalesDashboard = () => {
   const [salesOrders, setSalesOrders] = useState([]);
   const [salesPipeline, setSalesPipeline] = useState([]);
   const [customerStats, setCustomerStats] = useState(null);
+  const [customerInsights, setCustomerInsights] = useState(null);
+  const [deliveryPerformance, setDeliveryPerformance] = useState(null);
+  const [pendingActions, setPendingActions] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [dateFilter, setDateFilter] = useState({
     from: "",
@@ -156,17 +159,28 @@ const SalesDashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch dashboard stats
-      const statsResponse = await api.get("/sales/dashboard/stats");
+      const [
+        statsResponse,
+        ordersResponse,
+        pipelineResponse,
+        customerInsightsResponse,
+        deliveryPerformanceResponse,
+        pendingActionsResponse,
+      ] = await Promise.all([
+        api.get("/sales/dashboard/stats"),
+        api.get("/sales/orders?page=1&limit=20"),
+        api.get("/sales/pipeline"),
+        api.get("/sales/dashboard/customer-insights"),
+        api.get("/sales/dashboard/delivery-performance"),
+        api.get("/sales/dashboard/pending-actions"),
+      ]);
+
       setStats(statsResponse.data);
-
-      // Fetch sales orders
-      const ordersResponse = await api.get("/sales/orders?page=1&limit=20");
       setSalesOrders(ordersResponse.data.orders);
-
-      // Fetch sales pipeline
-      const pipelineResponse = await api.get("/sales/pipeline");
       setSalesPipeline(pipelineResponse.data.pipeline);
+      setCustomerInsights(customerInsightsResponse.data);
+      setDeliveryPerformance(deliveryPerformanceResponse.data);
+      setPendingActions(pendingActionsResponse.data);
     } catch (err) {
       console.error("Error fetching sales dashboard data:", err);
       setError(err.response?.data?.message || "Failed to load dashboard data");
@@ -432,6 +446,83 @@ const SalesDashboard = () => {
         <div className="mb-6">
           <RecentActivities autoRefreshInterval={30000} />
         </div>
+
+        {/* KPI Cards Section */}
+        {(deliveryPerformance || customerInsights || pendingActions) && (
+          <div className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* On-Time Delivery Rate */}
+              {deliveryPerformance && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700">On-Time Rate</h3>
+                    <FaTruck className="text-cyan-500 text-lg" />
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {deliveryPerformance.on_time_rate || 0}%
+                  </p>
+                  <p className="text-xs text-slate-600 mt-2">
+                    {deliveryPerformance.on_time_orders || 0} on-time deliveries
+                  </p>
+                  <div className="text-xs text-red-600 mt-1">
+                    {deliveryPerformance.overdue_orders || 0} overdue
+                  </div>
+                </div>
+              )}
+
+              {/* Top Customers */}
+              {customerInsights && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700">Top Customer</h3>
+                    <FaUser className="text-emerald-500 text-lg" />
+                  </div>
+                  <p className="text-base font-bold text-slate-900 truncate">
+                    {customerInsights.topCustomers?.[0]?.name || "N/A"}
+                  </p>
+                  <p className="text-xs text-slate-600 mt-2">
+                    ₹{(customerInsights.topCustomers?.[0]?.revenue || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })} revenue
+                  </p>
+                  <div className="text-xs text-emerald-600 mt-1">
+                    {customerInsights.topCustomers?.[0]?.orders || 0} orders
+                  </div>
+                </div>
+              )}
+
+              {/* Repeat Customers */}
+              {customerInsights && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700">Repeat Customers</h3>
+                    <FaStar className="text-yellow-500 text-lg" />
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {customerInsights.repeat_customers_count || 0}
+                  </p>
+                  <p className="text-xs text-slate-600 mt-2">
+                    Customers with multiple orders
+                  </p>
+                </div>
+              )}
+
+              {/* Pending Actions Count */}
+              {pendingActions && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700">Pending Actions</h3>
+                    <FaClock className="text-orange-500 text-lg" />
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {(pendingActions.pending_approval_count || 0) + (pendingActions.pending_procurement_count || 0)}
+                  </p>
+                  <p className="text-xs text-slate-600 mt-2">
+                    {pendingActions.pending_approval_count || 0} awaiting approval
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Modern Search and Filters Bar */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-6">

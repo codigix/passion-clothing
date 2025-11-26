@@ -115,6 +115,7 @@ import OutsourceManagementPage from "./pages/manufacturing/OutsourceManagementPa
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import RoleManagementPage from "./pages/admin/RoleManagementPage";
 import SystemConfigPage from "./pages/admin/SystemConfigPage.jsx";
+import DepartmentDetailPage from "./pages/admin/DepartmentDetailPage";
 
 // Store Pages
 import StoreReturnsPage from "./pages/store/StoreReturnsPage";
@@ -1005,6 +1006,14 @@ function App() {
           element={
             <ProtectedDashboard department="admin">
               <CourierAgentManagementPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/admin/department/:departmentName"
+          element={
+            <ProtectedDashboard department="admin">
+              <DepartmentDetailPage />
             </ProtectedDashboard>
           }
         />

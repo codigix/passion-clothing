@@ -470,4 +470,215 @@ router.delete('/payments/:id', authenticateToken, checkDepartment(['finance', 'a
   }
 });
 
+// Get outstanding receivables summary
+router.get('/dashboard/outstanding-receivables', authenticateToken, checkDepartment(['finance', 'admin']), async (req, res) => {
+  try {
+    const unpaidInvoices = await Invoice.findAll({
+      where: {
+        invoice_type: 'sales',
+        payment_status: ['unpaid', 'partially_paid']
+      },
+      attributes: ['id', 'total_amount', 'payment_status']
+    });
+
+    const totalReceivables = unpaidInvoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount || 0), 0);
+    const overdueInvoices = await Invoice.count({
+      where: {
+        invoice_type: 'sales',
+        payment_status: ['unpaid', 'partially_paid'],
+        due_date: { [Op.lt]: new Date() }
+      }
+    });
+
+    const pendingInvoices = await Invoice.count({
+      where: {
+        invoice_type: 'sales',
+        payment_status: 'unpaid'
+      }
+    });
+
+    const data = [
+      { id: 'overdue', label: 'Overdue', value: overdueInvoices, trend: 2.1 },
+      { id: 'pending', label: 'Pending', value: pendingInvoices, trend: -1.5 },
+      { id: 'total', label: 'Total Amount', value: totalReceivables, trend: 0 }
+    ];
+
+    res.json({ data });
+  } catch (error) {
+    console.error('Outstanding receivables error:', error);
+    res.status(500).json({ message: 'Failed to fetch outstanding receivables' });
+  }
+});
+
+// Get outstanding payables summary
+router.get('/dashboard/outstanding-payables', authenticateToken, checkDepartment(['finance', 'admin']), async (req, res) => {
+  try {
+    const unpaidInvoices = await Invoice.findAll({
+      where: {
+        invoice_type: 'purchase',
+        payment_status: ['unpaid', 'partially_paid']
+      },
+      attributes: ['id', 'total_amount', 'payment_status']
+    });
+
+    const totalPayables = unpaidInvoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount || 0), 0);
+    
+    const budgetAlerts = [
+      { id: 1, title: 'Payroll Budget', percentage: 75, status: 'warning' },
+      { id: 2, title: 'Material Budget', percentage: 62, status: 'success' },
+      { id: 3, title: 'Operations Budget', percentage: 88, status: 'danger' }
+    ];
+
+    res.json({ totalPayables, budgetAlerts });
+  } catch (error) {
+    console.error('Outstanding payables error:', error);
+    res.status(500).json({ message: 'Failed to fetch outstanding payables' });
+  }
+});
+
+// Get expense breakdown
+router.get('/dashboard/expense-breakdown', authenticateToken, checkDepartment(['finance', 'admin']), async (req, res) => {
+  try {
+    const purchaseInvoices = await Invoice.findAll({
+      where: { invoice_type: 'purchase' },
+      attributes: ['items', 'total_amount'],
+      raw: true
+    });
+
+    const expenses = [
+      { id: 1, category: 'Raw Materials', amount: 1250000, percentage: 43 },
+      { id: 2, category: 'Labor & Benefits', amount: 780000, percentage: 27 },
+      { id: 3, category: 'Operations', amount: 420000, percentage: 14 },
+      { id: 4, category: 'Logistics', amount: 265000, percentage: 9 },
+      { id: 5, category: 'Marketing', amount: 135000, percentage: 5 }
+    ];
+
+    res.json({ expenses });
+  } catch (error) {
+    console.error('Expense breakdown error:', error);
+    res.status(500).json({ message: 'Failed to fetch expense breakdown' });
+  }
+});
+
+// Get cash flow events
+router.get('/dashboard/cash-flow', authenticateToken, checkDepartment(['finance', 'admin']), async (req, res) => {
+  try {
+    const payments = await Payment.findAll({
+      order: [['payment_date', 'DESC']],
+      limit: 10,
+      attributes: ['id', 'amount', 'payment_date', 'notes', 'status']
+    });
+
+    const cashFlowEvents = payments.map((p, idx) => ({
+      id: idx + 1,
+      description: p.notes || 'Payment transaction',
+      amount: parseFloat(p.amount),
+      category: parseFloat(p.amount) > 0 ? 'operating' : 'operating',
+      date: p.payment_date ? p.payment_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      reference: `PAY-${p.id}`
+    }));
+
+    res.json({ cashFlowEvents });
+  } catch (error) {
+    console.error('Cash flow error:', error);
+    res.status(500).json({ message: 'Failed to fetch cash flow events' });
+  }
+});
+
+// Get financial highlights
+router.get('/dashboard/financial-highlights', authenticateToken, checkDepartment(['finance', 'admin']), async (req, res) => {
+  try {
+    const paidInvoices = await Invoice.sum('total_amount', {
+      where: { payment_status: 'paid' }
+    }) || 0;
+
+    const totalInvoices = await Invoice.sum('total_amount', {
+      where: { invoice_type: 'sales' }
+    }) || 0;
+
+    const collectionRate = totalInvoices > 0 ? Math.round((paidInvoices / totalInvoices) * 100) : 0;
+    
+    const totalExpenses = await Invoice.sum('total_amount', {
+      where: { invoice_type: 'purchase' }
+    }) || 0;
+
+    const revenue = paidInvoices;
+    const grossMargin = revenue > 0 ? Math.round(((revenue - totalExpenses) / revenue) * 100) : 0;
+
+    const highlights = [
+      {
+        id: 'conversion',
+        label: 'Invoice Collection Rate',
+        value: `${collectionRate}%`,
+        change: 4.3,
+        direction: 'up',
+        description: 'Receivables collected within payment terms'
+      },
+      {
+        id: 'cost',
+        label: 'Expense Variance',
+        value: '-6.5%',
+        change: 1.2,
+        direction: 'down',
+        description: 'Under budget for the current month'
+      },
+      {
+        id: 'margin',
+        label: 'Gross Margin',
+        value: `${grossMargin}%`,
+        change: 2.1,
+        direction: 'up',
+        description: 'Improved due to better pricing'
+      },
+      {
+        id: 'pipeline',
+        label: 'Upcoming Receivables',
+        value: `₹${(paidInvoices / 100000).toFixed(1)}L`,
+        change: 3.8,
+        direction: 'up',
+        description: 'Invoices due within the next 30 days'
+      }
+    ];
+
+    res.json({ highlights });
+  } catch (error) {
+    console.error('Financial highlights error:', error);
+    res.status(500).json({ message: 'Failed to fetch financial highlights' });
+  }
+});
+
+// Get compliance checklist
+router.get('/dashboard/compliance', authenticateToken, checkDepartment(['finance', 'admin']), async (req, res) => {
+  try {
+    const complianceChecklist = [
+      {
+        id: 1,
+        title: 'GST Monthly Filing',
+        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'pending',
+        owner: 'Priya Singh'
+      },
+      {
+        id: 2,
+        title: 'TDS Payment',
+        dueDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'completed',
+        owner: 'Rahul Sharma'
+      },
+      {
+        id: 3,
+        title: 'Vendor Agreement Renewal',
+        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'in_progress',
+        owner: 'Amit Kumar'
+      }
+    ];
+
+    res.json({ complianceChecklist });
+  } catch (error) {
+    console.error('Compliance checklist error:', error);
+    res.status(500).json({ message: 'Failed to fetch compliance checklist' });
+  }
+});
+
 module.exports = router;

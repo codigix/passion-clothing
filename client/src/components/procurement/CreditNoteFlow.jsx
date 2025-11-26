@@ -42,19 +42,19 @@ const CreditNoteFlow = ({ creditNote, onUpdate, onClose }) => {
         {
           status: creditNote?.status,
           timestamp: creditNote?.created_at,
-          user: creditNote?.CreatedBy?.username || 'System',
+          user: creditNote?.CreatedBy?.name || 'System',
           action: 'Created'
         },
         ...(creditNote?.issued_at ? [{
           status: 'issued',
           timestamp: creditNote.issued_at,
-          user: creditNote?.IssuedBy?.username || 'System',
+          user: creditNote?.IssuedBy?.name || 'System',
           action: 'Issued to Vendor'
         }] : []),
         ...(creditNote?.approved_at ? [{
           status: 'accepted',
           timestamp: creditNote.approved_at,
-          user: creditNote?.ApprovedBy?.username || 'System',
+          user: creditNote?.ApprovedBy?.name || 'System',
           action: 'Accepted'
         }] : [])
       ]);
@@ -142,7 +142,7 @@ const CreditNoteFlow = ({ creditNote, onUpdate, onClose }) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <p className="text-xs text-slate-600 mb-1">Vendor</p>
-            <p className="font-bold text-slate-800">{creditNote?.Vendor?.vendor_name}</p>
+            <p className="font-bold text-slate-800">{creditNote?.Vendor?.name}</p>
           </div>
           <div>
             <p className="text-xs text-slate-600 mb-1">Credit Note Type</p>
@@ -154,7 +154,7 @@ const CreditNoteFlow = ({ creditNote, onUpdate, onClose }) => {
           </div>
           <div>
             <p className="text-xs text-slate-600 mb-1">Total Amount</p>
-            <p className="font-bold text-blue-600 text-lg">₹{creditNote?.total_amount?.toFixed(2)}</p>
+            <p className="font-bold text-blue-600 text-lg">₹{Number(creditNote?.total_amount)?.toFixed(2)}</p>
           </div>
         </div>
       </div>
@@ -163,15 +163,15 @@ const CreditNoteFlow = ({ creditNote, onUpdate, onClose }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border-2 border-slate-200 rounded-lg p-4">
           <p className="text-xs font-semibold text-slate-600 mb-2">Subtotal</p>
-          <p className="text-2xl font-bold text-slate-800">₹{creditNote?.subtotal_amount?.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-slate-800">₹{Number(creditNote?.subtotal_credit_amount)?.toFixed(2)}</p>
         </div>
         <div className="bg-white border-2 border-slate-200 rounded-lg p-4">
           <p className="text-xs font-semibold text-slate-600 mb-2">Tax ({creditNote?.tax_percentage}%)</p>
-          <p className="text-2xl font-bold text-orange-600">₹{creditNote?.tax_amount?.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-orange-600">₹{Number(creditNote?.tax_amount)?.toFixed(2)}</p>
         </div>
         <div className="bg-white border-2 border-blue-300 rounded-lg p-4">
           <p className="text-xs font-semibold text-slate-600 mb-2">Total Amount</p>
-          <p className="text-2xl font-bold text-blue-600">₹{creditNote?.total_amount?.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-blue-600">₹{Number(creditNote?.total_credit_amount)?.toFixed(2)}</p>
         </div>
       </div>
 
@@ -200,13 +200,13 @@ const CreditNoteFlow = ({ creditNote, onUpdate, onClose }) => {
                     {item.material_name}
                   </td>
                   <td className="px-4 py-3 text-center text-slate-600">
-                    {item.quantity}
+                    {item.overage_quantity}
                   </td>
                   <td className="px-4 py-3 text-center text-slate-600">
-                    ₹{item.unit_price?.toFixed(2)}
+                    ₹{Number(item.rate)?.toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-blue-600">
-                    ₹{(item.quantity * item.unit_price)?.toFixed(2)}
+                    ₹{Number(item.total_value)?.toFixed(2)}
                   </td>
                 </tr>
               ))}

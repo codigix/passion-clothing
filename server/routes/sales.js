@@ -17,6 +17,7 @@ const {
   Invoice,
   SalesOrderHistory,
   Shipment,
+  sequelize,
 } = require("../config/database");
 const { authenticateToken, checkDepartment } = require("../middleware/auth");
 const NotificationService = require("../utils/notificationService");
@@ -3082,6 +3083,232 @@ router.post(
           message: "Failed to send invoice to accounting",
           error: error.message,
         });
+    }
+  }
+);
+
+// Get top customers by revenue
+router.get(
+  "/dashboard/customer-insights",
+  authenticateToken,
+  checkDepartment(["sales", "admin"]),
+  async (req, res) => {
+    try {
+      const topCustomers = await SalesOrder.findAll({
+        attributes: [
+          [col("SalesOrder.customer_id"), "customer_id"],
+          [fn("COUNT", col("SalesOrder.id")), "orders_count"],
+          [fn("SUM", col("SalesOrder.final_amount")), "total_revenue"],
+          [fn("AVG", col("SalesOrder.final_amount")), "avg_order_value"],
+        ],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: ["id", "name", "customer_code", "email", "phone"],
+            required: true,
+          },
+        ],
+        group: ["SalesOrder.customer_id", "customer.id"],
+        order: [[literal("total_revenue"), "DESC"]],
+        limit: 10,
+        subQuery: false,
+      });
+
+      const repeatCustomers = await SalesOrder.findAll({
+        attributes: [
+          [col("SalesOrder.customer_id"), "customer_id"],
+          [fn("COUNT", col("SalesOrder.id")), "orders_count"],
+        ],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: ["id", "name"],
+            required: true,
+          },
+        ],
+        group: ["SalesOrder.customer_id", "customer.id"],
+        having: sequelize.where(fn("COUNT", col("SalesOrder.id")), Op.gt, 1),
+        raw: false,
+      });
+
+      res.json({
+        topCustomers: topCustomers.map((entry) => ({
+          id: entry.customer?.id,
+          name: entry.customer?.name,
+          customer_code: entry.customer?.customer_code,
+          orders: parseInt(entry.getDataValue("orders_count"), 10),
+          revenue: parseFloat(entry.getDataValue("total_revenue") || 0),
+          avg_order_value: parseFloat(
+            entry.getDataValue("avg_order_value") || 0
+          ),
+        })),
+        repeat_customers_count: repeatCustomers.length,
+      });
+    } catch (error) {
+      console.error("Customer insights error:", error);
+      res.status(500).json({ message: "Failed to fetch customer insights" });
+    }
+  }
+);
+
+// Get delivery performance metrics
+router.get(
+  "/dashboard/delivery-performance",
+  authenticateToken,
+  checkDepartment(["sales", "admin"]),
+  async (req, res) => {
+    try {
+      const now = new Date();
+
+      const completedOrders = await SalesOrder.count({
+        where: { status: ["completed", "delivered"] },
+      });
+
+      const overdueOrders = await SalesOrder.count({
+        where: {
+          delivery_date: { [Op.lt]: now },
+          status: { [Op.notIn]: ["completed", "delivered", "cancelled"] },
+        },
+      });
+
+      const onTimeOrders = await SalesOrder.count({
+        where: {
+          status: { [Op.in]: ["completed", "delivered"] },
+          delivery_date: { [Op.gte]: now },
+        },
+      });
+
+      const lateOrders = await SalesOrder.count({
+        where: {
+          status: { [Op.in]: ["completed", "delivered"] },
+          delivery_date: { [Op.lt]: now },
+        },
+      });
+
+      const onTimeRate =
+        completedOrders > 0
+          ? ((onTimeOrders / completedOrders) * 100).toFixed(1)
+          : 0;
+
+      const deliveryStats = await SalesOrder.findAll({
+        attributes: [
+          "status",
+          [fn("COUNT", col("id")), "count"],
+          [fn("AVG", col("delivery_date")), "avg_delivery_date"],
+        ],
+        group: ["status"],
+        raw: true,
+      });
+
+      res.json({
+        on_time_rate: parseFloat(onTimeRate),
+        completed_orders: completedOrders,
+        overdue_orders: overdueOrders,
+        on_time_orders: onTimeOrders,
+        late_orders: lateOrders,
+        delivery_by_status: deliveryStats.map((stat) => ({
+          status: stat.status,
+          count: parseInt(stat.count, 10),
+        })),
+      });
+    } catch (error) {
+      console.error("Delivery performance error:", error);
+      res.status(500).json({ message: "Failed to fetch delivery performance" });
+    }
+  }
+);
+
+// Get pending actions (orders awaiting approval/procurement/production)
+router.get(
+  "/dashboard/pending-actions",
+  authenticateToken,
+  checkDepartment(["sales", "admin"]),
+  async (req, res) => {
+    try {
+      const pendingApproval = await SalesOrder.findAll({
+        where: { status: "pending_approval" },
+        attributes: ["id", "order_number", "customer_id", "final_amount", "created_at"],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: ["name"],
+          },
+        ],
+        limit: 10,
+        order: [["created_at", "ASC"]],
+      });
+
+      const pendingProcurement = await SalesOrder.findAll({
+        where: {
+          ready_for_procurement: true,
+          status: "draft",
+        },
+        attributes: ["id", "order_number", "customer_id", "final_amount", "created_at"],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: ["name"],
+          },
+        ],
+        limit: 10,
+        order: [["created_at", "ASC"]],
+      });
+
+      const pendingProduction = await SalesOrder.findAll({
+        where: {
+          status: { [Op.in]: ["confirmed"] },
+        },
+        attributes: ["id", "order_number", "customer_id", "total_quantity", "created_at"],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: ["name"],
+          },
+        ],
+        limit: 10,
+        order: [["created_at", "ASC"]],
+      });
+
+      res.json({
+        pending_approval: pendingApproval.map((order) => ({
+          id: order.id,
+          order_number: order.order_number,
+          customer: order.customer?.name,
+          amount: parseFloat(order.final_amount || 0),
+          days_pending: Math.floor(
+            (Date.now() - new Date(order.created_at)) / (1000 * 60 * 60 * 24)
+          ),
+        })),
+        pending_approval_count: pendingApproval.length,
+        pending_procurement: pendingProcurement.map((order) => ({
+          id: order.id,
+          order_number: order.order_number,
+          customer: order.customer?.name,
+          amount: parseFloat(order.final_amount || 0),
+          days_pending: Math.floor(
+            (Date.now() - new Date(order.created_at)) / (1000 * 60 * 60 * 24)
+          ),
+        })),
+        pending_procurement_count: pendingProcurement.length,
+        pending_production: pendingProduction.map((order) => ({
+          id: order.id,
+          order_number: order.order_number,
+          customer: order.customer?.name,
+          quantity: order.total_quantity,
+          days_pending: Math.floor(
+            (Date.now() - new Date(order.created_at)) / (1000 * 60 * 60 * 24)
+          ),
+        })),
+        pending_production_count: pendingProduction.length,
+      });
+    } catch (error) {
+      console.error("Pending actions error:", error);
+      res.status(500).json({ message: "Failed to fetch pending actions" });
     }
   }
 );

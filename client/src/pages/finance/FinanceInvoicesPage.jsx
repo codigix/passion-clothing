@@ -394,7 +394,7 @@ function InvoiceViewModal({ invoice, onClose }) {
 
         {/* Tab Navigation */}
         <div className="flex gap-4 px-6 pt-4 border-b border-gray-200 overflow-x-auto">
-          {['details', 'items', 'po', 'payments'].map((tab) => (
+          {['verification', 'details', 'items', 'po', 'payments'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -404,6 +404,7 @@ function InvoiceViewModal({ invoice, onClose }) {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
+              {tab === 'verification' && 'Verification'}
               {tab === 'details' && 'Details'}
               {tab === 'items' && 'Items'}
               {tab === 'po' && 'PO'}
@@ -413,29 +414,202 @@ function InvoiceViewModal({ invoice, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
+          {/* Verification Tab */}
+          {activeTab === 'verification' && (
+            <div className="space-y-4">
+              {/* PO & Invoice Details - Purple */}
+              <div className="border-l-4 border-purple-500 bg-purple-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-purple-600"></div>
+                  <h4 className="text-sm font-semibold text-gray-900">PO & Invoice Details</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-600">Invoice #</p>
+                    <p className="font-semibold">{invoice.invoice_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Status</p>
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                      invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
+                      invoice.status === 'partial_paid' ? 'bg-orange-100 text-orange-800' :
+                      invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {invoice.status?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">PO #</p>
+                    <p className="font-semibold">{invoice.purchaseOrder?.po_number || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Priority</p>
+                    <p className="font-semibold">{invoice.purchaseOrder?.priority?.toUpperCase() || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Invoice Date</p>
+                    <p className="font-semibold">{new Date(invoice.invoice_date).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Due Date</p>
+                    <p className="font-semibold">{new Date(invoice.due_date).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vendor & Client - Orange */}
+              <div className="border-l-4 border-orange-500 bg-orange-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-orange-600"></div>
+                  <h4 className="text-sm font-semibold text-gray-900">Vendor & Client</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-600">Vendor</p>
+                    <p className="font-semibold">{invoice.purchaseOrder?.vendor?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Customer</p>
+                    <p className="font-semibold">{invoice.customer?.name || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items - Blue */}
+              {invoice.items && Array.isArray(invoice.items) && invoice.items.length > 0 && (
+                <div className="border-l-4 border-blue-500 bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                    <h4 className="text-sm font-semibold text-gray-900">Items ({invoice.items.length})</h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-blue-100 border-b border-blue-300">
+                        <tr>
+                          <th className="px-2 py-1 text-left font-semibold">Item</th>
+                          <th className="px-2 py-1 text-right font-semibold">Qty</th>
+                          <th className="px-2 py-1 text-right font-semibold">Rate</th>
+                          <th className="px-2 py-1 text-right font-semibold">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-blue-200">
+                        {invoice.items.slice(0, 3).map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-2 py-1">{item.product_name || item.name || 'N/A'}</td>
+                            <td className="px-2 py-1 text-right">{item.quantity || item.qty || 0}</td>
+                            <td className="px-2 py-1 text-right">₹{parseFloat(item.rate || 0).toLocaleString()}</td>
+                            <td className="px-2 py-1 text-right font-semibold">₹{(parseFloat(item.amount || 0)).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {invoice.items.length > 3 && (
+                    <p className="text-xs text-blue-700 mt-2">+ {invoice.items.length - 3} more items</p>
+                  )}
+                </div>
+              )}
+
+              {/* Financial Details - Green */}
+              <div className="border-l-4 border-green-500 bg-green-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                  <h4 className="text-sm font-semibold text-gray-900">Financial Details</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-600">Subtotal</p>
+                    <p className="font-semibold">₹{(invoice.subtotal || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Tax</p>
+                    <p className="font-semibold">₹{(invoice.total_tax_amount || 0).toLocaleString()}</p>
+                  </div>
+                  {invoice.discount_amount > 0 && (
+                    <div>
+                      <p className="text-gray-600">Discount</p>
+                      <p className="font-semibold">-₹{(invoice.discount_amount || 0).toLocaleString()}</p>
+                    </div>
+                  )}
+                  <div className="bg-green-100 p-2 rounded border border-green-300 col-span-2">
+                    <div className="flex justify-between">
+                      <p className="text-gray-600 font-medium">Total</p>
+                      <p className="font-bold text-green-700">₹{(invoice.total_amount || 0).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Status - Red */}
+              <div className="border-l-4 border-red-500 bg-red-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-red-600"></div>
+                  <h4 className="text-sm font-semibold text-gray-900">Payment Status</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-600">Total</p>
+                    <p className="font-semibold">₹{(invoice.total_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Paid</p>
+                    <p className="font-semibold text-green-700">₹{(invoice.paid_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Outstanding</p>
+                    <p className="font-semibold text-red-700">₹{(invoice.outstanding_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Status</p>
+                    <p className="font-semibold">{invoice.payment_status?.replace('_', ' ').toUpperCase()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Details Tab */}
           {activeTab === 'details' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Invoice Number</p>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">{invoice.invoice_number}</p>
+            <div className="space-y-4">
+              {/* PO & Invoice Details - Purple */}
+              <div className="bg-purple-50 p-4 rounded border border-purple-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">PO & Invoice Details</h4>
+                <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                  <p><strong>Invoice #:</strong> {invoice.invoice_number}</p>
+                  <p><strong>PO #:</strong> {invoice.purchaseOrder?.po_number || 'N/A'}</p>
+                  <p><strong>Status:</strong> {invoice.status?.replace('_', ' ').toUpperCase()}</p>
+                  <p><strong>Payment Status:</strong> {invoice.payment_status?.replace('_', ' ').toUpperCase()}</p>
+                  <p><strong>Priority:</strong> {invoice.purchaseOrder?.priority?.toUpperCase() || 'N/A'}</p>
+                  <p><strong>Invoice Date:</strong> {new Date(invoice.invoice_date).toLocaleDateString()}</p>
+                  <p><strong>Due Date:</strong> {new Date(invoice.due_date).toLocaleDateString()}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Status</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${getStatusColor(invoice.status)}`}>
-                    {invoice.status?.replace('_', ' ').toUpperCase()}
-                  </span>
+              </div>
+
+              {/* Vendor & Client Information - Orange */}
+              <div className="bg-orange-50 p-4 rounded border border-orange-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Vendor & Client Information</h4>
+                <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                  <p><strong>Vendor Name:</strong> {invoice.purchaseOrder?.vendor?.name || 'N/A'}</p>
+                  <p><strong>Vendor Phone:</strong> {invoice.purchaseOrder?.vendor?.phone || 'N/A'}</p>
+                  <p><strong>Vendor Email:</strong> {invoice.purchaseOrder?.vendor?.email || 'N/A'}</p>
+                  <p><strong>Customer:</strong> {invoice.customer?.name || 'N/A'}</p>
+                  <p><strong>Project:</strong> {invoice.purchaseOrder?.project_name || 'N/A'}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Invoice Type</p>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">{invoice.invoice_type?.toUpperCase() || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Payment Status</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${getPaymentStatusColor(invoice.payment_status)}`}>
-                    {invoice.payment_status?.replace('_', ' ').toUpperCase()}
-                  </span>
+              </div>
+
+              {/* Billing & Shipping */}
+              <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Billing & Shipping</h4>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-white p-2 rounded border border-gray-200 text-gray-700">
+                    <p className="font-medium mb-1">Billing Address</p>
+                    <p>{invoice.billing_address || 'N/A'}</p>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-gray-200 text-gray-700">
+                    <p className="font-medium mb-1">Shipping Address</p>
+                    <p>{invoice.shipping_address || 'N/A'}</p>
+                  </div>
                 </div>
               </div>
 
@@ -569,40 +743,76 @@ function InvoiceViewModal({ invoice, onClose }) {
 
           {/* Items Tab */}
           {activeTab === 'items' && (
-            <div>
-              {invoice.items && Array.isArray(invoice.items) && invoice.items.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-900">Product</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-900">Description</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-900">Qty</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-900">Rate</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-900">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {invoice.items.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-900">{item.product_name || item.name || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-600">{item.description || 'N/A'}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">{item.quantity || item.qty || 0}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">₹{parseFloat(item.rate || item.price || 0).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                            ₹{(parseFloat(item.amount || (item.quantity * item.rate) || 0)).toLocaleString()}
-                          </td>
+            <div className="space-y-4">
+              {/* Items & Quantities - Blue */}
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Items & Quantities</h4>
+                {invoice.items && Array.isArray(invoice.items) && invoice.items.length > 0 ? (
+                  <div className="bg-white rounded border border-gray-200 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-100 border-b border-gray-200">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">Material/Item</th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-700">Qty</th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-700">Rate</th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-700">Total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {invoice.items.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-3 py-2 text-gray-900">{item.product_name || item.fabric_name || item.name || 'N/A'}</td>
+                            <td className="px-3 py-2 text-right text-gray-900">{item.quantity || item.qty || 0}</td>
+                            <td className="px-3 py-2 text-right text-gray-900">₹{parseFloat(item.rate || item.price || 0).toLocaleString('en-IN')}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-gray-900">₹{(parseFloat(item.amount || item.total || (item.quantity * item.rate) || 0)).toLocaleString('en-IN')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-500 text-center">
+                    No items found
+                  </div>
+                )}
+              </div>
+
+              {/* Financial Summary in Items Tab */}
+              <div className="bg-green-50 p-4 rounded border border-green-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Financial Summary</h4>
+                <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                  <div className="flex justify-between">
+                    <span><strong>Subtotal:</strong></span>
+                    <span>₹{(invoice.subtotal || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  {invoice.discount_amount > 0 && (
+                    <div className="flex justify-between">
+                      <span><strong>Discount:</strong></span>
+                      <span>-₹{(invoice.discount_amount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span><strong>Tax Amount:</strong></span>
+                    <span>₹{(invoice.total_tax_amount || invoice.tax_amount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  {invoice.shipping_charges > 0 && (
+                    <div className="flex justify-between">
+                      <span><strong>Shipping:</strong></span>
+                      <span>₹{(invoice.shipping_charges || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {invoice.other_charges > 0 && (
+                    <div className="flex justify-between">
+                      <span><strong>Other Charges:</strong></span>
+                      <span>₹{(invoice.other_charges || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-1 flex justify-between font-semibold text-blue-600">
+                    <span>Total Amount:</span>
+                    <span>₹{(invoice.total_amount || 0).toLocaleString('en-IN')}</span>
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>No items found in this invoice</p>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -679,31 +889,49 @@ function InvoiceViewModal({ invoice, onClose }) {
                     </div>
                   )}
 
+                  {/* Delivery Address - Cyan */}
                   {invoice.purchaseOrder.delivery_address && (
-                    <div className="border-t border-gray-200 pt-6">
+                    <div className="border-t border-gray-200 pt-4 bg-cyan-50 p-4 rounded border border-cyan-200">
                       <h4 className="font-semibold text-gray-900 mb-2">Delivery Address</h4>
-                      <div className="bg-gray-50 p-3 rounded text-sm text-gray-700">{invoice.purchaseOrder.delivery_address}</div>
+                      <div className="bg-white p-3 rounded border border-gray-200 text-sm text-gray-700 leading-relaxed">
+                        {invoice.purchaseOrder.delivery_address}
+                      </div>
                     </div>
                   )}
 
-                  {invoice.purchaseOrder.payment_terms && (
-                    <div className="border-t border-gray-200 pt-6">
-                      <h4 className="font-semibold text-gray-900 mb-2">Payment Terms</h4>
-                      <div className="bg-gray-50 p-3 rounded text-sm text-gray-700">{invoice.purchaseOrder.payment_terms}</div>
+                  {/* Payment Terms & Delivery - Yellow */}
+                  <div className="border-t border-gray-200 pt-4 bg-yellow-50 p-4 rounded border border-yellow-200">
+                    <h4 className="font-semibold text-gray-900 mb-3">Payment Terms & Delivery</h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-white p-3 rounded border border-gray-200">
+                        <p><strong>Payment Terms:</strong></p>
+                        <p className="text-gray-700 mt-1">{invoice.purchaseOrder.payment_terms || invoice.payment_terms || 'N/A'}</p>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-gray-200">
+                        <p><strong>Expected Delivery Date:</strong> {invoice.purchaseOrder.expected_delivery_date ? new Date(invoice.purchaseOrder.expected_delivery_date).toLocaleDateString() : 'N/A'}</p>
+                        <p><strong>Invoice Date:</strong> {new Date(invoice.invoice_date).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  {invoice.purchaseOrder.special_instructions && (
-                    <div className="border-t border-gray-200 pt-6">
-                      <h4 className="font-semibold text-gray-900 mb-2">Special Instructions</h4>
-                      <div className="bg-blue-50 p-3 rounded text-sm text-gray-700">{invoice.purchaseOrder.special_instructions}</div>
-                    </div>
-                  )}
-
-                  {invoice.purchaseOrder.terms_conditions && (
-                    <div className="border-t border-gray-200 pt-6">
-                      <h4 className="font-semibold text-gray-900 mb-2">Terms & Conditions</h4>
-                      <div className="bg-gray-50 p-3 rounded text-sm text-gray-700">{invoice.purchaseOrder.terms_conditions}</div>
+                  {/* Special Instructions & Terms - Indigo */}
+                  {(invoice.purchaseOrder.special_instructions || invoice.purchaseOrder.terms_conditions) && (
+                    <div className="border-t border-gray-200 pt-4 bg-indigo-50 p-4 rounded border border-indigo-200">
+                      <h4 className="font-semibold text-gray-900 mb-3">Special Instructions & Terms</h4>
+                      <div className="space-y-3 text-xs">
+                        {invoice.purchaseOrder.special_instructions && (
+                          <div className="bg-white p-3 rounded border border-gray-200">
+                            <p className="font-medium text-gray-900 mb-2">Special Instructions:</p>
+                            <p className="text-gray-700">{invoice.purchaseOrder.special_instructions}</p>
+                          </div>
+                        )}
+                        {invoice.purchaseOrder.terms_conditions && (
+                          <div className="bg-white p-3 rounded border border-gray-200">
+                            <p className="font-medium text-gray-900 mb-2">Terms & Conditions:</p>
+                            <p className="text-gray-700 whitespace-pre-wrap">{invoice.purchaseOrder.terms_conditions}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -774,43 +1002,85 @@ function InvoiceViewModal({ invoice, onClose }) {
 
           {/* Payments Tab */}
           {activeTab === 'payments' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-600 font-medium">Total Amount</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-2">₹{parseFloat(invoice.total_amount || 0).toLocaleString()}</p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-600 font-medium">Paid Amount</p>
-                  <p className="text-2xl font-bold text-green-600 mt-2">₹{parseFloat(invoice.paid_amount || 0).toLocaleString()}</p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-600 font-medium">Outstanding</p>
-                  <p className="text-2xl font-bold text-orange-600 mt-2">₹{parseFloat(invoice.outstanding_amount || 0).toLocaleString()}</p>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <p className="text-xs text-gray-600 font-medium">Payment Status</p>
-                  <p className={`text-sm font-bold mt-2 px-2 py-1 rounded inline-block ${getPaymentStatusColor(invoice.payment_status)}`}>
-                    {invoice.payment_status?.replace('_', ' ').toUpperCase()}
-                  </p>
+            <div className="space-y-4">
+              {/* Payment Status Summary - Red */}
+              <div className="bg-red-50 p-4 rounded border border-red-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Payment Status & History</h4>
+                <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
+                  <div className="bg-white p-3 rounded border border-gray-200">
+                    <p className="text-gray-600 font-medium">Total Amount</p>
+                    <p className="text-lg font-bold text-blue-600 mt-1">₹{parseFloat(invoice.total_amount || 0).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-gray-200">
+                    <p className="text-gray-600 font-medium">Paid Amount</p>
+                    <p className="text-lg font-bold text-green-600 mt-1">₹{parseFloat(invoice.paid_amount || 0).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-gray-200">
+                    <p className="text-gray-600 font-medium">Outstanding</p>
+                    <p className="text-lg font-bold text-red-600 mt-1">₹{parseFloat(invoice.outstanding_amount || 0).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-gray-200">
+                    <p className="text-gray-600 font-medium">Status</p>
+                    <p className={`text-sm font-bold mt-1 px-2 py-1 rounded inline-block ${getPaymentStatusColor(invoice.payment_status)}`}>
+                      {invoice.payment_status?.replace('_', ' ').toUpperCase()}
+                    </p>
+                  </div>
                 </div>
               </div>
 
+              {/* Financial Breakdown */}
+              <div className="bg-green-50 p-4 rounded border border-green-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Financial Breakdown</h4>
+                <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                  <div className="flex justify-between">
+                    <span><strong>Subtotal:</strong></span>
+                    <span>₹{(invoice.subtotal || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  {invoice.discount_amount > 0 && (
+                    <div className="flex justify-between">
+                      <span><strong>Discount:</strong></span>
+                      <span>-₹{(invoice.discount_amount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span><strong>Tax Amount:</strong></span>
+                    <span>₹{(invoice.total_tax_amount || invoice.tax_amount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  {invoice.shipping_charges > 0 && (
+                    <div className="flex justify-between">
+                      <span><strong>Shipping Charges:</strong></span>
+                      <span>₹{(invoice.shipping_charges || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {invoice.other_charges > 0 && (
+                    <div className="flex justify-between">
+                      <span><strong>Other Charges:</strong></span>
+                      <span>₹{(invoice.other_charges || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-1 flex justify-between font-semibold text-blue-600">
+                    <span>Total Amount:</span>
+                    <span>₹{(invoice.total_amount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Records */}
               {invoice.payments && invoice.payments.length > 0 ? (
-                <div className="border-t border-gray-200 pt-6">
-                  <h4 className="font-semibold text-gray-900 mb-4">Payment Records</h4>
-                  <div className="space-y-3">
+                <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Payment Records</h4>
+                  <div className="space-y-2">
                     {invoice.payments.map((payment, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div key={idx} className="flex justify-between items-center p-3 bg-white rounded border border-gray-200 hover:bg-gray-50 transition-colors text-xs">
                         <div>
                           <p className="font-semibold text-gray-900">Payment #{idx + 1}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-gray-600">
                             {new Date(payment.payment_date).toLocaleDateString()} - {payment.payment_method}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-green-600">₹{parseFloat(payment.amount).toLocaleString()}</p>
-                          <p className={`text-xs font-semibold px-2 py-1 rounded mt-1 inline-block ${
+                          <p className="font-semibold text-green-600 text-sm">₹{parseFloat(payment.amount).toLocaleString('en-IN')}</p>
+                          <p className={`text-xs font-semibold px-2 py-0.5 rounded mt-1 inline-block ${
                             payment.status === 'completed' ? 'bg-green-100 text-green-800' :
                             payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-200 text-gray-800'
@@ -823,8 +1093,8 @@ function InvoiceViewModal({ invoice, onClose }) {
                   </div>
                 </div>
               ) : (
-                <div className="border-t border-gray-200 pt-6 text-center text-gray-500">
-                  <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <div className="bg-gray-50 p-4 rounded border border-gray-200 text-center text-gray-500 text-xs">
+                  <DollarSign className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>No payment records found</p>
                 </div>
               )}

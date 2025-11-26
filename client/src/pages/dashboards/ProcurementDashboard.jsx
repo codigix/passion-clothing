@@ -234,6 +234,7 @@ const ProcurementDashboard = () => {
   const [vendorReturns, setVendorReturns] = useState([]);
   const [grnRequests, setGrnRequests] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [creditNotes, setCreditNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -430,6 +431,15 @@ const ProcurementDashboard = () => {
       } catch (err) {
         console.error("Error fetching vendor returns:", err);
         setVendorReturns([]);
+      }
+
+      // Fetch recent credit notes
+      try {
+        const creditNotesRes = await api.get("/credit-notes/?limit=10&sort=-created_at");
+        setCreditNotes(creditNotesRes.data.creditNotes || creditNotesRes.data.data || []);
+      } catch (err) {
+        console.error("Error fetching credit notes:", err);
+        setCreditNotes([]);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -1085,7 +1095,7 @@ const ProcurementDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0 mb-3 border-b border-slate-200">
+        <div className="flex gap-0 mb-3 border-b border-slate-200 overflow-x-auto">
           {[
             {
               label: "Incoming",
@@ -1112,6 +1122,11 @@ const ProcurementDashboard = () => {
               label: "Vendor Returns",
               count: vendorReturns.length,
               icon: Truck,
+            },
+            {
+              label: "Credit Notes",
+              count: creditNotes.length,
+              icon: FaMoneyBillWave,
             },
           ].map((tab, idx) => {
             const TabIcon = tab.icon;
@@ -2535,6 +2550,97 @@ const ProcurementDashboard = () => {
               )}
             </div>
           )}
+
+          {/* Credit Notes Tab */}
+          {tabValue === 6 && (
+            <div>
+              {creditNotes.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 border border-slate-200 rounded-lg">
+                  <FaMoneyBillWave className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    No Credit Notes
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Credit notes for material overage will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {creditNotes.map((note) => {
+                    const statusColors = {
+                      draft: 'bg-slate-100 text-slate-700',
+                      issued: 'bg-blue-100 text-blue-700',
+                      accepted: 'bg-green-100 text-green-700',
+                      rejected: 'bg-red-100 text-red-700',
+                      settled: 'bg-purple-100 text-purple-700',
+                      cancelled: 'bg-gray-100 text-gray-700'
+                    };
+                    
+                    return (
+                      <div
+                        key={note.id}
+                        className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4 hover:shadow-md transition"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <FaMoneyBillWave className="text-blue-600 w-5 h-5" />
+                              <h3 className="text-base font-bold text-slate-800">
+                                {note.credit_note_number}
+                              </h3>
+                            </div>
+                            <p className="text-sm text-slate-600">
+                              GRN: {note.GRN?.grn_number} | PO: {note.PurchaseOrder?.po_number}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[note.status] || statusColors.draft}`}>
+                            {note.status?.toUpperCase().replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 p-3 bg-white rounded-lg border border-slate-200">
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Vendor</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {note.Vendor?.vendor_name || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Type</p>
+                            <p className="text-sm font-semibold text-slate-800 capitalize">
+                              {note.credit_note_type?.replace('_', ' ') || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Settlement Method</p>
+                            <p className="text-sm font-semibold text-slate-800 capitalize">
+                              {note.settlement_method?.replace('_', ' ') || 'Pending'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Amount</p>
+                            <p className="text-sm font-bold text-blue-600">
+                              ₹{(note.total_amount || 0).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/procurement/credit-notes`)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold text-sm"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Full Details
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -2786,10 +2892,44 @@ const ProcurementDashboard = () => {
           setSelectedOverageRequest(null);
         }}
         grnData={selectedOverageRequest}
-        onSuccess={() => {
+        onSuccess={(data) => {
           setCreditNoteModalOpen(false);
           setSelectedOverageRequest(null);
           fetchDashboardData();
+          
+          const creditNoteNumber = data.credit_note_number || data.data?.credit_note_number;
+          
+          setTimeout(() => {
+            const creditNoteToast = toast((t) => (
+              <div className="flex flex-col gap-2">
+                <p className="font-semibold">✓ Credit Note Created: {creditNoteNumber}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      navigate('/procurement/credit-notes');
+                      toast.dismiss(t.id);
+                    }}
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700"
+                  >
+                    View Credit Notes
+                  </button>
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="px-3 py-1 bg-slate-300 text-slate-800 rounded text-sm font-medium hover:bg-slate-400"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ), {
+              duration: 8000,
+              position: 'bottom-right',
+              style: {
+                background: '#10b981',
+                color: '#fff',
+              }
+            });
+          }, 500);
         }}
       />
     </div>

@@ -1540,4 +1540,413 @@ router.get("/export", authenticateToken, async (req, res) => {
   }
 });
 
+// Get comprehensive department-wise analytics
+router.get("/departments-analytics", authenticateToken, async (req, res) => {
+  try {
+    const departments = [
+      "sales",
+      "procurement",
+      "manufacturing",
+      "inventory",
+      "finance",
+      "shipment",
+      "store",
+      "outsourcing",
+      "samples",
+      "admin"
+    ];
+
+    const departmentsAnalytics = {};
+
+    for (const dept of departments) {
+      // Get employees in department
+      const employees = await User.findAll({
+        where: { department: dept },
+        attributes: ["id", "name", "email", "status", "created_at"],
+        raw: true
+      });
+
+      // Get department-specific stats
+      let deptStats = {
+        department: dept,
+        totalEmployees: employees.length,
+        activeEmployees: employees.filter(e => e.status === "active").length,
+        employees: employees,
+        projects: 0,
+        activeProjects: 0,
+        totalValue: 0,
+        pendingItems: 0,
+        completedItems: 0,
+        kpis: {}
+      };
+
+      // Department-specific metrics
+      if (dept === "sales") {
+        const orders = await SalesOrder.findAll({
+          attributes: ["id", "order_number", "status", "final_amount", "created_at"],
+          raw: true
+        });
+        deptStats.projects = orders.length;
+        deptStats.activeProjects = orders.filter(o => ["draft", "confirmed", "in_production"].includes(o.status)).length;
+        deptStats.totalValue = parseFloat((await SalesOrder.sum("final_amount")) || 0);
+        deptStats.completedItems = orders.filter(o => o.status === "delivered").length;
+        deptStats.kpis = {
+          ordersCount: orders.length,
+          totalRevenue: deptStats.totalValue,
+          avgOrderValue: deptStats.totalValue / (orders.length || 1),
+          completionRate: ((deptStats.completedItems / orders.length) * 100 || 0).toFixed(2)
+        };
+      } else if (dept === "procurement") {
+        const pos = await PurchaseOrder.findAll({
+          attributes: ["id", "po_number", "status", "final_amount", "created_at"],
+          raw: true
+        });
+        deptStats.projects = pos.length;
+        deptStats.activeProjects = pos.filter(p => ["draft", "pending", "approved"].includes(p.status)).length;
+        deptStats.totalValue = parseFloat((await PurchaseOrder.sum("final_amount")) || 0);
+        deptStats.pendingItems = pos.filter(p => ["pending", "approved"].includes(p.status)).length;
+        deptStats.completedItems = pos.filter(p => p.status === "received").length;
+        deptStats.kpis = {
+          posCount: pos.length,
+          totalSpend: deptStats.totalValue,
+          avgPOValue: deptStats.totalValue / (pos.length || 1),
+          pendingApprovals: deptStats.pendingItems
+        };
+      } else if (dept === "manufacturing") {
+        const orders = await ProductionOrder.findAll({
+          attributes: ["id", "production_number", "status", "created_at"],
+          raw: true
+        });
+        deptStats.projects = orders.length;
+        deptStats.activeProjects = orders.filter(o => ["in_progress", "started"].includes(o.status)).length;
+        deptStats.completedItems = orders.filter(o => o.status === "completed").length;
+        deptStats.kpis = {
+          productionOrders: orders.length,
+          inProgress: deptStats.activeProjects,
+          completed: deptStats.completedItems,
+          completionRate: ((deptStats.completedItems / orders.length) * 100 || 0).toFixed(2)
+        };
+      } else if (dept === "inventory") {
+        const items = await Inventory.findAll({
+          attributes: ["id", "product_id", "available_stock", "total_value"],
+          raw: true
+        });
+        deptStats.projects = items.length;
+        deptStats.totalValue = parseFloat((await Inventory.sum("total_value")) || 0);
+        const lowStock = items.filter(i => i.available_stock <= 10).length;
+        deptStats.kpis = {
+          totalItems: items.length,
+          totalInventoryValue: deptStats.totalValue,
+          lowStockItems: lowStock,
+          avgItemValue: deptStats.totalValue / (items.length || 1)
+        };
+      } else if (dept === "shipment") {
+        const shipments = await Shipment.findAll({
+          attributes: ["id", "shipment_number", "status", "shipping_cost", "created_at"],
+          raw: true
+        });
+        deptStats.projects = shipments.length;
+        deptStats.activeProjects = shipments.filter(s => ["preparing", "packed", "ready_to_ship", "in_transit"].includes(s.status)).length;
+        deptStats.completedItems = shipments.filter(s => s.status === "delivered").length;
+        deptStats.totalValue = parseFloat((await Shipment.sum("shipping_cost")) || 0);
+        deptStats.kpis = {
+          totalShipments: shipments.length,
+          inTransit: deptStats.activeProjects,
+          delivered: deptStats.completedItems,
+          totalShippingCost: deptStats.totalValue
+        };
+      } else if (dept === "store") {
+        const stocks = await StoreStock.findAll({
+          attributes: ["id", "current_stock", "total_cost_value"],
+          raw: true
+        });
+        deptStats.totalValue = parseFloat((await StoreStock.sum("total_cost_value")) || 0);
+        const totalStock = (await StoreStock.sum("current_stock")) || 0;
+        deptStats.kpis = {
+          totalStockItems: stocks.length,
+          currentStockQuantity: totalStock,
+          totalStoreValue: deptStats.totalValue,
+          avgStockValue: deptStats.totalValue / (stocks.length || 1)
+        };
+      } else if (dept === "finance") {
+        const payments = await Payment.findAll({
+          attributes: ["id", "payment_number", "status", "amount", "created_at"],
+          raw: true
+        });
+        deptStats.projects = payments.length;
+        deptStats.totalValue = parseFloat((await Payment.sum("amount")) || 0);
+        deptStats.pendingItems = payments.filter(p => p.status === "pending").length;
+        deptStats.completedItems = payments.filter(p => p.status === "completed").length;
+        deptStats.kpis = {
+          totalTransactions: payments.length,
+          totalAmount: deptStats.totalValue,
+          pendingPayments: deptStats.pendingItems,
+          completedPayments: deptStats.completedItems
+        };
+      } else if (dept === "samples") {
+        const samples = await Sample.findAll({
+          attributes: ["id", "sample_number", "status", "created_at"],
+          raw: true
+        });
+        deptStats.projects = samples.length;
+        deptStats.activeProjects = samples.filter(s => ["pending", "in_progress"].includes(s.status)).length;
+        deptStats.completedItems = samples.filter(s => s.status === "completed").length;
+        deptStats.kpis = {
+          totalSamples: samples.length,
+          inProgress: deptStats.activeProjects,
+          completed: deptStats.completedItems
+        };
+      }
+
+      departmentsAnalytics[dept] = deptStats;
+    }
+
+    res.json(departmentsAnalytics);
+  } catch (error) {
+    console.error("Departments analytics error:", error);
+    res.status(500).json({ message: "Failed to fetch departments analytics", error: error.message });
+  }
+});
+
+// Get specific department details with projects and employees
+router.get("/department/:departmentName", authenticateToken, async (req, res) => {
+  try {
+    const { departmentName } = req.params;
+    const validDepartments = [
+      "sales",
+      "procurement",
+      "manufacturing",
+      "inventory",
+      "finance",
+      "shipment",
+      "store",
+      "outsourcing",
+      "samples",
+      "admin"
+    ];
+
+    if (!validDepartments.includes(departmentName)) {
+      return res.status(400).json({ message: "Invalid department name" });
+    }
+
+    // Get all employees in department
+    const employees = await User.findAll({
+      where: { department: departmentName },
+      attributes: ["id", "name", "email", "phone", "status", "created_at"],
+      raw: true
+    });
+
+    let departmentData = {
+      department: departmentName,
+      totalEmployees: employees.length,
+      activeEmployees: employees.filter(e => e.status === "active").length,
+      employees: employees,
+      projects: [],
+      stats: {},
+      recentActivities: []
+    };
+
+    // Get department-specific data
+    if (departmentName === "sales") {
+      const orders = await SalesOrder.findAll({
+        attributes: [
+          "id",
+          "order_number",
+          "status",
+          "final_amount",
+          "created_at",
+          "updated_at",
+          "delivery_date"
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 50,
+        raw: true
+      });
+
+      departmentData.projects = orders;
+      departmentData.stats = {
+        totalOrders: orders.length,
+        totalRevenue: parseFloat((await SalesOrder.sum("final_amount")) || 0),
+        pendingOrders: orders.filter(o => ["draft", "confirmed"].includes(o.status)).length,
+        completedOrders: orders.filter(o => o.status === "delivered").length,
+        inProductionOrders: orders.filter(o => o.status === "in_production").length
+      };
+    } else if (departmentName === "procurement") {
+      const pos = await PurchaseOrder.findAll({
+        attributes: [
+          "id",
+          "po_number",
+          "status",
+          "final_amount",
+          "created_at",
+          "updated_at"
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 50,
+        raw: true
+      });
+
+      departmentData.projects = pos;
+      departmentData.stats = {
+        totalPOs: pos.length,
+        totalSpend: parseFloat((await PurchaseOrder.sum("final_amount")) || 0),
+        pendingApproval: pos.filter(p => p.status === "pending").length,
+        approved: pos.filter(p => p.status === "approved").length,
+        received: pos.filter(p => p.status === "received").length
+      };
+    } else if (departmentName === "manufacturing") {
+      const orders = await ProductionOrder.findAll({
+        attributes: [
+          "id",
+          "production_number",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 50,
+        raw: true
+      });
+
+      departmentData.projects = orders;
+      departmentData.stats = {
+        totalOrders: orders.length,
+        inProgress: orders.filter(o => o.status === "in_progress").length,
+        completed: orders.filter(o => o.status === "completed").length,
+        pending: orders.filter(o => o.status === "pending").length
+      };
+    } else if (departmentName === "shipment") {
+      const shipments = await Shipment.findAll({
+        attributes: [
+          "id",
+          "shipment_number",
+          "status",
+          "shipping_cost",
+          "created_at"
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 50,
+        raw: true
+      });
+
+      departmentData.projects = shipments;
+      departmentData.stats = {
+        totalShipments: shipments.length,
+        inTransit: shipments.filter(s => s.status === "in_transit").length,
+        delivered: shipments.filter(s => s.status === "delivered").length,
+        pending: shipments.filter(s => ["preparing", "packed", "ready_to_ship"].includes(s.status)).length,
+        totalShippingCost: parseFloat((await Shipment.sum("shipping_cost")) || 0)
+      };
+    } else if (departmentName === "finance") {
+      const payments = await Payment.findAll({
+        attributes: [
+          "id",
+          "payment_number",
+          "status",
+          "amount",
+          "created_at"
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 50,
+        raw: true
+      });
+
+      departmentData.projects = payments;
+      departmentData.stats = {
+        totalTransactions: payments.length,
+        totalAmount: parseFloat((await Payment.sum("amount")) || 0),
+        pending: payments.filter(p => p.status === "pending").length,
+        completed: payments.filter(p => p.status === "completed").length
+      };
+    } else if (departmentName === "inventory") {
+      const items = await Inventory.findAll({
+        attributes: [
+          "id",
+          "product_id",
+          "available_stock",
+          "total_value",
+          "created_at"
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 50,
+        raw: true
+      });
+
+      departmentData.projects = items;
+      departmentData.stats = {
+        totalItems: items.length,
+        totalInventoryValue: parseFloat((await Inventory.sum("total_value")) || 0),
+        lowStockItems: items.filter(i => i.available_stock <= 10).length,
+        outOfStock: items.filter(i => i.available_stock === 0).length
+      };
+    }
+
+    res.json(departmentData);
+  } catch (error) {
+    console.error("Department details error:", error);
+    res.status(500).json({ message: "Failed to fetch department details", error: error.message });
+  }
+});
+
+// Get employee-wise performance metrics for a department
+router.get("/department/:departmentName/employee-performance", authenticateToken, async (req, res) => {
+  try {
+    const { departmentName } = req.params;
+
+    const employees = await User.findAll({
+      where: { department: departmentName },
+      attributes: ["id", "name", "email", "status", "created_at"],
+      raw: true
+    });
+
+    const employeeMetrics = [];
+
+    for (const emp of employees) {
+      let metrics = {
+        id: emp.id,
+        name: emp.name,
+        email: emp.email,
+        status: emp.status,
+        joinDate: emp.created_at,
+        assignedTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        performance: "N/A"
+      };
+
+      // Get performance data based on department
+      if (departmentName === "sales") {
+        // Could be connected via created_by field
+        metrics.assignedTasks = 0;
+      } else if (departmentName === "procurement") {
+        metrics.assignedTasks = 0;
+      } else if (departmentName === "manufacturing") {
+        metrics.assignedTasks = 0;
+      }
+
+      employeeMetrics.push(metrics);
+    }
+
+    res.json({
+      department: departmentName,
+      totalEmployees: employees.length,
+      employees: employeeMetrics
+    });
+  } catch (error) {
+    console.error("Employee performance error:", error);
+    res.status(500).json({ message: "Failed to fetch employee performance", error: error.message });
+  }
+});
+
+// Export data (stub)
+router.get("/export", authenticateToken, async (req, res) => {
+  try {
+    // TODO: Export admin data (users, roles, logs, etc.)
+    res.json({ message: "Data export started (stub)" });
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).json({ message: "Failed to export data" });
+  }
+});
+
 module.exports = router;

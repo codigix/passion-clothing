@@ -20,6 +20,11 @@ import {
   FaExclamationCircle,
   FaBoxOpen,
   FaClipboardList,
+  FaStore,
+  FaCalendar,
+  FaMapMarker,
+  FaBox,
+  FaFileAlt,
 } from "react-icons/fa";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "../../utils/api";
@@ -1498,68 +1503,248 @@ const PurchaseOrdersPage = () => {
 };
 
 function InvoiceViewModal({ invoice, onClose, onSendToFinance }) {
+  const parseJsonField = (field) => {
+    if (!field) return {};
+    if (typeof field === 'string') {
+      try {
+        return JSON.parse(field);
+      } catch {
+        return {};
+      }
+    }
+    return field;
+  };
+
+  const paymentTerms = parseJsonField(invoice.payment_terms);
+  const specialInstructions = parseJsonField(invoice.special_instructions);
+  const termsConditions = parseJsonField(invoice.terms_conditions);
+  const items = Array.isArray(invoice.items) ? invoice.items : parseJsonField(invoice.items) || [];
+
+  const subtotal = invoice.subtotal || parseFloat(invoice.total_amount || 0) / (1 + (parseFloat(invoice.tax_percentage || 0) / 100));
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Invoice Details</h2>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-96 overflow-y-auto">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+          <h2 className="text-lg font-semibold text-gray-900">Purchase Order & Invoice Details</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             ✕
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-6 max-h-96 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-6">
-            <div>
+        <div className="px-6 py-4 space-y-6">
+          {/* Header Section */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="bg-blue-50 p-3 rounded border border-blue-200">
               <p className="text-xs text-gray-600 font-medium uppercase">Invoice Number</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{invoice.invoice_number}</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">{invoice.invoice_number}</p>
             </div>
-            <div>
+            <div className="bg-purple-50 p-3 rounded border border-purple-200">
+              <p className="text-xs text-gray-600 font-medium uppercase">PO Number</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">{invoice.po_number || 'N/A'}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded border border-green-200">
+              <p className="text-xs text-gray-600 font-medium uppercase">Priority</p>
+              <span className="inline-block text-xs font-semibold mt-1 px-2 py-1 rounded capitalize"
+                style={{
+                  backgroundColor: invoice.priority === 'urgent' ? '#FEE2E2' : invoice.priority === 'high' ? '#FCD34D' : invoice.priority === 'medium' ? '#DBEAFE' : '#D1D5DB',
+                  color: invoice.priority === 'urgent' ? '#991B1B' : invoice.priority === 'high' ? '#92400E' : invoice.priority === 'medium' ? '#1E40AF' : '#374151'
+                }}
+              >
+                {invoice.priority || 'Medium'}
+              </span>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
               <p className="text-xs text-gray-600 font-medium uppercase">Status</p>
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 mt-1">
+              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-800 mt-1">
                 {invoice.status?.replace('_', ' ').toUpperCase()}
               </span>
             </div>
           </div>
 
+          {/* Vendor & Customer Information */}
           <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Order Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-gray-600 font-medium">PO Number</p>
-                <p className="text-gray-900 mt-1">{invoice.po_number || 'N/A'}</p>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaStore size={14} className="text-orange-600" /> Vendor & Customer Information
+            </h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="bg-orange-50 p-3 rounded border border-orange-100">
+                <p className="text-xs text-gray-600 font-medium uppercase">Vendor</p>
+                <p className="text-gray-900 font-semibold mt-1">{invoice.vendor?.name || 'N/A'}</p>
+                <p className="text-xs text-gray-500 mt-1">{invoice.vendor?.phone || ''}</p>
+                <p className="text-xs text-gray-500">{invoice.vendor?.email || ''}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Invoice Date</p>
-                <p className="text-gray-900 mt-1">{new Date(invoice.invoice_date).toLocaleDateString()}</p>
+              <div className="bg-indigo-50 p-3 rounded border border-indigo-100">
+                <p className="text-xs text-gray-600 font-medium uppercase">Customer/Client</p>
+                <p className="text-gray-900 font-semibold mt-1">{invoice.client_name || invoice.customer?.name || 'N/A'}</p>
+              </div>
+              <div className="bg-cyan-50 p-3 rounded border border-cyan-100">
+                <p className="text-xs text-gray-600 font-medium uppercase">Project</p>
+                <p className="text-gray-900 font-semibold mt-1">{invoice.project_name || 'N/A'}</p>
               </div>
             </div>
           </div>
 
+          {/* Order Dates & Delivery */}
           <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Financial Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Subtotal</p>
-                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(invoice.subtotal || 0).toLocaleString()}</p>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaCalendar size={14} className="text-blue-600" /> Order Dates & Delivery
+            </h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="bg-blue-50 p-3 rounded border border-blue-100">
+                <p className="text-xs text-gray-600 font-medium uppercase">PO Date</p>
+                <p className="text-gray-900 font-semibold mt-1">{new Date(invoice.po_date || invoice.order_date).toLocaleDateString()}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Tax Amount</p>
-                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(invoice.total_tax_amount || 0).toLocaleString()}</p>
+              <div className="bg-green-50 p-3 rounded border border-green-100">
+                <p className="text-xs text-gray-600 font-medium uppercase">Expected Delivery</p>
+                <p className="text-gray-900 font-semibold mt-1">{new Date(invoice.expected_delivery_date).toLocaleDateString()}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Shipping</p>
-                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(invoice.shipping_charges || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-blue-50 p-3 rounded">
-                <p className="text-xs text-gray-600 font-medium">Total Amount</p>
-                <p className="text-lg font-bold text-blue-600 mt-1">₹{(invoice.total_amount || 0).toLocaleString()}</p>
+              <div className="bg-purple-50 p-3 rounded border border-purple-100">
+                <p className="text-xs text-gray-600 font-medium uppercase">Invoice Date</p>
+                <p className="text-gray-900 font-semibold mt-1">{new Date(invoice.invoice_date).toLocaleDateString()}</p>
               </div>
             </div>
           </div>
+
+          {/* Delivery Address */}
+          {invoice.delivery_address && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <FaMapMarker size={14} className="text-red-600" /> Delivery Address
+              </h3>
+              <div className="bg-red-50 p-3 rounded border border-red-100 text-sm text-gray-700">
+                {invoice.delivery_address}
+              </div>
+            </div>
+          )}
+
+          {/* Items Breakdown */}
+          {items && items.length > 0 && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <FaBox size={14} className="text-blue-600" /> Items Details
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 border border-gray-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">Material/Item</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">Qty</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">Unit</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">Rate</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">Total</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {items.map((item, idx) => (
+                      <tr key={idx} className="border-b border-gray-200">
+                        <td className="px-3 py-2">
+                          <div className="font-medium text-gray-900">{item.fabric_name || item.item_name || item.product_name}</div>
+                          {item.color && <div className="text-xs text-gray-500">Color: {item.color}</div>}
+                          {item.hsn && <div className="text-xs text-gray-500">HSN: {item.hsn}</div>}
+                        </td>
+                        <td className="px-3 py-2 text-gray-900 font-medium">{item.quantity}</td>
+                        <td className="px-3 py-2 text-gray-700">{item.unit || item.uom || 'Pcs'}</td>
+                        <td className="px-3 py-2 text-gray-900">₹{(item.rate || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-gray-900 font-semibold">₹{(item.total || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-gray-600 text-xs">{item.remarks || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Financial Summary */}
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaMoneyBillWave size={14} className="text-green-600" /> Financial Summary
+            </h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                <p className="text-xs text-gray-600 font-medium uppercase">Subtotal</p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">₹{(subtotal).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+              </div>
+              {invoice.discount_percentage > 0 && (
+                <div className="bg-orange-50 p-3 rounded border border-orange-200">
+                  <p className="text-xs text-gray-600 font-medium uppercase">Discount ({invoice.discount_percentage}%)</p>
+                  <p className="text-lg font-semibold text-orange-600 mt-1">-₹{(subtotal * (invoice.discount_percentage / 100)).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+                </div>
+              )}
+              <div className="bg-purple-50 p-3 rounded border border-purple-200">
+                <p className="text-xs text-gray-600 font-medium uppercase">Tax ({invoice.tax_percentage || 0}%)</p>
+                <p className="text-lg font-semibold text-purple-600 mt-1">₹{(invoice.total_tax_amount || invoice.tax_amount || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+              </div>
+              {invoice.freight && (
+                <div className="bg-cyan-50 p-3 rounded border border-cyan-200">
+                  <p className="text-xs text-gray-600 font-medium uppercase">Freight/Shipping</p>
+                  <p className="text-lg font-semibold text-cyan-600 mt-1">₹{(invoice.freight).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 bg-blue-50 p-4 rounded border border-blue-200">
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-semibold text-gray-900">Total Amount</p>
+                <p className="text-2xl font-bold text-blue-600">₹{(invoice.total_amount || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Terms */}
+          {paymentTerms.selected && paymentTerms.selected.length > 0 && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Payment Terms</h3>
+              <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm">
+                <p className="text-gray-900 font-medium">{paymentTerms.selected[0]}</p>
+                {paymentTerms.custom_value && <p className="text-xs text-gray-600 mt-1">Additional: {paymentTerms.custom_value}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Special Instructions */}
+          {specialInstructions.selected && specialInstructions.selected.length > 0 && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Special Instructions</h3>
+              <div className="bg-cyan-50 p-3 rounded border border-cyan-200 text-sm space-y-1">
+                {specialInstructions.selected.map((instr, idx) => (
+                  <p key={idx} className="text-gray-900">• {instr}</p>
+                ))}
+                {specialInstructions.additional_notes && (
+                  <p className="text-xs text-gray-600 mt-2 italic">{specialInstructions.additional_notes}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Terms & Conditions */}
+          {termsConditions.selected && termsConditions.selected.length > 0 && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Terms & Conditions Accepted</h3>
+              <div className="bg-green-50 p-3 rounded border border-green-200 text-sm space-y-1">
+                {termsConditions.selected.map((term, idx) => (
+                  <p key={idx} className="text-gray-900">✓ {term}</p>
+                ))}
+                {termsConditions.optional_notes && (
+                  <p className="text-xs text-gray-600 mt-2 italic">{termsConditions.optional_notes}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Internal Notes */}
+          {invoice.internal_notes && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Internal Notes</h3>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200 text-sm text-gray-700">
+                {invoice.internal_notes}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+        <div className="px-6 py-4 border-t border-gray-200 flex gap-3 sticky bottom-0 bg-white">
           <button
             onClick={onClose}
             className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
@@ -1579,26 +1764,50 @@ function InvoiceViewModal({ invoice, onClose, onSendToFinance }) {
 }
 
 function SendToFinanceModal({ invoice, onSubmit, onClose }) {
+  const parseJsonField = (field) => {
+    if (!field) return {};
+    if (typeof field === 'string') {
+      try {
+        return JSON.parse(field);
+      } catch {
+        return {};
+      }
+    }
+    return field;
+  };
+
+  const paymentTerms = parseJsonField(invoice.payment_terms);
+  const specialInstructions = parseJsonField(invoice.special_instructions);
+  const termsConditions = parseJsonField(invoice.terms_conditions);
+  const items = Array.isArray(invoice.items) ? invoice.items : parseJsonField(invoice.items) || [];
+
   const [form, setForm] = useState({
     record_type: 'debit',
     account_head: 'Vendor Invoice',
-    description: `Vendor invoice ${invoice.invoice_number} for processing`,
+    description: `Vendor invoice ${invoice.invoice_number} for PO ${invoice.po_number}`,
     amount: invoice.total_amount || 0,
-    project_name: '',
+    project_name: invoice.project_name || '',
     department: 'Procurement',
     notes: ''
   });
 
   const [checkedItems, setCheckedItems] = useState({
-    verified: false,
+    po_details_verified: false,
+    vendor_details_verified: false,
+    items_verified: false,
+    financial_verified: false,
+    payment_terms_verified: false,
+    delivery_verified: false,
+    invoice_verified: false,
     approved: false,
     payment_authorized: false
   });
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (!checkedItems.verified || !checkedItems.approved || !checkedItems.payment_authorized) {
-      toast.error('Please check all required items before sending');
+    const allChecked = Object.values(checkedItems).every(val => val === true);
+    if (!allChecked) {
+      toast.error('Please verify and check all required items before sending to finance');
       return;
     }
     onSubmit(form);
@@ -1606,100 +1815,322 @@ function SendToFinanceModal({ invoice, onSubmit, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-96 overflow-y-auto">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
-          <h2 className="text-lg font-semibold text-gray-900">Send Invoice to Finance</h2>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-semibold text-gray-900">Send to Finance - Verification Checklist</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             ✕
           </button>
         </div>
 
         <form onSubmit={handleFormSubmit} className="px-6 py-4 space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-            <p className="text-sm text-blue-900 font-medium mb-2">Please verify and approve the invoice:</p>
-            <ul className="text-xs text-blue-800 space-y-1">
-              <li>✓ Check invoice details and amount</li>
-              <li>✓ Verify vendor and PO information</li>
-              <li>✓ Confirm payment authorization status</li>
-            </ul>
+          <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
+            <p className="text-sm text-blue-900 font-semibold mb-2">📋 Invoice Verification & Finance Processing</p>
+            <p className="text-xs text-blue-800">Please verify all details of this PO invoice before sending to finance for processing and payment.</p>
           </div>
 
-          <div className="space-y-3 bg-gray-50 p-4 rounded">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={checkedItems.verified}
-                onChange={(e) => setCheckedItems({ ...checkedItems, verified: e.target.checked })}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="text-sm text-gray-700 font-medium">Invoice verified and validated</span>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={checkedItems.approved}
-                onChange={(e) => setCheckedItems({ ...checkedItems, approved: e.target.checked })}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="text-sm text-gray-700 font-medium">Invoice approved for processing</span>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={checkedItems.payment_authorized}
-                onChange={(e) => setCheckedItems({ ...checkedItems, payment_authorized: e.target.checked })}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="text-sm text-gray-700 font-medium">Payment authorized</span>
-            </label>
+          {/* PO & Invoice Verification Section */}
+          <div className="bg-purple-50 p-4 rounded border border-purple-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaFileAlt size={14} className="text-purple-600" /> PO & Invoice Details
+            </h4>
+            <div className="space-y-3">
+              <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                <p><strong>PO Number:</strong> {invoice.po_number || 'N/A'}</p>
+                <p><strong>Invoice Number:</strong> {invoice.invoice_number || 'N/A'}</p>
+                <p><strong>Status:</strong> {invoice.status?.replace('_', ' ').toUpperCase() || 'N/A'}</p>
+                <p><strong>Priority:</strong> {invoice.priority || 'N/A'}</p>
+                <p><strong>PO Date:</strong> {invoice.po_date ? new Date(invoice.po_date).toLocaleDateString() : 'N/A'}</p>
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.po_details_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, po_details_verified: e.target.checked })}
+                  className="w-4 h-4 text-purple-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700">PO & Invoice Details Verified</span>
+              </label>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Record Type</label>
-            <select
-              value={form.record_type}
-              onChange={(e) => setForm({ ...form, record_type: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="debit">Debit</option>
-              <option value="credit">Credit</option>
-              <option value="journal_entry">Journal Entry</option>
-            </select>
+          {/* Vendor Information Section */}
+          <div className="bg-orange-50 p-4 rounded border border-orange-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaStore size={14} className="text-orange-600" /> Vendor & Client Information
+            </h4>
+            <div className="space-y-3">
+              <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                <p><strong>Vendor Name:</strong> {invoice.vendor?.name || 'N/A'}</p>
+                <p><strong>Vendor Phone:</strong> {invoice.vendor?.phone || 'N/A'}</p>
+                <p><strong>Vendor Email:</strong> {invoice.vendor?.email || 'N/A'}</p>
+                <p><strong>Client/Customer:</strong> {invoice.client_name || invoice.customer?.name || 'N/A'}</p>
+                <p><strong>Project:</strong> {invoice.project_name || 'N/A'}</p>
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.vendor_details_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, vendor_details_verified: e.target.checked })}
+                  className="w-4 h-4 text-orange-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700">Vendor & Client Details Verified</span>
+              </label>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Head</label>
-            <input
-              type="text"
-              value={form.account_head}
-              onChange={(e) => setForm({ ...form, account_head: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., Vendor Invoice"
-            />
+          {/* Items & Quantities Section */}
+          <div className="bg-blue-50 p-4 rounded border border-blue-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaBox size={14} className="text-blue-600" /> Items & Quantities
+            </h4>
+            <div className="space-y-3">
+              {items && items.length > 0 ? (
+                <div className="bg-white rounded border border-gray-200 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-100 border-b border-gray-200">
+                      <tr>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700">Material</th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700">Qty</th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700">Rate</th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {items.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-2 py-2 text-gray-900">{item.fabric_name || item.item_name || item.product_name || 'N/A'}</td>
+                          <td className="px-2 py-2 text-gray-900">{item.quantity || 0}</td>
+                          <td className="px-2 py-2 text-gray-900">₹{(item.rate || 0).toLocaleString('en-IN')}</td>
+                          <td className="px-2 py-2 text-gray-900 font-semibold">₹{(item.total || 0).toLocaleString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-500">No items found</div>
+              )}
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.items_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, items_verified: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700">All Items & Quantities Verified</span>
+              </label>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-            <input
-              type="text"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Department"
-            />
+          {/* Financial Details Section */}
+          <div className="bg-green-50 p-4 rounded border border-green-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaMoneyBillWave size={14} className="text-green-600" /> Financial Details
+            </h4>
+            <div className="space-y-3">
+              <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                <p><strong>Subtotal:</strong> ₹{(parseFloat(invoice.total_amount || 0) / (1 + (parseFloat(invoice.tax_percentage || 0) / 100))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+                <p><strong>Tax ({invoice.tax_percentage || 0}%):</strong> ₹{(invoice.total_tax_amount || invoice.tax_amount || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+                {invoice.discount_percentage > 0 && <p><strong>Discount ({invoice.discount_percentage}%):</strong> ₹{((parseFloat(invoice.total_amount || 0) / (1 + (parseFloat(invoice.tax_percentage || 0) / 100))) * (invoice.discount_percentage / 100)).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>}
+                {invoice.freight > 0 && <p><strong>Freight:</strong> ₹{(invoice.freight || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>}
+                <p className="border-t border-gray-200 pt-1"><strong>Total Amount:</strong> ₹{(invoice.total_amount || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.financial_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, financial_verified: e.target.checked })}
+                  className="w-4 h-4 text-green-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700">Financial Details Verified</span>
+              </label>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows="2"
-              placeholder="Additional notes (optional)"
-            />
+          {/* Delivery Address Section */}
+          {invoice.delivery_address && (
+            <div className="bg-cyan-50 p-4 rounded border border-cyan-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <FaMapMarker size={14} className="text-cyan-600" /> Delivery Address
+              </h4>
+              <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700">
+                <p>{invoice.delivery_address || 'N/A'}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Terms & Delivery Section */}
+          <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaTruck size={14} className="text-yellow-600" /> Payment Terms & Delivery
+            </h4>
+            <div className="space-y-3">
+              <div className="bg-white p-3 rounded border border-gray-200 text-xs text-gray-700 space-y-1">
+                {paymentTerms.selected && paymentTerms.selected.length > 0 && (
+                  <p><strong>Payment Terms:</strong> {paymentTerms.selected[0]}</p>
+                )}
+                <p><strong>Expected Delivery:</strong> {invoice.expected_delivery_date ? new Date(invoice.expected_delivery_date).toLocaleDateString() : 'N/A'}</p>
+                {invoice.invoice_date && <p><strong>Invoice Date:</strong> {new Date(invoice.invoice_date).toLocaleDateString()}</p>}
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.payment_terms_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, payment_terms_verified: e.target.checked })}
+                  className="w-4 h-4 text-yellow-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700">Payment Terms Verified</span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.delivery_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, delivery_verified: e.target.checked })}
+                  className="w-4 h-4 text-yellow-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700">Delivery Information Verified</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Special Instructions & Terms Section */}
+          {(specialInstructions.selected?.length > 0 || termsConditions.selected?.length > 0) && (
+            <div className="bg-indigo-50 p-4 rounded border border-indigo-200">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Special Instructions & Terms</h4>
+              <div className="space-y-2 bg-white p-3 rounded border border-gray-200 text-xs text-gray-700">
+                {specialInstructions.selected && specialInstructions.selected.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-900">Instructions:</p>
+                    <ul className="list-disc list-inside text-gray-600 ml-2">
+                      {specialInstructions.selected.map((instr, idx) => (
+                        <li key={idx}>{instr}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {termsConditions.selected && termsConditions.selected.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-900">Terms & Conditions:</p>
+                    <ul className="list-disc list-inside text-gray-600 ml-2">
+                      {termsConditions.selected.map((term, idx) => (
+                        <li key={idx}>{term}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Final Verification Section */}
+          <div className="bg-red-50 p-4 rounded border border-red-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FaCheckCircle size={14} className="text-red-600" /> Final Verification
+            </h4>
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.invoice_verified}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, invoice_verified: e.target.checked })}
+                  className="w-4 h-4 text-red-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <div className="text-sm text-gray-700">
+                  <p className="font-medium">Invoice Complete & Accurate</p>
+                  <p className="text-xs text-gray-500">All invoice details are complete and accurate</p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.approved}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, approved: e.target.checked })}
+                  className="w-4 h-4 text-red-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <div className="text-sm text-gray-700">
+                  <p className="font-medium">Invoice Approved for Processing</p>
+                  <p className="text-xs text-gray-500">Invoice is approved and ready for processing</p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                <input
+                  type="checkbox"
+                  checked={checkedItems.payment_authorized}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, payment_authorized: e.target.checked })}
+                  className="w-4 h-4 text-red-600 rounded mt-0.5 flex-shrink-0"
+                />
+                <div className="text-sm text-gray-700">
+                  <p className="font-medium">Payment Authorized</p>
+                  <p className="text-xs text-gray-500">Payment has been authorized as per company policy</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Finance Form Fields */}
+          <div className="border-t border-gray-200 pt-4">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Finance Processing Details</h4>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Record Type</label>
+                <select
+                  value={form.record_type}
+                  onChange={(e) => setForm({ ...form, record_type: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="debit">Debit</option>
+                  <option value="credit">Credit</option>
+                  <option value="journal_entry">Journal Entry</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Head</label>
+                <input
+                  type="text"
+                  value={form.account_head}
+                  onChange={(e) => setForm({ ...form, account_head: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Vendor Invoice"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Department"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Auto-filled)</label>
+                <input
+                  type="text"
+                  value={`₹${(form.amount).toLocaleString('en-IN')}`}
+                  disabled
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-50 text-gray-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="2"
+                  placeholder="Additional notes (optional)"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">

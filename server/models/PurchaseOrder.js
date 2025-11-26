@@ -131,7 +131,7 @@ module.exports = (sequelize) => {
       defaultValue: 'medium'
     },
     payment_terms: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.TEXT,
       allowNull: true
     },
     advance_payment_percentage: {
