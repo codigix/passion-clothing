@@ -15,6 +15,7 @@ jobs:
           script: |
             cd /var/www/passion-clothing
             git pull origin main
+            cd client && npm install && npm run build
+
             cd server && npm install --production
-            cd ../client && npm install && npm run build
-            pm2 restart passion-erp
+            pm2 restart pashion-erp-server
