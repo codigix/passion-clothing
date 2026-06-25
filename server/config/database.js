@@ -1,5 +1,5 @@
 const { Sequelize } = require("sequelize");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 const isTestEnv = process.env.NODE_ENV === "test";
 
@@ -112,6 +112,8 @@ const VendorRequest = require("../models/VendorRequest")(sequelize);
 const CreditNote = require("../models/CreditNote")(sequelize);
 const AuditTrail = require("../models/AuditTrail")(sequelize);
 const FinancialRecord = require("../models/FinancialRecord")(sequelize);
+const ClientRequirement = require("../models/ClientRequirement")(sequelize);
+const Quotation = require("../models/Quotation")(sequelize);
 
 // Define associations
 const defineAssociations = () => {
@@ -179,6 +181,16 @@ const defineAssociations = () => {
   SalesOrder.hasMany(ProductionRequest, {
     foreignKey: "sales_order_id",
     as: "productionRequests",
+  });
+
+  // Client Requirement and Quotation associations
+  ClientRequirement.hasOne(Quotation, {
+    foreignKey: "client_requirement_id",
+    as: "quotation",
+  });
+  Quotation.belongsTo(ClientRequirement, {
+    foreignKey: "client_requirement_id",
+    as: "clientRequirement",
   });
 
   // Sales Order History associations
@@ -1094,6 +1106,8 @@ const db = {
   CreditNote,
   AuditTrail,
   FinancialRecord,
+  ClientRequirement,
+  Quotation,
 };
 
 module.exports = db;

@@ -6,7 +6,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const { sequelize } = require('./config/database');
 const authRoutes = require('./routes/auth');
@@ -44,6 +44,7 @@ const courierAgentRoutes = require('./routes/courierAgent');
 const vendorRequestRoutes = require('./routes/vendorRequests');
 const approvalsRoutes = require('./routes/approvals');
 const creditNotesRoutes = require('./routes/creditNotes');
+const clientRequirementsRoutes = require('./routes/clientRequirements');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -143,6 +144,7 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/vendor-requests', vendorRequestRoutes);
 app.use('/api/approvals', approvalsRoutes);
 app.use('/api/credit-notes', creditNotesRoutes);
+app.use('/api/client-requirements', clientRequirementsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

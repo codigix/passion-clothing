@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FaArrowLeft, FaCheck, FaPlus, FaTrash, FaCloudUploadAlt, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import { ArrowLeft, Send, Download, FileText, Loader } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 
 const CreateSalesOrderPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // State for order data
   const [orderData, setOrderData] = useState({
@@ -47,6 +48,29 @@ const CreateSalesOrderPage = () => {
     sizeOption: 'fixed',
     sizeDetails: [],
   });
+
+  useEffect(() => {
+    if (location.state && location.state.fromRequirement) {
+      const stateData = location.state;
+      setOrderData((prev) => ({
+        ...prev,
+        customerName: stateData.customerName || '',
+        contactPerson: stateData.contactPerson || '',
+        phone: stateData.phone || '',
+        email: stateData.email || '',
+        projectTitle: stateData.projectTitle || '',
+        productName: stateData.productName || '',
+        productType: stateData.productType || '',
+        quantity: stateData.quantity || '',
+        pricePerPiece: stateData.pricePerPiece || '',
+        gstPercentage: stateData.gstPercentage || '18',
+        advancePaid: stateData.advancePaid || '0',
+        orderReference: stateData.orderReference || '',
+        specialInstructions: stateData.specialInstructions || '',
+      }));
+      toast.success('Prefilled details from Client Requirement/Quotation');
+    }
+  }, [location.state]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -265,6 +289,17 @@ const CreateSalesOrderPage = () => {
 
       const response = await api.post('/sales/orders', payload);
       const newOrder = response.data.order;
+      
+      // If from a client requirement, update its status
+      if (location.state && location.state.fromRequirement && location.state.requirementId) {
+        try {
+          await api.patch(`/client-requirements/${location.state.requirementId}/status`, {
+            status: 'Converted to SO'
+          });
+        } catch (statusErr) {
+          console.error('Failed to update client requirement status:', statusErr);
+        }
+      }
       
       // Upload design files if any
       if (orderData.designFiles && orderData.designFiles.length > 0 && newOrder?.id) {

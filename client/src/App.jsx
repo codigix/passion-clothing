@@ -51,6 +51,9 @@ import SalesOrderDetailsPage from "./pages/sales/SalesOrderDetailsPage";
 import CreateSalesOrderPage from "./pages/sales/CreateSalesOrderPage";
 import EditSalesOrderPage from "./pages/sales/EditSalesOrderPage";
 import SalesReportsPage from "./pages/sales/SalesReportsPage";
+import ClientRequirementsPage from "./pages/sales/ClientRequirementsPage";
+import CreateClientRequirementPage from "./pages/sales/CreateClientRequirementPage";
+import ClientRequirementDetailsPage from "./pages/sales/ClientRequirementDetailsPage";
 
 // Procurement Pages
 import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
@@ -382,6 +385,38 @@ function App() {
           element={
             <ProtectedDashboard department="sales">
               <SalesReportsPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/sales/client-requirements"
+          element={
+            <ProtectedDashboard department="sales">
+              <ClientRequirementsPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/sales/client-requirements/create"
+          element={
+            <ProtectedDashboard department="sales">
+              <CreateClientRequirementPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/sales/client-requirements/:id"
+          element={
+            <ProtectedDashboard department="sales">
+              <ClientRequirementDetailsPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/sales/client-requirements/:id/edit"
+          element={
+            <ProtectedDashboard department="sales">
+              <CreateClientRequirementPage />
             </ProtectedDashboard>
           }
         />
