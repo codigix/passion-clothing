@@ -15,11 +15,36 @@ module.exports = (sequelize) => {
     },
     client_requirement_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true, // Allow nullable if generated outside client requirements or for vendor side
       references: {
         model: 'client_requirements',
         key: 'id'
       }
+    },
+    rfq_no: {
+      type: DataTypes.STRING(50),
+      allowNull: true
+    },
+    rfq_version: {
+      type: DataTypes.STRING(50),
+      allowNull: true
+    },
+    quotation_type: {
+      type: DataTypes.ENUM('Sent', 'Received'),
+      allowNull: false,
+      defaultValue: 'Sent'
+    },
+    vendor_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'vendors',
+        key: 'id'
+      }
+    },
+    vendor_name: {
+      type: DataTypes.STRING(150),
+      allowNull: true
     },
     customer_name: {
       type: DataTypes.STRING(150),
@@ -69,7 +94,7 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     status: {
-      type: DataTypes.ENUM('Draft', 'Sent', 'Approved', 'Converted to SO'),
+      type: DataTypes.STRING(50),
       defaultValue: 'Draft'
     },
     remarks: {
@@ -82,7 +107,8 @@ module.exports = (sequelize) => {
       { fields: ['quotation_number'] },
       { fields: ['client_requirement_id'] },
       { fields: ['customer_name'] },
-      { fields: ['status'] }
+      { fields: ['status'] },
+      { fields: ['quotation_type'] }
     ]
   });
 

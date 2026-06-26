@@ -45,6 +45,8 @@ const vendorRequestRoutes = require('./routes/vendorRequests');
 const approvalsRoutes = require('./routes/approvals');
 const creditNotesRoutes = require('./routes/creditNotes');
 const clientRequirementsRoutes = require('./routes/clientRequirements');
+const quotationsRoutes = require('./routes/quotations');
+const chatbotRoutes = require('./chatbot/routes/chatbot');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -145,6 +147,8 @@ app.use('/api/vendor-requests', vendorRequestRoutes);
 app.use('/api/approvals', approvalsRoutes);
 app.use('/api/credit-notes', creditNotesRoutes);
 app.use('/api/client-requirements', clientRequirementsRoutes);
+app.use('/api/quotations', quotationsRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -5,7 +5,8 @@ import {
   FaFileInvoiceDollar, FaDownload, FaFileAlt, FaClock, 
   FaIndustry, FaTimes, FaCalculator, FaQrcode, FaPrint,
   FaUser, FaCalendar, FaEnvelope, FaPhone, FaBox, FaCog,
-  FaClipboardCheck, FaImage, FaExclamationTriangle
+  FaClipboardCheck, FaImage, FaExclamationTriangle, FaClipboardList,
+  FaWhatsapp, FaPaperPlane
 } from 'react-icons/fa';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -32,6 +33,113 @@ const ClientRequirementDetailsPage = () => {
 
   // QR Modal state
   const [showQRModal, setShowQRModal] = useState(false);
+
+  // RFQ Cost Details State
+  const [rfqItems, setRfqItems] = useState([]);
+  const [sendingRfq, setSendingRfq] = useState(false);
+  const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false);
+
+  useEffect(() => {
+    if (requirement) {
+      // Map products to RFQ items.
+      const items = (requirement.products || []).map(p => ({
+        product_name: p.product_name || '',
+        product_category: p.product_category || '',
+        quantity: parseFloat(p.quantity) || 0,
+        unit_cost: p.unit_cost || '',
+        gst_percentage: p.gst_percentage || '18',
+      }));
+      
+      // Fallback for legacy requirement records
+      if (items.length === 0) {
+        items.push({
+          product_name: requirement.product_name || '',
+          product_category: requirement.product_category || '',
+          quantity: parseFloat(requirement.quantity) || 0,
+          unit_cost: requirement.attachments?.unit_cost || '',
+          gst_percentage: requirement.attachments?.gst_percentage || '18',
+        });
+      }
+      setRfqItems(items);
+    }
+  }, [requirement]);
+
+  useEffect(() => {
+    if (showQuotationModal && requirement) {
+      // Find the approved RFQ version if exists, or check the products list
+      const rfqHistory = requirement.rfq_history || [];
+      const approvedRfq = rfqHistory.find(r => r.status === 'Approved') || rfqHistory[rfqHistory.length - 1];
+      
+      if (approvedRfq && approvedRfq.rfqItems && approvedRfq.rfqItems.length > 0) {
+        const firstItem = approvedRfq.rfqItems[0];
+        // Calculate the average/sum if multiple items, or just use the first item details for the main fields
+        setQuotationData({
+          unit_price: firstItem.unit_cost || '',
+          discount_percentage: firstItem.discount_percentage || '0',
+          tax_percentage: firstItem.gst_percentage || '18',
+          valid_until: quotationData.valid_until || '', // preserve valid_until
+          remarks: approvedRfq.remarks || requirement.remarks || ''
+        });
+      } else if (requirement.products && requirement.products.length > 0) {
+        const firstItem = requirement.products[0];
+        setQuotationData({
+          unit_price: firstItem.unit_cost || '',
+          discount_percentage: firstItem.discount_percentage || '0',
+          tax_percentage: firstItem.gst_percentage || '18',
+          valid_until: quotationData.valid_until || '',
+          remarks: requirement.remarks || ''
+        });
+      } else {
+        // Fallback for legacy requirement
+        setQuotationData({
+          unit_cost: requirement.attachments?.unit_cost || '',
+          discount_percentage: requirement.attachments?.discount_percentage || '0',
+          tax_percentage: requirement.attachments?.gst_percentage || '18',
+          valid_until: quotationData.valid_until || '',
+          remarks: requirement.remarks || ''
+        });
+      }
+    }
+  }, [showQuotationModal, requirement]);
+
+  const handleRfqItemChange = (idx, field, value) => {
+    setRfqItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  };
+
+  const handleSendRfq = async (sendEmail, sendWhatsApp) => {
+    setSendingRfq(true);
+    try {
+      const res = await api.post(`/client-requirements/${id}/rfq`, {
+        rfqItems,
+        sendEmail,
+        sendWhatsApp
+      });
+      if (res.data.success) {
+        toast.success(res.data.message || "RFQ processed and saved successfully!");
+        setRequirement(res.data.requirement);
+        setIsCreatingNewVersion(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to process RFQ");
+    } finally {
+      setSendingRfq(false);
+    }
+  };
+
+  const handleApproveRfqVersion = async (version) => {
+    try {
+      const res = await api.patch(`/client-requirements/${id}/rfq/${version}/status`, { status: "Approved" });
+      if (res.data.success) {
+        toast.success(`RFQ ${version} approved successfully!`);
+        setRequirement(res.data.requirement);
+        setIsCreatingNewVersion(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to approve RFQ version");
+    }
+  };
 
   const fetchRequirementDetails = async () => {
     try {
@@ -515,65 +623,532 @@ const ClientRequirementDetailsPage = () => {
                         <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{requirement.description}</p>
                       </div>
                     )}
+
+                    {/* RFQ Records Section */}
+                    {(() => {
+                      const rfqHistory = requirement.rfq_history || [];
+                      const approvedVersion = rfqHistory.find(r => r.status === 'Approved');
+                      const hasApprovedVersion = !!approvedVersion;
+                      const showEditor = rfqHistory.length === 0 || isCreatingNewVersion;
+
+                      return (
+                        <div className="space-y-4 mt-4">
+                          {/* 1. RFQ Version History List */}
+                          {rfqHistory.length > 0 && (
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <FaClipboardList className="text-blue-600 w-4 h-4" />
+                                  <h3 className="text-sm font-bold text-gray-800">📄 RFQ Records</h3>
+                                </div>
+                                {/* Always allow creating a new version - after generation it auto-approves */}
+                                {!isCreatingNewVersion && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const latest = rfqHistory[rfqHistory.length - 1];
+                                      if (latest && latest.rfqItems) {
+                                        setRfqItems(latest.rfqItems.map(item => ({ ...item })));
+                                      }
+                                      setIsCreatingNewVersion(true);
+                                    }}
+                                    className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold rounded-lg border border-blue-200 transition"
+                                  >
+                                    + Create New Version
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                <table className="w-full text-xs text-left">
+                                  <thead>
+                                    <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
+                                      <th className="px-3 py-2">Version</th>
+                                      <th className="px-3 py-2">RFQ No</th>
+                                      <th className="px-3 py-2">Date</th>
+                                      <th className="px-3 py-2">Grand Total</th>
+                                      <th className="px-3 py-2">Status</th>
+                                      <th className="px-3 py-2 text-right">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100 font-medium">
+                                    {rfqHistory.map((rec) => {
+                                      const dateStr = new Date(rec.date).toLocaleDateString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric'
+                                      });
+                                      
+                                      // Calculate grand total for this version
+                                      const sub = (rec.rfqItems || []).reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
+                                      const gst = (rec.rfqItems || []).reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0) * ((parseFloat(item.gst_percentage) || 0) / 100)), 0);
+                                      const grand = sub + gst;
+
+                                      return (
+                                        <tr key={rec.version} className="hover:bg-gray-50/50">
+                                          <td className="px-3 py-2.5 font-bold text-gray-800">{rec.version}</td>
+                                          <td className="px-3 py-2.5 text-gray-600 font-semibold">{rec.rfq_number}</td>
+                                          <td className="px-3 py-2.5 text-gray-500">{dateStr}</td>
+                                          <td className="px-3 py-2.5 font-bold text-gray-900">
+                                            ₹{grand.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </td>
+                                          <td className="px-3 py-2.5">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                              rec.status === 'Approved'
+                                                ? 'bg-green-100 text-green-700'
+                                                : rec.status === 'Revised'
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-blue-100 text-blue-700'
+                                            }`}>
+                                              {rec.status}
+                                            </span>
+                                          </td>
+                                          <td className="px-3 py-2.5 text-right">
+                                            <div className="flex items-center justify-end gap-1.5">
+                                              {rec.pdf_path && (
+                                                <a
+                                                  href={`${api.defaults.baseURL.replace('/api', '')}${rec.pdf_path}`}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="p-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold flex items-center gap-0.5"
+                                                  title="View / Download PDF"
+                                                >
+                                                  <FaDownload size={11} /> PDF
+                                                </a>
+                                              )}
+                                              {/* Show Approve button for any "Sent" records */}
+                                              {rec.status === 'Sent' && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleApproveRfqVersion(rec.version)}
+                                                  className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-[10px] font-bold flex items-center gap-0.5 transition"
+                                                >
+                                                  <FaCheck size={10} /> Approve
+                                                </button>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2. RFQ Editor Section */}
+                          {showEditor && (
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-4">
+                              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <FaCalculator className="text-blue-600 w-4 h-4" />
+                                  <h3 className="text-sm font-bold text-gray-800">
+                                    RFQ — product & cost details {rfqHistory.length > 0 && `(Creating V${rfqHistory.length + 1})`}
+                                  </h3>
+                                </div>
+                                {isCreatingNewVersion && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsCreatingNewVersion(false)}
+                                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </div>
+                              
+                              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                <table className="w-full text-xs text-left">
+                                  <thead>
+                                    <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
+                                      <th className="px-3 py-2 w-10">#</th>
+                                      <th className="px-3 py-2">Product</th>
+                                      <th className="px-3 py-2 w-32">Category</th>
+                                      <th className="px-3 py-2 w-16">Qty</th>
+                                      <th className="px-3 py-2 w-24">Unit cost (₹)</th>
+                                      <th className="px-3 py-2 w-16">GST %</th>
+                                      <th className="px-3 py-2 w-28 text-right">Total (₹)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100 font-medium">
+                                    {rfqItems.map((item, idx) => {
+                                      const qty = parseFloat(item.quantity) || 0;
+                                      const cost = parseFloat(item.unit_cost) || 0;
+                                      const gst = parseFloat(item.gst_percentage) || 0;
+                                      const total = qty * cost * (1 + gst / 100);
+
+                                      return (
+                                        <tr key={idx} className="hover:bg-gray-50/50">
+                                          <td className="px-3 py-2 font-bold text-gray-400">{idx + 1}</td>
+                                          <td className="px-2 py-1.5">
+                                            <input
+                                              type="text"
+                                              value={item.product_name}
+                                              onChange={e => handleRfqItemChange(idx, 'product_name', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                                            />
+                                          </td>
+                                          <td className="px-2 py-1.5">
+                                            <input
+                                              type="text"
+                                              value={item.product_category}
+                                              onChange={e => handleRfqItemChange(idx, 'product_category', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                                            />
+                                          </td>
+                                          <td className="px-2 py-1.5">
+                                            <input
+                                              type="number"
+                                              value={item.quantity}
+                                              onChange={e => handleRfqItemChange(idx, 'quantity', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                                            />
+                                          </td>
+                                          <td className="px-2 py-1.5">
+                                            <input
+                                              type="number"
+                                              value={item.unit_cost}
+                                              placeholder="0"
+                                              onChange={e => handleRfqItemChange(idx, 'unit_cost', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                                            />
+                                          </td>
+                                          <td className="px-2 py-1.5">
+                                            <input
+                                              type="number"
+                                              value={item.gst_percentage}
+                                              placeholder="18"
+                                              onChange={e => handleRfqItemChange(idx, 'gst_percentage', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2 text-right font-bold text-gray-800">
+                                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Calculations Summary */}
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs space-y-2">
+                                <div className="flex justify-between items-center text-gray-600 font-medium">
+                                  <span>Subtotal (before GST)</span>
+                                  <span className="font-semibold text-gray-900">
+                                    ₹{rfqItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600 font-medium">
+                                  <span>GST amount</span>
+                                  <span className="font-semibold text-gray-900">
+                                    ₹{rfqItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0) * ((parseFloat(item.gst_percentage) || 0) / 100)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center text-blue-800 font-bold border-t border-gray-200 pt-2 text-sm">
+                                  <span>Grand total</span>
+                                  <span>
+                                    ₹{(
+                                      rfqItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0) +
+                                      rfqItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0) * ((parseFloat(item.gst_percentage) || 0) / 100)), 0)
+                                    ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="space-y-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendRfq(true, true)}
+                                  disabled={sendingRfq}
+                                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                >
+                                  <FaPaperPlane className="w-3.5 h-3.5" />
+                                  {sendingRfq ? "Processing..." : `Generate & Auto-Approve RFQ (V${rfqHistory.length + 1})`}
+                                </button>
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendRfq(true, false)}
+                                    disabled={sendingRfq}
+                                    className="py-2.5 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50 text-gray-700 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                  >
+                                    <FaEnvelope className="w-3.5 h-3.5 text-blue-500" />
+                                    Send via email
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendRfq(false, true)}
+                                    disabled={sendingRfq}
+                                    className="py-2.5 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50 text-gray-700 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                  >
+                                    <FaWhatsapp className="w-3.5 h-3.5 text-green-500" />
+                                    Send via WhatsApp
+                                  </button>
+                                </div>
+                              </div>
+
+                              <p className="text-[10px] text-gray-400 text-center">
+                                ✉️ RFQ will be sent to <strong className="text-gray-600">{requirement.email || 'N/A'}</strong> and WhatsApp <strong className="text-gray-600">{requirement.mobile_number || 'N/A'}</strong>. A copy will be saved under this requirement.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Requirement state card below RFQ */}
+                    {(() => {
+                      const rfqHistoryLocal = requirement.rfq_history || [];
+                      const hasRFQ = rfqHistoryLocal.length > 0;
+                      const hasQuotation = !!requirement.quotation;
+                      return (
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mt-4 space-y-3">
+                          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                            <FaClipboardCheck className="text-slate-600 w-4 h-4" />
+                            <h3 className="text-sm font-bold text-gray-800">Requirement state</h3>
+                          </div>
+                          {hasQuotation ? (
+                            <div className="space-y-2">
+                              {/* Quotation summary row */}
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs space-y-1">
+                                <div className="flex items-center gap-1.5 text-green-700 font-bold mb-1">
+                                  <FaCheckCircle size={12} /> Quotation Created
+                                </div>
+                                <div className="flex justify-between text-gray-600">
+                                  <span>Quotation No</span>
+                                  <span className="font-bold text-gray-800">{requirement.quotation.quotation_number}</span>
+                                </div>
+                                <div className="flex justify-between text-gray-600">
+                                  <span>Grand Total</span>
+                                  <span className="font-bold text-blue-700">₹{Number(requirement.quotation.final_amount).toLocaleString('en-IN')}</span>
+                                </div>
+                              </div>
+                              {/* View Quotation button → opens modal */}
+                              <button
+                                type="button"
+                                onClick={() => setShowQuotationModal(true)}
+                                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <FaFileInvoiceDollar className="w-3.5 h-3.5" />
+                                📋 View / Edit Quotation
+                              </button>
+                            </div>
+                          ) : hasRFQ ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowQuotationModal(true)}
+                              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <FaFileInvoiceDollar className="w-3.5 h-3.5" />
+                              📋 Create Quotation
+                            </button>
+                          ) : (
+                            <p className="text-xs text-gray-500 italic">Create an RFQ first to generate a quotation.</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
                 {activeTab === 'technical' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {[
-                      { label: 'Material specification', value: requirement.material },
-                      { label: 'Dimensions / sizes', value: requirement.dimensions },
-                      { label: 'Weight', value: requirement.weight },
-                      { label: 'Color / shades', value: requirement.color },
-                      { label: 'Finish specification', value: requirement.finish },
-                      { label: 'Tolerance level', value: requirement.tolerance }
-                    ].map((item, idx) => (
-                      <div key={idx} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2.5 border border-gray-200">
-                        <label className="block text-xxs font-bold text-gray-500 uppercase mb-1 tracking-wider">
-                          {item.label}
-                        </label>
-                        <p className="text-xs font-semibold text-gray-900">{item.value || '—'}</p>
+                  <div className="space-y-4">
+                    {/* General Specs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {[
+                        { label: 'Material specification', value: requirement.material },
+                        { label: 'Dimensions / sizes', value: requirement.dimensions },
+                        { label: 'Weight', value: requirement.weight },
+                        { label: 'Color / shades', value: requirement.color },
+                        { label: 'Finish specification', value: requirement.finish },
+                        { label: 'Tolerance level', value: requirement.tolerance }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2.5 border border-gray-200">
+                          <label className="block text-xxs font-bold text-gray-500 uppercase mb-1 tracking-wider">
+                            {item.label}
+                          </label>
+                          <p className="text-xs font-semibold text-gray-900">{item.value || '—'}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Detailed Product Specs List */}
+                    {requirement.products && requirement.products.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 border-b border-gray-100 pb-1.5 flex items-center gap-1">
+                          <span>📦</span> Product Line Specifications
+                        </h3>
+                        {requirement.products.map((product, pIdx) => {
+                          const specs = product.product_category === 'Clothing' ? (() => {
+                            const entries = {
+                              'Product Type': product.clothing_data?.product_type,
+                              'Fabric': product.clothing_data?.fabric_type,
+                              'GSM': product.clothing_data?.fabric_gsm,
+                              'Fit': product.clothing_data?.fit,
+                              'Sleeve': product.clothing_data?.sleeve_type,
+                              'Neck': product.clothing_data?.neck_type,
+                              'Collar Type': product.clothing_data?.collar_type,
+                              'Cuff Type': product.clothing_data?.cuff_type,
+                              'Hood Type': product.clothing_data?.hood_type,
+                              'Pocket Type': product.clothing_data?.pocket_type,
+                              'Closure Type': product.clothing_data?.closure_type,
+                              'Lining': product.clothing_data?.lining,
+                              'Waist': product.clothing_data?.waist,
+                              'Waist Size': product.clothing_data?.waist_size,
+                              'Length': product.clothing_data?.length,
+                              'Rise': product.clothing_data?.rise,
+                              'Stretch Type': product.clothing_data?.stretch_type,
+                              'Ankle Style': product.clothing_data?.ankle_style,
+                              'Department': product.clothing_data?.department,
+                              'Logo': product.clothing_data?.logo,
+                              'Reflective Type': product.clothing_data?.reflective_type,
+                              'Safety Standard': product.clothing_data?.safety_standard,
+                              'Border Type': product.clothing_data?.border_type,
+                              'Blouse Piece': product.clothing_data?.blouse_piece,
+                              'Lapel Type': product.clothing_data?.lapel_type,
+                              'Embroidery': product.clothing_data?.embroidery,
+                              'Logo Position': product.clothing_data?.logo_position,
+                              'Label': product.clothing_data?.label_type,
+                              'Packing': product.clothing_data?.packing_type,
+                              'Sample': product.clothing_data?.sample_required,
+                              'Colors': (product.clothing_data?.colors || []).join(', ') || null,
+                              'Sizes': Object.entries(product.clothing_data?.sizes_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
+                              'Printing': Object.entries(product.clothing_data?.printing_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
+                            };
+                            (product.clothing_data?.custom_fields || []).forEach(f => {
+                              if (f.label && f.value) {
+                                entries[f.label] = f.value;
+                              }
+                            });
+                            return Object.entries(entries).filter(([,v]) => v);
+                          })() : Object.entries(product.category_details || {}).filter(([,v]) => v);
+
+                          return (
+                            <div key={pIdx} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2 shadow-sm">
+                              <div className="flex justify-between items-center border-b border-gray-100 pb-1">
+                                <span className="text-xs font-bold text-gray-800">
+                                  #{pIdx + 1} {product.product_name} {product.product_model && <span className="text-gray-400 font-normal">({product.product_model})</span>}
+                                </span>
+                                <span className="text-[10px] font-semibold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
+                                  {product.product_category} • {product.quantity} {product.unit}
+                                </span>
+                              </div>
+                              {specs.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[10px]">
+                                  {specs.map(([label, val]) => (
+                                    <div key={label} className="bg-slate-50/50 p-1.5 rounded border border-slate-100">
+                                      <span className="text-gray-400 block font-semibold uppercase tracking-wider text-[8px]">{label}</span>
+                                      <span className="font-bold text-gray-700 mt-0.5 block truncate" title={val}>{val}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-gray-400 italic">No specific attributes set.</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
 
                 {activeTab === 'attachments' && (
-                  <div className="space-y-3">
+                  <div className="space-y-6">
                     <h3 className="text-xs font-semibold text-gray-900">Reference Files & Attachments</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {[
-                        { key: 'drawing', label: 'Technical Drawing' },
-                        { key: 'pdf', label: 'PDF Specification Document' },
-                        { key: 'images', label: 'Product Images' },
-                        { key: 'specifications', label: 'Additional Specifications' }
-                      ].map((attach) => {
-                        const filePath = requirement.attachments?.[attach.key];
+                    {requirement.products && requirement.products.length > 0 ? (
+                      requirement.products.map((product, pIdx) => {
+                        const productAttachments = product.attachments || {};
+                        const hasAnyAttachment = Object.values(productAttachments).some(v => !!v);
                         return (
-                          <div key={attach.key} className="flex justify-between items-center p-3 border border-slate-100 rounded-lg bg-slate-50">
-                            <div className="min-w-0 flex-1 mr-2">
-                              <span className="text-xs block font-bold text-gray-700">{attach.label}</span>
-                              <span className="text-[10px] text-gray-400 block truncate" title={filePath}>
-                                {filePath ? filePath.split('-').slice(1).join('-') : 'No file uploaded'}
+                          <div key={pIdx} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                              <span className="text-sm font-bold text-gray-800">
+                                Product {pIdx + 1}: {product.product_name || 'Unnamed Product'}
+                              </span>
+                              <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
+                                {product.product_category}
                               </span>
                             </div>
-                            {filePath ? (
-                              <a
-                                href={`${api.defaults.baseURL.replace('/api', '')}${filePath}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center shadow-sm"
-                                title="Download File"
-                              >
-                                <FaDownload size={14} />
-                              </a>
+                            {hasAnyAttachment ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {[
+                                  { key: 'drawing', label: 'Technical Drawing' },
+                                  { key: 'pdf', label: 'PDF Specification Document' },
+                                  { key: 'images', label: 'Product Images' },
+                                  { key: 'specifications', label: 'Additional Specifications' },
+                                  { key: 'other', label: 'Other Reference Document' }
+                                ].map((attach) => {
+                                  const filePath = productAttachments[attach.key];
+                                  if (!filePath) return null;
+                                  return (
+                                    <div key={attach.key} className="flex justify-between items-center p-3 border border-slate-100 rounded-lg bg-slate-50">
+                                      <div className="min-w-0 flex-1 mr-2">
+                                        <span className="text-xs block font-bold text-gray-700">{attach.label}</span>
+                                        <span className="text-[10px] text-gray-400 block truncate" title={filePath}>
+                                          {filePath.split('-').slice(1).join('-')}
+                                        </span>
+                                      </div>
+                                      <a
+                                        href={`${api.defaults.baseURL.replace('/api', '')}${filePath}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center shadow-sm"
+                                        title="Download File"
+                                      >
+                                        <FaDownload size={14} />
+                                      </a>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             ) : (
-                              <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded select-none">N/A</span>
+                              <p className="text-xs text-gray-400 italic">No files uploaded for this product.</p>
                             )}
                           </div>
                         );
-                      })}
-                    </div>
+                      })
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {[
+                          { key: 'drawing', label: 'Technical Drawing' },
+                          { key: 'pdf', label: 'PDF Specification Document' },
+                          { key: 'images', label: 'Product Images' },
+                          { key: 'specifications', label: 'Additional Specifications' },
+                          { key: 'other', label: 'Other Reference Document' }
+                        ].map((attach) => {
+                          const filePath = requirement.attachments?.[attach.key];
+                          return (
+                            <div key={attach.key} className="flex justify-between items-center p-3 border border-slate-100 rounded-lg bg-slate-50">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <span className="text-xs block font-bold text-gray-700">{attach.label}</span>
+                                <span className="text-[10px] text-gray-400 block truncate" title={filePath}>
+                                  {filePath ? filePath.split('-').slice(1).join('-') : 'No file uploaded'}
+                                </span>
+                              </div>
+                              {filePath ? (
+                                <a
+                                  href={`${api.defaults.baseURL.replace('/api', '')}${filePath}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center shadow-sm"
+                                  title="Download File"
+                                >
+                                  <FaDownload size={14} />
+                                </a>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded select-none">N/A</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -709,7 +1284,7 @@ const ClientRequirementDetailsPage = () => {
                 </div>
               )}
 
-              {requirement.status === 'Approved' && (
+              {requirement.status === 'Approved' && !(requirement.rfq_history || []).length && (
                 <button
                   onClick={() => setShowQuotationModal(true)}
                   className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1"
@@ -717,6 +1292,42 @@ const ClientRequirementDetailsPage = () => {
                   <FaFileInvoiceDollar size={12} />
                   Generate Quotation
                 </button>
+              )}
+
+              {/* Show Create/View Quotation whenever RFQ exists */}
+              {(requirement.rfq_history || []).length > 0 && (
+                requirement.quotation ? (
+                  <div className="space-y-2">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 text-xs">
+                      <div className="flex items-center gap-1 text-green-700 font-bold text-[10px] mb-1">
+                        <FaCheckCircle size={10} /> Quotation Created
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span className="text-[10px]">No.</span>
+                        <span className="font-bold text-[10px]">{requirement.quotation.quotation_number}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span className="text-[10px]">Total</span>
+                        <span className="font-bold text-[10px] text-blue-700">₹{Number(requirement.quotation.final_amount).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowQuotationModal(true)}
+                      className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1"
+                    >
+                      <FaFileInvoiceDollar size={12} />
+                      📋 View / Edit Quotation
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowQuotationModal(true)}
+                    className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1"
+                  >
+                    <FaFileInvoiceDollar size={12} />
+                    📋 Create Quotation
+                  </button>
+                )
               )}
 
               {requirement.status === 'Quotation Generated' && (
@@ -792,135 +1403,293 @@ const ClientRequirementDetailsPage = () => {
         </div>
       </div>
 
-      {/* GENERATE QUOTATION MODAL */}
-      {showQuotationModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg border border-slate-100 overflow-hidden">
-            <div className="bg-blue-600 text-white px-6 py-3 flex justify-between items-center">
-              <h3 className="font-bold text-sm flex items-center gap-1.5">
-                <FaCalculator /> Generate Quotation
-              </h3>
-              <button 
-                onClick={() => setShowQuotationModal(false)}
-                className="p-1 hover:bg-white/20 rounded transition-all text-white"
-              >
-                <FaTimes size={16} />
-              </button>
-            </div>
+      {/* GENERATE QUOTATION MODAL - Pre-filled from Approved RFQ */}
+      {showQuotationModal && (() => {
+        // Get approved RFQ items
+        const rfqHistory = requirement.rfq_history || [];
+        const approvedRfq = rfqHistory.find(r => r.status === 'Approved') || rfqHistory[rfqHistory.length - 1];
+        const existingQuotation = requirement.quotation;
+        const modalItems = (approvedRfq?.rfqItems && approvedRfq.rfqItems.length > 0)
+          ? approvedRfq.rfqItems
+          : (requirement.products || []).map(p => ({
+              product_name: p.product_name || '',
+              product_category: p.product_category || '',
+              quantity: p.quantity || 0,
+              unit_cost: p.unit_cost || '',
+              gst_percentage: p.gst_percentage || '18',
+              discount_percentage: p.discount_percentage || '0',
+            }));
 
-            <form onSubmit={handleGenerateQuotation} className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">
+        // Live calculations from modal items
+        const subTotal = modalItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
+        const totalDiscount = modalItems.reduce((s, item) => {
+          const base = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0);
+          return s + (base * (parseFloat(item.discount_percentage) || 0) / 100);
+        }, 0);
+        const taxable = subTotal - totalDiscount;
+        const totalGST = modalItems.reduce((s, item) => {
+          const base = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0);
+          const disc = base * (parseFloat(item.discount_percentage) || 0) / 100;
+          return s + ((base - disc) * (parseFloat(item.gst_percentage) || 18) / 100);
+        }, 0);
+        const grandTotal = taxable + totalGST;
+
+        return (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex justify-center items-start p-4 pt-10">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden">
+              {/* Header */}
+              <div className={`bg-gradient-to-r ${existingQuotation ? 'from-green-600 to-emerald-600' : 'from-blue-600 to-indigo-600'} text-white px-6 py-4 flex justify-between items-center`}>
                 <div>
-                  <span className="text-gray-400 block">Product</span>
-                  <span className="font-bold text-gray-700">{requirement.product_name}</span>
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <FaFileInvoiceDollar />
+                    {existingQuotation ? '📋 Quotation Details' : 'Generate Quotation'}
+                  </h3>
+                  <p className="text-white/70 text-xs mt-0.5">
+                    {existingQuotation
+                      ? `${existingQuotation.quotation_number} — from ${approvedRfq?.rfq_number || 'RFQ'}`
+                      : `Pre-filled from ${approvedRfq ? `${approvedRfq.version} — ${approvedRfq.rfq_number}` : 'RFQ data'}`
+                    }
+                  </p>
                 </div>
-                <div>
-                  <span className="text-gray-400 block">Quantity</span>
-                  <span className="font-bold text-blue-600">{requirement.quantity} {requirement.unit}</span>
-                </div>
+                <button onClick={() => setShowQuotationModal(false)} className="p-1.5 hover:bg-white/20 rounded-lg transition-all">
+                  <FaTimes size={16} />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Price (₹) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={quotationData.unit_price}
-                  onChange={(e) => setQuotationData(prev => ({ ...prev, unit_price: e.target.value }))}
-                  placeholder="Enter cost per unit"
-                  className="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
-                />
-              </div>
+              <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Discount %</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={quotationData.discount_percentage}
-                    onChange={(e) => setQuotationData(prev => ({ ...prev, discount_percentage: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tax / GST %</label>
-                  <input
-                    type="number"
-                    value={quotationData.tax_percentage}
-                    onChange={(e) => setQuotationData(prev => ({ ...prev, tax_percentage: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Valid Until</label>
-                <input
-                  type="date"
-                  value={quotationData.valid_until}
-                  onChange={(e) => setQuotationData(prev => ({ ...prev, valid_until: e.target.value }))}
-                  className="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Remarks / Terms</label>
-                <textarea
-                  rows="2"
-                  value={quotationData.remarks}
-                  onChange={(e) => setQuotationData(prev => ({ ...prev, remarks: e.target.value }))}
-                  placeholder="e.g. 50% advance, balance upon delivery"
-                  className="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
-                ></textarea>
-              </div>
-
-              {/* Real-time Pricing Preview */}
-              {calculatedQuotation && (
-                <div className="bg-blue-50 p-3 border border-blue-100 rounded-lg space-y-1.5 text-xs text-slate-700">
-                  <div className="flex justify-between">
-                    <span>Base Amount:</span>
-                    <span>₹{calculatedQuotation.totalAmount.toFixed(2)}</span>
+                {/* ── IF QUOTATION EXISTS: Show quotation details prominently ── */}
+                {existingQuotation ? (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-green-200">
+                      <FaCheckCircle className="text-green-600" />
+                      <span className="font-bold text-green-800 text-sm">Quotation Generated Successfully</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                      <div className="flex justify-between col-span-2 border-b border-green-100 pb-2">
+                        <span className="text-gray-500 font-medium">Quotation Number</span>
+                        <span className="font-extrabold text-gray-900 text-sm">{existingQuotation.quotation_number}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Customer</span>
+                        <span className="font-semibold text-gray-800">{existingQuotation.customer_name || requirement.customer_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Product</span>
+                        <span className="font-semibold text-gray-800">{existingQuotation.product_name || '—'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Unit Price</span>
+                        <span className="font-bold text-gray-900">₹{Number(existingQuotation.unit_price).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Quantity</span>
+                        <span className="font-bold text-gray-900">{existingQuotation.quantity}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Base Amount</span>
+                        <span className="font-semibold">₹{Number(existingQuotation.total_amount).toLocaleString('en-IN')}</span>
+                      </div>
+                      {parseFloat(existingQuotation.discount_amount) > 0 && (
+                        <div className="flex justify-between text-orange-600">
+                          <span>Discount ({existingQuotation.discount_percentage}%)</span>
+                          <span className="font-semibold">-₹{Number(existingQuotation.discount_amount).toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">GST ({existingQuotation.tax_percentage}%)</span>
+                        <span className="font-semibold">₹{Number(existingQuotation.tax_amount).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between col-span-2 border-t-2 border-green-300 pt-2 mt-1">
+                        <span className="font-extrabold text-green-800 text-sm">Grand Total</span>
+                        <span className="font-extrabold text-green-700 text-lg">₹{Number(existingQuotation.final_amount).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                    {existingQuotation.valid_until && (
+                      <div className="text-xs text-gray-500 pt-1 border-t border-green-100">
+                        Valid Until: <span className="font-semibold text-gray-700">{new Date(existingQuotation.valid_until).toLocaleDateString('en-IN')}</span>
+                      </div>
+                    )}
+                    {existingQuotation.remarks && (
+                      <div className="text-xs text-gray-500 italic border-t border-green-100 pt-1">
+                        <span className="font-semibold not-italic text-gray-600">Terms: </span>{existingQuotation.remarks}
+                      </div>
+                    )}
                   </div>
-                  {calculatedQuotation.discountAmount > 0 && (
+                ) : (
+                  /* ── IF NO QUOTATION: Show customer info header ── */
+                  <div className="grid grid-cols-2 gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 text-xs">
+                    <div>
+                      <span className="text-blue-500 block font-medium">Customer</span>
+                      <span className="font-bold text-gray-800">{requirement.customer_name}</span>
+                    </div>
+                    <div>
+                      <span className="text-blue-500 block font-medium">Project</span>
+                      <span className="font-bold text-gray-800">{requirement.project_name || '—'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* RFQ Items Table — pre-filled, read-only */}
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                    <FaBox className="text-blue-500" /> Product Line Items (from Approved RFQ)
+                  </h4>
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold">
+                          <th className="px-3 py-2 text-left">#</th>
+                          <th className="px-3 py-2 text-left">Product</th>
+                          <th className="px-3 py-2 text-center">Qty</th>
+                          <th className="px-3 py-2 text-right">Rate (₹)</th>
+                          <th className="px-3 py-2 text-right">GST %</th>
+                          <th className="px-3 py-2 text-right">Total (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {modalItems.map((item, idx) => {
+                          const qty = parseFloat(item.quantity) || 0;
+                          const rate = parseFloat(item.unit_cost) || 0;
+                          const disc = parseFloat(item.discount_percentage) || 0;
+                          const gst = parseFloat(item.gst_percentage) || 18;
+                          const base = qty * rate;
+                          const discAmt = base * disc / 100;
+                          const total = (base - discAmt) * (1 + gst / 100);
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-3 py-2.5 font-bold text-gray-400">{idx + 1}</td>
+                              <td className="px-3 py-2.5">
+                                <span className="font-semibold text-gray-800">{item.product_name || '—'}</span>
+                                {item.product_category && <span className="text-gray-400 text-[10px] ml-1">({item.product_category})</span>}
+                              </td>
+                              <td className="px-3 py-2.5 text-center font-semibold text-gray-700">{qty}</td>
+                              <td className="px-3 py-2.5 text-right font-bold text-gray-800">
+                                {rate > 0 ? `₹${rate.toLocaleString('en-IN')}` : <span className="text-red-400 italic">Not set</span>}
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-gray-600">{gst}%</td>
+                              <td className="px-3 py-2.5 text-right font-bold text-blue-700">
+                                ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Totals Summary */}
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal (before GST)</span>
+                    <span className="font-semibold">₹{subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {totalDiscount > 0 && (
                     <div className="flex justify-between text-orange-600 font-medium">
-                      <span>Discount ({quotationData.discount_percentage}%):</span>
-                      <span>-₹{calculatedQuotation.discountAmount.toFixed(2)}</span>
+                      <span>Discount</span>
+                      <span>-₹{totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span>GST ({quotationData.tax_percentage}%):</span>
-                    <span>₹{calculatedQuotation.taxAmount.toFixed(2)}</span>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Total GST</span>
+                    <span className="font-semibold">₹{totalGST.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between border-t border-dashed border-slate-200 pt-1.5 text-xs font-extrabold text-blue-700">
-                    <span>Net Total Amount:</span>
-                    <span>₹{calculatedQuotation.finalAmount.toFixed(2)}</span>
+                  <div className="flex justify-between border-t border-indigo-200 pt-2 text-sm font-extrabold text-indigo-700">
+                    <span>Grand Total</span>
+                    <span>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
-              )}
 
-              <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowQuotationModal(false)}
-                  className="px-4 py-1.5 border border-gray-200 bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={modalLoading}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-md"
-                >
-                  {modalLoading ? 'Generating...' : 'Save & Generate'}
-                </button>
+                {/* Editable: Validity + Remarks + Save — only shown in Create mode */}
+                {!existingQuotation && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Valid Until</label>
+                        <input
+                          type="date"
+                          value={quotationData.valid_until}
+                          onChange={(e) => setQuotationData(prev => ({ ...prev, valid_until: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Unit Price Override (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={quotationData.unit_price}
+                          onChange={(e) => setQuotationData(prev => ({ ...prev, unit_price: e.target.value }))}
+                          placeholder={`Auto: ₹${modalItems[0]?.unit_cost || '—'}`}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Remarks / Payment Terms</label>
+                      <textarea
+                        rows="2"
+                        value={quotationData.remarks}
+                        onChange={(e) => setQuotationData(prev => ({ ...prev, remarks: e.target.value }))}
+                        placeholder="e.g. 50% advance, balance upon delivery"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800 resize-none"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuotationModal(false)}
+                    className="px-5 py-2 border border-gray-200 bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all"
+                  >
+                    {existingQuotation ? 'Close' : 'Cancel'}
+                  </button>
+                  {!existingQuotation && (
+                    <button
+                      type="button"
+                      disabled={modalLoading}
+                      onClick={async () => {
+                        const firstItem = modalItems[0] || {};
+                        const unitPrice = quotationData.unit_price || firstItem.unit_cost || '0';
+                        if (!unitPrice || parseFloat(unitPrice) <= 0) {
+                          toast.error('Unit Price must be set in the RFQ items');
+                          return;
+                        }
+                        try {
+                          setModalLoading(true);
+                          await api.post(`/client-requirements/${id}/generate-quotation`, {
+                            unit_price: unitPrice,
+                            discount_percentage: firstItem.discount_percentage || '0',
+                            tax_percentage: firstItem.gst_percentage || '18',
+                            valid_until: quotationData.valid_until || null,
+                            remarks: quotationData.remarks
+                          });
+                          toast.success('✅ Quotation generated successfully!');
+                          setShowQuotationModal(false);
+                          fetchRequirementDetails();
+                        } catch (err) {
+                          toast.error(err.response?.data?.message || 'Failed to generate quotation');
+                        } finally {
+                          setModalLoading(false);
+                        }
+                      }}
+                      className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                    >
+                      <FaFileInvoiceDollar size={12} />
+                      {modalLoading ? 'Generating...' : 'Save & Generate Quotation'}
+                    </button>
+                  )}
+                </div>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* QR Code Modal */}
       {showQRModal && (

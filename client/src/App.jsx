@@ -54,6 +54,7 @@ import SalesReportsPage from "./pages/sales/SalesReportsPage";
 import ClientRequirementsPage from "./pages/sales/ClientRequirementsPage";
 import CreateClientRequirementPage from "./pages/sales/CreateClientRequirementPage";
 import ClientRequirementDetailsPage from "./pages/sales/ClientRequirementDetailsPage";
+import QuotationsPage from "./pages/sales/QuotationsPage";
 
 // Procurement Pages
 import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
@@ -417,6 +418,14 @@ function App() {
           element={
             <ProtectedDashboard department="sales">
               <CreateClientRequirementPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/sales/quotations"
+          element={
+            <ProtectedDashboard department="sales">
+              <QuotationsPage />
             </ProtectedDashboard>
           }
         />

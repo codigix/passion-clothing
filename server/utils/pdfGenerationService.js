@@ -391,6 +391,161 @@ class PDFGenerationService {
   }
 
   /**
+   * Generate RFQ PDF
+   * @param {Object} requirement - Client requirement details
+   * @param {Array} rfqItems - RFQ products and cost details
+   * @param {string} version - RFQ version (V1, V2, etc.)
+   * @returns {Promise<{success: boolean, filePath: string, filename: string}>}
+   */
+  static async generateRFQPDF(requirement, rfqItems, version = 'V1') {
+    try {
+      const filename = `RFQ_${requirement.requirement_number}_${version}_${Date.now()}.pdf`;
+      const filePath = path.join(PDF_OUTPUT_DIR, filename);
+
+      return new Promise((resolve, reject) => {
+        try {
+          const doc = new PDFDocument({
+            margin: 40,
+            size: 'A4',
+            bufferPages: true
+          });
+
+          const stream = fs.createWriteStream(filePath);
+          doc.pipe(stream);
+
+          // Outer Page Border
+          doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke();
+
+          // 1. Header Box (Hottip Layout Style)
+          const headerY = 30;
+          doc.rect(40, headerY, 515, 90).stroke();
+          
+          doc.fontSize(18).font('Helvetica-Bold').fillColor('#1e3a8a').text(process.env.COMPANY_NAME || 'PASSION CLOTHING FACTORY', 50, headerY + 15, { align: 'center' });
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#4b5563').text('PREMIUM CLOTHING & GARMENT MANUFACTURER', 50, headerY + 38, { align: 'center' });
+          doc.fontSize(8).font('Helvetica').fillColor('#6b7280');
+          doc.text(process.env.COMPANY_ADDRESS || 'Mumbai, Maharashtra, India', 50, headerY + 53, { align: 'center' });
+          doc.text(`Phone: ${process.env.COMPANY_PHONE || '+91-9876543210'} | Email: ${process.env.COMPANY_EMAIL || 'info@pashion.com'}`, 50, headerY + 68, { align: 'center' });
+          doc.text('GSTIN: 27AAAAA0000A1Z5', 50, headerY + 80, { align: 'center' });
+
+          // 2. Info Boxes (Side by side)
+          const boxesY = headerY + 105;
+          
+          // Left Box: Customer Info
+          doc.rect(40, boxesY, 250, 100).stroke();
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e3a8a').text('CUSTOMER ADDRESS', 50, boxesY + 10);
+          doc.fontSize(9).font('Helvetica').fillColor('#374151');
+          doc.text(`Company: ${requirement.customer_name || 'N/A'}`, 50, boxesY + 28);
+          doc.text(`Contact Person: ${requirement.contact_person || 'N/A'}`, 50, boxesY + 44);
+          doc.text(`Phone: ${requirement.mobile_number || 'N/A'}`, 50, boxesY + 60);
+          doc.text(`Email: ${requirement.email || 'N/A'}`, 50, boxesY + 76);
+
+          // Right Box: RFQ Details
+          doc.rect(305, boxesY, 250, 100).stroke();
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e3a8a').text('RFQ DETAILS', 315, boxesY + 10);
+          doc.fontSize(9).font('Helvetica').fillColor('#374151');
+          doc.text(`RFQ Ref No: ${requirement.requirement_number}`, 315, boxesY + 24);
+          doc.text(`RFQ Version: ${version}`, 315, boxesY + 39);
+          doc.text(`RFQ Date: ${new Date().toLocaleDateString('en-IN')}`, 315, boxesY + 54);
+          doc.text(`Project Name: ${requirement.project_name || 'N/A'}`, 315, boxesY + 69);
+          doc.text(`Required Date: ${requirement.required_date ? new Date(requirement.required_date).toLocaleDateString('en-IN') : 'N/A'}`, 315, boxesY + 84);
+
+          // 3. Product & Cost Details Section
+          const tableY = boxesY + 115;
+          doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e3a8a').text('PRODUCT & COST DETAILS', 40, tableY);
+          
+          const colX = [40, 70, 240, 320, 370, 440, 490];
+          const colW = [30, 170, 80, 50, 70, 50, 65];
+          const tableHeaderY = tableY + 15;
+          
+          // Draw table header background (sleek blue color instead of yellow)
+          doc.rect(40, tableHeaderY, 515, 20).fill('#1e3a8a');
+          
+          // Table Headers text
+          doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff');
+          doc.text('No', colX[0] + 5, tableHeaderY + 5);
+          doc.text('Product Description', colX[1] + 5, tableHeaderY + 5);
+          doc.text('Category', colX[2] + 5, tableHeaderY + 5);
+          doc.text('QTY', colX[3] + 5, tableHeaderY + 5);
+          doc.text('Unit Cost', colX[4] + 5, tableHeaderY + 5);
+          doc.text('GST %', colX[5] + 5, tableHeaderY + 5);
+          doc.text('Amount', colX[6] + 5, tableHeaderY + 5, { align: 'right', width: colW[6] - 10 });
+
+          // Draw table borders and rows
+          doc.fillColor('#374151');
+          let y = tableHeaderY + 20;
+          doc.fontSize(8).font('Helvetica');
+
+          rfqItems.forEach((item, index) => {
+            const qty = parseFloat(item.quantity) || 0;
+            const cost = parseFloat(item.unit_cost) || 0;
+            const gst = parseFloat(item.gst_percentage) || 0;
+            const total = qty * cost * (1 + gst / 100);
+
+            // Draw row border
+            doc.rect(40, y, 515, 20).stroke();
+
+            doc.text(index + 1, colX[0] + 5, y + 6);
+            doc.text(item.product_name, colX[1] + 5, y + 6, { width: colW[1] - 10, height: 12, ellipsis: true });
+            doc.text(item.product_category, colX[2] + 5, y + 6, { width: colW[2] - 10, height: 12, ellipsis: true });
+            doc.text(qty.toString(), colX[3] + 5, y + 6);
+            doc.text(`INR ${cost.toFixed(2)}`, colX[4] + 5, y + 6);
+            doc.text(`${gst}%`, colX[5] + 5, y + 6);
+            doc.text(`INR ${total.toFixed(2)}`, colX[6] + 5, y + 6, { align: 'right', width: colW[6] - 10 });
+
+            y += 20;
+            if (y > 700) {
+              doc.addPage();
+              doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke();
+              y = 40;
+            }
+          });
+
+          // Calculations Summary
+          const subtotal = rfqItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
+          const gstAmount = rfqItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0) * ((parseFloat(item.gst_percentage) || 0) / 100)), 0);
+          const grandTotal = subtotal + gstAmount;
+
+          doc.rect(40, y, 515, 60).stroke();
+          
+          doc.fontSize(9).font('Helvetica-Bold');
+          doc.text('Subtotal (before GST):', 250, y + 10, { width: 180, align: 'right' });
+          doc.text(`INR ${subtotal.toFixed(2)}`, 440, y + 10, { width: 110, align: 'right' });
+
+          doc.text('GST amount:', 250, y + 26, { width: 180, align: 'right' });
+          doc.text(`INR ${gstAmount.toFixed(2)}`, 440, y + 26, { width: 110, align: 'right' });
+
+          doc.fillColor('#1e3a8a');
+          doc.text('Grand Total:', 250, y + 42, { width: 180, align: 'right' });
+          doc.text(`INR ${grandTotal.toFixed(2)}`, 440, y + 42, { width: 110, align: 'right' });
+
+          // Footer
+          doc.moveDown(2);
+          this._addFooter(doc);
+
+          doc.end();
+
+          stream.on('finish', () => {
+            resolve({
+              success: true,
+              filePath,
+              filename
+            });
+          });
+
+          stream.on('error', (err) => {
+            reject(new Error(`Stream error: ${err.message}`));
+          });
+        } catch (err) {
+          reject(new Error(`RFQ PDF generation error: ${err.message}`));
+        }
+      });
+    } catch (error) {
+      console.error('Error generating RFQ PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get PDF file path for download
    */
   static getPDFFilePath(filename) {

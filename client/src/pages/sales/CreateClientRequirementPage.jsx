@@ -184,9 +184,25 @@ const CATEGORY_CONFIG = {
     variantColumns: ['Variant / SKU', 'Specification', 'Qty', 'Unit'],
     variantPlaceholders: ['e.g. Variant A', 'e.g. Custom spec', '0', 'Pcs'],
   },
+  Others: {
+    icon: '📦',
+    color: 'indigo',
+    sectionTitle: 'Product Details',
+    productFields: [
+      { field: 'other_description', label: 'Product Description', placeholder: 'Describe the product...', type: 'textarea' },
+      { field: 'other_material', label: 'Material', placeholder: 'e.g. Plastic, Metal, Fabric' },
+      { field: 'other_size', label: 'Size / Dimensions', placeholder: 'e.g. 200 × 100 mm' },
+      { field: 'other_color', label: 'Color', placeholder: 'e.g. Black, White' },
+      { field: 'other_weight', label: 'Weight', placeholder: 'e.g. 300 g per unit' },
+    ],
+    technicalFields: [],
+    mfgRequirements: [],
+    variantColumns: ['Variant / SKU', 'Specification', 'Qty', 'Unit'],
+    variantPlaceholders: ['e.g. Variant A', 'e.g. Custom spec', '0', 'Pcs'],
+  },
 };
 
-const ALL_CATEGORIES = ['Clothing', 'Bottles', 'Stationery / Books', 'Bags', 'Promotional / Gifting', 'Industrial Parts', 'Custom Product', 'Other'];
+const ALL_CATEGORIES = ['Clothing', 'Custom Product', 'Others'];
 
 const OTHER_CATEGORY_FIELDS = [
   { field: 'other_description', label: 'Product Description', placeholder: 'Describe the product...', type: 'textarea' },
@@ -220,9 +236,6 @@ const TABS = [
   { id: 'customer',   label: 'Customer & Enquiry', icon: <FaUserAlt /> },
   { id: 'product',    label: 'Product',     icon: <FaBoxOpen /> },
   { id: 'delivery',   label: 'Delivery',    icon: <FaTruck /> },
-  { id: 'commercial', label: 'Commercial',  icon: <FaCoins /> },
-  { id: 'remarks',    label: 'Remarks',     icon: <FaStickyNote /> },
-  { id: 'approval',   label: 'Approval',    icon: <FaClipboardCheck /> },
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -272,6 +285,27 @@ const CLOTHING_COLORS = [
 
 const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
+const PRODUCT_TYPE_FIELDS = {
+  'T-Shirt': ['fit', 'sleeve_type', 'neck_type', 'fabric_type', 'fabric_gsm', 'fabric_composition', 'colors', 'sizes', 'printing'],
+  'Polo T-Shirt': ['fit', 'sleeve_type', 'collar_type', 'fabric_type', 'fabric_gsm', 'fabric_composition', 'colors', 'sizes', 'printing'],
+  'Shirt': ['fit', 'sleeve_type', 'collar_type', 'cuff_type', 'fabric_type', 'fabric_gsm', 'fabric_composition', 'colors', 'sizes'],
+  'Formal Shirt': ['fit', 'sleeve_type', 'collar_type', 'cuff_type', 'fabric_type', 'fabric_gsm', 'fabric_composition', 'colors', 'sizes'],
+  'Hoodie': ['fit', 'hood_type', 'sleeve_type', 'pocket_type', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
+  'Sweatshirt': ['fit', 'sleeve_type', 'neck_type', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
+  'Jacket': ['fit', 'sleeve_type', 'closure_type', 'lining', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
+  'Trouser': ['fit', 'waist', 'length', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
+  'Jeans': ['fit', 'waist_size', 'length', 'rise', 'stretch_type', 'fabric_gsm', 'fabric_composition', 'colors'],
+  'Shorts': ['fit', 'waist_size', 'length', 'fabric_type', 'fabric_gsm', 'colors'],
+  'Track Pant': ['fit', 'waist_size', 'length', 'fabric_type', 'fabric_gsm', 'colors'],
+  'Jogger': ['fit', 'waist_size', 'ankle_style', 'fabric_type', 'fabric_gsm', 'colors'],
+  'Uniform': ['fit', 'department', 'fabric_type', 'fabric_gsm', 'logo', 'colors'],
+  'Safety Wear': ['reflective_type', 'fabric_type', 'fabric_gsm', 'safety_standard', 'colors'],
+  'Kurti': ['neck_type', 'sleeve_type', 'length', 'fabric_type', 'fabric_gsm', 'colors'],
+  'Saree': ['fabric_type', 'length', 'border_type', 'blouse_piece', 'colors'],
+  'Blazer': ['fit', 'lapel_type', 'sleeve_type', 'fabric_type', 'fabric_gsm', 'lining'],
+  'Other': ['custom_fields']
+};
+
 const ClothingDetailsSection = ({ data, onChange }) => {
   const set = (field, val) => onChange({ ...data, [field]: val });
 
@@ -282,7 +316,7 @@ const ClothingDetailsSection = ({ data, onChange }) => {
   };
 
   /* handle custom color input */
-  const [colorInput, setColorInput] = React.useState('');
+  const [colorInput, setColorInput] = useState('');
   const addCustomColor = () => {
     const trimmed = colorInput.trim();
     if (!trimmed) return;
@@ -314,269 +348,578 @@ const ClothingDetailsSection = ({ data, onChange }) => {
     set('printing_required', { ...printing, [method]: !printing[method] });
   };
 
+  /* Custom fields list management */
+  const [customKey, setCustomKey] = useState('');
+  const [customVal, setCustomVal] = useState('');
+  const addCustomField = () => {
+    if (!customKey.trim()) return;
+    const fields = data.custom_fields || [];
+    set('custom_fields', [...fields, { label: customKey.trim(), value: customVal.trim() }]);
+    setCustomKey('');
+    setCustomVal('');
+  };
+  const removeCustomField = (index) => {
+    const fields = data.custom_fields || [];
+    set('custom_fields', fields.filter((_, idx) => idx !== index));
+  };
+
   const checkedSizes = ALL_SIZES.filter(s => (data.sizes_required || {})[s]);
   const checkedPrints = Object.entries(data.printing_required || {}).filter(([, v]) => v).map(([k]) => k);
 
-  const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition text-sm bg-white';
-  const labelCls = 'block text-xs font-bold text-gray-700 mb-1.5';
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const inputCls = 'w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition text-sm bg-white font-medium';
+  const labelCls = 'block text-sm font-semibold text-gray-700 mb-2';
+
+  const productType = data.product_type || '';
+  const visibleFields = PRODUCT_TYPE_FIELDS[productType] || [];
+  const showField = (field) => visibleFields.includes(field);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
 
-      {/* ── Row 1: Product Type + Fabric Type ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>Product Type <span className="text-red-500">*</span></label>
-          <select value={data.product_type || ''} onChange={e => set('product_type', e.target.value)} className={inputCls}>
-            <option value="">Select product type...</option>
-            {['T-Shirt','Polo T-Shirt','Shirt','Formal Shirt','Hoodie','Sweatshirt','Jacket',
-              'Trouser','Jeans','Shorts','Track Pant','Jogger','Uniform','Safety Wear',
-              'Kurti','Saree','Blazer','Other'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>Fabric Type <span className="text-red-500">*</span></label>
-          <select value={data.fabric_type || ''} onChange={e => set('fabric_type', e.target.value)} className={inputCls}>
-            <option value="">Select fabric type...</option>
-            {['100% Cotton','Polyester','Cotton Polyester','Linen','Rayon','Viscose',
-              'Denim','Terry Cotton','Fleece','Lycra','Nylon','Silk','Wool','Other'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* ── Row 2: Fabric GSM + Fabric Composition ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>Fabric GSM <span className="text-red-500">*</span></label>
-          <select value={data.fabric_gsm || ''} onChange={e => set('fabric_gsm', e.target.value)} className={inputCls}>
-            <option value="">Select GSM...</option>
-            {['120 GSM','140 GSM','160 GSM','180 GSM','200 GSM','220 GSM','240 GSM','280 GSM','Custom'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>Fabric Composition</label>
-          <input type="text" value={data.fabric_composition || ''} onChange={e => set('fabric_composition', e.target.value)}
-            placeholder="e.g. 100% Cotton, 60% Cotton / 40% Polyester"
-            className={inputCls.replace('bg-white', '')} />
-        </div>
-      </div>
-
-      {/* ── Row 3: Fit + Sleeve Type + Neck Type ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className={labelCls}>Fit</label>
-          <select value={data.fit || ''} onChange={e => set('fit', e.target.value)} className={inputCls}>
-            <option value="">Select fit...</option>
-            {['Regular','Slim','Oversized','Relaxed','Comfort'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>Sleeve Type</label>
-          <select value={data.sleeve_type || ''} onChange={e => set('sleeve_type', e.target.value)} className={inputCls}>
-            <option value="">Select sleeve...</option>
-            {['Half Sleeve','Full Sleeve','Sleeveless'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>Neck Type</label>
-          <select value={data.neck_type || ''} onChange={e => set('neck_type', e.target.value)} className={inputCls}>
-            <option value="">Select neck...</option>
-            {['Round Neck','Polo','V Neck','Collar','Mandarin'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* ── Color Multi-Select ── */}
+      {/* ── Product Type (Always Visible) ── */}
       <div>
-        <label className={labelCls}>Color (Multi-Select)</label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {CLOTHING_COLORS.map(color => {
-            const isSelected = (data.colors || []).includes(color);
-            return (
-              <button
-                key={color}
-                type="button"
-                onClick={() => toggleColor(color)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${
-                  isSelected
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                    : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600'
-                }`}
-              >
-                {isSelected ? '✓ ' : ''}{color}
-              </button>
-            );
-          })}
-        </div>
-        {/* Custom color input */}
-        <div className="flex gap-2 mt-1">
-          <input
-            type="text"
-            value={colorInput}
-            onChange={e => setColorInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomColor(); }}}
-            placeholder="Type a custom color and press Enter or Add"
-            className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 focus:border-indigo-400 outline-none text-sm transition"
-          />
-          <button type="button" onClick={addCustomColor}
-            className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition">
-            + Add
-          </button>
-        </div>
-        {(data.colors || []).length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {(data.colors || []).map(c => (
-              <span key={c} className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-full text-xs font-semibold">
-                {c}
-                <button type="button" onClick={() => toggleColor(c)} className="text-indigo-400 hover:text-red-500 ml-0.5 text-xs leading-none">&times;</button>
-              </span>
-            ))}
-          </div>
-        )}
+        <label className={labelCls}>Product Type <span className="text-red-500">*</span></label>
+        <select value={data.product_type || ''} onChange={e => set('product_type', e.target.value)} className={inputCls}>
+          <option value="">Select product type...</option>
+          {['T-Shirt','Polo T-Shirt','Shirt','Formal Shirt','Hoodie','Sweatshirt','Jacket',
+            'Trouser','Jeans','Shorts','Track Pant','Jogger','Uniform','Safety Wear',
+            'Kurti','Saree','Blazer','Other'].map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
       </div>
 
-      {/* ── Size Required Checkboxes ── */}
-      <div>
-        <label className={labelCls}>Size Required</label>
-        <div className="flex flex-wrap gap-3">
-          {ALL_SIZES.map(size => {
-            const isChecked = !!(data.sizes_required || {})[size];
-            return (
-              <label key={size}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-all font-semibold text-sm select-none ${
-                  isChecked
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
-                  isChecked ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'
-                }`}>
-                  {isChecked && <FaCheck className="w-2.5 h-2.5 text-white" />}
-                </div>
-                <input type="checkbox" className="hidden" checked={isChecked} onChange={() => toggleSize(size)} />
-                {size}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Size Breakdown Table (only shows checked sizes) ── */}
-      {checkedSizes.length > 0 && (
-        <div>
-          <label className={labelCls}>Size Breakdown — Quantity per Size</label>
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-indigo-50 border-b border-gray-200">
-                  <th className="px-5 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wide w-32">Size</th>
-                  <th className="px-5 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wide">Quantity</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {checkedSizes.map(size => (
-                  <tr key={size} className="hover:bg-indigo-50/40 transition-colors">
-                    <td className="px-5 py-2.5">
-                      <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">{size}</span>
-                    </td>
-                    <td className="px-5 py-2.5">
-                      <input
-                        type="number" min="0"
-                        value={(data.size_breakdown || {})[size] || ''}
-                        onChange={e => setBreakdownQty(size, e.target.value)}
-                        placeholder="0"
-                        className="w-36 px-3 py-1.5 rounded-lg border border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-sm transition"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-indigo-200 bg-indigo-50">
-                  <td className="px-5 py-2.5 text-xs font-bold text-indigo-700">Total</td>
-                  <td className="px-5 py-2.5 text-sm font-bold text-indigo-800">
-                    {checkedSizes.reduce((sum, s) => sum + (parseFloat((data.size_breakdown || {})[s]) || 0), 0).toLocaleString()} Pcs
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+      {!productType && (
+        <div className="text-xs text-indigo-500 bg-indigo-50 p-3 rounded-lg border border-indigo-100 font-medium">
+          Please select a product type above to see specifications.
         </div>
       )}
 
-      {/* ── Printing Required Checkboxes ── */}
-      <div>
-        <label className={labelCls}>Printing Required</label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-          {['Screen Print','DTF','DTG','Heat Transfer','Puff Print','Sublimation'].map(method => {
-            const isChecked = !!(data.printing_required || {})[method];
-            return (
-              <label key={method}
-                className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all select-none ${
-                  isChecked
-                    ? 'border-violet-400 bg-violet-50 text-violet-800'
-                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                  isChecked ? 'bg-violet-500 border-violet-500' : 'bg-white border-gray-300'
-                }`}>
-                  {isChecked && <FaCheck className="w-2.5 h-2.5 text-white" />}
-                </div>
-                <input type="checkbox" className="hidden" checked={isChecked} onChange={() => togglePrint(method)} />
-                <span className="text-xs font-semibold">{method}</span>
-              </label>
-            );
-          })}
-        </div>
-        {checkedPrints.length > 0 && (
-          <p className="text-xs text-violet-600 mt-1.5 font-medium">Selected: {checkedPrints.join(', ')}</p>
-        )}
-      </div>
+      {productType && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Fit */}
+          {showField('fit') && (
+            <div>
+              <label className={labelCls}>Fit</label>
+              <select value={data.fit || ''} onChange={e => set('fit', e.target.value)} className={inputCls}>
+                <option value="">Select fit...</option>
+                {['Regular','Slim','Oversized','Relaxed','Comfort'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
 
-      {/* ── Row: Embroidery + Logo Position + Label Type ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className={labelCls}>Embroidery</label>
-          <div className="flex gap-3">
-            {['Yes', 'No'].map(opt => (
-              <label key={opt}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 cursor-pointer transition-all font-semibold text-sm select-none ${
-                  data.embroidery === opt
-                    ? opt === 'Yes' ? 'border-green-400 bg-green-50 text-green-700' : 'border-gray-400 bg-gray-100 text-gray-700'
-                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                <input type="radio" className="hidden" checked={data.embroidery === opt} onChange={() => set('embroidery', opt)} />
-                {opt === 'Yes' ? '🪡' : '✗'} {opt}
-              </label>
-            ))}
+          {/* Sleeve Type */}
+          {showField('sleeve_type') && (
+            <div>
+              <label className={labelCls}>Sleeve Type</label>
+              <select value={data.sleeve_type || ''} onChange={e => set('sleeve_type', e.target.value)} className={inputCls}>
+                <option value="">Select sleeve...</option>
+                {['Half Sleeve','Full Sleeve','Sleeveless','3/4 Sleeve','Raglan','Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Neck Type */}
+          {showField('neck_type') && (
+            <div>
+              <label className={labelCls}>Neck Type</label>
+              <select value={data.neck_type || ''} onChange={e => set('neck_type', e.target.value)} className={inputCls}>
+                <option value="">Select neck...</option>
+                {['Round Neck','Polo','V Neck','Collar','Mandarin','Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Collar Type */}
+          {showField('collar_type') && (
+            <div>
+              <label className={labelCls}>Collar Type</label>
+              <select value={data.collar_type || ''} onChange={e => set('collar_type', e.target.value)} className={inputCls}>
+                <option value="">Select collar type...</option>
+                {['Classic', 'Spread', 'Button-Down', 'Band', 'Mandarin', 'Roll', 'Shawl', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Cuff Type */}
+          {showField('cuff_type') && (
+            <div>
+              <label className={labelCls}>Cuff Type</label>
+              <select value={data.cuff_type || ''} onChange={e => set('cuff_type', e.target.value)} className={inputCls}>
+                <option value="">Select cuff type...</option>
+                {['Single Button', 'Double Button', 'French Cuff', 'Convertible', 'Barrel', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Hood Type */}
+          {showField('hood_type') && (
+            <div>
+              <label className={labelCls}>Hood Type</label>
+              <select value={data.hood_type || ''} onChange={e => set('hood_type', e.target.value)} className={inputCls}>
+                <option value="">Select hood type...</option>
+                {['Standard', 'Drawstring', 'Detachable', 'Double Lined', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Pocket Type */}
+          {showField('pocket_type') && (
+            <div>
+              <label className={labelCls}>Pocket Type</label>
+              <select value={data.pocket_type || ''} onChange={e => set('pocket_type', e.target.value)} className={inputCls}>
+                <option value="">Select pocket type...</option>
+                {['Kangaroo Pocket', 'Side Pockets', 'Chest Pocket', 'Welt Pocket', 'Patch Pocket', 'No Pocket', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Closure Type */}
+          {showField('closure_type') && (
+            <div>
+              <label className={labelCls}>Closure Type</label>
+              <select value={data.closure_type || ''} onChange={e => set('closure_type', e.target.value)} className={inputCls}>
+                <option value="">Select closure type...</option>
+                {['Zip', 'Button', 'Zip & Button', 'Snaps', 'Velcro', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Lining */}
+          {showField('lining') && (
+            <div>
+              <label className={labelCls}>Lining</label>
+              <input type="text" value={data.lining || ''} onChange={e => set('lining', e.target.value)}
+                placeholder="e.g. Polyester mesh, Satin, Fleece, None" className={inputCls} />
+            </div>
+          )}
+
+          {/* Waist */}
+          {showField('waist') && (
+            <div>
+              <label className={labelCls}>Waist</label>
+              <input type="text" value={data.waist || ''} onChange={e => set('waist', e.target.value)}
+                placeholder="e.g. 32 inches, 34 inches" className={inputCls} />
+            </div>
+          )}
+
+          {/* Waist Size */}
+          {showField('waist_size') && (
+            <div>
+              <label className={labelCls}>Waist Size</label>
+              <input type="text" value={data.waist_size || ''} onChange={e => set('waist_size', e.target.value)}
+                placeholder="e.g. 30, 32, 34" className={inputCls} />
+            </div>
+          )}
+
+          {/* Length */}
+          {showField('length') && (
+            <div>
+              <label className={labelCls}>Length</label>
+              <input type="text" value={data.length || ''} onChange={e => set('length', e.target.value)}
+                placeholder="e.g. 30 inches, 32 inches, Full Length" className={inputCls} />
+            </div>
+          )}
+
+          {/* Rise */}
+          {showField('rise') && (
+            <div>
+              <label className={labelCls}>Rise</label>
+              <select value={data.rise || ''} onChange={e => set('rise', e.target.value)} className={inputCls}>
+                <option value="">Select rise...</option>
+                {['High Rise', 'Mid Rise', 'Low Rise'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Stretch Type */}
+          {showField('stretch_type') && (
+            <div>
+              <label className={labelCls}>Stretch Type</label>
+              <select value={data.stretch_type || ''} onChange={e => set('stretch_type', e.target.value)} className={inputCls}>
+                <option value="">Select stretch type...</option>
+                {['Rigid (Non-Stretch)', 'Low Stretch', 'Medium Stretch', 'High Stretch'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Ankle Style */}
+          {showField('ankle_style') && (
+            <div>
+              <label className={labelCls}>Ankle Style</label>
+              <select value={data.ankle_style || ''} onChange={e => set('ankle_style', e.target.value)} className={inputCls}>
+                <option value="">Select ankle style...</option>
+                {['Cuffed', 'Ribbed', 'Elastic', 'Open Hem', 'Zipped', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Department */}
+          {showField('department') && (
+            <div>
+              <label className={labelCls}>Department</label>
+              <input type="text" value={data.department || ''} onChange={e => set('department', e.target.value)}
+                placeholder="e.g. Security, Kitchen, Corporate" className={inputCls} />
+            </div>
+          )}
+
+          {/* Logo */}
+          {showField('logo') && (
+            <div>
+              <label className={labelCls}>Logo Description</label>
+              <input type="text" value={data.logo || ''} onChange={e => set('logo', e.target.value)}
+                placeholder="e.g. Left chest print, back embroidery" className={inputCls} />
+            </div>
+          )}
+
+          {/* Reflective Type */}
+          {showField('reflective_type') && (
+            <div>
+              <label className={labelCls}>Reflective Type</label>
+              <input type="text" value={data.reflective_type || ''} onChange={e => set('reflective_type', e.target.value)}
+                placeholder="e.g. 2 inch Silver Tape, Glass Bead" className={inputCls} />
+            </div>
+          )}
+
+          {/* Safety Standard */}
+          {showField('safety_standard') && (
+            <div>
+              <label className={labelCls}>Safety Standard</label>
+              <input type="text" value={data.safety_standard || ''} onChange={e => set('safety_standard', e.target.value)}
+                placeholder="e.g. ANSI/ISEA 107, EN ISO 20471" className={inputCls} />
+            </div>
+          )}
+
+          {/* Border Type */}
+          {showField('border_type') && (
+            <div>
+              <label className={labelCls}>Border Type</label>
+              <input type="text" value={data.border_type || ''} onChange={e => set('border_type', e.target.value)}
+                placeholder="e.g. Golden Zari, Embroidered, Temple" className={inputCls} />
+            </div>
+          )}
+
+          {/* Blouse Piece */}
+          {showField('blouse_piece') && (
+            <div>
+              <label className={labelCls}>Blouse Piece</label>
+              <select value={data.blouse_piece || ''} onChange={e => set('blouse_piece', e.target.value)} className={inputCls}>
+                <option value="">Select...</option>
+                {['Yes - Attached', 'Yes - Unstitched', 'No'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Lapel Type */}
+          {showField('lapel_type') && (
+            <div>
+              <label className={labelCls}>Lapel Type</label>
+              <select value={data.lapel_type || ''} onChange={e => set('lapel_type', e.target.value)} className={inputCls}>
+                <option value="">Select lapel type...</option>
+                {['Notch Lapel', 'Peak Lapel', 'Shawl Lapel', 'Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Fabric Type */}
+          {showField('fabric_type') && (
+            <div>
+              <label className={labelCls}>Fabric Type <span className="text-red-500">*</span></label>
+              <select value={data.fabric_type || ''} onChange={e => set('fabric_type', e.target.value)} className={inputCls}>
+                <option value="">Select fabric type...</option>
+                {['100% Cotton','Polyester','Cotton Polyester','Linen','Rayon','Viscose',
+                  'Denim','Terry Cotton','Fleece','Lycra','Nylon','Silk','Wool','Other'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Fabric GSM */}
+          {showField('fabric_gsm') && (
+            <div>
+              <label className={labelCls}>Fabric GSM <span className="text-red-500">*</span></label>
+              <select value={data.fabric_gsm || ''} onChange={e => set('fabric_gsm', e.target.value)} className={inputCls}>
+                <option value="">Select GSM...</option>
+                {['120 GSM','140 GSM','160 GSM','180 GSM','200 GSM','220 GSM','240 GSM','280 GSM','Custom'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Fabric Composition */}
+          {showField('fabric_composition') && (
+            <div className="md:col-span-2">
+              <label className={labelCls}>Fabric Composition</label>
+              <input type="text" value={data.fabric_composition || ''} onChange={e => set('fabric_composition', e.target.value)}
+                placeholder="e.g. 100% Cotton, 60% Cotton / 40% Polyester"
+                className={inputCls.replace('bg-white', '')} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Colors (Multi-Select) */}
+      {showField('colors') && (
+        <div className="relative" ref={dropdownRef}>
+          <label className={labelCls}>Color (multi-select)</label>
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className={`${inputCls} flex items-center justify-between text-left cursor-pointer min-h-[46px]`}
+          >
+            <span className={`${(data.colors || []).length === 0 ? 'text-gray-400' : 'text-gray-800 font-semibold'}`}>
+              {(data.colors || []).length === 0
+                ? 'Select colors...'
+                : `${(data.colors || []).length} color(s) selected: ${(data.colors || []).slice(0, 3).join(', ')}${(data.colors || []).length > 3 ? '...' : ''}`}
+            </span>
+            <span className="text-gray-400 text-xs">▼</span>
+          </button>
+
+          {isOpen && (
+            <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-2 animate-fade">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                {CLOTHING_COLORS.map(color => {
+                  const isSelected = (data.colors || []).includes(color);
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => toggleColor(color)}
+                      className={`flex items-center gap-2 px-3 py-2 text-left rounded-lg text-sm transition-all ${
+                        isSelected
+                          ? 'bg-indigo-50 text-indigo-700 font-bold'
+                          : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        readOnly
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      {color}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Custom color input */}
+          <div className="flex gap-2 mt-2">
+            <input
+              type="text"
+              value={colorInput}
+              onChange={e => setColorInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomColor(); }}}
+              placeholder="Type a custom color and press Enter or Add"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:border-indigo-400 outline-none text-sm transition"
+            />
+            <button type="button" onClick={addCustomColor}
+              className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-200 transition">
+              + Add
+            </button>
           </div>
-        </div>
-        <div>
-          <label className={labelCls}>Logo Position</label>
-          <select value={data.logo_position || ''} onChange={e => set('logo_position', e.target.value)} className={inputCls}>
-            <option value="">Select position...</option>
-            {['Left Chest','Right Chest','Center','Back','Sleeve','Custom'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>Label Type</label>
-          <select value={data.label_type || ''} onChange={e => set('label_type', e.target.value)} className={inputCls}>
-            <option value="">Select label...</option>
-            {['Woven Label','Printed Label','Heat Transfer Label'].map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </div>
-      </div>
 
-      {/* ── Row: Packing Type + Sample Required ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Selected colors badges list */}
+          {(data.colors || []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {(data.colors || []).map(c => (
+                <span key={c} className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-full text-xs font-bold shadow-sm">
+                  {c}
+                  <button type="button" onClick={() => toggleColor(c)} className="text-indigo-400 hover:text-red-500 ml-1 text-sm font-bold leading-none">&times;</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sizes breakdown */}
+      {showField('sizes') && (
+        <>
+          {/* Size Required Checkboxes */}
+          <div>
+            <label className={labelCls}>Size Required</label>
+            <div className="flex flex-wrap gap-3">
+              {ALL_SIZES.map(size => {
+                const isChecked = !!(data.sizes_required || {})[size];
+                return (
+                  <label key={size}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-all font-semibold text-sm select-none ${
+                      isChecked
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                      isChecked ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'
+                    }`}>
+                      {isChecked && <FaCheck className="w-2.5 h-2.5 text-white" />}
+                    </div>
+                    <input type="checkbox" className="hidden" checked={isChecked} onChange={() => toggleSize(size)} />
+                    {size}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Size Breakdown Table */}
+          {checkedSizes.length > 0 && (
+            <div>
+              <label className={labelCls}>Size Breakdown — Quantity per Size</label>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-indigo-50 border-b border-gray-200">
+                      <th className="px-5 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wide w-32">Size</th>
+                      <th className="px-5 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wide">Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {checkedSizes.map(size => (
+                      <tr key={size} className="hover:bg-indigo-50/40 transition-colors">
+                        <td className="px-5 py-2.5">
+                          <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">{size}</span>
+                        </td>
+                        <td className="px-5 py-2.5">
+                          <input
+                            type="number" min="0"
+                            value={(data.size_breakdown || {})[size] || ''}
+                            onChange={e => setBreakdownQty(size, e.target.value)}
+                            placeholder="0"
+                            className="w-36 px-3 py-1.5 rounded-lg border border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-sm transition"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-indigo-200 bg-indigo-50">
+                      <td className="px-5 py-2.5 text-xs font-bold text-indigo-700">Total</td>
+                      <td className="px-5 py-2.5 text-sm font-bold text-indigo-800">
+                        {checkedSizes.reduce((sum, s) => sum + (parseFloat((data.size_breakdown || {})[s]) || 0), 0).toLocaleString()} Pcs
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Printing */}
+      {showField('printing') && (
+        <div>
+          <label className={labelCls}>Printing Required</label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+            {['Screen Print','DTF','DTG','Heat Transfer','Puff Print','Sublimation'].map(method => {
+              const isChecked = !!(data.printing_required || {})[method];
+              return (
+                <label key={method}
+                  className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all select-none ${
+                    isChecked
+                      ? 'border-violet-400 bg-violet-50 text-violet-800'
+                      : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                    isChecked ? 'bg-violet-500 border-violet-500' : 'bg-white border-gray-300'
+                  }`}>
+                    {isChecked && <FaCheck className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  <input type="checkbox" className="hidden" checked={isChecked} onChange={() => togglePrint(method)} />
+                  <span className="text-sm font-semibold">{method}</span>
+                </label>
+              );
+            })}
+          </div>
+          {checkedPrints.length > 0 && (
+            <p className="text-xs text-violet-600 mt-1.5 font-medium">Selected: {checkedPrints.join(', ')}</p>
+          )}
+        </div>
+      )}
+
+      {/* Custom Fields (for "Other" Product Type) */}
+      {showField('custom_fields') && (
+        <div className="space-y-4">
+          <label className={labelCls}>Custom Specification Fields</label>
+          
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={customKey}
+              onChange={e => setCustomKey(e.target.value)}
+              placeholder="Field Label (e.g. Neck Drop)"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <input
+              type="text"
+              value={customVal}
+              onChange={e => setCustomVal(e.target.value)}
+              placeholder="Value (e.g. 8 inches)"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <button
+              type="button"
+              onClick={addCustomField}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition"
+            >
+              + Add Field
+            </button>
+          </div>
+
+          {(data.custom_fields || []).length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 font-semibold text-gray-700">
+                    <th className="px-4 py-2">Field Label</th>
+                    <th className="px-4 py-2">Specification Value</th>
+                    <th className="px-4 py-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-medium">
+                  {(data.custom_fields || []).map((f, index) => (
+                    <tr key={index} className="hover:bg-gray-50/50">
+                      <td className="px-4 py-2.5 text-gray-800 font-semibold">{f.label}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{f.value}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeCustomField(index)}
+                          className="text-red-500 hover:text-red-700 font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Packing Type & Sample Required ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
           <label className={labelCls}>Packing Type</label>
           <select value={data.packing_type || ''} onChange={e => set('packing_type', e.target.value)} className={inputCls}>
             <option value="">Select packing...</option>
-            {['Poly Bag','Individual Packing','Box Packing','Bulk Packing'].map(o => <option key={o} value={o}>{o}</option>)}
+            {['Single Piece Polybag', 'Pack of 3', 'Pack of 5', 'Custom Box Packing', 'Bulk Packing'].map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div>
@@ -663,9 +1006,7 @@ const CreateClientRequirementPage = () => {
     { col1: '', col2: '', quantity: '', unit: 'Pcs' }
   ]);
 
-  /* ── Attachments ── */
-  const [files, setFiles] = useState({ drawing: null, pdf: null, images: null, specifications: null, other: null });
-  const [existingAttachments, setExistingAttachments] = useState({});
+
 
   /* ── UI ── */
   const [fetchingData, setFetchingData] = useState(false);
@@ -693,7 +1034,14 @@ const CreateClientRequirementPage = () => {
       colors: [], sizes_required: {}, size_breakdown: {}, printing_required: {},
       embroidery: '', logo_position: '', label_type: '',
       packing_type: '', sample_required: '', special_instructions: '',
+      collar_type: '', cuff_type: '', hood_type: '', pocket_type: '',
+      closure_type: '', lining: '', waist: '', length: '', waist_size: '',
+      rise: '', stretch_type: '', ankle_style: '', department: '', logo: '',
+      reflective_type: '', safety_standard: '', border_type: '', blouse_piece: '',
+      lapel_type: '', custom_fields: []
     },
+    files: { drawing: null, pdf: null, images: null, specifications: null, other: null },
+    attachments: {}
   };
 
   const [products, setProducts] = useState([]);
@@ -709,7 +1057,13 @@ const CreateClientRequirementPage = () => {
   };
 
   const openEditProduct = (idx) => {
-    setProductForm({ ...products[idx] });
+    const prod = products[idx];
+    setProductForm({
+      ...BLANK_PRODUCT_FORM,
+      ...prod,
+      files: prod.files || { drawing: null, pdf: null, images: null, specifications: null, other: null },
+      attachments: prod.attachments || {}
+    });
     setEditingProductIndex(idx);
     setShowProductForm(true);
   };
@@ -727,13 +1081,13 @@ const CreateClientRequirementPage = () => {
     } else {
       setProducts(prev => [...prev, { ...productForm }]);
     }
-    setShowProductForm(false);
+    setProductForm(BLANK_PRODUCT_FORM);
     setEditingProductIndex(null);
     toast.success(editingProductIndex !== null ? 'Product updated' : 'Product added');
   };
 
   const cancelProductForm = () => {
-    setShowProductForm(false);
+    setProductForm(BLANK_PRODUCT_FORM);
     setEditingProductIndex(null);
   };
 
@@ -769,22 +1123,67 @@ const CreateClientRequirementPage = () => {
       const d = res.data;
       setFormData(prev => ({
         ...prev,
-        customer_name: d.customer_name || '', contact_person: d.contact_person || '',
-        mobile_number: d.mobile_number || '', email: d.email || '',
+        customer_name: d.customer_name || '',
+        contact_person: d.contact_person || '',
+        mobile_number: d.mobile_number || '',
+        email: d.email || '',
+        customer_address: d.customer_address || '',
+        customer_gstin: d.customer_gstin || '',
+        customer_location: d.customer_location || '',
         project_name: d.project_name || '',
+        enquiry_source: d.enquiry_source || '',
+        priority: d.priority || 'Normal',
         required_date: d.required_date ? d.required_date.split('T')[0] : '',
         expected_delivery_date: d.expected_delivery_date ? d.expected_delivery_date.split('T')[0] : '',
         product_category: d.product_category || 'Clothing',
-        product_name: d.product_name || '', quantity: d.quantity || '', unit: d.unit || 'Pcs',
+        product_name: d.product_name || '',
+        quantity: d.quantity || '',
+        unit: d.unit || 'Pcs',
         description: d.description || '',
         reference_number: d.reference_number || '',
         delivery_address: d.delivery_address || '',
         tolerance: d.tolerance || '',
+        product_model: d.product_model || '',
+        customer_part_number: d.customer_part_number || '',
+        internal_reference: d.internal_reference || '',
+        department_buyer: d.department_buyer || '',
+        incoterm: d.incoterm || 'EXW',
+        delivery_frequency: d.delivery_frequency || '',
+        currency: d.currency || 'INR ₹',
+        payment_terms: d.payment_terms || '',
+        target_price: d.target_price || '',
+        payment_mode: d.payment_mode || '',
+        sampling_required: d.sampling_required || '',
+        sample_qty: d.sample_qty || '',
+        internal_notes: d.internal_notes || '',
+        customer_special_instructions: d.customer_special_instructions || '',
+        requested_by: d.requested_by || '',
+        approved_by: d.approved_by || '',
+        priority_flag: d.priority_flag || 'Normal',
       }));
       if (d.dynamic_fields) setDynamicFields(d.dynamic_fields);
       if (d.mfg_requirements) setMfgRequirements(d.mfg_requirements);
       if (d.variant_rows) setVariantRows(d.variant_rows);
-      if (d.attachments) setExistingAttachments(d.attachments);
+      
+      // Load products and their attachments
+      if (d.products && d.products.length > 0) {
+        setProducts(d.products.map(p => ({
+          ...BLANK_PRODUCT_FORM,
+          ...p,
+          files: p.files || { drawing: null, pdf: null, images: null, specifications: null, other: null },
+          attachments: p.attachments || {}
+        })));
+      } else {
+        // Fallback for legacy requirement records
+        setProducts([{
+          ...BLANK_PRODUCT_FORM,
+          product_category: d.product_category || 'Clothing',
+          product_name: d.product_name || '',
+          quantity: d.quantity || '',
+          unit: d.unit || 'Pcs',
+          attachments: d.attachments || {}
+        }]);
+      }
     } catch {
       toast.error('Failed to load requirement details');
     } finally {
@@ -806,7 +1205,13 @@ const CreateClientRequirementPage = () => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 15 * 1024 * 1024) { toast.error(`Max 15 MB per file`); return; }
-    setFiles(prev => ({ ...prev, [name]: file }));
+    setProductForm(prev => ({
+      ...prev,
+      files: {
+        ...(prev.files || {}),
+        [name]: file
+      }
+    }));
     toast.success(`"${file.name}" selected`);
   };
 
@@ -821,12 +1226,25 @@ const CreateClientRequirementPage = () => {
       const fd = new FormData();
       Object.keys(formData).forEach(k => fd.append(k, formData[k]));
       fd.append('status', status);
-      fd.append('products', JSON.stringify(products));
+      const cleanedProducts = products.map(p => {
+        const { files, ...rest } = p;
+        return rest;
+      });
+      fd.append('products', JSON.stringify(cleanedProducts));
       fd.append('dynamic_fields', JSON.stringify(dynamicFields));
       fd.append('mfg_requirements', JSON.stringify(mfgRequirements));
       fd.append('variant_rows', JSON.stringify(variantRows));
-      Object.keys(files).forEach(k => { if (files[k]) fd.append(k, files[k]); });
-      if (isEditMode) fd.append('existing_attachments', JSON.stringify(existingAttachments));
+
+      // Append files for each product dynamically
+      products.forEach((p, index) => {
+        if (p.files) {
+          Object.keys(p.files).forEach(k => {
+            if (p.files[k]) {
+              fd.append(`product_${index}_${k}`, p.files[k]);
+            }
+          });
+        }
+      });
 
       let response;
       if (isEditMode) {
@@ -1103,11 +1521,187 @@ const CreateClientRequirementPage = () => {
           {/* ════════════════════════════════════════════════════════════════
               TAB 2 – PRODUCTS (MULTI-PRODUCT LIST)
           ════════════════════════════════════════════════════════════════ */}
+          {/* ════════════════════════════════════════════════════════════════
+              TAB 2 – PRODUCTS (MULTI-PRODUCT LIST & FORM)
+          ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'product' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
 
-              {/* ── PRODUCT FORM (inline, shown when adding/editing) ── */}
-              {showProductForm ? (() => {
+              {/* ── PRODUCTS TABLE (shown if there are products) ── */}
+              {products.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800">Added Products</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {products.length} product{products.length > 1 ? 's' : ''} • {products.reduce((s, p) => s + (parseFloat(p.quantity) || 0), 0).toLocaleString()} total units
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-200">
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide w-10">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Product Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide w-28">Qty</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide w-16">Unit</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide w-32">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {products.map((p, idx) => {
+                          const cfg = CATEGORY_CONFIG[p.product_category] || { icon: '📦', color: 'indigo' };
+                          const cc = COLOR_CLASSES[cfg.color] || COLOR_CLASSES.indigo;
+                          const isExpanded = expandedProducts.has(idx);
+                          return (
+                            <React.Fragment key={idx}>
+                              <tr className="hover:bg-gray-50/60 transition-colors">
+                                <td className="px-4 py-3 text-xs font-bold text-gray-400">{idx + 1}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${cc.badge}`}>
+                                    {cfg.icon} {p.product_category}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="font-semibold text-gray-800 text-sm">{p.product_name}</span>
+                                  {p.product_model && <span className="text-gray-400 text-xs ml-2">({p.product_model})</span>}
+                                </td>
+                                <td className="px-4 py-3 font-bold text-gray-700">{parseFloat(p.quantity || 0).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-gray-500 text-xs">{p.unit}</td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button type="button" onClick={() => toggleExpanded(idx)}
+                                      title={isExpanded ? 'Collapse' : 'View details'}
+                                      className={`p-1.5 rounded-lg border text-xs transition ${
+                                        isExpanded ? 'bg-blue-50 border-blue-200 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
+                                      }`}>
+                                      {isExpanded ? <FaChevronLeft className="rotate-90" /> : <FaChevronRight className="rotate-90" />}
+                                    </button>
+                                    <button type="button" onClick={() => openEditProduct(idx)}
+                                      className="p-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition text-xs">
+                                      <FaTag className="w-3 h-3" />
+                                    </button>
+                                    <button type="button" onClick={() => deleteProduct(idx)}
+                                      className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition text-xs">
+                                      <FaTrash className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* Expanded details row */}
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={6} className="px-4 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-100">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                      {p.product_category === 'Clothing' ? (
+                                        (() => {
+                                          const entries = {
+                                            'Product Type': p.clothing_data?.product_type,
+                                            'Fabric': p.clothing_data?.fabric_type,
+                                            'GSM': p.clothing_data?.fabric_gsm,
+                                            'Fit': p.clothing_data?.fit,
+                                            'Sleeve': p.clothing_data?.sleeve_type,
+                                            'Neck': p.clothing_data?.neck_type,
+                                            'Collar Type': p.clothing_data?.collar_type,
+                                            'Cuff Type': p.clothing_data?.cuff_type,
+                                            'Hood Type': p.clothing_data?.hood_type,
+                                            'Pocket Type': p.clothing_data?.pocket_type,
+                                            'Closure Type': p.clothing_data?.closure_type,
+                                            'Lining': p.clothing_data?.lining,
+                                            'Waist': p.clothing_data?.waist,
+                                            'Waist Size': p.clothing_data?.waist_size,
+                                            'Length': p.clothing_data?.length,
+                                            'Rise': p.clothing_data?.rise,
+                                            'Stretch Type': p.clothing_data?.stretch_type,
+                                            'Ankle Style': p.clothing_data?.ankle_style,
+                                            'Department': p.clothing_data?.department,
+                                            'Logo': p.clothing_data?.logo,
+                                            'Reflective Type': p.clothing_data?.reflective_type,
+                                            'Safety Standard': p.clothing_data?.safety_standard,
+                                            'Border Type': p.clothing_data?.border_type,
+                                            'Blouse Piece': p.clothing_data?.blouse_piece,
+                                            'Lapel Type': p.clothing_data?.lapel_type,
+                                            'Embroidery': p.clothing_data?.embroidery,
+                                            'Logo Position': p.clothing_data?.logo_position,
+                                            'Label': p.clothing_data?.label_type,
+                                            'Packing': p.clothing_data?.packing_type,
+                                            'Sample': p.clothing_data?.sample_required,
+                                            'Colors': (p.clothing_data?.colors || []).join(', ') || null,
+                                            'Sizes': Object.entries(p.clothing_data?.sizes_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
+                                            'Printing': Object.entries(p.clothing_data?.printing_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
+                                          };
+                                          (p.clothing_data?.custom_fields || []).forEach(f => {
+                                            if (f.label && f.value) {
+                                              entries[f.label] = f.value;
+                                            }
+                                          });
+                                          return Object.entries(entries).filter(([,v]) => v);
+                                        })().map(([label, val]) => (
+                                          <div key={label}>
+                                            <div className="text-xs text-gray-400 font-medium">{label}</div>
+                                            <div className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{val}</div>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        Object.entries(p.category_details || {})
+                                          .filter(([,v]) => v)
+                                          .map(([field, val]) => {
+                                            const fieldDef = (CATEGORY_CONFIG[p.product_category]?.productFields || []).find(f => f.field === field);
+                                            return (
+                                              <div key={field}>
+                                                <div className="text-xs text-gray-400 font-medium">{fieldDef?.label || field}</div>
+                                                <div className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{val}</div>
+                                              </div>
+                                            );
+                                          })
+                                      )}
+                                      {p.customer_part_number && (
+                                        <div>
+                                          <div className="text-xs text-gray-400 font-medium">Customer Part No.</div>
+                                          <div className="text-xs font-semibold text-gray-700 mt-0.5">{p.customer_part_number}</div>
+                                        </div>
+                                      )}
+                                      {p.required_date && (
+                                        <div>
+                                          <div className="text-xs text-gray-400 font-medium">Required Date</div>
+                                          <div className="text-xs font-semibold text-gray-700 mt-0.5">{new Date(p.required_date).toLocaleDateString('en-IN')}</div>
+                                        </div>
+                                      )}
+                                      {p.clothing_data?.special_instructions && (
+                                        <div className="col-span-2 md:col-span-4">
+                                          <div className="text-xs text-gray-400 font-medium">Special Instructions</div>
+                                          <div className="text-xs font-semibold text-gray-700 mt-0.5">{p.clothing_data.special_instructions}</div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                      {/* Footer total */}
+                      <tfoot>
+                        <tr className="border-t-2 border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                          <td colSpan={3} className="px-4 py-3 text-xs font-bold text-gray-600 text-right">TOTAL UNITS</td>
+                          <td className="px-4 py-3 text-sm font-bold text-indigo-700">
+                            {products.reduce((s, p) => s + (parseFloat(p.quantity) || 0), 0).toLocaleString()}
+                          </td>
+                          <td colSpan={2} className="px-4 py-3"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PRODUCT FORM (always shown) ── */}
+              {(() => {
                 const pCat = productForm.product_category;
                 const pCatCfg = CATEGORY_CONFIG[pCat] || { icon: '📦', color: 'indigo', sectionTitle: 'Product Details', productFields: OTHER_CATEGORY_FIELDS };
                 const pColor = COLOR_CLASSES[pCatCfg.color] || COLOR_CLASSES.indigo;
@@ -1121,12 +1715,16 @@ const CreateClientRequirementPage = () => {
                           <FaBoxOpen className="text-white text-sm" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-sm">{isEditing ? `Edit Product #${editingProductIndex + 1}` : 'Add New Product'}</h3>
-                          <p className="text-blue-200 text-xs">Fill in the details below, then click Save Product</p>
+                          <h3 className="font-bold text-sm">{isEditing ? `Edit Product #${editingProductIndex + 1}` : 'Product Details'}</h3>
+                          <p className="text-blue-200 text-xs">Fill in the details below, then click Add Product</p>
                         </div>
                       </div>
-                      <button type="button" onClick={cancelProductForm}
-                        className="text-white/70 hover:text-white text-lg leading-none transition">&times;</button>
+                      {isEditing && (
+                        <button type="button" onClick={cancelProductForm}
+                          className="text-white/70 hover:text-white text-sm font-bold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition">
+                          Cancel Edit
+                        </button>
+                      )}
                     </div>
 
                     {/* Basic info card */}
@@ -1248,8 +1846,8 @@ const CreateClientRequirementPage = () => {
                           { name: 'specifications', label: 'Spec Sheet / BOM', icon: '📋', accepts: '.pdf,.doc,.docx,.xls,.xlsx,.txt', hint: 'Word, Excel, PDF' },
                           { name: 'other',   label: 'Other Reference',   icon: '📁', accepts: '*', hint: 'Any file type' },
                         ].map(field => {
-                          const selectedFile = files[field.name];
-                          const existingFile = existingAttachments[field.name];
+                          const selectedFile = productForm.files?.[field.name];
+                          const existingFile = productForm.attachments?.[field.name];
                           const hasFile = selectedFile || existingFile;
                           return (
                             <div key={field.name}
@@ -1267,7 +1865,7 @@ const CreateClientRequirementPage = () => {
                                 <div className="z-20 mt-2 flex flex-col items-center">
                                   <span className="text-[10px] text-blue-600 font-bold truncate max-w-[120px]" title={selectedFile.name}>{selectedFile.name}</span>
                                   <button type="button"
-                                    onClick={e => { e.stopPropagation(); setFiles(p => ({ ...p, [field.name]: null })); }}
+                                    onClick={e => { e.stopPropagation(); setProductForm(prev => ({ ...prev, files: { ...(prev.files || {}), [field.name]: null } })); }}
                                     className="mt-1 px-2 py-0.5 bg-red-100 text-red-600 hover:bg-red-200 rounded text-[9px] font-bold flex items-center gap-1">
                                     <FaTrash className="w-2 h-2" /> Remove
                                   </button>
@@ -1277,7 +1875,7 @@ const CreateClientRequirementPage = () => {
                                 <div className="z-20 mt-2 flex flex-col items-center">
                                   <span className="text-[10px] text-green-600 font-bold">✅ Uploaded</span>
                                   <button type="button"
-                                    onClick={e => { e.stopPropagation(); setExistingAttachments(p => { const u = { ...p }; delete u[field.name]; return u; }); }}
+                                    onClick={e => { e.stopPropagation(); setProductForm(prev => ({ ...prev, attachments: { ...(prev.attachments || {}), [field.name]: null } })); }}
                                     className="mt-1 px-2 py-0.5 bg-red-100 text-red-600 hover:bg-red-200 rounded text-[9px] font-bold flex items-center gap-1">
                                     <FaTrash className="w-2 h-2" /> Remove
                                   </button>
@@ -1294,195 +1892,31 @@ const CreateClientRequirementPage = () => {
 
                     {/* Form action buttons */}
                     <div className="flex gap-3 justify-end">
-                      <button type="button" onClick={cancelProductForm}
-                        className="px-5 py-2.5 rounded-lg border-2 border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition">
-                        Cancel
-                      </button>
-                      <button type="button" onClick={saveProduct}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-bold shadow hover:shadow-md hover:opacity-90 transition">
-                        <FaCheck className="text-xs" />
-                        {isEditing ? 'Update Product' : 'Save Product'}
-                      </button>
+                      {isEditing ? (
+                        <>
+                          <button type="button" onClick={cancelProductForm}
+                            className="px-5 py-2.5 rounded-lg border-2 border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition">
+                            Cancel
+                          </button>
+                          <button type="button" onClick={saveProduct}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-bold shadow hover:shadow-md hover:opacity-90 transition">
+                            <FaCheck className="text-xs" />
+                            Update Product
+                          </button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={saveProduct}
+                          className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-bold shadow hover:shadow-md hover:opacity-90 transition">
+                          <FaPlus className="text-xs" />
+                          Add Product
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
-              })() : (
-                <div className="space-y-4">
-                  {/* ── PRODUCT LIST VIEW (default) ── */}
+              })()}
 
-                  {/* Header bar */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-gray-800">Product Requirements</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {products.length === 0
-                          ? 'No products added yet. Click “+ Add Product” to begin.'
-                          : `${products.length} product${products.length > 1 ? 's' : ''} • ${products.reduce((s, p) => s + (parseFloat(p.quantity) || 0), 0).toLocaleString()} total units`}
-                      </p>
-                    </div>
-                    <button type="button" onClick={openAddProduct}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-bold shadow hover:shadow-md hover:opacity-90 transition">
-                      <FaPlus className="text-xs" /> Add Product
-                    </button>
-                  </div>
-
-                  {/* Empty state */}
-                  {products.length === 0 && (
-                    <div className="border-2 border-dashed border-blue-200 rounded-2xl p-12 text-center bg-blue-50/40">
-                      <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <FaBoxOpen className="text-blue-400 text-2xl" />
-                      </div>
-                      <h4 className="text-sm font-bold text-gray-700 mb-1">No Products Added</h4>
-                      <p className="text-xs text-gray-500 mb-4 max-w-sm mx-auto">
-                        A single Client Requirement can include multiple product categories.<br />
-                        e.g. T-Shirts + Bottles + Bags in one enquiry.
-                      </p>
-                      <button type="button" onClick={openAddProduct}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">
-                        <FaPlus className="text-xs" /> Add First Product
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Product list */}
-                  {products.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-200">
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide w-10">#</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Category</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Product Name</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide w-28">Qty</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide w-16">Unit</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide w-32">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {products.map((p, idx) => {
-                            const cfg = CATEGORY_CONFIG[p.product_category] || { icon: '📦', color: 'indigo' };
-                            const cc = COLOR_CLASSES[cfg.color] || COLOR_CLASSES.indigo;
-                            const isExpanded = expandedProducts.has(idx);
-                            return (
-                              <React.Fragment key={idx}>
-                                <tr className="hover:bg-gray-50/60 transition-colors">
-                                  <td className="px-4 py-3 text-xs font-bold text-gray-400">{idx + 1}</td>
-                                  <td className="px-4 py-3">
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${cc.badge}`}>
-                                      {cfg.icon} {p.product_category}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className="font-semibold text-gray-800 text-sm">{p.product_name}</span>
-                                    {p.product_model && <span className="text-gray-400 text-xs ml-2">({p.product_model})</span>}
-                                  </td>
-                                  <td className="px-4 py-3 font-bold text-gray-700">{parseFloat(p.quantity || 0).toLocaleString()}</td>
-                                  <td className="px-4 py-3 text-gray-500 text-xs">{p.unit}</td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      <button type="button" onClick={() => toggleExpanded(idx)}
-                                        title={isExpanded ? 'Collapse' : 'View details'}
-                                        className={`p-1.5 rounded-lg border text-xs transition ${
-                                          isExpanded ? 'bg-blue-50 border-blue-200 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-                                        }`}>
-                                        {isExpanded ? <FaChevronLeft className="rotate-90" /> : <FaChevronRight className="rotate-90" />}
-                                      </button>
-                                      <button type="button" onClick={() => openEditProduct(idx)}
-                                        className="p-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition text-xs">
-                                        <FaTag className="w-3 h-3" />
-                                      </button>
-                                      <button type="button" onClick={() => deleteProduct(idx)}
-                                        className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition text-xs">
-                                        <FaTrash className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-
-                                {/* Expanded details row */}
-                                {isExpanded && (
-                                  <tr>
-                                    <td colSpan={6} className="px-4 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-100">
-                                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                        {p.product_category === 'Clothing' ? (
-                                          Object.entries({
-                                            'Product Type': p.clothing_data?.product_type,
-                                            'Fabric': p.clothing_data?.fabric_type,
-                                            'GSM': p.clothing_data?.fabric_gsm,
-                                            'Fit': p.clothing_data?.fit,
-                                            'Sleeve': p.clothing_data?.sleeve_type,
-                                            'Neck': p.clothing_data?.neck_type,
-                                            'Embroidery': p.clothing_data?.embroidery,
-                                            'Logo Position': p.clothing_data?.logo_position,
-                                            'Label': p.clothing_data?.label_type,
-                                            'Packing': p.clothing_data?.packing_type,
-                                            'Sample': p.clothing_data?.sample_required,
-                                            'Colors': (p.clothing_data?.colors || []).join(', ') || null,
-                                            'Sizes': Object.entries(p.clothing_data?.sizes_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
-                                            'Printing': Object.entries(p.clothing_data?.printing_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
-                                          }).filter(([,v]) => v)
-                                            .map(([label, val]) => (
-                                            <div key={label}>
-                                              <div className="text-xs text-gray-400 font-medium">{label}</div>
-                                              <div className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{val}</div>
-                                            </div>
-                                          ))
-                                        ) : (
-                                          Object.entries(p.category_details || {})
-                                            .filter(([,v]) => v)
-                                            .map(([field, val]) => {
-                                              const fieldDef = (CATEGORY_CONFIG[p.product_category]?.productFields || []).find(f => f.field === field);
-                                              return (
-                                                <div key={field}>
-                                                  <div className="text-xs text-gray-400 font-medium">{fieldDef?.label || field}</div>
-                                                  <div className="text-xs font-semibold text-gray-700 mt-0.5 truncate">{val}</div>
-                                                </div>
-                                              );
-                                            })
-                                        )}
-                                        {p.customer_part_number && (
-                                          <div>
-                                            <div className="text-xs text-gray-400 font-medium">Customer Part No.</div>
-                                            <div className="text-xs font-semibold text-gray-700 mt-0.5">{p.customer_part_number}</div>
-                                          </div>
-                                        )}
-                                        {p.required_date && (
-                                          <div>
-                                            <div className="text-xs text-gray-400 font-medium">Required Date</div>
-                                            <div className="text-xs font-semibold text-gray-700 mt-0.5">{new Date(p.required_date).toLocaleDateString('en-IN')}</div>
-                                          </div>
-                                        )}
-                                        {p.clothing_data?.special_instructions && (
-                                          <div className="col-span-2 md:col-span-4">
-                                            <div className="text-xs text-gray-400 font-medium">Special Instructions</div>
-                                            <div className="text-xs font-semibold text-gray-700 mt-0.5">{p.clothing_data.special_instructions}</div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </tbody>
-                        {/* Footer total */}
-                        <tfoot>
-                          <tr className="border-t-2 border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                            <td colSpan={3} className="px-4 py-3 text-xs font-bold text-gray-600 text-right">TOTAL UNITS</td>
-                            <td className="px-4 py-3 text-sm font-bold text-indigo-700">
-                              {products.reduce((s, p) => s + (parseFloat(p.quantity) || 0), 0).toLocaleString()}
-                            </td>
-                            <td colSpan={2} className="px-4 py-3"></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  )}
-
-                  <TabNav onPrev={goPrev} prevLabel="Customer & Enquiry" onNext={goNext} nextLabel="Delivery" />
-                </div>
-              )}
+              <TabNav onPrev={goPrev} prevLabel="Customer & Enquiry" onNext={goNext} nextLabel="Delivery" />
             </div>
           )}
 
@@ -1501,219 +1935,18 @@ const CreateClientRequirementPage = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Reference / PO Number</Label>
-                    <input type="text" value={formData.reference_number} onChange={e => set('reference_number', e.target.value)}
-                      placeholder="Customer PO / inquiry reference number" className={inputClass} />
-                  </div>
-                  <div>
-                    <Label>Department / Buyer / Ship-to Name</Label>
-                    <input type="text" value={formData.department_buyer} onChange={e => set('department_buyer', e.target.value)}
-                      placeholder="e.g. Procurement Dept, Mr. Ajay Kumar" className={inputClass} />
-                  </div>
-                  <div>
                     <Label>Expected Delivery Date</Label>
                     <input type="date" value={formData.expected_delivery_date} onChange={e => set('expected_delivery_date', e.target.value)} className={inputClass} />
                   </div>
-                  <div>
-                    <Label>Delivery Frequency</Label>
-                    <select value={formData.delivery_frequency} onChange={e => set('delivery_frequency', e.target.value)} className={`${inputClass} bg-white`}>
-                      <option value="">Select...</option>
-                      {['One-time Delivery', 'Monthly Delivery', 'Quarterly Delivery', 'Weekly Delivery', 'As per Schedule', 'Milestone Based'].map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Incoterm</Label>
-                    <select value={formData.incoterm} onChange={e => set('incoterm', e.target.value)} className={`${inputClass} bg-white`}>
-                      {INCOTERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
                   <div className="md:col-span-2">
-                    <Label>Delivery / Ship-to Address</Label>
+                    <Label>Delivery / Shipping Address</Label>
                     <textarea value={formData.delivery_address} onChange={e => set('delivery_address', e.target.value)}
                       placeholder="Full delivery address including PIN / postal code" rows={3}
                       className={`${inputClass} resize-none`} />
                   </div>
                 </div>
               </SectionCard>
-              <TabNav onPrev={goPrev} prevLabel="Drawings" onNext={goNext} nextLabel="Commercial" />
-            </div>
-          )}
-
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 8 – COMMERCIAL
-          ════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'commercial' && (
-            <div className="space-y-4">
-              <SectionCard
-                gradient="from-emerald-50 to-green-50"
-                icon={<FaCoins className="text-emerald-600" />}
-                title="Commercial Information"
-                subtitle="Pricing, payment terms, and sampling requirements"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Currency</Label>
-                    <select value={formData.currency} onChange={e => set('currency', e.target.value)} className={`${inputClass} bg-white`}>
-                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Target Price (per unit)</Label>
-                    <input type="text" value={formData.target_price} onChange={e => set('target_price', e.target.value)}
-                      placeholder="e.g. ₹450 per piece, budget ₹2,00,000" className={inputClass} />
-                  </div>
-                  <div>
-                    <Label>Payment Terms</Label>
-                    <select value={formData.payment_terms} onChange={e => set('payment_terms', e.target.value)} className={`${inputClass} bg-white`}>
-                      <option value="">Select payment terms...</option>
-                      {PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Payment Mode</Label>
-                    <select value={formData.payment_mode} onChange={e => set('payment_mode', e.target.value)} className={`${inputClass} bg-white`}>
-                      <option value="">Select mode...</option>
-                      {['Bank Transfer (NEFT/RTGS)', 'IMPS', 'Cheque', 'DD', 'Letter of Credit (LC)', 'Cash', 'UPI'].map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Sampling / Prototype Required</Label>
-                    <select value={formData.sampling_required} onChange={e => set('sampling_required', e.target.value)} className={`${inputClass} bg-white`}>
-                      <option value="">Select...</option>
-                      {['No Sample Required', '1 Sample', '2-3 Samples', '5 Samples', 'Pilot Batch (50-100 pcs)', 'Production Trial'].map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Sample Quantity</Label>
-                    <input type="text" value={formData.sample_qty} onChange={e => set('sample_qty', e.target.value)}
-                      placeholder="e.g. 3 samples, 50 pcs pilot batch" className={inputClass} />
-                  </div>
-                </div>
-              </SectionCard>
-              <TabNav onPrev={goPrev} prevLabel="Delivery" onNext={goNext} nextLabel="Remarks" />
-            </div>
-          )}
-
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 9 – REMARKS
-          ════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'remarks' && (
-            <div className="space-y-4">
-              <SectionCard
-                gradient="from-violet-50 to-purple-50"
-                icon={<FaStickyNote className="text-violet-600" />}
-                title="Remarks & Special Instructions"
-                subtitle="Notes from customer, internal team, and compliance requirements"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <Label>Customer's Special Instructions</Label>
-                    <textarea value={formData.customer_special_instructions}
-                      onChange={e => set('customer_special_instructions', e.target.value)}
-                      placeholder="Any specific customer instructions, compliance requirements, branding guidelines, or constraints..."
-                      rows={4} className={`${inputClass} resize-none`} />
-                  </div>
-                  <div>
-                    <Label>Internal Notes (not shared with customer)</Label>
-                    <textarea value={formData.internal_notes} onChange={e => set('internal_notes', e.target.value)}
-                      placeholder="Internal team notes, follow-up actions, production hints, sourcing references..."
-                      rows={3} className={`${inputClass} resize-none`} />
-                  </div>
-                  <div>
-                    <Label>General Remarks / Description</Label>
-                    <textarea value={formData.description} onChange={e => set('description', e.target.value)}
-                      placeholder="Any additional information about this requirement..."
-                      rows={3} className={`${inputClass} resize-none`} />
-                  </div>
-                </div>
-              </SectionCard>
-              <TabNav onPrev={goPrev} prevLabel="Commercial" onNext={goNext} nextLabel="Approval" />
-            </div>
-          )}
-
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 10 – APPROVAL WORKFLOW
-          ════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'approval' && (
-            <div className="space-y-4">
-              <SectionCard
-                gradient="from-blue-50 to-indigo-50"
-                icon={<FaClipboardCheck className="text-blue-600" />}
-                title="Approval Workflow"
-                subtitle="Assign requestor and approver, then submit"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <Label>Requested By</Label>
-                    <input type="text" value={formData.requested_by} onChange={e => set('requested_by', e.target.value)}
-                      placeholder="Name of person raising this requirement" className={inputClass} />
-                  </div>
-                  <div>
-                    <Label>To Be Approved By</Label>
-                    <input type="text" value={formData.approved_by} onChange={e => set('approved_by', e.target.value)}
-                      placeholder="Manager / Sales Head / Director" className={inputClass} />
-                  </div>
-                  <div>
-                    <Label>Priority Flag</Label>
-                    <select value={formData.priority_flag} onChange={e => set('priority_flag', e.target.value)} className={`${inputClass} bg-white`}>
-                      {['Low', 'Normal', 'High', 'Urgent'].map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Requirement summary before submit */}
-                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-5">
-                  <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <FaInfoCircle className="text-blue-500" /> Requirement Summary
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                    {[
-                      ['Customer', formData.customer_name || '–'],
-                      ['Contact', formData.contact_person || '–'],
-                      ['Project', formData.project_name || '–'],
-                      ['Category', `${catConfig.icon} ${formData.product_category}`],
-                      ['Product', formData.product_name || '–'],
-                      ['Quantity', formData.quantity ? `${formData.quantity} ${formData.unit}` : '–'],
-                      ['Delivery Date', formData.required_date || '–'],
-                      ['Priority', formData.priority || 'Normal'],
-                      ['Variants', `${variantRows.length} row(s)`],
-                    ].map(([k, v]) => (
-                      <div key={k} className="bg-white rounded-lg p-2.5 border border-gray-100">
-                        <p className="text-gray-400 mb-0.5">{k}</p>
-                        <p className="font-semibold text-gray-900 truncate">{v}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Submit action buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <button type="button" onClick={() => handleSubmit('Draft')} disabled={isSubmitting}
-                    className="flex items-center justify-center gap-2 py-3 bg-gray-100 text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-200 font-bold text-sm disabled:opacity-50 transition-all shadow-sm">
-                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <FaSave className="w-4 h-4" />}
-                    Save as Draft
-                  </button>
-                  <button type="button" onClick={() => handleSubmit('Review')} disabled={isSubmitting}
-                    className="flex items-center justify-center gap-2 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 font-bold text-sm disabled:opacity-50 transition-all shadow-md">
-                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <FaFileAlt className="w-4 h-4" />}
-                    Submit for Review
-                  </button>
-                  <button type="button" onClick={() => handleSubmit('Approved')} disabled={isSubmitting}
-                    className="flex items-center justify-center gap-2 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold text-sm disabled:opacity-50 transition-all shadow-md">
-                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <FaCheck className="w-4 h-4" />}
-                    Approve & Create
-                  </button>
-                </div>
-
-                <div className="mt-3 flex justify-center">
-                  <button type="button" onClick={() => navigate('/sales/client-requirements')}
-                    className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors">
-                    Cancel & go back to list
-                  </button>
-                </div>
-              </SectionCard>
-
-              <TabNav onPrev={goPrev} prevLabel="Remarks" />
+              <TabNav onPrev={goPrev} prevLabel="Product" />
             </div>
           )}
 
@@ -1726,10 +1959,10 @@ const CreateClientRequirementPage = () => {
 /* ─────────────────────────────────────────────────────────────────────────────
    HELPER COMPONENTS
 ───────────────────────────────────────────────────────────────────────────── */
-const inputClass = `w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm`;
+const inputClass = `w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm font-medium`;
 
 const Label = ({ children }) => (
-  <label className="block text-xs font-bold text-gray-700 mb-1.5">{children}</label>
+  <label className="block text-sm font-semibold text-gray-700 mb-2">{children}</label>
 );
 
 const Req = () => <span className="text-red-500">*</span>;
@@ -1740,7 +1973,7 @@ const SectionCard = ({ gradient, icon, title, subtitle, children }) => (
       <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
         {icon} {title}
       </h2>
-      {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+      {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
     </div>
     <div className="p-6">{children}</div>
   </div>

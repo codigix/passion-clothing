@@ -103,6 +103,7 @@ const Sidebar = ({ open, onToggle }) => {
       sales: [
         { text: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/sales' },
         { text: 'Client Requirements', icon: <ClipboardList size={18} />, path: '/sales/client-requirements' },
+        { text: 'Quotations', icon: <FileText size={18} />, path: '/sales/quotations' },
         { text: 'Sales Orders', icon: <ShoppingCart size={18} />, path: '/sales/orders' },
         { text: 'Create Order', icon: <FileText size={18} />, path: '/sales/orders/create' },
         { text: 'Reports', icon: <FileText size={18} />, path: '/sales/reports' },

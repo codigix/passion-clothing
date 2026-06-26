@@ -3,6 +3,7 @@ import { Menu } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import Sidebar from './Sidebar';
+import FloatingAIBot from './FloatingAIBot';
 import { useAuth } from '../../contexts/AuthContext';
 import { StoreProvider } from '../../contexts/StoreContext';
 
@@ -84,6 +85,9 @@ const DashboardLayout = ({ children }) => {
             {children}
           </section>
         </main>
+        
+        {/* Global Floating AI Assistant Button & Chat Panel */}
+        <FloatingAIBot />
       </div>
     </StoreProvider>
   );

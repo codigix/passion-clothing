@@ -567,6 +567,15 @@ const ClientRequirementsPage = () => {
                                   >
                                     <FaEye size={13} />
                                   </button>
+                                  {req.status !== 'Converted to SO' && (
+                                    <button
+                                      onClick={() => navigate(`/sales/client-requirements/${req.id}/edit`)}
+                                      className="p-1 text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                      title="Edit"
+                                    >
+                                      <FaEdit size={13} />
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => handleShowQR(req)}
                                     className="p-1 text-purple-600 hover:bg-purple-50 rounded transition-colors"
@@ -594,7 +603,7 @@ const ClientRequirementsPage = () => {
                                         <FaEye size={12} /> View Details
                                       </button>
                                       
-                                      {(req.status === 'Draft' || req.status === 'Review') && (
+                                      {req.status !== 'Converted to SO' && (
                                         <button
                                           onClick={() => {
                                             navigate(`/sales/client-requirements/${req.id}/edit`);

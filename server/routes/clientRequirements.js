@@ -31,15 +31,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB limit
 });
 
-const uploadFields = upload.fields([
-  { name: "drawing", maxCount: 1 },
-  { name: "pdf", maxCount: 1 },
-  { name: "images", maxCount: 1 },
-  { name: "specifications", maxCount: 1 }
-]);
+const uploadFields = upload.any();
 
 // Helper to generate requirement number (CR-001, CR-002, etc.)
 const generateRequirementNumber = async (transaction) => {
@@ -188,35 +183,79 @@ router.post("/", authenticateToken, uploadFields, async (req, res) => {
   try {
     const reqNo = await generateRequirementNumber(transaction);
     
-    // Extract uploads
-    const attachments = {};
-    if (req.files) {
-      if (req.files.drawing) attachments.drawing = `/uploads/${req.files.drawing[0].filename}`;
-      if (req.files.pdf) attachments.pdf = `/uploads/${req.files.pdf[0].filename}`;
-      if (req.files.images) attachments.images = `/uploads/${req.files.images[0].filename}`;
-      if (req.files.specifications) attachments.specifications = `/uploads/${req.files.specifications[0].filename}`;
+    // Parse products array
+    let products = [];
+    if (req.body.products) {
+      try {
+        products = JSON.parse(req.body.products);
+      } catch (err) {
+        console.error("Failed to parse products:", err);
+      }
+    }
+
+    // Extract uploads and map to products dynamically
+    if (req.files && Array.isArray(req.files)) {
+      req.files.forEach(file => {
+        const match = file.fieldname.match(/^product_(\d+)_(.+)$/);
+        if (match) {
+          const productIndex = parseInt(match[1], 10);
+          const fieldName = match[2];
+          if (products[productIndex]) {
+            if (!products[productIndex].attachments) {
+              products[productIndex].attachments = {};
+            }
+            products[productIndex].attachments[fieldName] = `/uploads/${file.filename}`;
+          }
+        }
+      });
     }
     
+    // Legacy fallback details from first product if available
+    const firstProduct = products[0] || {};
+    const legacyAttachments = firstProduct.attachments || {};
+
     const requirement = await ClientRequirement.create({
       requirement_number: reqNo,
       customer_name: req.body.customer_name,
       contact_person: req.body.contact_person,
       mobile_number: req.body.mobile_number,
       email: req.body.email,
+      customer_address: req.body.customer_address,
+      customer_gstin: req.body.customer_gstin,
+      customer_location: req.body.customer_location,
       project_name: req.body.project_name,
+      enquiry_source: req.body.enquiry_source,
+      priority: req.body.priority || 'Normal',
       required_date: req.body.required_date ? new Date(req.body.required_date) : null,
-      product_category: req.body.product_category,
-      product_name: req.body.product_name,
+      product_category: firstProduct.product_category || req.body.product_category,
+      product_name: firstProduct.product_name || req.body.product_name || "Multiple Products",
       description: req.body.description,
-      quantity: parseInt(req.body.quantity, 10) || 0,
-      unit: req.body.unit || "Nos",
-      material: req.body.material,
+      quantity: parseInt(firstProduct.quantity || req.body.quantity, 10) || 0,
+      unit: firstProduct.unit || req.body.unit || "Nos",
+      material: firstProduct.clothing_data?.fabric_type || req.body.material,
       dimensions: req.body.dimensions,
       weight: req.body.weight,
-      color: req.body.color,
+      color: (firstProduct.clothing_data?.colors || []).join(", ") || req.body.color,
       finish: req.body.finish,
       tolerance: req.body.tolerance,
-      attachments,
+      delivery_address: req.body.delivery_address,
+      expected_delivery_date: req.body.expected_delivery_date ? new Date(req.body.expected_delivery_date) : null,
+      currency: req.body.currency || 'INR ₹',
+      payment_terms: req.body.payment_terms,
+      target_price: req.body.target_price,
+      payment_mode: req.body.payment_mode,
+      sampling_required: req.body.sampling_required,
+      sample_qty: req.body.sample_qty,
+      internal_notes: req.body.internal_notes,
+      customer_special_instructions: req.body.customer_special_instructions,
+      requested_by: req.body.requested_by,
+      approved_by: req.body.approved_by,
+      priority_flag: req.body.priority_flag || 'Normal',
+      attachments: legacyAttachments,
+      products: products,
+      dynamic_fields: req.body.dynamic_fields ? (() => { try { return JSON.parse(req.body.dynamic_fields); } catch(e) { return {}; } })() : {},
+      mfg_requirements: req.body.mfg_requirements ? (() => { try { return JSON.parse(req.body.mfg_requirements); } catch(e) { return {}; } })() : {},
+      variant_rows: req.body.variant_rows ? (() => { try { return JSON.parse(req.body.variant_rows); } catch(e) { return []; } })() : [],
       status: req.body.status || "Draft"
     }, { transaction });
     
@@ -239,34 +278,78 @@ router.put("/:id", authenticateToken, uploadFields, async (req, res) => {
       return res.status(404).json({ message: "Client requirement not found" });
     }
     
-    // Extract uploads and merge with existing attachments
-    const newAttachments = { ...(requirement.attachments || {}) };
-    if (req.files) {
-      if (req.files.drawing) newAttachments.drawing = `/uploads/${req.files.drawing[0].filename}`;
-      if (req.files.pdf) newAttachments.pdf = `/uploads/${req.files.pdf[0].filename}`;
-      if (req.files.images) newAttachments.images = `/uploads/${req.files.images[0].filename}`;
-      if (req.files.specifications) newAttachments.specifications = `/uploads/${req.files.specifications[0].filename}`;
+    // Parse products array
+    let products = [];
+    if (req.body.products) {
+      try {
+        products = JSON.parse(req.body.products);
+      } catch (err) {
+        console.error("Failed to parse products:", err);
+      }
     }
+
+    // Extract uploads and map to products dynamically
+    if (req.files && Array.isArray(req.files)) {
+      req.files.forEach(file => {
+        const match = file.fieldname.match(/^product_(\d+)_(.+)$/);
+        if (match) {
+          const productIndex = parseInt(match[1], 10);
+          const fieldName = match[2];
+          if (products[productIndex]) {
+            if (!products[productIndex].attachments) {
+              products[productIndex].attachments = {};
+            }
+            products[productIndex].attachments[fieldName] = `/uploads/${file.filename}`;
+          }
+        }
+      });
+    }
+
+    // Legacy fallback details from first product if available
+    const firstProduct = products[0] || {};
+    const legacyAttachments = firstProduct.attachments || {};
     
     await requirement.update({
       customer_name: req.body.customer_name,
       contact_person: req.body.contact_person,
       mobile_number: req.body.mobile_number,
       email: req.body.email,
+      customer_address: req.body.customer_address,
+      customer_gstin: req.body.customer_gstin,
+      customer_location: req.body.customer_location,
       project_name: req.body.project_name,
+      enquiry_source: req.body.enquiry_source,
+      priority: req.body.priority || requirement.priority,
       required_date: req.body.required_date ? new Date(req.body.required_date) : null,
-      product_category: req.body.product_category,
-      product_name: req.body.product_name,
+      product_category: firstProduct.product_category || req.body.product_category,
+      product_name: firstProduct.product_name || req.body.product_name || "Multiple Products",
       description: req.body.description,
-      quantity: parseInt(req.body.quantity, 10) || 0,
-      unit: req.body.unit || "Nos",
-      material: req.body.material,
+      quantity: parseInt(firstProduct.quantity || req.body.quantity, 10) || 0,
+      unit: firstProduct.unit || req.body.unit || "Nos",
+      material: firstProduct.clothing_data?.fabric_type || req.body.material,
       dimensions: req.body.dimensions,
       weight: req.body.weight,
-      color: req.body.color,
+      color: (firstProduct.clothing_data?.colors || []).join(", ") || req.body.color,
       finish: req.body.finish,
       tolerance: req.body.tolerance,
-      attachments: newAttachments,
+      delivery_address: req.body.delivery_address,
+      expected_delivery_date: req.body.expected_delivery_date ? new Date(req.body.expected_delivery_date) : null,
+      currency: req.body.currency || requirement.currency,
+      payment_terms: req.body.payment_terms,
+      target_price: req.body.target_price,
+      payment_mode: req.body.payment_mode,
+      sampling_required: req.body.sampling_required,
+      sample_qty: req.body.sample_qty,
+      internal_notes: req.body.internal_notes,
+      customer_special_instructions: req.body.customer_special_instructions,
+      requested_by: req.body.requested_by,
+      approved_by: req.body.approved_by,
+      priority_flag: req.body.priority_flag || requirement.priority_flag,
+      attachments: legacyAttachments,
+      products: products,
+      dynamic_fields: req.body.dynamic_fields ? (() => { try { return JSON.parse(req.body.dynamic_fields); } catch(e) { return {}; } })() : requirement.dynamic_fields,
+      mfg_requirements: req.body.mfg_requirements ? (() => { try { return JSON.parse(req.body.mfg_requirements); } catch(e) { return {}; } })() : requirement.mfg_requirements,
+      variant_rows: req.body.variant_rows ? (() => { try { return JSON.parse(req.body.variant_rows); } catch(e) { return []; } })() : requirement.variant_rows,
       status: req.body.status || requirement.status
     }, { transaction });
     
@@ -370,6 +453,250 @@ router.get("/quotations/:id", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Error fetching quotation:", error);
     res.status(500).json({ message: "Failed to load quotation" });
+  }
+});
+
+// Helper to upsert Quotation from Approved RFQ version
+const upsertQuotationFromApprovedRFQ = async (requirement, rfqRecord, transaction) => {
+  const { Quotation } = require("../config/database");
+
+  // Sum up items
+  const rfqItems = rfqRecord.rfqItems || [];
+  let totalAmount = 0;
+  let totalDiscountAmount = 0;
+  let totalTaxAmount = 0;
+  let totalFinalAmount = 0;
+  let totalQty = 0;
+
+  rfqItems.forEach(item => {
+    const qty = parseInt(item.quantity, 10) || 0;
+    const rate = parseFloat(item.unit_cost) || 0;
+    const itemTotal = qty * rate;
+    const discountPct = parseFloat(item.discount_percentage) || 0;
+    const itemDiscount = (itemTotal * discountPct) / 100;
+    const taxable = itemTotal - itemDiscount;
+    const gstPct = parseFloat(item.gst_percentage) || 18;
+    const itemTax = (taxable * gstPct) / 100;
+    const itemFinal = taxable + itemTax;
+
+    totalQty += qty;
+    totalAmount += itemTotal;
+    totalDiscountAmount += itemDiscount;
+    totalTaxAmount += itemTax;
+    totalFinalAmount += itemFinal;
+  });
+
+  // Check if a quotation already exists for this client requirement
+  let quotation = await Quotation.findOne({
+    where: { client_requirement_id: requirement.id },
+    transaction
+  });
+
+  const firstItem = rfqItems[0] || {};
+  const discountPct = parseFloat(firstItem.discount_percentage) || 0;
+  const taxPct = parseFloat(firstItem.gst_percentage) || 18;
+  const unitPrice = parseFloat(firstItem.unit_cost) || 0;
+
+  if (quotation) {
+    // Update existing quotation
+    quotation.rfq_no = rfqRecord.rfq_number;
+    quotation.rfq_version = rfqRecord.version;
+    quotation.product_name = requirement.product_name || firstItem.product_name || "Custom Product";
+    quotation.quantity = totalQty || requirement.quantity;
+    quotation.unit_price = unitPrice;
+    quotation.total_amount = totalAmount;
+    quotation.discount_percentage = discountPct;
+    quotation.discount_amount = totalDiscountAmount;
+    quotation.tax_percentage = taxPct;
+    quotation.tax_amount = totalTaxAmount;
+    quotation.final_amount = totalFinalAmount;
+    quotation.status = "Sent"; // Quotation status is "Sent" as requested in the screenshot
+    await quotation.save({ transaction });
+  } else {
+    // Create new quotation
+    const quotNo = await generateQuotationNumber(transaction);
+    quotation = await Quotation.create({
+      quotation_number: quotNo,
+      client_requirement_id: requirement.id,
+      customer_name: requirement.customer_name,
+      product_name: requirement.product_name || firstItem.product_name || "Custom Product",
+      quantity: totalQty || requirement.quantity,
+      unit_price: unitPrice,
+      total_amount: totalAmount,
+      discount_percentage: discountPct,
+      discount_amount: totalDiscountAmount,
+      tax_percentage: taxPct,
+      tax_amount: totalTaxAmount,
+      final_amount: totalFinalAmount,
+      status: "Sent", // Quotation status is "Sent"
+      rfq_no: rfqRecord.rfq_number,
+      rfq_version: rfqRecord.version,
+      quotation_type: "Sent"
+    }, { transaction });
+  }
+
+  // Update client requirement status to "Quotation Generated"
+  requirement.status = "Quotation Generated";
+  await requirement.save({ transaction });
+
+  return quotation;
+};
+
+// POST send RFQ
+router.post("/:id/rfq", authenticateToken, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const requirement = await ClientRequirement.findByPk(req.params.id, { transaction });
+    if (!requirement) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Client requirement not found" });
+    }
+
+    const { rfqItems, sendEmail, sendWhatsApp } = req.body;
+
+    // Determine the next version
+    const history = requirement.rfq_history ? [...requirement.rfq_history] : [];
+    const nextVersionSeq = history.length + 1;
+    const version = `V${nextVersionSeq}`;
+    
+    // Generate RFQ number: RFQ-XXXX-0001
+    const reqSeq = requirement.requirement_number.split("-")[1] || "0000";
+    const rfqNumber = `RFQ-${reqSeq}-${nextVersionSeq.toString().padStart(4, "0")}`;
+
+    // Generate RFQ PDF with version
+    const PDFGenerationService = require("../utils/pdfGenerationService");
+    const pdfResult = await PDFGenerationService.generateRFQPDF(requirement, rfqItems, version);
+
+    // Mark any previous Sent/Approved versions as Revised
+    history.forEach(record => {
+      if (record.status === "Sent" || record.status === "Approved") {
+        record.status = "Revised";
+      }
+    });
+
+    // ✅ Auto-Approved immediately on generation
+    const newRfqRecord = {
+      version: version,
+      rfq_number: rfqNumber,
+      date: new Date().toISOString(),
+      rfqItems: rfqItems,
+      status: "Approved",
+      pdf_path: pdfResult.success ? `/uploads/pdfs/${pdfResult.filename}` : null
+    };
+
+    history.push(newRfqRecord);
+    requirement.rfq_history = history;
+    requirement.products = rfqItems;
+
+    await requirement.save({ transaction });
+
+    // ✅ Auto-create/update Quotation since RFQ is now Approved
+    await upsertQuotationFromApprovedRFQ(requirement, newRfqRecord, transaction);
+
+    await transaction.commit();
+
+    const emailService = require("../utils/emailService");
+    
+    let emailSent = false;
+    let whatsAppSent = false;
+
+    if (sendEmail) {
+      try {
+        await emailService.sendRFQToCustomer(requirement, rfqItems, version);
+        emailSent = true;
+      } catch (err) {
+        console.error("Failed to send RFQ email:", err);
+      }
+    }
+
+    if (sendWhatsApp) {
+      try {
+        await emailService.sendRFQWhatsApp(requirement, rfqItems);
+        whatsAppSent = true;
+      } catch (err) {
+        console.error("Failed to send RFQ WhatsApp:", err);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `RFQ ${version} generated & auto-approved. Quotation created successfully.`,
+      emailSent,
+      whatsAppSent,
+      requirement
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error processing RFQ:", error);
+    res.status(500).json({ message: "Failed to process RFQ" });
+  }
+});
+
+// PATCH update RFQ version status (Approve RFQ)
+router.patch("/:id/rfq/:version/status", authenticateToken, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const requirement = await ClientRequirement.findByPk(req.params.id, { transaction });
+    if (!requirement) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Client requirement not found" });
+    }
+
+    const { version } = req.params;
+    const { status } = req.body; // e.g. "Approved"
+
+    const history = requirement.rfq_history ? [...requirement.rfq_history] : [];
+    const targetIdx = history.findIndex(r => r.version === version);
+    if (targetIdx === -1) {
+      await transaction.rollback();
+      return res.status(404).json({ message: `RFQ version ${version} not found` });
+    }
+
+    // Set other versions to "Revised" if this one is approved, or keep them
+    history.forEach((record, idx) => {
+      if (idx === targetIdx) {
+        record.status = status;
+      } else if (status === 'Approved' && (record.status === 'Sent' || record.status === 'Approved')) {
+        record.status = 'Revised';
+      }
+    });
+
+    requirement.rfq_history = history;
+
+    // If approved, promote the approved RFQ items to requirement.products
+    if (status === 'Approved') {
+      const approvedRecord = history[targetIdx];
+      requirement.products = approvedRecord.rfqItems;
+      
+      // Update active main columns for legacy support:
+      const firstProduct = approvedRecord.rfqItems[0] || {};
+      requirement.quantity = approvedRecord.rfqItems.reduce((s, p) => s + (parseInt(p.quantity, 10) || 0), 0);
+      
+      if (!requirement.attachments) {
+        requirement.attachments = {};
+      }
+      requirement.attachments.unit_cost = firstProduct.unit_cost;
+      requirement.attachments.gst_percentage = firstProduct.gst_percentage;
+
+      await requirement.save({ transaction });
+
+      // Automatically upsert Quotation record
+      await upsertQuotationFromApprovedRFQ(requirement, approvedRecord, transaction);
+    } else {
+      await requirement.save({ transaction });
+    }
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: `RFQ ${version} status updated to ${status}`,
+      requirement
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error updating RFQ status:", error);
+    res.status(500).json({ message: "Failed to update RFQ status" });
   }
 });
 
