@@ -150,14 +150,207 @@ function fallbackIntentDetection(text) {
 }
 
 /**
- * Simple rule-based chatbot simulator when HF client is inactive or errors
+ * Simple rule-based chatbot simulator when HF client is inactive
  */
 function simulateResponse(text) {
-  const normalized = text.toLowerCase();
-  if (normalized.includes('hi') || normalized.includes('hello') || normalized.includes('hey')) {
-    return "Hello! I am Passion AI Assistant. How can I help you manage the ERP today?";
+  const normalized = text.toLowerCase().trim();
+  
+  // Define Unsplash product images for the shopping assistant
+  const PRODUCT_IMAGES = {
+    'tshirt': 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500',
+    't-shirt': 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500',
+    'polo tshirt': 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=500',
+    'polo': 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=500',
+    'shirt': 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500',
+    'joggers': 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=500',
+    'jogger': 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=500',
+    'hoodie': 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500',
+    'jeans': 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=500',
+    'trousers': 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500',
+    'trouser': 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500',
+    'shorts': 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=500',
+    'short': 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=500',
+    'jacket': 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500',
+    'dresses': 'https://images.unsplash.com/photo-1612336307429-8a898d10e223?w=500',
+    'dress': 'https://images.unsplash.com/photo-1612336307429-8a898d10e223?w=500',
+    'uniforms': 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500',
+    'uniform': 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500',
+    'sports wear': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500',
+    'sportswear': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500'
+  };
+
+  // Handle greetings
+  if (normalized === 'hi' || normalized === 'hello' || normalized === 'hey') {
+    return `Hello! I am your AI Fashion & Clothing Personal Stylist. I'm here to help you discover beautiful styles, fabrics, patterns, and colors, and guide you to the perfect outfit!
+
+Which category would you like to explore?
+👕 **Tops** (T-Shirts, Polo T-Shirts, Shirts, Hoodies, Crop Tops, Sweatshirts, Tunics, Camisoles)
+👖 **Bottoms** (Jeans, Trousers, Joggers, Shorts, Skirts, Leggings)
+👗 **Dresses & Jumpsuits** (One-piece dresses, Jumpsuits, Rompers, Kurtis)
+🧥 **Outerwear** (Jackets, Coats, Blazers, Cardigans)
+
+Let me know what you are looking for, or choose a category above to start!`;
   }
-  return "I am operating in offline fallback mode. Please configure HF_TOKEN in your environment for advanced natural language replies.";
+
+  // Handle Tops
+  if (normalized === 'tops' || normalized === 'top' || normalized.includes('types of tops') || normalized.includes('top styles') || normalized.includes('show tops')) {
+    return `Awesome! Let's explore some stylish tops. We have a wide range of options:
+👕 **T-Shirts & Polo T-Shirts** (Casual, sports, or premium styles)
+👔 **Shirts** (Formal, casual button-downs, or party shirts)
+🧥 **Hoodies & Sweatshirts** (Comfortable streetwear and layers)
+👚 **Crop Tops, Tunics & Camisoles** (Trendy and elegant options for women)
+
+To find the perfect match for you:
+1. Are you shopping for **Men**, **Women**, or **Kids**?
+2. What style or occasion are you looking for (e.g., Casual, Formal, Sports, or Party Wear)?`;
+  }
+
+  // Handle Bottoms
+  if (normalized === 'bottoms' || normalized === 'bottom' || normalized.includes('types of bottoms') || normalized.includes('bottom styles') || normalized.includes('show bottoms')) {
+    return `Great choice! A good pair of bottoms completes any outfit. Here are the categories we can explore:
+👖 **Jeans & Trousers** (Denim, chinos, or formal pants)
+🩳 **Shorts & Skirts** (Casual summer styles or elegant options)
+🏃‍♂️ **Joggers & Leggings** (Comfortable activewear or loungewear)
+
+To help me guide your search:
+1. Are you shopping for **Men**, **Women**, or **Kids**?
+2. What occasion are these bottoms for (e.g., Casual, Active/Sports, Formal, or Loungewear)?`;
+  }
+
+  // Handle Dresses & Jumpsuits
+  if (normalized === 'dresses' || normalized === 'dress' || normalized.includes('types of dresses') || normalized.includes('dress styles') || normalized.includes('show dresses') || normalized.includes('jumpsuit') || normalized.includes('jumpsuits')) {
+    return `Dresses and jumpsuits are perfect for making a stylish statement! Here are the options we can explore:
+👗 **One-piece Dresses** (Casual sundresses, maxi dresses, or party wear)
+👚 **Kurtis & Tunics** (Traditional and fusion daily wear)
+👖 **Jumpsuits & Rompers** (Chic, modern all-in-one outfits)
+
+What occasion are you dressing up for (e.g., Daily Casual, Work Wear, Festive, or a Party/Evening event)?`;
+  }
+
+  // Handle Types of clothing
+  if (normalized.includes('types of clothing') || normalized.includes('what are types of clothing') || normalized.includes('clothing categories') || normalized.includes('categories')) {
+    return `We offer a beautifully curated range of clothing categories:
+
+👕 **Tops** - T-Shirts, Polo T-Shirts, Shirts, Hoodies, Sweatshirts, Crop Tops, Tunics, and Camisoles.
+👖 **Bottoms** - Jeans, Trousers, Shorts, Joggers, Skirts, and Leggings.
+👗 **Dresses & Jumpsuits** - One-piece dresses, Jumpsuits, Rompers, and Kurtis.
+🧥 **Outerwear** - Jackets, Coats, Blazers, and Cardigans.
+
+Which category would you like to explore?
+👕 T-Shirts
+👔 Shirts
+🧥 Hoodies
+👗 Dresses
+👖 Jeans`;
+  }
+
+  // Handle Floral Prints
+  if (normalized.includes('floral print') || normalized.includes('floral prints') || normalized.includes('floral')) {
+    return `![Floral Print T-Shirt](https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500)
+![Floral Print Polo](https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=500)
+![Floral Print Shirt](https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500)
+![Floral Print Dress](https://images.unsplash.com/photo-1612336307429-8a898d10e223?w=500)
+![Floral Print Kurti](https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=500)
+![Floral Print Hoodie](https://images.unsplash.com/photo-1509631179647-0177331693ae?w=500)
+
+Floral prints are incredibly popular for a fresh, vibrant, and stylish look! We offer a gorgeous selection of floral patterns across various styles:
+🌸 **Floral Dresses & Kurtis** (Vibrant, airy, and perfect for warm weather/outings)
+👕 **Floral T-Shirts & Polo T-Shirts** (Great for casual weekend styles)
+👔 **Floral Shirts** (Chic casual button-downs)
+🧥 **Floral Hoodies** (Unique, artistic streetwear)
+
+Which style are you looking to explore?
+👗 Dresses
+👔 Shirts
+👕 T-Shirts
+🧥 Hoodies`;
+  }
+
+  // Handle Pink Patterns
+  if (normalized.includes('pink pattern') || normalized.includes('pink patterns') || (normalized.includes('pink') && normalized.includes('pattern'))) {
+    return getPinkPatternsResponse();
+  }
+
+  // Handle Patterns
+  if (normalized.includes('patterns for tops') || normalized.includes('clothing patterns') || normalized.includes('patterns')) {
+    return `Common clothing patterns include:
+✨ **Solid** (Classic and minimalist)
+🏁 **Stripes** (Elongating and timeless)
+🌸 **Floral** (Fresh and vibrant)
+⚪ **Polka Dot** (Retro and playful)
+🏁 **Checked/Plaid** (Casual or smart-casual)
+🎨 **Tie-Dye** (Artistic and laid-back)
+📐 **Geometric & Abstract** (Modern and bold)
+🪡 **Embroidered** (Elegant and detailed)
+
+Which of these prints matches your style preference?`;
+  }
+
+  // Handle Solid colors / pink shades
+  if (normalized.includes('solid colors') || normalized.includes('colors')) {
+    if (normalized.includes('pink')) {
+      return getPinkPatternsResponse();
+    }
+    return `We offer products in a beautiful spectrum of solid colors:
+🖤 **Black** & 🤍 **White** (The timeless essentials)
+💙 **Navy Blue** & 💎 **Sky Blue** (Professional and serene)
+💗 **Pink** & ❤️ **Red** (Vibrant and expressive)
+💚 **Green** & 💛 **Yellow** (Fresh and energetic)
+💜 **Purple** (Rich and elegant)
+
+Are there any particular shades or color families you have in mind for your outfit?`;
+  }
+
+  if (normalized === 'pink' || normalized.includes('shade of pink') || normalized.includes('pink colors')) {
+    return getPinkPatternsResponse();
+  }
+
+  // Specific check for joggers
+  if (normalized.includes('jogger')) {
+    return `![Joggers](https://images.unsplash.com/photo-1552346154-21d32810aba3?w=500)
+
+Joggers are comfortable bottoms with an elastic waistband and tapered leg ankle cuffs, making them perfect for casual styling, loungewear, or sporty looks. They pair wonderfully with fitted t-shirts, cropped hoodies, or denim jackets.
+
+Would you like to explore matching tops or fabrics for joggers?`;
+  }
+
+  // General fallback for image requests
+  const isImageRequest = /(?:show|send|display|view|give|me)?\s*(?:image|picture|photo|look|draw|illustration|visual)/i.test(normalized);
+  if (isImageRequest) {
+    for (const key of Object.keys(PRODUCT_IMAGES)) {
+      if (normalized.includes(key)) {
+        const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+        return `![${capitalizedKey}](${PRODUCT_IMAGES[key]})
+
+Here is a relevant image of a **${capitalizedKey}**. Do you want to see this in other colors or styles?`;
+      }
+    }
+  }
+
+  // General fallback
+  return `I can help you explore fashion styles, fabrics, patterns, fits, and colors! Let me know if you want to search for tops, bottoms, outerwear, or specific items like Joggers or Jeans. What style profile are you looking for today?`;
+}
+
+function getPinkPatternsResponse() {
+  return `![Solid Pink](https://images.unsplash.com/photo-1520635292-145011485135?w=500)
+![Floral Pink](https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500)
+![Pink Stripes](https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500)
+![Pink Polka Dots](https://images.unsplash.com/photo-1509631179647-0177331693ae?w=500)
+![Pink Checked](https://images.unsplash.com/photo-1549064482-6779ba3292fe?w=500)
+![Pink Tie-Dye](https://images.unsplash.com/photo-1566207274740-0f8cf6b7d5a5?w=500)
+
+Here are some popular pink clothing patterns:
+🌸 **Solid Pink**
+🌸 **Floral Pink**
+🌸 **Pink Stripes**
+🌸 **Pink Polka Dots**
+🌸 **Pink Checked**
+🌸 **Pink Tie-Dye**
+🌸 **Pink Abstract**
+🌸 **Pink Geometric**
+🌸 **Pink Embroidered**
+
+Which style do you like most?`;
 }
 
 module.exports = {

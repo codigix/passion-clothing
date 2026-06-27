@@ -86,6 +86,12 @@ const SOP_KNOWLEDGE_BASE = [
 
 // Initialize ChromaDB Client
 async function initializeChroma() {
+  if (process.env.USE_CHROMA !== 'true') {
+    console.log('ℹ Using local search engine for Chatbot knowledge base (ChromaDB disabled).');
+    isChromaEnabled = false;
+    return;
+  }
+
   try {
     client = new ChromaClient({ path: process.env.CHROMA_URL || 'http://localhost:8000' });
     

@@ -25,7 +25,7 @@ const FloatingAIBot = () => {
     {
       id: 1,
       sender: 'bot',
-      text: `Hi ${user?.name || 'there'}! I'm your Passion ERP AI Assistant. 🤖 How can I help you manage the ERP today?`,
+      text: `Hi ${user?.name || 'there'}! I'm your AI Fashion & Clothing Shopping Assistant. 🛍️ How can I help you discover styles, colors, or clothing today?`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -155,6 +155,26 @@ const FloatingAIBot = () => {
       // Italic *text*
       content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
       
+      // Check for markdown image tag: ![alt](url)
+      const imgMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
+      if (imgMatch) {
+        const alt = imgMatch[1];
+        const src = imgMatch[2];
+        return (
+          <div key={idx} className="my-2 overflow-hidden rounded-lg border border-slate-200 shadow-sm max-w-full">
+            <img 
+              src={src} 
+              alt={alt} 
+              className="w-full h-auto object-cover max-h-48"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://loremflickr.com/500/500/fashion,clothing,style';
+              }}
+            />
+          </div>
+        );
+      }
+      
       // Bullets
       if (line.startsWith('• ') || line.startsWith('- ')) {
         return <li key={idx} className="ml-4 list-disc" dangerouslySetInnerHTML={{ __html: content.substring(2) }} />;
@@ -232,7 +252,7 @@ const FloatingAIBot = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-sm tracking-wide flex items-center gap-1.5">
-                  Passion AI Assistant
+                  AI Fashion Assistant
                   <Sparkles size={12} className="text-pink-400 animate-pulse" />
                 </h3>
                 <div className="flex items-center gap-1.5 mt-0.5">
@@ -304,25 +324,25 @@ const FloatingAIBot = () => {
           {/* Quick Suggestions */}
           <div className="px-4 py-2 border-t border-slate-100 bg-white flex flex-wrap gap-1.5">
             <button 
-              onClick={() => handleSuggestionClick('summary', '📊 Show client requirements summary')}
+              onClick={() => handleSuggestionClick('categories', '👕 Show types of clothing')}
               className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 text-xs rounded-full border border-indigo-100/50 cursor-pointer transition-all duration-200 flex items-center gap-1 focus:outline-none"
             >
-              <TrendingUp size={11} />
-              Req Summary
+              <Sparkles size={11} />
+              Clothing Types
             </button>
             <button 
-              onClick={() => handleSuggestionClick('stock', '📦 Check low stock alerts')}
+              onClick={() => handleSuggestionClick('tops', '👚 Show top styles')}
               className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100/80 text-amber-800 text-xs rounded-full border border-amber-100/50 cursor-pointer transition-all duration-200 flex items-center gap-1 focus:outline-none"
             >
-              <AlertTriangle size={11} />
-              Stock Check
+              <TrendingUp size={11} />
+              Top Styles
             </button>
             <button 
-              onClick={() => handleSuggestionClick('create', '➕ Navigate to create requirement')}
+              onClick={() => handleSuggestionClick('colors', '🎨 Show popular solid colors')}
               className="px-2.5 py-1 bg-pink-50 hover:bg-pink-100/80 text-pink-700 text-xs rounded-full border border-pink-100/50 cursor-pointer transition-all duration-200 flex items-center gap-1 focus:outline-none"
             >
               <PlusCircle size={11} />
-              Create Req
+              Solid Colors
             </button>
           </div>
 
@@ -333,7 +353,7 @@ const FloatingAIBot = () => {
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask anything about the ERP..."
+              placeholder="Ask about fashion, clothing, styles, or colors..."
               className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder-slate-400 text-slate-800"
             />
             <button 
