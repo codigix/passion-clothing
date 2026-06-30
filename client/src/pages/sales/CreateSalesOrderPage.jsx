@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaArrowLeft, FaCheck, FaPlus, FaTrash, FaCloudUploadAlt, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaArrowLeft, FaCheck, FaPlus, FaTrash, FaCloudUploadAlt, FaCheckCircle, FaTimesCircle, FaLock, FaDownload, FaFileAlt } from 'react-icons/fa';
 import { ArrowLeft, Send, Download, FileText, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 const CreateSalesOrderPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isFromRequirement = !!(location.state && location.state.fromRequirement);
   
   // State for order data
   const [orderData, setOrderData] = useState({
@@ -19,64 +21,64 @@ const CreateSalesOrderPage = () => {
     contactPerson: '',
     clientPoNumber: '',
     
+    // REFERENCE INFO
+    clientRequirementId: '',
+    quotationId: '',
+    orderReference: '', // Client Requirement No
+    quotationNo: '',
+    salesPerson: '',
+    deliveryTerms: '',
+    paymentTerms: '',
+    
     // PRODUCT DETAILS
     productName: '',
     productType: '',
     fabricType: '',
     color: '',
     quantity: '',
-    qualitySpecification: '',
-    specialInstructions: '',
-    deliveryAddress: '',
-    department: '',
-    orderReference: '',
-    
-    // PRICING & DELIVERY
+    unit: 'Pcs',
     pricePerPiece: '',
-    expectedDeliveryDate: '',
-    advancePaid: '',
+    discountPercentage: '0',
     gstPercentage: '18',
+    specialInstructions: '',
     
-    // OPTIONAL/ADVANCED
-    gstNumber: '',
-    address: '',
-    designFiles: [], // Changed to array for multiple files
+    // TECHNICAL SPECS
+    gsm: '',
+    size: '',
+    fit: '',
+    pattern: '',
+    sleeveType: '',
+    neckType: '',
+    printType: '',
+    embroidery: '',
+    packingType: '',
+    customerInstructions: '',
     
-    // INTERNAL (not shown)
+    // DOCUMENTS / ATTACHMENTS
+    designFiles: [], 
+    
+    // DELIVERY INFO
+    expectedDeliveryDate: '',
+    deliveryAddress: '',
+    address: '', // Billing Address
+    transportMode: '',
+    shippingMethod: '',
+    priority: 'medium',
+    dispatchInstructions: '',
+    
+    // INTERNAL
     orderDate: new Date().toISOString().split('T')[0],
     productCode: '',
     sizeOption: 'fixed',
     sizeDetails: [],
   });
 
-  useEffect(() => {
-    if (location.state && location.state.fromRequirement) {
-      const stateData = location.state;
-      setOrderData((prev) => ({
-        ...prev,
-        customerName: stateData.customerName || '',
-        contactPerson: stateData.contactPerson || '',
-        phone: stateData.phone || '',
-        email: stateData.email || '',
-        projectTitle: stateData.projectTitle || '',
-        productName: stateData.productName || '',
-        productType: stateData.productType || '',
-        quantity: stateData.quantity || '',
-        pricePerPiece: stateData.pricePerPiece || '',
-        gstPercentage: stateData.gstPercentage || '18',
-        advancePaid: stateData.advancePaid || '0',
-        orderReference: stateData.orderReference || '',
-        specialInstructions: stateData.specialInstructions || '',
-      }));
-      toast.success('Prefilled details from Client Requirement/Quotation');
-    }
-  }, [location.state]);
-
+  const [loadingRequirement, setLoadingRequirement] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [createdOrder, setCreatedOrder] = useState(null);
-  const [currentSection, setCurrentSection] = useState('primary'); // Tab control
-  const [imagePreviews, setImagePreviews] = useState([]); // Changed to array for multiple previews
+  const [currentSection, setCurrentSection] = useState('customer_so'); // Tab control
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   const productTypes = [
     'Shirt',
@@ -92,6 +94,94 @@ const CreateSalesOrderPage = () => {
     'Other'
   ];
 
+  // Auto-fetch and prefill details
+  useEffect(() => {
+    const fetchRequirementAndPrefill = async () => {
+      if (location.state && location.state.requirementId) {
+        setLoadingRequirement(true);
+        try {
+          const res = await api.get(`/client-requirements/${location.state.requirementId}`);
+          const d = res.data;
+          
+          // Map attachments if present
+          const mainAttachments = d.attachments || {};
+          const productAttachments = d.products?.[0]?.attachments || {};
+          const mergedAttachments = { ...mainAttachments, ...productAttachments };
+          const prefilledFiles = [];
+          Object.entries(mergedAttachments).forEach(([key, val]) => {
+            if (val) {
+              prefilledFiles.push({
+                name: val.split('/').pop() || `${key}_doc`,
+                path: val,
+                preview: val.startsWith('/uploads') ? `${api.defaults.baseURL.replace('/api', '')}${val}` : val,
+                isExisting: true,
+                label: key
+              });
+            }
+          });
+
+          // Sizes required parsed
+          const sizeReq = d.products?.[0]?.clothing_data?.sizes_required || {};
+          const parsedSizes = Object.keys(sizeReq)
+            .filter(sizeKey => sizeReq[sizeKey])
+            .map(sizeKey => ({ size: sizeKey, quantity: '' }));
+
+          setOrderData((prev) => ({
+            ...prev,
+            customerName: d.customer_name || '',
+            contactPerson: d.contact_person || '',
+            phone: d.mobile_number || '',
+            email: d.email || '',
+            gstNumber: d.customer_gstin || '',
+            address: d.customer_address || '',
+            deliveryAddress: d.delivery_address || d.customer_address || '',
+            projectTitle: d.project_name || '',
+            orderReference: d.requirement_number || '',
+            quotationNo: d.quotation?.quotation_number || '',
+            clientRequirementId: d.id,
+            quotationId: d.quotation?.id || '',
+            
+            // Product info
+            productName: d.product_name || '',
+            productType: d.product_category || '',
+            quantity: d.quantity || '',
+            unit: d.unit || 'Pcs',
+            pricePerPiece: d.quotation?.unit_price || '',
+            gstPercentage: d.quotation?.tax_percentage || '18',
+            discountPercentage: d.quotation?.discount_percentage || '0',
+            advancePaid: d.quotation?.advance_paid || '0',
+            paymentTerms: d.payment_terms || d.quotation?.payment_terms || '',
+            
+            // Technical Specs (auto-fetched)
+            fabricType: d.material || d.products?.[0]?.clothing_data?.fabric_type || '',
+            gsm: d.products?.[0]?.clothing_data?.fabric_gsm || '',
+            color: d.color || d.products?.[0]?.clothing_data?.colors?.join(', ') || '',
+            size: Object.keys(sizeReq).filter(k => sizeReq[k]).join(', ') || '',
+            fit: d.products?.[0]?.clothing_data?.fit || '',
+            pattern: d.products?.[0]?.clothing_data?.product_type || '',
+            sleeveType: d.products?.[0]?.clothing_data?.sleeve_type || '',
+            neckType: d.products?.[0]?.clothing_data?.neck_type || '',
+            printType: d.products?.[0]?.clothing_data?.printing_required ? Object.keys(d.products[0].clothing_data.printing_required).filter(k => d.products[0].clothing_data.printing_required[k]).join(', ') : '',
+            embroidery: d.products?.[0]?.clothing_data?.embroidery || '',
+            packingType: d.products?.[0]?.clothing_data?.packing_type || '',
+            specialInstructions: d.customer_special_instructions || d.description || '',
+            customerInstructions: d.customer_special_instructions || d.description || '',
+            
+            sizeDetails: parsedSizes.length > 0 ? parsedSizes : prev.sizeDetails,
+            designFiles: prefilledFiles
+          }));
+          toast.success('Auto-fetched all Client Requirement details!');
+        } catch (err) {
+          console.error('Error loading client requirement:', err);
+          toast.error('Failed to auto-fetch Client Requirement details');
+        } finally {
+          setLoadingRequirement(false);
+        }
+      }
+    };
+    fetchRequirementAndPrefill();
+  }, [location.state]);
+
   // Auto-generate product code
   const generateProductCode = (name, type) => {
     if (!name) return '';
@@ -103,31 +193,34 @@ const CreateSalesOrderPage = () => {
 
   // Auto-calculate values
   const calculations = useMemo(() => {
-    // Calculate total qty from size details OR use main quantity field as fallback
     let totalQty = orderData.sizeDetails.reduce((sum, size) => sum + (parseFloat(size.quantity) || 0), 0);
-    
-    // If size details are empty, use the main quantity field
     if (totalQty === 0) {
       totalQty = parseFloat(orderData.quantity) || 0;
     }
     
     const price = parseFloat(orderData.pricePerPiece) || 0;
-    const orderPrice = totalQty * price;
-    const advance = parseFloat(orderData.advancePaid) || 0;
+    const subtotal = totalQty * price;
+    const discountPercent = parseFloat(orderData.discountPercentage) || 0;
+    const discountAmount = (subtotal * discountPercent) / 100;
+    const taxableAmount = subtotal - discountAmount;
+    
     const gst = parseFloat(orderData.gstPercentage) || 0;
-
-    const gstAmount = (orderPrice * gst) / 100;
-    const totalWithGST = orderPrice + gstAmount;
-    const remainingAmount = totalWithGST - advance;
+    const gstAmount = (taxableAmount * gst) / 100;
+    const grandTotal = taxableAmount + gstAmount;
+    
+    const advance = parseFloat(orderData.advancePaid) || 0;
+    const remainingAmount = grandTotal - advance;
     
     return {
-      totalQty: totalQty,
-      orderPrice: orderPrice.toFixed(2),
+      totalQty,
+      subtotal: subtotal.toFixed(2),
+      discountAmount: discountAmount.toFixed(2),
+      taxableAmount: taxableAmount.toFixed(2),
       gstAmount: gstAmount.toFixed(2),
-      totalWithGST: totalWithGST.toFixed(2),
+      grandTotal: grandTotal.toFixed(2),
       remainingAmount: remainingAmount.toFixed(2)
     };
-  }, [orderData.sizeDetails, orderData.quantity, orderData.pricePerPiece, orderData.advancePaid, orderData.gstPercentage]);
+  }, [orderData.sizeDetails, orderData.quantity, orderData.pricePerPiece, orderData.discountPercentage, orderData.gstPercentage, orderData.advancePaid]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -168,12 +261,6 @@ const CreateSalesOrderPage = () => {
   // Handle multiple file uploads
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
-    const maxFiles = 5;
-    
-    if (imagePreviews.length + files.length > maxFiles) {
-      toast.error(`Maximum ${maxFiles} design files allowed`);
-      return;
-    }
     
     files.forEach(file => {
       if (file.size > 5 * 1024 * 1024) {
@@ -181,31 +268,25 @@ const CreateSalesOrderPage = () => {
         return;
       }
       
-      // Create image preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setOrderData(prev => ({
           ...prev,
-          designFiles: [...prev.designFiles, { file, name: file.name, preview: reader.result }]
+          designFiles: [...prev.designFiles, { file, name: file.name, preview: reader.result, isExisting: false }]
         }));
-        setImagePreviews(prev => [...prev, { name: file.name, preview: reader.result, size: file.size }]);
         toast.success(`"${file.name}" uploaded successfully`);
       };
       reader.readAsDataURL(file);
     });
   };
 
-  // Handle remove individual design file
   const handleRemoveDesignFile = (index) => {
     setOrderData(prev => ({
       ...prev,
       designFiles: prev.designFiles.filter((_, i) => i !== index)
     }));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
-    toast.success('Design file removed');
+    toast.success('Attachment removed');
   };
-
-
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -247,7 +328,7 @@ const CreateSalesOrderPage = () => {
         customer_name: orderData.customerName.trim(),
         customer_email: orderData.email || null,
         customer_phone: orderData.phone || null,
-        customer_address: orderData.deliveryAddress || orderData.address || null,
+        customer_address: orderData.address || orderData.deliveryAddress || null,
         contact_person: orderData.contactPerson || null,
         gst_number: orderData.gstNumber || null,
         order_date: orderData.orderDate,
@@ -256,19 +337,39 @@ const CreateSalesOrderPage = () => {
         client_po_number: orderData.clientPoNumber || null,
         delivery_date: orderData.expectedDeliveryDate,
         tax_percentage: parseFloat(orderData.gstPercentage) || 18,
+        discount_percentage: parseFloat(orderData.discountPercentage) || 0,
         advance_paid: parseFloat(orderData.advancePaid) || 0,
+        payment_terms: orderData.paymentTerms || null,
+        shipping_address: orderData.deliveryAddress || null,
+        billing_address: orderData.address || null,
+        special_instructions: orderData.specialInstructions || null,
+        client_requirement_id: orderData.clientRequirementId || null,
+        quotation_id: orderData.quotationId || null,
+        priority: orderData.priority || 'medium',
         garment_specifications: {
           product_name: orderData.productName,
           product_code: orderData.productCode,
           product_type: finalProductType,
           fabric_type: orderData.fabricType,
+          gsm: orderData.gsm,
           color: orderData.color,
-          quality_specification: orderData.qualitySpecification,
-          size_option: orderData.sizeOption,
-          size_details: orderData.sizeDetails,
-          design_files: orderData.designFiles.map(df => df.name), // Store array of file names
-          special_instructions: orderData.specialInstructions || null,
-          department: orderData.department || null
+          size: orderData.size,
+          fit: orderData.fit,
+          pattern: orderData.pattern,
+          sleeve_type: orderData.sleeveType,
+          neck_type: orderData.neckType,
+          print_type: orderData.printType,
+          embroidery: orderData.embroidery,
+          packing_type: orderData.packingType,
+          customer_instructions: orderData.customerInstructions,
+          design_files: orderData.designFiles.filter(df => !df.isExisting).map(df => df.name),
+          existing_files: orderData.designFiles.filter(df => df.isExisting).map(df => df.path),
+          department: orderData.department || null,
+          transport_mode: orderData.transportMode || null,
+          shipping_method: orderData.shippingMethod || null,
+          dispatch_instructions: orderData.dispatchInstructions || null,
+          delivery_terms: orderData.deliveryTerms || null,
+          sales_person: orderData.salesPerson || null
         },
         items: [
           {
@@ -280,9 +381,9 @@ const CreateSalesOrderPage = () => {
             description: orderData.productName,
             quantity: parseFloat(calculations.totalQty),
             unit_price: parseFloat(orderData.pricePerPiece),
-            unit_of_measure: 'pcs',
+            unit_of_measure: orderData.unit || 'pcs',
             size_breakdown: orderData.sizeDetails || null,
-            remarks: `${finalProductType} - ${orderData.fabricType || 'N/A'} - ${orderData.color || 'N/A'} - ${orderData.qualitySpecification || 'Standard quality'}`
+            remarks: `${finalProductType} - ${orderData.fabricType || 'N/A'} - ${orderData.color || 'N/A'}`
           }
         ]
       };
@@ -290,10 +391,10 @@ const CreateSalesOrderPage = () => {
       const response = await api.post('/sales/orders', payload);
       const newOrder = response.data.order;
       
-      // If from a client requirement, update its status
-      if (location.state && location.state.fromRequirement && location.state.requirementId) {
+      // Update Client Requirement status if linked
+      if (orderData.clientRequirementId) {
         try {
-          await api.patch(`/client-requirements/${location.state.requirementId}/status`, {
+          await api.patch(`/client-requirements/${orderData.clientRequirementId}/status`, {
             status: 'Converted to SO'
           });
         } catch (statusErr) {
@@ -301,22 +402,21 @@ const CreateSalesOrderPage = () => {
         }
       }
       
-      // Upload design files if any
-      if (orderData.designFiles && orderData.designFiles.length > 0 && newOrder?.id) {
+      // Upload new design files
+      const newFiles = orderData.designFiles.filter(df => !df.isExisting);
+      if (newFiles.length > 0 && newOrder?.id) {
         try {
           const formData = new FormData();
-          orderData.designFiles.forEach(df => {
+          newFiles.forEach(df => {
             formData.append('files', df.file);
           });
           
           await api.post(`/sales/orders/${newOrder.id}/upload-design-files`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
+            headers: { 'Content-Type': 'multipart/form-data' }
           });
           toast.success('Design files uploaded successfully!');
         } catch (uploadErr) {
-          console.warn('Failed to upload some design files:', uploadErr);
+          console.warn('Failed to upload design files:', uploadErr);
           toast.warning('Order created but design file upload failed');
         }
       }
@@ -324,212 +424,141 @@ const CreateSalesOrderPage = () => {
       setCreatedOrder(newOrder);
       toast.success('Sales order created successfully!');
     } catch (err) {
-      const response = err.response?.data;
-      if (response?.message) {
-        setSubmitError(response.message);
-      } else if (Array.isArray(response?.errors)) {
-        setSubmitError(response.errors.join(', '));
-      } else {
-        setSubmitError('Failed to create sales order. Please try again.');
-      }
       console.error('Order creation error:', err);
+      setSubmitError(err.response?.data?.message || 'Failed to create sales order. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Action handlers
-  const handleSendToProcurement = async () => {
-    if (!createdOrder || !createdOrder.id) {
-      toast.error('Please save the order first');
-      return;
-    }
+  // Actions on success
+  const handlePrintOrder = () => window.print();
+  const handleDownloadPDF = async () => {
+    if (!createdOrder) return;
     try {
-      await api.put(`/sales/orders/${createdOrder.id}/send-to-procurement`);
-      toast.success('Request sent to Procurement Department');
-      const updatedOrder = await api.get(`/sales/orders/${createdOrder.id}`);
-      setCreatedOrder(updatedOrder.data.order);
-    } catch (error) {
-      toast.error('Failed to send request to procurement');
-      console.error('Send to procurement error:', error);
-    }
-  };
-
-  const handleDownloadInvoice = async () => {
-    if (!createdOrder) {
-      toast.error('Please save the order first');
-      return;
-    }
-    try {
-      const response = await api.get(`/sales/orders/${createdOrder.id}/invoice`, {
-        responseType: 'blob',
-        timeout: 30000,
-      });
-      
-      // Verify it's actually a PDF
-      if (!response.data || response.data.size === 0) {
-        throw new Error('Empty invoice response');
-      }
-
+      const response = await api.get(`/sales/orders/${createdOrder.id}/invoice`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Invoice-${createdOrder.order_number}.pdf`);
+      link.setAttribute('download', `SalesOrder-${createdOrder.order_number}.pdf`);
       document.body.appendChild(link);
       link.click();
-      
-      // Cleanup
-      setTimeout(() => {
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      }, 100);
-      
-      toast.success('Invoice downloaded successfully');
-    } catch (error) {
-      console.error('Download invoice error:', error);
-      
-      let errorMsg = 'Failed to download invoice';
-      
-      // Handle different error types
-      if (error.response?.data instanceof Blob) {
-        // For blob errors, try to parse as JSON if it's JSON content
-        try {
-          const text = await error.response.data.text();
-          const json = JSON.parse(text);
-          errorMsg = json.message || errorMsg;
-        } catch {
-          errorMsg = `Server error: ${error.response?.status || 'Unknown'}`;
-        }
-      } else if (error.response?.data?.message) {
-        // For JSON errors
-        errorMsg = error.response.data.message;
-      } else if (error.message) {
-        // For network/other errors
-        errorMsg = error.message;
-      }
-      
-      toast.error(errorMsg);
+      link.remove();
+      toast.success('PDF downloaded successfully');
+    } catch (err) {
+      toast.error('Failed to download PDF');
     }
   };
 
-  const handleViewOrder = () => {
-    if (!createdOrder) return;
-    navigate(`/sales/orders/${createdOrder.id}`);
-  };
+  if (loadingRequirement) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-2" />
+          <p className="text-sm text-gray-600 font-medium">Fetching details from Client Requirement...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Success screen
+  // Success view
   if (createdOrder) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-3">
-        <div className="mx-auto max-w-5xl">
-          {/* Success Message */}
-          <div className="rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-4 text-center mb-3">
-            <div className="flex justify-center mb-2">
-              <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
-                <FaCheckCircle className="text-3xl text-green-600" />
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-4">
+        <div className="mx-auto max-w-4xl bg-white border border-gray-200 rounded-xl shadow-lg p-6">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+              <FaCheckCircle className="text-4xl text-green-600" />
             </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-1">Order Created Successfully!</h2>
-            <p className="text-xs text-gray-600">Order: <span className="font-semibold text-green-600">{createdOrder.order_number}</span></p>
+            <h1 className="text-2xl font-bold text-gray-900">Sales Order Created Successfully!</h1>
+            <p className="text-sm text-gray-500 mt-1">Order No: <span className="font-bold text-blue-600">{createdOrder.order_number}</span></p>
           </div>
 
-          {/* Order Summary */}
-          <div className="bg-white rounded-xl border border-gray-200 p-3 mb-3 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">Order Summary</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <div>
-                <p className="text-gray-500 mb-0.5">Customer</p>
-                <p className="font-medium text-gray-900">{createdOrder.customer_name}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-0.5">Project</p>
-                <p className="font-medium text-gray-900">{createdOrder.project_title}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-0.5">Total</p>
-                <p className="font-semibold text-green-600">₹{parseFloat(createdOrder.total_price || 0).toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-0.5">Status</p>
-                <p className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium text-xs">{createdOrder.status}</p>
-              </div>
+          <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+            <div>
+              <p className="text-gray-500 font-semibold uppercase tracking-wider text-[10px]">Customer</p>
+              <p className="font-bold text-gray-800 text-sm mt-1">{createdOrder.customer_name || orderData.customerName}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 font-semibold uppercase tracking-wider text-[10px]">Project Name</p>
+              <p className="font-bold text-gray-800 text-sm mt-1">{orderData.projectTitle}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 font-semibold uppercase tracking-wider text-[10px]">Total Qty</p>
+              <p className="font-bold text-gray-800 text-sm mt-1">{calculations.totalQty} Pcs</p>
+            </div>
+            <div>
+              <p className="text-gray-500 font-semibold uppercase tracking-wider text-[10px]">Grand Total</p>
+              <p className="font-bold text-green-700 text-sm mt-1">₹{calculations.grandTotal}</p>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-            <button
-              onClick={handleViewOrder}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-1 shadow-md"
-            >
-              <FileText className="w-4 h-4" />
-              View Details
-            </button>
-            <button
-              onClick={handleDownloadInvoice}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm flex items-center justify-center gap-1 border border-gray-300"
-            >
-              <Download className="w-4 h-4" />
-              Invoice
-            </button>
-            <button
-              onClick={handleSendToProcurement}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium text-sm flex items-center justify-center gap-1 shadow-md"
-            >
-              <Send className="w-4 h-4" />
-              Send to Procurement
-            </button>
+          {/* Workflow Action Buttons */}
+          <div className="border-t border-gray-200 pt-6">
+            <h2 className="text-xs font-bold text-gray-500 uppercase mb-3 tracking-wider text-center">Sales Order Workflow Actions</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <button
+                onClick={() => navigate(`/sales/orders/${createdOrder.id}`)}
+                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow animate-pulse"
+              >
+                Confirm Sales Order
+              </button>
+              <button
+                onClick={() => toast.success('Mock Action: Design team notified!')}
+                className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-xs border border-indigo-200 transition"
+              >
+                Assign Design Team
+              </button>
+              <button
+                onClick={() => toast.success('Mock Action: Design order generated!')}
+                className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-xs border border-indigo-200 transition"
+              >
+                Create Design Order
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await api.post(`/bom/generate/${createdOrder.id}`);
+                    navigate('/procurement/bom');
+                    toast.success('BOM Generated Successfully!');
+                  } catch (err) {
+                    toast.error('Failed to generate BOM');
+                  }
+                }}
+                className="px-4 py-3 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg font-semibold text-xs border border-orange-200 transition"
+              >
+                Generate BOM
+              </button>
+              <button
+                onClick={() => {
+                  navigate('/manufacturing/orders');
+                  toast.success('Navigated to Production Planning');
+                }}
+                className="px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-semibold text-xs border border-purple-200 transition"
+              >
+                Production Planning
+              </button>
+              <button
+                onClick={handlePrintOrder}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-gray-800 rounded-lg font-semibold text-xs border border-slate-300 transition"
+              >
+                Print Sales Order
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-gray-800 rounded-lg font-semibold text-xs border border-slate-300 transition"
+              >
+                Download PDF
+              </button>
+            </div>
           </div>
 
-          {/* Bottom Navigation */}
-          <div className="pt-2 border-t border-gray-200 flex gap-2 text-sm">
+          <div className="mt-8 flex justify-center">
             <button
               onClick={() => navigate('/sales/orders')}
-              className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium flex items-center gap-1"
+              className="px-6 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 font-medium text-xs transition"
             >
-              <ArrowLeft className="w-3 h-3" />
-              Back
-            </button>
-            <button
-              onClick={() => {
-                setCreatedOrder(null);
-                setOrderData({
-                  projectTitle: '',
-                  customerName: '',
-                  email: '',
-                  phone: '',
-                  contactPerson: '',
-                  clientPoNumber: '',
-                  productName: '',
-                  productType: '',
-                  fabricType: '',
-                  color: '',
-                  quantity: '',
-                  qualitySpecification: '',
-                  specialInstructions: '',
-                  deliveryAddress: '',
-                  department: '',
-                  orderReference: '',
-                  pricePerPiece: '',
-                  expectedDeliveryDate: '',
-                  advancePaid: '',
-                  gstPercentage: '18',
-                  gstNumber: '',
-                  address: '',
-                  designFile: null,
-                  designFileName: '',
-                  orderDate: new Date().toISOString().split('T')[0],
-                  productCode: '',
-                  sizeOption: 'fixed',
-                  sizeDetails: [],
-                });
-                setCurrentSection('primary');
-                setSubmitError('');
-              }}
-              className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all font-medium flex items-center gap-1 border border-blue-200 text-sm"
-            >
-              <FaPlus className="w-3 h-3" />
-              New Order
+              ← Back to Sales Orders
             </button>
           </div>
         </div>
@@ -538,49 +567,52 @@ const CreateSalesOrderPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-3">
-      <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="mb-3 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 p-4">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/sales/orders')}
-              className="p-1.5 hover:bg-white rounded-lg transition-all border border-gray-200 text-gray-600 hover:text-gray-900"
+              className="p-2 hover:bg-white rounded-lg transition border border-gray-200 text-gray-600"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <FaArrowLeft className="w-3.5 h-3.5" />
             </button>
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Create Sales Order</h1>
-              <p className="text-xs text-gray-500 mt-0.5">Enter customer & product details</p>
+              <h1 className="text-xl font-bold text-gray-900">Create Sales Order</h1>
+              {isFromRequirement && (
+                <div className="flex items-center gap-1 mt-1 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 w-fit animate-pulse">
+                  <FaLock className="w-2.5 h-2.5" />
+                  <span>Converting from Requirement: {orderData.orderReference}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Error Message */}
         {submitError && (
-          <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 flex items-start gap-2">
-            <FaTimesCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-red-900 text-xs">Error</p>
-              <p className="text-red-700 text-xs">{submitError}</p>
-            </div>
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-1.5">
+            <FaTimesCircle className="flex-shrink-0 text-red-500 w-4 h-4" />
+            <span>{submitError}</span>
           </div>
         )}
 
-        {/* Progress Tabs */}
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+        {/* Multi-Section Tabs */}
+        <div className="mb-4 flex gap-1 border-b border-gray-200 overflow-x-auto pb-1 bg-white p-1 rounded-lg border">
           {[
-            { id: 'primary', label: '🎯 Project & Customer', icon: '1' },
-            { id: 'product', label: '📦 Product Details', icon: '2' },
-            { id: 'pricing', label: '💰 Pricing & Delivery', icon: '3' }
+            { id: 'customer_so', label: '🎯 Customer & SO' },
+            { id: 'product_info', label: '📦 Product Info' },
+            { id: 'tech_specs', label: '⚙️ Technical Specs' },
+            { id: 'documents', label: '📄 Documents' },
+            { id: 'delivery_summary', label: '🚚 Summary & Delivery' }
           ].map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setCurrentSection(tab.id)}
-              className={`px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-md font-semibold text-xs whitespace-nowrap transition ${
                 currentSection === tab.id
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               {tab.label}
@@ -588,294 +620,282 @@ const CreateSalesOrderPage = () => {
           ))}
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-2">
-          {/* SECTION 1: PRIMARY - Project & Customer (HIGHLIGHTED) */}
-          {currentSection === 'primary' && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-              {/* PROJECT TITLE - HIGHLIGHTED AS PRIMARY */}
-              <div className="mb-4 pb-4 border-b-2 border-amber-200">
-                <label className="block text-xs font-bold text-amber-700 mb-2 uppercase tracking-wider">
-                  🎯 Primary Project Name
-                </label>
-                <input
-                  type="text"
-                  value={orderData.projectTitle}
-                  onChange={(e) => handleInputChange('projectTitle', e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition text-sm font-semibold bg-amber-50 placeholder-amber-300"
-                  placeholder="e.g., Winter Uniforms – XYZ Pvt Ltd"
-                />
-                <p className="text-xs text-amber-600 mt-1">This is your order's unique project identifier</p>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* TAB 1: Customer & SO */}
+          {currentSection === 'customer_so' && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+              <h2 className="text-sm font-bold text-gray-800 border-b pb-2 flex items-center justify-between">
+                <span>1. Customer & Sales Order Information</span>
+                {isFromRequirement && <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Locked Fields Auto-filled</span>}
+              </h2>
 
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Customer Information</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
-                {/* Customer Name - Required */}
-                <div className="lg:col-span-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Customer Name <span className="text-red-500">*</span>
-                  </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Customer Name *</label>
                   <input
                     type="text"
                     value={orderData.customerName}
                     onChange={(e) => handleInputChange('customerName', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="XYZ Pvt Ltd"
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500"
+                    placeholder="Customer Name"
                   />
                 </div>
-
-                {/* Contact Person */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Contact Person
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Contact Person</label>
                   <input
                     type="text"
                     value={orderData.contactPerson}
                     onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="Name"
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500"
+                    placeholder="Contact Person"
                   />
                 </div>
-
-                {/* Email & Phone in row */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Mobile Number</label>
+                  <input
+                    type="text"
+                    value={orderData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500"
+                    placeholder="Mobile Number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
                   <input
                     type="email"
                     value={orderData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="contact@company.com"
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500"
+                    placeholder="Email Address"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">GSTIN</label>
                   <input
-                    type="tel"
-                    value={orderData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="+91 98765 43210"
+                    type="text"
+                    value={orderData.gstNumber}
+                    onChange={(e) => handleInputChange('gstNumber', e.target.value)}
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500"
+                    placeholder="GSTIN"
                   />
                 </div>
-
-                {/* Client PO Number */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Client PO Number
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Sales Order No (Auto)</label>
+                  <input
+                    type="text"
+                    value="SO-YYYYMMDD-XXXX (Auto-Generated)"
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Order Date</label>
+                  <input
+                    type="date"
+                    value={orderData.orderDate}
+                    onChange={(e) => handleInputChange('orderDate', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Client Requirement No.</label>
+                  <input
+                    type="text"
+                    value={orderData.orderReference}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                    placeholder="CR-XXX"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Quotation No.</label>
+                  <input
+                    type="text"
+                    value={orderData.quotationNo}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                    placeholder="QT-XXX"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Customer PO No.</label>
                   <input
                     type="text"
                     value={orderData.clientPoNumber}
                     onChange={(e) => handleInputChange('clientPoNumber', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="e.g., PO-2024-001"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    placeholder="e.g. PO-12345"
                   />
                 </div>
-
-                {/* GST & Address - Optional Footer */}
-                <div className="lg:col-span-2 pt-2 border-t border-gray-200">
-                  <details className="group cursor-pointer">
-                    <summary className="text-xs font-medium text-gray-600 hover:text-gray-900 select-none">
-                      + Additional Information (GST, Address)
-                    </summary>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          GST Number
-                        </label>
-                        <input
-                          type="text"
-                          value={orderData.gstNumber}
-                          onChange={(e) => handleInputChange('gstNumber', e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                          placeholder="22AAAAA0000A1Z5"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Address
-                        </label>
-                        <textarea
-                          value={orderData.address}
-                          onChange={(e) => handleInputChange('address', e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                          placeholder="City, pincode"
-                          rows="2"
-                        />
-                      </div>
-                    </div>
-                  </details>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Sales Person</label>
+                  <input
+                    type="text"
+                    value={orderData.salesPerson}
+                    onChange={(e) => handleInputChange('salesPerson', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    placeholder="Responsible Sales Person"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Delivery Terms</label>
+                  <input
+                    type="text"
+                    value={orderData.deliveryTerms}
+                    onChange={(e) => handleInputChange('deliveryTerms', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    placeholder="e.g. EXW, FOB"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Payment Terms</label>
+                  <input
+                    type="text"
+                    value={orderData.paymentTerms}
+                    onChange={(e) => handleInputChange('paymentTerms', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    placeholder="e.g. 50% Advance, 50% on Delivery"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Billing Address</label>
+                  <textarea
+                    value={orderData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500"
+                    placeholder="Billing Address"
+                    rows="2"
+                  />
                 </div>
               </div>
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-4 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setCurrentSection('product')}
-                  className="ml-auto px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium text-sm"
+                  onClick={() => setCurrentSection('product_info')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-xs transition animate-pulse"
                 >
-                  Next: Product Details →
+                  Next: Product Info →
                 </button>
               </div>
             </div>
           )}
 
-          {/* SECTION 2: Product Details */}
-          {currentSection === 'product' && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-3">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Product Details</h2>
+          {/* TAB 2: Product Info */}
+          {currentSection === 'product_info' && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+              <h2 className="text-sm font-bold text-gray-800 border-b pb-2">2. Product Information</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Product Name - REQUIRED */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Product Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Category</label>
+                  <input
+                    type="text"
+                    value={orderData.productType}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
                   <input
                     type="text"
                     value={orderData.productName}
-                    onChange={(e) => handleInputChange('productName', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="e.g., Formal Shirt"
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
                   />
                 </div>
-
-                {/* Product Type - Consolidated */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Product Type
-                  </label>
-                  {orderData.productType === 'Other' ? (
-                    <input
-                      type="text"
-                      value={orderData.productType === 'Other' ? orderData.customProductType : orderData.productType}
-                      onChange={(e) => {
-                        if (orderData.productType === 'Other') {
-                          handleInputChange('customProductType', e.target.value);
-                        }
-                      }}
-                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                      placeholder="Enter custom type"
-                    />
-                  ) : (
-                    <select
-                      value={orderData.productType}
-                      onChange={(e) => handleInputChange('productType', e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    >
-                      <option value="">Select type</option>
-                      {productTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  )}
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Type</label>
+                  <input
+                    type="text"
+                    value={orderData.productType}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                  />
                 </div>
-
-                {/* Quantity - REQUIRED */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Quantity (Units) <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Quantity (Units) *</label>
                   <input
                     type="number"
-                    min="1"
                     value={orderData.quantity}
                     onChange={(e) => handleInputChange('quantity', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="1000"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs font-semibold"
+                    placeholder="Quantity"
                   />
                 </div>
-
-                {/* Fabric Type */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Fabric Type
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Unit</label>
                   <input
                     type="text"
-                    value={orderData.fabricType}
-                    onChange={(e) => handleInputChange('fabricType', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="Cotton, Polyester, etc"
+                    value={orderData.unit}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
                   />
                 </div>
-
-                {/* Color */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Color
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Unit Price (₹)</label>
                   <input
-                    type="text"
-                    value={orderData.color}
-                    onChange={(e) => handleInputChange('color', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="Navy Blue, White, etc"
+                    type="number"
+                    value={orderData.pricePerPiece}
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs font-semibold"
                   />
                 </div>
-
-                {/* Quality Specification */}
-                <div className="md:col-span-2 lg:col-span-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Quality Specification
-                  </label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount (%)</label>
+                  <input
+                    type="number"
+                    value={orderData.discountPercentage}
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">GST (%)</label>
+                  <input
+                    type="number"
+                    value={orderData.gstPercentage}
+                    disabled={isFromRequirement}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Total Amount (₹)</label>
                   <input
                     type="text"
-                    value={orderData.qualitySpecification}
-                    onChange={(e) => handleInputChange('qualitySpecification', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="e.g., 220 GSM, Double Stitching, etc (Optional)"
+                    value={`₹${calculations.grandTotal}`}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 font-bold text-xs"
                   />
                 </div>
               </div>
 
-              {/* DIVIDER - NEW FIELDS SECTION */}
-              <div className="my-4 pt-4 border-t-2 border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">📦 Size Breakdown</h3>
-                
-                {/* Size Breakdown Table */}
-                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+              {/* Size Breakdown */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-xs font-bold text-gray-800 mb-2">📋 Size breakdown / Breakdown quantities</h3>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-2">
                   {orderData.sizeDetails.length === 0 ? (
-                    <p className="text-xs text-gray-500 text-center py-3">No sizes added yet. Click "Add Size" to start.</p>
+                    <p className="text-[10px] text-gray-400 italic">No size details loaded. Add below if required.</p>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-3 gap-2 font-semibold text-xs text-gray-700 pb-2 border-b border-gray-200">
-                        <div>Size</div>
-                        <div>Quantity</div>
-                        <div>Action</div>
-                      </div>
-                      {orderData.sizeDetails.map((size, index) => (
-                        <div key={index} className="grid grid-cols-3 gap-2 items-center">
-                          <input
-                            type="text"
-                            value={size.size}
-                            onChange={(e) => handleSizeDetailChange(index, 'size', e.target.value)}
-                            className="px-2 py-1.5 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                            placeholder="XS, S, M, L, XL"
-                          />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {orderData.sizeDetails.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border border-gray-200">
+                          <span className="text-xs font-bold text-gray-700 w-10 uppercase">{item.size}</span>
                           <input
                             type="number"
-                            min="0"
-                            value={size.quantity}
-                            onChange={(e) => handleSizeDetailChange(index, 'quantity', e.target.value)}
-                            className="px-2 py-1.5 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                            placeholder="0"
+                            value={item.quantity}
+                            onChange={(e) => handleSizeDetailChange(idx, 'quantity', e.target.value)}
+                            placeholder="Qty"
+                            className="w-full px-2 py-1 border border-gray-200 rounded text-xs outline-none focus:border-blue-500"
                           />
-                          <button
-                            type="button"
-                            onClick={() => removeSizeDetail(index)}
-                            className="px-2 py-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 transition text-xs font-medium flex items-center justify-center gap-1"
-                          >
-                            <FaTrash className="w-3 h-3" />
-                          </button>
                         </div>
                       ))}
                     </div>
@@ -883,327 +903,440 @@ const CreateSalesOrderPage = () => {
                   <button
                     type="button"
                     onClick={addSizeDetail}
-                    className="mt-2 w-full px-3 py-1.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition font-medium text-xs flex items-center justify-center gap-1"
+                    className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
                   >
-                    <FaPlus className="w-3 h-3" />
-                    Add Size
+                    + Add Size Row
                   </button>
-                </div>
-
-                {/* Additional Product Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Order Reference */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Order Reference Number
-                    </label>
-                    <input
-                      type="text"
-                      value={orderData.orderReference}
-                      onChange={(e) => handleInputChange('orderReference', e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                      placeholder="e.g., ORD-2024-001"
-                    />
-                  </div>
-
-                  {/* Department */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Department / Buyer
-                    </label>
-                    <input
-                      type="text"
-                      value={orderData.department}
-                      onChange={(e) => handleInputChange('department', e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                      placeholder="e.g., Sales, Marketing"
-                    />
-                  </div>
-
-                  {/* Delivery Address */}
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Delivery Address
-                    </label>
-                    <textarea
-                      value={orderData.deliveryAddress}
-                      onChange={(e) => handleInputChange('deliveryAddress', e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                      placeholder="Street address, City, Pincode"
-                      rows="2"
-                    />
-                  </div>
-
-                  {/* Special Instructions */}
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Special Instructions / Notes
-                    </label>
-                    <textarea
-                      value={orderData.specialInstructions}
-                      onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                      placeholder="Any special requirements or production notes..."
-                      rows="2"
-                    />
-                  </div>
                 </div>
               </div>
 
-              <div className="mt-3 flex gap-2 justify-between border-t border-gray-200 pt-3">
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-gray-700 mb-1">Remarks / Product Note</label>
+                <textarea
+                  value={orderData.specialInstructions}
+                  onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                  placeholder="Additional order notes or customization remarks..."
+                  rows="2"
+                />
+              </div>
+
+              <div className="mt-4 flex justify-between border-t border-gray-100 pt-4">
                 <button
                   type="button"
-                  onClick={() => setCurrentSection('primary')}
-                  className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium text-sm"
+                  onClick={() => setCurrentSection('customer_so')}
+                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 font-semibold text-xs transition"
                 >
                   ← Back
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrentSection('pricing')}
-                  className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium text-sm"
+                  onClick={() => setCurrentSection('tech_specs')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-xs transition animate-pulse"
                 >
-                  Next: Pricing & Delivery →
+                  Next: Technical Specs →
                 </button>
               </div>
             </div>
           )}
 
-          {/* SECTION 3: Pricing & Dates */}
-          {currentSection === 'pricing' && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-3">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Pricing & Delivery Details</h2>
+          {/* TAB 3: Technical Specs */}
+          {currentSection === 'tech_specs' && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+              <h2 className="text-sm font-bold text-gray-800 border-b pb-2 flex items-center justify-between">
+                <span>3. Technical Specifications</span>
+                {isFromRequirement && <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Auto-fetched & Locked</span>}
+              </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Price Per Piece */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Price per Piece (₹) <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Fabric</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={orderData.pricePerPiece}
-                    onChange={(e) => handleInputChange('pricePerPiece', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="0.00"
+                    type="text"
+                    value={orderData.fabricType}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('fabricType', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
                   />
                 </div>
-
-                {/* GST Percentage */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    GST Percentage (%)
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">GSM</label>
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={orderData.gstPercentage}
-                    onChange={(e) => handleInputChange('gstPercentage', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="18"
+                    type="text"
+                    value={orderData.gsm}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('gsm', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
                   />
                 </div>
-
-                {/* Advance Paid */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Advance Paid (₹)
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Color</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={orderData.advancePaid}
-                    onChange={(e) => handleInputChange('advancePaid', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
-                    placeholder="0.00"
+                    type="text"
+                    value={orderData.color}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('color', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
                   />
                 </div>
-
-                {/* Expected Delivery Date */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Expected Delivery Date <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Size</label>
                   <input
-                    type="date"
-                    value={orderData.expectedDeliveryDate}
-                    onChange={(e) => handleInputChange('expectedDeliveryDate', e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition text-xs"
+                    type="text"
+                    value={orderData.size}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('size', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Fit</label>
+                  <input
+                    type="text"
+                    value={orderData.fit}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('fit', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Pattern</label>
+                  <input
+                    type="text"
+                    value={orderData.pattern}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('pattern', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Sleeve Type</label>
+                  <input
+                    type="text"
+                    value={orderData.sleeveType}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('sleeveType', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Neck Type</label>
+                  <input
+                    type="text"
+                    value={orderData.neckType}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('neckType', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Print Type</label>
+                  <input
+                    type="text"
+                    value={orderData.printType}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('printType', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Embroidery</label>
+                  <input
+                    type="text"
+                    value={orderData.embroidery}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('embroidery', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Packing Type</label>
+                  <input
+                    type="text"
+                    value={orderData.packingType}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('packingType', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-semibold"
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Customer Instructions</label>
+                  <textarea
+                    value={orderData.customerInstructions}
+                    disabled={isFromRequirement}
+                    onChange={(e) => handleInputChange('customerInstructions', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-500 font-normal"
+                    rows="3"
                   />
                 </div>
               </div>
 
-              {/* Price Summary Card */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-3">
-                <h3 className="font-semibold text-gray-900 mb-2 text-sm">💰 Price Calculation Summary</h3>
-                <div className="space-y-1.5 text-xs bg-white rounded-lg p-2.5 border border-blue-100">
-                  {/* Calculation Breakdown */}
-                  <div className="pb-1.5 border-b border-blue-100">
-                    <div className="flex justify-between text-gray-600 mb-1">
-                      <span>Quantity:</span>
-                      <span className="font-semibold text-blue-600">{parseFloat(calculations.totalQty).toLocaleString()} pcs</span>
-                    </div>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Price per Piece:</span>
-                      <span className="font-semibold text-blue-600">₹{parseFloat(orderData.pricePerPiece || 0).toFixed(2)}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Results */}
-                  <div className="pt-1.5 space-y-1">
-                    <div className="flex justify-between text-gray-700 font-medium">
-                      <span>Subtotal ({parseFloat(calculations.totalQty).toLocaleString()} × ₹{parseFloat(orderData.pricePerPiece || 0).toFixed(2)}):</span>
-                      <span className="text-gray-900">₹{calculations.orderPrice}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-700 font-medium">
-                      <span>GST ({orderData.gstPercentage}%):</span>
-                      <span className="text-amber-600">+ ₹{calculations.gstAmount}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Total */}
-                  <div className="border-t-2 border-blue-300 pt-1.5 flex justify-between text-gray-900 font-bold">
-                    <span>Total Amount:</span>
-                    <span className="text-green-600 text-sm">₹{calculations.totalWithGST}</span>
-                  </div>
-                  
-                  {/* Advance Paid */}
-                  {parseFloat(orderData.advancePaid) > 0 && (
-                    <div className="mt-1.5 pt-1.5 border-t border-blue-100 flex justify-between text-gray-600 bg-orange-50 rounded-lg p-1.5 px-2">
-                      <span>Advance Paid:</span>
-                      <span className="font-medium text-orange-700">- ₹{parseFloat(orderData.advancePaid).toFixed(2)}</span>
-                    </div>
-                  )}
-                  
-                  {/* Remaining Amount */}
-                  {parseFloat(orderData.advancePaid) > 0 && (
-                    <div className="flex justify-between text-gray-900 font-bold bg-blue-100 rounded-lg p-1.5 px-2">
-                      <span>Remaining Amount:</span>
-                      <span className="text-blue-700">₹{calculations.remainingAmount}</span>
-                    </div>
-                  )}
-                </div>
+              <div className="mt-4 flex justify-between border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentSection('product_info')}
+                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 font-semibold text-xs transition"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentSection('documents')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-xs transition animate-pulse"
+                >
+                  Next: Documents →
+                </button>
               </div>
+            </div>
+          )}
 
-              {/* Multiple Design Files Upload */}
-              <div className="border-t border-gray-200 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-medium text-gray-700">
-                    🎨 Design Patterns (Optional) - Up to 5 files
-                  </label>
-                  {imagePreviews.length > 0 && (
-                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-medium">
-                      {imagePreviews.length} file{imagePreviews.length !== 1 ? 's' : ''} uploaded
-                    </span>
-                  )}
+          {/* TAB 4: Documents */}
+          {currentSection === 'documents' && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+              <h2 className="text-sm font-bold text-gray-800 border-b pb-2">4. Documents & Design Files</h2>
+
+              {/* Existing Auto-fetched Attachments */}
+              {orderData.designFiles.some(f => f.isExisting) && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wider">📎 Auto-fetched Reference Attachments</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {orderData.designFiles.filter(f => f.isExisting).map((file, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 border border-slate-100 rounded-lg bg-slate-50 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-gray-700 capitalize block">{file.label || 'Reference Document'}</span>
+                          <span className="text-gray-500 truncate block mt-0.5">{file.name}</span>
+                        </div>
+                        <a
+                          href={file.preview}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg shadow-sm flex items-center justify-center"
+                          title="Download Reference File"
+                        >
+                          <FaDownload size={12} />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                
-                {/* Upload Area */}
-                <label className="block w-full px-4 py-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-blue-50 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 mb-3">
-                  <FaCloudUploadAlt className="w-5 h-5 text-gray-400" />
+              )}
+
+              {/* Upload New Files */}
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-gray-700 mb-2">Upload Customer PO / Design Files / Artwork</label>
+                <label className="block w-full px-4 py-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-blue-50 cursor-pointer transition flex flex-col items-center justify-center gap-2">
+                  <FaCloudUploadAlt className="w-6 h-6 text-gray-400" />
                   <div className="text-center">
-                    <p className="font-medium text-gray-700 text-xs">Click or drag to add more patterns</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Max 5MB per file • Images, PDF, DOC</p>
+                    <p className="font-bold text-gray-700 text-xs">Click to browse or drop files here</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Images, PDFs, Tech Packs, Design Files (Max 5MB)</p>
                   </div>
                   <input
                     type="file"
                     onChange={handleFileUpload}
-                    accept="image/*,.pdf,.doc,.docx"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                     multiple
                     className="hidden"
                   />
                 </label>
-                
-                {/* File Preview Grid */}
-                {imagePreviews.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
-                    {imagePreviews.map((filePreview, index) => (
-                      <div
-                        key={index}
-                        className="relative group border-2 border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-lg transition-all"
-                      >
-                        {/* Preview Image/Icon */}
-                        <div className="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
-                          {filePreview.preview.startsWith('data:image') ? (
-                            <img
-                              src={filePreview.preview}
-                              alt={`Pattern ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex flex-col items-center justify-center gap-1">
-                              <FileText className="w-6 h-6 text-gray-400" />
-                              <span className="text-xs text-gray-500 text-center px-1">
-                                {filePreview.name.split('.').pop().toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+              </div>
 
-                        {/* File Info */}
-                        <div className="p-2 border-t border-gray-200">
-                          <p className="text-xs font-medium text-gray-700 truncate" title={filePreview.name}>
-                            {filePreview.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {(filePreview.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+              {/* Uploaded Files List */}
+              {orderData.designFiles.some(f => !f.isExisting) && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wider">📤 Newly Added Files</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {orderData.designFiles.filter(f => !f.isExisting).map((file, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 border border-gray-200 rounded-lg bg-white text-xs">
+                        <div className="min-w-0 flex-1 flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-blue-500" />
+                          <span className="text-gray-700 truncate font-semibold">{file.name}</span>
                         </div>
-
-                        {/* Remove Button */}
                         <button
                           type="button"
-                          onClick={() => handleRemoveDesignFile(index)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          title="Remove this design file"
+                          onClick={() => handleRemoveDesignFile(orderData.designFiles.indexOf(file))}
+                          className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg"
                         >
-                          <FaTrash className="w-3 h-3" />
+                          <FaTrash size={12} />
                         </button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Action Buttons */}
-              <div className="mt-3 flex gap-2 justify-between border-t border-gray-200 pt-3">
+              <div className="mt-4 flex justify-between border-t border-gray-100 pt-4">
                 <button
                   type="button"
-                  onClick={() => setCurrentSection('product')}
-                  className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium text-sm"
+                  onClick={() => setCurrentSection('tech_specs')}
+                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 font-semibold text-xs transition"
                 >
                   ← Back
                 </button>
-                <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentSection('delivery_summary')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-xs transition animate-pulse"
+                >
+                  Next: Delivery & Summary →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: Delivery & Summary */}
+          {currentSection === 'delivery_summary' && (
+            <div className="space-y-4">
+              {/* Delivery Details */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+                <h2 className="text-sm font-bold text-gray-800 border-b pb-2">5. Delivery & Execution Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Expected Delivery Date *</label>
+                    <input
+                      type="date"
+                      value={orderData.expectedDeliveryDate}
+                      onChange={(e) => handleInputChange('expectedDeliveryDate', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Transport Mode</label>
+                    <input
+                      type="text"
+                      value={orderData.transportMode}
+                      onChange={(e) => handleInputChange('transportMode', e.target.value)}
+                      placeholder="e.g. Road, Air, Sea"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Shipping Method</label>
+                    <input
+                      type="text"
+                      value={orderData.shippingMethod}
+                      onChange={(e) => handleInputChange('shippingMethod', e.target.value)}
+                      placeholder="e.g. Express, Normal"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Priority</label>
+                    <select
+                      value={orderData.priority}
+                      onChange={(e) => handleInputChange('priority', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Dispatch Instructions</label>
+                    <input
+                      type="text"
+                      value={orderData.dispatchInstructions}
+                      onChange={(e) => handleInputChange('dispatchInstructions', e.target.value)}
+                      placeholder="e.g. Ship with safety packing, double wrapping"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Delivery Address</label>
+                    <textarea
+                      value={orderData.deliveryAddress}
+                      onChange={(e) => handleInputChange('deliveryAddress', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs font-semibold"
+                      placeholder="Delivery address details..."
+                      rows="2"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Summary & Price Breakdown */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+                <h2 className="text-sm font-bold text-gray-800 border-b pb-2">6. Order Financial Summary</h2>
+                
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between border-b pb-1.5">
+                      <span className="text-gray-500 font-semibold">Total Quantity:</span>
+                      <span className="font-bold text-gray-800">{calculations.totalQty} Pcs</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-1.5">
+                      <span className="text-gray-500 font-semibold">Total Amount (Before Tax):</span>
+                      <span className="font-bold text-gray-800">₹{calculations.subtotal}</span>
+                    </div>
+                    {parseFloat(orderData.discountPercentage) > 0 && (
+                      <div className="flex justify-between border-b pb-1.5 text-red-600">
+                        <span className="font-semibold">Discount ({orderData.discountPercentage}%):</span>
+                        <span className="font-bold">- ₹{calculations.discountAmount}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-b pb-1.5 text-amber-600">
+                      <span className="font-semibold">GST ({orderData.gstPercentage}%):</span>
+                      <span className="font-bold">+ ₹{calculations.gstAmount}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-sm bg-blue-50 p-2 rounded border border-blue-200">
+                      <span className="text-blue-800">Grand Total:</span>
+                      <span className="text-blue-800">₹{calculations.grandTotal}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Advance Received (₹)</label>
+                      <input
+                        type="number"
+                        value={orderData.advancePaid}
+                        onChange={(e) => handleInputChange('advancePaid', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-blue-500 outline-none text-xs"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex justify-between font-bold text-xs bg-orange-50 p-2.5 rounded border border-orange-200 mt-2 text-orange-800">
+                      <span>Balance Amount:</span>
+                      <span>₹{calculations.remainingAmount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-between border-t border-gray-100 pt-4">
                   <button
                     type="button"
-                    onClick={() => navigate('/sales/orders')}
-                    className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium text-sm"
+                    onClick={() => setCurrentSection('documents')}
+                    className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 font-semibold text-xs transition"
                   >
-                    Cancel
+                    ← Back
                   </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-6 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-md"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader className="w-3 h-3 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <FaCheck className="w-3 h-3" />
-                        Create Order
-                      </>
-                    )}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/sales/orders')}
+                      className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 font-semibold text-xs transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-xs transition flex items-center gap-1.5 shadow"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaCheck className="w-3 h-3" />
+                          <span>Create Sales Order</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

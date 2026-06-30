@@ -1219,14 +1219,28 @@ const CreateClientRequirementPage = () => {
   const handleSubmit = async (status) => {
     setSubmitError('');
     if (!formData.customer_name.trim()) { setSubmitError('Customer Name is required'); setActiveTab('customer'); return; }
-    if (products.length === 0) { setSubmitError('Add at least one product before submitting'); setActiveTab('product'); return; }
+
+    // Auto-commit active product form changes if the user is currently editing or filled out details but forgot to click Add/Update Product
+    let finalProducts = [...products];
+    if (productForm.product_name.trim()) {
+      const qty = parseFloat(productForm.quantity) || 0;
+      if (qty > 0) {
+        if (editingProductIndex !== null) {
+          finalProducts = finalProducts.map((p, i) => i === editingProductIndex ? { ...productForm } : p);
+        } else {
+          finalProducts = [...finalProducts, { ...productForm }];
+        }
+      }
+    }
+
+    if (finalProducts.length === 0) { setSubmitError('Add at least one product before submitting'); setActiveTab('product'); return; }
 
     setIsSubmitting(true);
     try {
       const fd = new FormData();
       Object.keys(formData).forEach(k => fd.append(k, formData[k]));
       fd.append('status', status);
-      const cleanedProducts = products.map(p => {
+      const cleanedProducts = finalProducts.map(p => {
         const { files, ...rest } = p;
         return rest;
       });
@@ -1235,8 +1249,8 @@ const CreateClientRequirementPage = () => {
       fd.append('mfg_requirements', JSON.stringify(mfgRequirements));
       fd.append('variant_rows', JSON.stringify(variantRows));
 
-      // Append files for each product dynamically
-      products.forEach((p, index) => {
+      // Append files for each product dynamically from finalProducts
+      finalProducts.forEach((p, index) => {
         if (p.files) {
           Object.keys(p.files).forEach(k => {
             if (p.files[k]) {

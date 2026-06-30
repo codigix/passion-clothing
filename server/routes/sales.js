@@ -754,6 +754,8 @@ router.post("/orders", authenticateToken, async (req, res) => {
       priority = "medium",
       garment_specifications,
       project_title,
+      client_requirement_id,
+      quotation_id,
     } = req.body;
 
     // Validate required fields
@@ -880,6 +882,8 @@ router.post("/orders", authenticateToken, async (req, res) => {
     const order = await SalesOrder.create({
       order_number,
       customer_id: customer.id,
+      client_requirement_id: client_requirement_id || null,
+      quotation_id: quotation_id || null,
       order_date: new Date(),
       delivery_date,
       buyer_reference,

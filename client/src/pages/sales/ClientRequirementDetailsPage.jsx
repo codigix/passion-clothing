@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  FaArrowLeft, FaEdit, FaCheck, FaCheckCircle, 
-  FaFileInvoiceDollar, FaDownload, FaFileAlt, FaClock, 
+import {
+  FaArrowLeft, FaEdit, FaCheck, FaCheckCircle,
+  FaFileInvoiceDollar, FaDownload, FaFileAlt, FaClock,
   FaIndustry, FaTimes, FaCalculator, FaQrcode, FaPrint,
   FaUser, FaCalendar, FaEnvelope, FaPhone, FaBox, FaCog,
   FaClipboardCheck, FaImage, FaExclamationTriangle, FaClipboardList,
-  FaWhatsapp, FaPaperPlane
+  FaWhatsapp, FaPaperPlane, FaTrash
 } from 'react-icons/fa';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ const ClientRequirementDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('details');
-  
+
   // Quotation Modal State
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -39,17 +39,35 @@ const ClientRequirementDetailsPage = () => {
   const [sendingRfq, setSendingRfq] = useState(false);
   const [isCreatingNewVersion, setIsCreatingNewVersion] = useState(false);
 
+  const [appliedMaterials, setAppliedMaterials] = useState(null);
+  const [appliedMaterialListName, setAppliedMaterialListName] = useState('');
+
+  useEffect(() => {
+    const handleApplyMaterials = (e) => {
+      const { materials, name } = e.detail;
+      setAppliedMaterials(materials);
+      setAppliedMaterialListName(name);
+      toast.success(`Standard material list for ${name} applied!`);
+    };
+
+    window.addEventListener('apply-material-list', handleApplyMaterials);
+    return () => {
+      window.removeEventListener('apply-material-list', handleApplyMaterials);
+    };
+  }, []);
+
   useEffect(() => {
     if (requirement) {
       // Map products to RFQ items.
       const items = (requirement.products || []).map(p => ({
+        ...p,
         product_name: p.product_name || '',
         product_category: p.product_category || '',
         quantity: parseFloat(p.quantity) || 0,
         unit_cost: p.unit_cost || '',
         gst_percentage: p.gst_percentage || '18',
       }));
-      
+
       // Fallback for legacy requirement records
       if (items.length === 0) {
         items.push({
@@ -69,7 +87,7 @@ const ClientRequirementDetailsPage = () => {
       // Find the approved RFQ version if exists, or check the products list
       const rfqHistory = requirement.rfq_history || [];
       const approvedRfq = rfqHistory.find(r => r.status === 'Approved') || rfqHistory[rfqHistory.length - 1];
-      
+
       if (approvedRfq && approvedRfq.rfqItems && approvedRfq.rfqItems.length > 0) {
         const firstItem = approvedRfq.rfqItems[0];
         // Calculate the average/sum if multiple items, or just use the first item details for the main fields
@@ -229,12 +247,13 @@ const ClientRequirementDetailsPage = () => {
     if (!requirement || !requirement.quotation) {
       return toast.error('Generate a quotation first');
     }
-    
+
     // Navigate to sales order create page with state containing prefilled parameters
     navigate('/sales/orders/create', {
       state: {
         fromRequirement: true,
         requirementId: requirement.id,
+        quotationId: requirement.quotation.id,
         customerName: requirement.customer_name,
         contactPerson: requirement.contact_person || '',
         phone: requirement.mobile_number || '',
@@ -250,6 +269,20 @@ const ClientRequirementDetailsPage = () => {
         specialInstructions: `Quotation Number: ${requirement.quotation.quotation_number}\nRequirement specifications: Material: ${requirement.material || 'N/A'}, Dim: ${requirement.dimensions || 'N/A'}, Color: ${requirement.color || 'N/A'}`
       }
     });
+  };
+
+  const handleDeleteRequirement = async () => {
+    if (!window.confirm('Are you sure you want to delete this client requirement? This will also delete any associated quotations.')) {
+      return;
+    }
+    try {
+      await api.delete(`/client-requirements/${id}`);
+      toast.success('Client requirement deleted successfully');
+      navigate('/sales/client-requirements');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to delete client requirement');
+    }
   };
 
   const getStatusConfig = (status) => {
@@ -373,7 +406,7 @@ const ClientRequirementDetailsPage = () => {
       <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white px-4 py-2 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-48 -mt-48"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mb-32"></div>
-        
+
         <div className="max-w-7xl mx-auto relative z-10">
           <button
             onClick={() => navigate('/sales/client-requirements')}
@@ -394,7 +427,7 @@ const ClientRequirementDetailsPage = () => {
                   <h1 className="text-lg font-semibold">{requirement.requirement_number}</h1>
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-1 mt-1">
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${statusConfig.color} shadow-lg backdrop-blur-sm flex items-center gap-1`}>
                   {statusConfig.icon}
@@ -405,7 +438,7 @@ const ClientRequirementDetailsPage = () => {
 
             <div className="flex flex-wrap items-center gap-1">
               {(requirement.status === 'Draft' || requirement.status === 'Review') && (
-                <button 
+                <button
                   onClick={() => navigate(`/sales/client-requirements/${requirement.id}/edit`)}
                   className="flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-lg hover:bg-white/30 transition-all shadow-lg font-normal text-xs border border-white/30"
                 >
@@ -413,13 +446,22 @@ const ClientRequirementDetailsPage = () => {
                   <span>Edit</span>
                 </button>
               )}
-              <button 
+              <button
                 onClick={() => setShowQRModal(true)}
                 className="flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-lg hover:bg-white/30 transition-all shadow-lg font-normal text-xs border border-white/30"
               >
                 <FaQrcode className="w-3 h-3" />
                 <span>QR</span>
               </button>
+              {requirement.status !== 'Converted to SO' && (
+                <button
+                  onClick={handleDeleteRequirement}
+                  className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg transition-all shadow-lg font-normal text-xs border border-red-700"
+                >
+                  <FaTrash className="w-3 h-3" />
+                  <span>Delete</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -439,24 +481,21 @@ const ClientRequirementDetailsPage = () => {
               {requirementStages.map((stage, index) => (
                 <div key={stage.label} className="flex flex-col items-center flex-1 relative">
                   {index < requirementStages.length - 1 && (
-                    <div className={`absolute top-3 left-1/2 w-full h-0.5 rounded-full ${
-                      stage.completed ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gray-200'
-                    }`} style={{ zIndex: 0 }}></div>
+                    <div className={`absolute top-3 left-1/2 w-full h-0.5 rounded-full ${stage.completed ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gray-200'
+                      }`} style={{ zIndex: 0 }}></div>
                   )}
-                  
-                  <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center mb-1 transition-all duration-300 ${
-                    stage.completed 
-                      ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-md' 
-                      : stage.active 
-                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg animate-pulse' 
+
+                  <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center mb-1 transition-all duration-300 ${stage.completed
+                    ? 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-md'
+                    : stage.active
+                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg animate-pulse'
                       : 'bg-gray-100 text-gray-400 ring-1 ring-gray-200'
-                  }`}>
+                    }`}>
                     {stage.completed ? <FaCheckCircle className="w-3 h-3" /> : React.cloneElement(stage.icon, { className: 'w-3 h-3' })}
                   </div>
-                  
-                  <span className={`text-xs font-medium text-center max-w-16 ${
-                    stage.active ? 'text-blue-700' : stage.completed ? 'text-green-700' : 'text-gray-500'
-                  }`}>
+
+                  <span className={`text-xs font-medium text-center max-w-16 ${stage.active ? 'text-blue-700' : stage.completed ? 'text-green-700' : 'text-gray-500'
+                    }`}>
                     {stage.label}
                   </span>
                 </div>
@@ -534,11 +573,10 @@ const ClientRequirementDetailsPage = () => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 font-medium text-xs rounded-lg transition-all whitespace-nowrap ${
-                        activeTab === tab.id
-                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-                      }`}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 font-medium text-xs rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id
+                        ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                        }`}
                     >
                       {tab.icon}
                       <span>{tab.label}</span>
@@ -678,7 +716,7 @@ const ClientRequirementDetailsPage = () => {
                                         month: 'short',
                                         year: 'numeric'
                                       });
-                                      
+
                                       // Calculate grand total for this version
                                       const sub = (rec.rfqItems || []).reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
                                       const gst = (rec.rfqItems || []).reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0) * ((parseFloat(item.gst_percentage) || 0) / 100)), 0);
@@ -693,13 +731,12 @@ const ClientRequirementDetailsPage = () => {
                                             ₹{grand.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </td>
                                           <td className="px-3 py-2.5">
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                              rec.status === 'Approved'
-                                                ? 'bg-green-100 text-green-700'
-                                                : rec.status === 'Revised'
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rec.status === 'Approved'
+                                              ? 'bg-green-100 text-green-700'
+                                              : rec.status === 'Revised'
                                                 ? 'bg-amber-100 text-amber-700'
                                                 : 'bg-blue-100 text-blue-700'
-                                            }`}>
+                                              }`}>
                                               {rec.status}
                                             </span>
                                           </td>
@@ -757,7 +794,7 @@ const ClientRequirementDetailsPage = () => {
                                   </button>
                                 )}
                               </div>
-                              
+
                               <div className="overflow-x-auto rounded-lg border border-gray-200">
                                 <table className="w-full text-xs text-left">
                                   <thead>
@@ -869,7 +906,7 @@ const ClientRequirementDetailsPage = () => {
                                   <FaPaperPlane className="w-3.5 h-3.5" />
                                   {sendingRfq ? "Processing..." : `Generate & Auto-Approve RFQ (V${rfqHistory.length + 1})`}
                                 </button>
-                                
+
                                 <div className="grid grid-cols-2 gap-2">
                                   <button
                                     type="button"
@@ -900,6 +937,54 @@ const ClientRequirementDetailsPage = () => {
                         </div>
                       );
                     })()}
+
+                    {/* Material Details Section */}
+                    {appliedMaterials && (
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mt-4 space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-200">
+                        <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                          <FaBox className="text-blue-600 w-4 h-4" />
+                          <h3 className="text-sm font-bold text-gray-800">
+                            📦 Material Details ({appliedMaterialListName})
+                          </h3>
+                        </div>
+
+                        <div className="overflow-x-auto rounded-lg border border-gray-200">
+                          <table className="w-full text-xs text-left">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
+                                <th className="px-3 py-2 w-10"></th>
+                                <th className="px-3 py-2">Material Name</th>
+                                <th className="px-3 py-2 w-24">Qty</th>
+                                <th className="px-3 py-2 w-24">Unit</th>
+                                <th className="px-3 py-2 w-24 text-right">Cost (₹)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 font-medium">
+                              {appliedMaterials.map((m, idx) => (
+                                <tr key={idx} className="hover:bg-gray-50/50">
+                                  <td className="px-3 py-2 text-green-600 font-bold text-sm">
+                                    <FaCheck className="w-2.5 h-2.5" />
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-800">{m.material}</td>
+                                  <td className="px-3 py-2 text-gray-600">{parseFloat(m.qty).toFixed(2)}</td>
+                                  <td className="px-3 py-2 text-gray-500">{m.unit}</td>
+                                  <td className="px-3 py-2 text-right font-bold text-gray-800">
+                                    ₹{m.totalCost}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs flex justify-between items-center text-blue-900 font-bold">
+                          <span>Estimated Material Cost</span>
+                          <span className="text-sm">
+                            ₹{appliedMaterials.reduce((sum, item) => sum + item.totalCost, 0)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Requirement state card below RFQ */}
                     {(() => {
@@ -1017,16 +1102,16 @@ const ClientRequirementDetailsPage = () => {
                               'Packing': product.clothing_data?.packing_type,
                               'Sample': product.clothing_data?.sample_required,
                               'Colors': (product.clothing_data?.colors || []).join(', ') || null,
-                              'Sizes': Object.entries(product.clothing_data?.sizes_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
-                              'Printing': Object.entries(product.clothing_data?.printing_required || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || null,
+                              'Sizes': Object.entries(product.clothing_data?.sizes_required || {}).filter(([, v]) => v).map(([k]) => k).join(', ') || null,
+                              'Printing': Object.entries(product.clothing_data?.printing_required || {}).filter(([, v]) => v).map(([k]) => k).join(', ') || null,
                             };
                             (product.clothing_data?.custom_fields || []).forEach(f => {
                               if (f.label && f.value) {
                                 entries[f.label] = f.value;
                               }
                             });
-                            return Object.entries(entries).filter(([,v]) => v);
-                          })() : Object.entries(product.category_details || {}).filter(([,v]) => v);
+                            return Object.entries(entries).filter(([, v]) => v);
+                          })() : Object.entries(product.category_details || {}).filter(([, v]) => v);
 
                           return (
                             <div key={pIdx} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2 shadow-sm">
@@ -1063,7 +1148,7 @@ const ClientRequirementDetailsPage = () => {
                     <h3 className="text-xs font-semibold text-gray-900">Reference Files & Attachments</h3>
                     {requirement.products && requirement.products.length > 0 ? (
                       requirement.products.map((product, pIdx) => {
-                        const productAttachments = product.attachments || {};
+                        const productAttachments = { ...(requirement.attachments || {}), ...(product.attachments || {}) };
                         const hasAnyAttachment = Object.values(productAttachments).some(v => !!v);
                         return (
                           <div key={pIdx} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
@@ -1249,7 +1334,7 @@ const ClientRequirementDetailsPage = () => {
             {/* Status Actions Sidebar Card */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3.5">
               <h3 className="text-xs font-semibold text-gray-900 mb-2 pb-1.5 border-b border-gray-100">Requirement State</h3>
-              
+
               {requirement.status === 'Draft' && (
                 <div className="space-y-2">
                   <button
@@ -1412,13 +1497,13 @@ const ClientRequirementDetailsPage = () => {
         const modalItems = (approvedRfq?.rfqItems && approvedRfq.rfqItems.length > 0)
           ? approvedRfq.rfqItems
           : (requirement.products || []).map(p => ({
-              product_name: p.product_name || '',
-              product_category: p.product_category || '',
-              quantity: p.quantity || 0,
-              unit_cost: p.unit_cost || '',
-              gst_percentage: p.gst_percentage || '18',
-              discount_percentage: p.discount_percentage || '0',
-            }));
+            product_name: p.product_name || '',
+            product_category: p.product_category || '',
+            quantity: p.quantity || 0,
+            unit_cost: p.unit_cost || '',
+            gst_percentage: p.gst_percentage || '18',
+            discount_percentage: p.discount_percentage || '0',
+          }));
 
         // Live calculations from modal items
         const subTotal = modalItems.reduce((s, item) => s + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)), 0);
@@ -1705,7 +1790,7 @@ const ClientRequirementDetailsPage = () => {
               </button>
             </div>
             <div className="bg-gray-50 p-6 rounded-lg mb-4 flex justify-center">
-              <QRCodeDisplay 
+              <QRCodeDisplay
                 data={{
                   requirement_id: requirement.id,
                   requirement_number: requirement.requirement_number,

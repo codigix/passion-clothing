@@ -20,19 +20,15 @@ const GARMENT_TEMPLATES = {
     productName: 'Polo T-Shirt',
     description: 'Classic fit polo t-shirt with short sleeves, collar, rib cuffs, and 3-button placket.',
     materials: [
-      { material: 'Piqué Cotton Fabric', specification: '220 GSM, 100% Cotton', qty: '1.40', unit: 'Meter' },
-      { material: 'Rib Collar', specification: 'Matching color, pre-knitted flat', qty: '1.00', unit: 'Piece' },
-      { material: 'Sleeve Rib / Cuff', specification: 'Matching color, pre-knitted ribbing', qty: '2.00', unit: 'Piece' },
-      { material: 'Buttons', specification: '18L Polyester, 4-hole round', qty: '3.00', unit: 'Pieces' },
-      { material: 'Button Thread', specification: 'Matching color, heavy-duty', qty: '0.50', unit: 'Meter' },
-      { material: 'Sewing Thread', specification: '40/2 Polyester, spun spool', qty: '120.00', unit: 'Meter' },
-      { material: 'Neck Label', specification: 'Brand woven label', qty: '1.00', unit: 'Piece' },
-      { material: 'Size Label', specification: 'Woven size indicator (S/M/L/XL)', qty: '1.00', unit: 'Piece' },
-      { material: 'Wash Care Label', specification: 'Satin printed instruction label', qty: '1.00', unit: 'Piece' },
-      { material: 'Hang Tag', specification: 'Brand cardstock tag with barcode', qty: '1.00', unit: 'Piece' },
-      { material: 'Tag String', specification: 'Nylon snap-lock string', qty: '1.00', unit: 'Piece' },
-      { material: 'Polybag', specification: 'Transparent self-adhesive LDPE', qty: '1.00', unit: 'Piece' },
-      { material: 'Carton Box', specification: 'Corrugated master packaging packing box', qty: '0.02', unit: 'Piece' }
+      { material: 'Pique Fabric', specification: '220 GSM, 100% Cotton', qty: '1.80', unit: 'Meter' },
+      { material: 'Collar Rib', specification: 'Matching color, pre-knitted flat', qty: '0.20', unit: 'Meter' },
+      { material: 'Sleeve Rib', specification: 'Matching color, pre-knitted ribbing', qty: '0.20', unit: 'Meter' },
+      { material: 'Polyester Thread', specification: '40/2 Polyester, spun spool', qty: '1', unit: 'Spool' },
+      { material: 'Neck Label', specification: 'Brand woven label', qty: '1', unit: 'Pc' },
+      { material: 'Size Label', specification: 'Woven size indicator (S/M/L/XL)', qty: '1', unit: 'Pc' },
+      { material: 'Wash Care Label', specification: 'Satin printed instruction label', qty: '1', unit: 'Pc' },
+      { material: 'Hang Tag', specification: 'Brand cardstock tag with barcode', qty: '1', unit: 'Pc' },
+      { material: 'Poly Bag', specification: 'Transparent self-adhesive LDPE', qty: '1', unit: 'Pc' }
     ]
   },
   'polo tshirt with zipper': {
@@ -239,17 +235,27 @@ const GARMENT_TEMPLATES = {
  */
 function findTemplate(rawName) {
   if (!rawName) return null;
-  const name = rawName.toLowerCase().trim();
+  const name = rawName.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
 
   // Try direct match
   if (name in GARMENT_TEMPLATES) {
     return GARMENT_TEMPLATES[name];
   }
 
-  // Try substring checks
+  // Try normalized direct match (without spaces/dashes)
+  const normalizedSearch = name.replace(/[\s-]/g, '');
   const keys = Object.keys(GARMENT_TEMPLATES);
   for (const key of keys) {
-    if (name.includes(key) || key.includes(name)) {
+    const normalizedKey = key.replace(/[\s-]/g, '');
+    if (normalizedSearch === normalizedKey) {
+      return GARMENT_TEMPLATES[key];
+    }
+  }
+
+  // Try substring checks
+  for (const key of keys) {
+    const normalizedKey = key.replace(/[\s-]/g, '');
+    if (normalizedSearch.includes(normalizedKey) || normalizedKey.includes(normalizedSearch)) {
       return GARMENT_TEMPLATES[key];
     }
   }

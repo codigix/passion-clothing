@@ -31,6 +31,7 @@ const FloatingAIBot = () => {
   ]);
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom whenever messages or typing state changes
@@ -88,19 +89,30 @@ const FloatingAIBot = () => {
       const suggestRate = response.data.suggestRate;
       const rate = response.data.rate;
       const item = response.data.item;
+      const suggestMaterialList = response.data.suggestMaterialList;
+      const materials = response.data.materials;
+      const materialListName = response.data.materialListName;
+      const totalEstimatedCost = response.data.totalEstimatedCost;
 
-      // Append bot response with price suggestion metadata
+      // Append bot response with price/material suggestion metadata
       setMessages(prev => [
         ...prev,
         {
           id: Date.now(),
           sender: 'bot',
           text: replyText,
+          images: response.data.images || [],
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           suggestRate,
           rate,
           item,
-          applied: false
+          applied: false,
+          suggestMaterialList,
+          materials,
+          materialListName,
+          totalEstimatedCost,
+          showPreview: false,
+          appliedMaterials: false
         }
       ]);
 
@@ -141,6 +153,28 @@ const FloatingAIBot = () => {
     }
   };
 
+  const toggleMaterialPreview = (messageId) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId) {
+        return { ...m, showPreview: !m.showPreview };
+      }
+      return m;
+    }));
+  };
+
+  const handleApplyMaterialList = (messageId, materials, listName) => {
+    window.dispatchEvent(new CustomEvent('apply-material-list', { detail: { materials, name: listName } }));
+    
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId) {
+        return { ...m, appliedMaterials: true };
+      }
+      return m;
+    }));
+
+    addBotMessage(`✓ Applied the standard material list for **${listName}** (Estimated cost: ₹${materials.reduce((s, x) => s + x.totalCost, 0)}) to the page successfully.`);
+  };
+
   const handleSuggestionClick = (actionText, messageText) => {
     handleSend(messageText);
   };
@@ -168,7 +202,7 @@ const FloatingAIBot = () => {
               className="w-full h-auto object-cover max-h-48"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://loremflickr.com/500/500/fashion,clothing,style';
+                e.target.src = 'https://loremflickr.com/500/500/fashion,clothing,style?random=' + Math.random();
               }}
             />
           </div>
@@ -284,7 +318,31 @@ const FloatingAIBot = () => {
                       : 'bg-white border border-slate-200/80 text-slate-800 rounded-tl-none'
                   }`}
                 >
-                  <div className="space-y-1">{formatMessageText(msg.text)}</div>
+                  <div className="space-y-2">
+                    {msg.images && msg.images.length > 0 && (
+                      <div className="max-h-60 overflow-y-auto pr-1 grid grid-cols-3 gap-2 mb-3 scrollbar-thin">
+                        {msg.images.map((imgUrl, imgIdx) => (
+                          <div 
+                            key={imgIdx} 
+                            onClick={() => setPreviewImage(imgUrl)}
+                            className="aspect-square rounded-lg overflow-hidden border border-slate-100 hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm bg-slate-50"
+                          >
+                            <img 
+                              src={imgUrl} 
+                              alt={`Style reference ${imgIdx + 1}`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = `https://loremflickr.com/320/320/fashion,clothing,style?random=${imgIdx}_${Math.random()}`;
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="space-y-1">{formatMessageText(msg.text)}</div>
+                  </div>
                   
                   {msg.suggestRate && (
                     <div className="mt-3 pt-2 border-t border-slate-100 flex flex-col gap-2">
@@ -300,6 +358,62 @@ const FloatingAIBot = () => {
                         >
                           Apply Rate
                         </button>
+                      )}
+                    </div>
+                  )}
+
+                  {msg.suggestMaterialList && msg.materials && (
+                    <div className="mt-3 pt-2 border-t border-slate-100 space-y-2">
+                      <span className="text-[11px] text-slate-500 font-medium block">Standard Material Actions:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => toggleMaterialPreview(msg.id)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 transition-all active:scale-95"
+                        >
+                          {msg.showPreview ? 'Hide Details' : 'Preview'}
+                        </button>
+                        
+                        {msg.appliedMaterials ? (
+                          <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] rounded-lg border border-emerald-200 font-semibold flex items-center gap-0.5">
+                            ✓ Applied
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleApplyMaterialList(msg.id, msg.materials, msg.materialListName)}
+                            className="px-2 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[10px] font-bold rounded-lg shadow-sm hover:shadow active:scale-95 transition-all"
+                          >
+                            Apply Material List
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => addBotMessage(`📊 Estimated material cost for **${msg.materialListName}** is **₹${msg.totalEstimatedCost}** (based on standard inventory rates).`)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 transition-all active:scale-95"
+                        >
+                          Calculate Cost
+                        </button>
+
+                        <button
+                          onClick={() => addBotMessage(`⚙️ BOM (Bill of Materials) document generated successfully for **${msg.materialListName}** with ${msg.materials.length} material lines.`)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 transition-all active:scale-95"
+                        >
+                          Generate BOM
+                        </button>
+                      </div>
+
+                      {msg.showPreview && (
+                        <div className="mt-2.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-mono space-y-1 text-slate-700 max-h-40 overflow-y-auto">
+                          <div className="font-bold border-b border-slate-200 pb-1 flex justify-between text-slate-800 text-[10px]">
+                            <span>MATERIAL NAME</span>
+                            <span>QTY (UNIT)</span>
+                          </div>
+                          {msg.materials.map((m, idx) => (
+                            <div key={idx} className="flex justify-between py-0.5">
+                              <span className="truncate max-w-[140px]">✓ {m.material}</span>
+                              <span>{parseFloat(m.qty).toFixed(2)} {m.unit}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}
@@ -365,6 +479,29 @@ const FloatingAIBot = () => {
             </button>
           </div>
 
+        </div>
+      )}
+
+      {/* Lightbox Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 bg-slate-900/85 backdrop-blur-sm z-[100000] flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-full max-h-full">
+            <button 
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all focus:outline-none"
+            >
+              <X size={24} />
+            </button>
+            <img 
+              src={previewImage} 
+              alt="Large preview" 
+              className="max-w-[90vw] max-h-[80vh] object-contain rounded-xl shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         </div>
       )}
     </>

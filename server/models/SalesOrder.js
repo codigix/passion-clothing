@@ -21,6 +21,22 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
+    client_requirement_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'client_requirements',
+        key: 'id'
+      }
+    },
+    quotation_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'quotations',
+        key: 'id'
+      }
+    },
     product_id: {
       type: DataTypes.INTEGER,
       allowNull: true,

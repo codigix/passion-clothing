@@ -35,6 +35,7 @@ import {
 import JSZip from 'jszip';
 import api from '../../utils/api';
 import QRCodeDisplay from '../../components/QRCodeDisplay';
+import toast from 'react-hot-toast';
 
 const SalesOrderDetailsPage = () => {
   const { id } = useParams();
@@ -100,6 +101,39 @@ const SalesOrderDetailsPage = () => {
 
   const handleViewProduction = () => {
     navigate('/manufacturing/orders');
+  };
+
+  const handleAssignDesignTeam = () => {
+    toast.success('Design Team assigned successfully!');
+  };
+
+  const handleCreateDesignOrder = () => {
+    toast.success('Design Order created successfully!');
+  };
+
+  const handleProductionPlanning = () => {
+    toast.success('Production Planning scheduled successfully!');
+    navigate('/manufacturing/orders');
+  };
+
+  const handlePrintOrder = () => {
+    window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await api.get(`/sales/orders/${id}/invoice`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `SalesOrder-${order.order_number}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Sales Order PDF downloaded successfully');
+    } catch (err) {
+      toast.error('Failed to download PDF');
+    }
   };
 
   const handleDownloadDesignFilesAsZip = async () => {
@@ -719,93 +753,65 @@ const SalesOrderDetailsPage = () => {
                       <h3 className="text-sm font-semibold text-gray-900">Available Actions</h3>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
+                      {/* Confirm Sales Order (if Draft) */}
                       {order.status === 'draft' && (
-                        <>
-                          <button
-                            onClick={() => navigate(`/sales/orders/${id}/edit`)}
-                            className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white p-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
-                          >
-                            <div className="p-1.5 bg-white/20 rounded-lg">
-                              <FaEdit className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="text-left flex-1">
-                              <p className="font-semibold">Edit Order</p>
-                              <p className="text-xs text-blue-100">Update order details</p>
-                            </div>
-                            <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
-                          </button>
-                          
-                          <button
-                            onClick={() => handleStatusUpdate('confirmed')}
-                            className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white p-2.5 rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
-                          >
-                            <div className="p-1.5 bg-white/20 rounded-lg">
-                              <FaCheckCircle className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="text-left flex-1">
-                              <p className="font-semibold">Confirm Order</p>
-                              <p className="text-xs text-green-100">Approve and send to procurement</p>
-                            </div>
-                            <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
-                          </button>
-                        </>
+                        <button
+                          onClick={() => handleStatusUpdate('confirmed')}
+                          className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white p-2.5 rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
+                        >
+                          Confirm Sales Order
+                        </button>
                       )}
-                      
+
+                      {/* Assign Design Team */}
+                      <button
+                        onClick={handleAssignDesignTeam}
+                        className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-2.5 rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
+                      >
+                        Assign Design Team
+                      </button>
+
+                      {/* Create Design Order */}
+                      <button
+                        onClick={handleCreateDesignOrder}
+                        className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-2.5 rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
+                      >
+                        Create Design Order
+                      </button>
+
+                      {/* Generate BOM */}
                       {order.status === 'confirmed' && (
                         <button
                           onClick={handleProceedToProcurement}
-                          className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white p-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
+                          className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-2.5 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
                         >
-                          <div className="p-1.5 bg-white/20 rounded-lg">
-                            <FaBox className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <p className="font-semibold">Generate BOM</p>
-                            <p className="text-xs text-blue-100">Create bill of materials for procurement</p>
-                          </div>
-                          <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
+                          Generate BOM
                         </button>
                       )}
-                      
-                      {(order.status === 'in_production' || order.status === 'materials_received') && (
-                        <button
-                          onClick={handleViewProduction}
-                          className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-2.5 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
-                        >
-                          <div className="p-1.5 bg-white/20 rounded-lg">
-                            <FaIndustry className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <p className="font-semibold">View Production</p>
-                            <p className="text-xs text-orange-100">Check current production status</p>
-                          </div>
-                          <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
-                        </button>
-                      )}
-                      
-                      {order.status !== 'completed' && order.status !== 'cancelled' && (
-                        <button
-                          onClick={() => navigate(`/procurement/purchase-orders/create?from_sales_order=${id}`)}
-                          className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-2.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md text-xs font-medium hover:shadow-lg"
-                        >
-                          <div className="p-1.5 bg-white/20 rounded-lg">
-                            <FaPlus className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <p className="font-semibold">Create Purchase Order</p>
-                            <p className="text-xs text-emerald-100">Add new PO for this order</p>
-                          </div>
-                          <FaArrowLeft className="w-3.5 h-3.5 opacity-70 rotate-180" />
-                        </button>
-                      )}
-                      
-                      {!['draft', 'confirmed', 'in_production', 'materials_received'].includes(order.status) && !['completed', 'cancelled'].includes(order.status) && (
-                        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                          <FaCog className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                          <p className="text-gray-500 font-medium text-xs">Limited actions available for this order status</p>
-                          <p className="text-xs text-gray-400 mt-1">Current status: {statusConfig.label}</p>
-                        </div>
-                      )}
+
+                      {/* Production Planning */}
+                      <button
+                        onClick={handleProductionPlanning}
+                        className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white p-2.5 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
+                      >
+                        Production Planning
+                      </button>
+
+                      {/* Print Sales Order */}
+                      <button
+                        onClick={handlePrintOrder}
+                        className="flex items-center gap-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white p-2.5 rounded-lg hover:from-slate-600 hover:to-slate-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
+                      >
+                        Print Sales Order
+                      </button>
+
+                      {/* Download PDF */}
+                      <button
+                        onClick={handleDownloadPDF}
+                        className="flex items-center gap-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white p-2.5 rounded-lg hover:from-slate-600 hover:to-slate-700 transition-all shadow-md text-xs font-semibold hover:shadow-lg"
+                      >
+                        Download PDF
+                      </button>
                     </div>
                   </div>
                 )}

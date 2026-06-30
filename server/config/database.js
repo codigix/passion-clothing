@@ -193,6 +193,24 @@ const defineAssociations = () => {
     as: "clientRequirement",
   });
 
+  SalesOrder.belongsTo(ClientRequirement, {
+    foreignKey: "client_requirement_id",
+    as: "clientRequirement",
+  });
+  ClientRequirement.hasMany(SalesOrder, {
+    foreignKey: "client_requirement_id",
+    as: "salesOrders",
+  });
+
+  SalesOrder.belongsTo(Quotation, {
+    foreignKey: "quotation_id",
+    as: "quotation",
+  });
+  Quotation.hasMany(SalesOrder, {
+    foreignKey: "quotation_id",
+    as: "salesOrders",
+  });
+
   // Sales Order History associations
   SalesOrderHistory.belongsTo(SalesOrder, {
     foreignKey: "sales_order_id",

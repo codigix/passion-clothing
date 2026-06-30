@@ -42,7 +42,7 @@ const generateRequirementNumber = async (transaction) => {
     order: [["id", "DESC"]],
     transaction
   });
-  
+
   let seq = 1;
   if (lastReq && lastReq.requirement_number) {
     const parts = lastReq.requirement_number.split("-");
@@ -51,7 +51,7 @@ const generateRequirementNumber = async (transaction) => {
       seq = lastSeq + 1;
     }
   }
-  
+
   return `CR-${seq.toString().padStart(3, "0")}`;
 };
 
@@ -59,7 +59,7 @@ const generateRequirementNumber = async (transaction) => {
 const generateQuotationNumber = async (transaction) => {
   const today = new Date();
   const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-  
+
   const lastQuot = await Quotation.findOne({
     where: {
       quotation_number: {
@@ -69,7 +69,7 @@ const generateQuotationNumber = async (transaction) => {
     order: [["id", "DESC"]],
     transaction
   });
-  
+
   let seq = 1;
   if (lastQuot) {
     const parts = lastQuot.quotation_number.split("-");
@@ -78,7 +78,7 @@ const generateQuotationNumber = async (transaction) => {
       seq = lastSeq + 1;
     }
   }
-  
+
   return `QT-${dateStr}-${seq.toString().padStart(4, "0")}`;
 };
 
@@ -86,18 +86,18 @@ const generateQuotationNumber = async (transaction) => {
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const { search, status, category } = req.query;
-    
+
     // Build where conditions
     const where = {};
-    
+
     if (status) {
       where.status = status;
     }
-    
+
     if (category) {
       where.product_category = category;
     }
-    
+
     if (search) {
       where[Op.or] = [
         { requirement_number: { [Op.like]: `%${search}%` } },
@@ -106,7 +106,7 @@ router.get("/", authenticateToken, async (req, res) => {
         { project_name: { [Op.like]: `%${search}%` } }
       ];
     }
-    
+
     // Get list of requirements
     const requirements = await ClientRequirement.findAll({
       where,
@@ -118,7 +118,7 @@ router.get("/", authenticateToken, async (req, res) => {
       ],
       order: [["created_at", "DESC"]]
     });
-    
+
     // Calculate statistics (for dashboard cards)
     const counts = await ClientRequirement.findAll({
       attributes: [
@@ -127,7 +127,7 @@ router.get("/", authenticateToken, async (req, res) => {
       ],
       group: ["status"]
     });
-    
+
     const stats = {
       total: 0,
       Draft: 0,
@@ -136,14 +136,14 @@ router.get("/", authenticateToken, async (req, res) => {
       "Quotation Generated": 0,
       "Converted to SO": 0
     };
-    
+
     counts.forEach((item) => {
       const statusVal = item.getDataValue("status");
       const countVal = parseInt(item.getDataValue("count"), 10);
       stats[statusVal] = countVal;
       stats.total += countVal;
     });
-    
+
     res.json({
       requirements,
       stats
@@ -165,11 +165,11 @@ router.get("/:id", authenticateToken, async (req, res) => {
         }
       ]
     });
-    
+
     if (!requirement) {
       return res.status(404).json({ message: "Client requirement not found" });
     }
-    
+
     res.json(requirement);
   } catch (error) {
     console.error("Error fetching client requirement details:", error);
@@ -182,7 +182,7 @@ router.post("/", authenticateToken, uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const reqNo = await generateRequirementNumber(transaction);
-    
+
     // Parse products array
     let products = [];
     if (req.body.products) {
@@ -209,7 +209,7 @@ router.post("/", authenticateToken, uploadFields, async (req, res) => {
         }
       });
     }
-    
+
     // Legacy fallback details from first product if available
     const firstProduct = products[0] || {};
     const legacyAttachments = firstProduct.attachments || {};
@@ -253,12 +253,12 @@ router.post("/", authenticateToken, uploadFields, async (req, res) => {
       priority_flag: req.body.priority_flag || 'Normal',
       attachments: legacyAttachments,
       products: products,
-      dynamic_fields: req.body.dynamic_fields ? (() => { try { return JSON.parse(req.body.dynamic_fields); } catch(e) { return {}; } })() : {},
-      mfg_requirements: req.body.mfg_requirements ? (() => { try { return JSON.parse(req.body.mfg_requirements); } catch(e) { return {}; } })() : {},
-      variant_rows: req.body.variant_rows ? (() => { try { return JSON.parse(req.body.variant_rows); } catch(e) { return []; } })() : [],
+      dynamic_fields: req.body.dynamic_fields ? (() => { try { return JSON.parse(req.body.dynamic_fields); } catch (e) { return {}; } })() : {},
+      mfg_requirements: req.body.mfg_requirements ? (() => { try { return JSON.parse(req.body.mfg_requirements); } catch (e) { return {}; } })() : {},
+      variant_rows: req.body.variant_rows ? (() => { try { return JSON.parse(req.body.variant_rows); } catch (e) { return []; } })() : [],
       status: req.body.status || "Draft"
     }, { transaction });
-    
+
     await transaction.commit();
     res.status(201).json(requirement);
   } catch (error) {
@@ -277,7 +277,7 @@ router.put("/:id", authenticateToken, uploadFields, async (req, res) => {
       await transaction.rollback();
       return res.status(404).json({ message: "Client requirement not found" });
     }
-    
+
     // Parse products array
     let products = [];
     if (req.body.products) {
@@ -308,7 +308,7 @@ router.put("/:id", authenticateToken, uploadFields, async (req, res) => {
     // Legacy fallback details from first product if available
     const firstProduct = products[0] || {};
     const legacyAttachments = firstProduct.attachments || {};
-    
+
     await requirement.update({
       customer_name: req.body.customer_name,
       contact_person: req.body.contact_person,
@@ -347,12 +347,12 @@ router.put("/:id", authenticateToken, uploadFields, async (req, res) => {
       priority_flag: req.body.priority_flag || requirement.priority_flag,
       attachments: legacyAttachments,
       products: products,
-      dynamic_fields: req.body.dynamic_fields ? (() => { try { return JSON.parse(req.body.dynamic_fields); } catch(e) { return {}; } })() : requirement.dynamic_fields,
-      mfg_requirements: req.body.mfg_requirements ? (() => { try { return JSON.parse(req.body.mfg_requirements); } catch(e) { return {}; } })() : requirement.mfg_requirements,
-      variant_rows: req.body.variant_rows ? (() => { try { return JSON.parse(req.body.variant_rows); } catch(e) { return []; } })() : requirement.variant_rows,
+      dynamic_fields: req.body.dynamic_fields ? (() => { try { return JSON.parse(req.body.dynamic_fields); } catch (e) { return {}; } })() : requirement.dynamic_fields,
+      mfg_requirements: req.body.mfg_requirements ? (() => { try { return JSON.parse(req.body.mfg_requirements); } catch (e) { return {}; } })() : requirement.mfg_requirements,
+      variant_rows: req.body.variant_rows ? (() => { try { return JSON.parse(req.body.variant_rows); } catch (e) { return []; } })() : requirement.variant_rows,
       status: req.body.status || requirement.status
     }, { transaction });
-    
+
     await transaction.commit();
     res.json(requirement);
   } catch (error) {
@@ -370,10 +370,10 @@ router.patch("/:id/status", authenticateToken, async (req, res) => {
     if (!requirement) {
       return res.status(404).json({ message: "Client requirement not found" });
     }
-    
+
     requirement.status = status;
     await requirement.save();
-    
+
     res.json(requirement);
   } catch (error) {
     console.error("Error updating client requirement status:", error);
@@ -390,13 +390,13 @@ router.post("/:id/generate-quotation", authenticateToken, async (req, res) => {
       await transaction.rollback();
       return res.status(404).json({ message: "Client requirement not found" });
     }
-    
+
     const unitPrice = parseFloat(req.body.unit_price) || 0;
     const discountPercent = parseFloat(req.body.discount_percentage) || 0;
     const taxPercent = parseFloat(req.body.tax_percentage) || 18;
     const remarks = req.body.remarks;
     const validUntil = req.body.valid_until ? new Date(req.body.valid_until) : null;
-    
+
     // Calculations
     const qty = requirement.quantity;
     const totalAmount = qty * unitPrice;
@@ -404,9 +404,9 @@ router.post("/:id/generate-quotation", authenticateToken, async (req, res) => {
     const taxableAmount = totalAmount - discountAmount;
     const taxAmount = (taxableAmount * taxPercent) / 100;
     const finalAmount = taxableAmount + taxAmount;
-    
+
     const quotNo = await generateQuotationNumber(transaction);
-    
+
     const quotation = await Quotation.create({
       quotation_number: quotNo,
       client_requirement_id: requirement.id,
@@ -424,11 +424,11 @@ router.post("/:id/generate-quotation", authenticateToken, async (req, res) => {
       status: "Draft",
       remarks
     }, { transaction });
-    
+
     // Update requirement status
     requirement.status = "Quotation Generated";
     await requirement.save({ transaction });
-    
+
     await transaction.commit();
     res.status(201).json({ quotation, requirement });
   } catch (error) {
@@ -444,11 +444,11 @@ router.get("/quotations/:id", authenticateToken, async (req, res) => {
     const quotation = await Quotation.findOne({
       where: { client_requirement_id: req.params.id }
     });
-    
+
     if (!quotation) {
       return res.status(404).json({ message: "Quotation not found for this requirement" });
     }
-    
+
     res.json(quotation);
   } catch (error) {
     console.error("Error fetching quotation:", error);
@@ -558,7 +558,7 @@ router.post("/:id/rfq", authenticateToken, async (req, res) => {
     const history = requirement.rfq_history ? [...requirement.rfq_history] : [];
     const nextVersionSeq = history.length + 1;
     const version = `V${nextVersionSeq}`;
-    
+
     // Generate RFQ number: RFQ-XXXX-0001
     const reqSeq = requirement.requirement_number.split("-")[1] || "0000";
     const rfqNumber = `RFQ-${reqSeq}-${nextVersionSeq.toString().padStart(4, "0")}`;
@@ -596,7 +596,7 @@ router.post("/:id/rfq", authenticateToken, async (req, res) => {
     await transaction.commit();
 
     const emailService = require("../utils/emailService");
-    
+
     let emailSent = false;
     let whatsAppSent = false;
 
@@ -666,12 +666,29 @@ router.patch("/:id/rfq/:version/status", authenticateToken, async (req, res) => 
     // If approved, promote the approved RFQ items to requirement.products
     if (status === 'Approved') {
       const approvedRecord = history[targetIdx];
-      requirement.products = approvedRecord.rfqItems;
       
+      // Merge approved RFQ items with existing product specifications to prevent losing fields like clothing_data
+      const existingProducts = requirement.products || [];
+      requirement.products = approvedRecord.rfqItems.map((item, index) => {
+        const existing = existingProducts[index] || {};
+        return {
+          ...existing,
+          ...item,
+          clothing_data: {
+            ...(existing.clothing_data || {}),
+            ...(item.clothing_data || {})
+          },
+          category_details: {
+            ...(existing.category_details || {}),
+            ...(item.category_details || {})
+          }
+        };
+      });
+
       // Update active main columns for legacy support:
       const firstProduct = approvedRecord.rfqItems[0] || {};
       requirement.quantity = approvedRecord.rfqItems.reduce((s, p) => s + (parseInt(p.quantity, 10) || 0), 0);
-      
+
       if (!requirement.attachments) {
         requirement.attachments = {};
       }
@@ -697,6 +714,31 @@ router.patch("/:id/rfq/:version/status", authenticateToken, async (req, res) => 
     await transaction.rollback();
     console.error("Error updating RFQ status:", error);
     res.status(500).json({ message: "Failed to update RFQ status" });
+  }
+});
+
+// DELETE client requirement
+router.delete("/:id", authenticateToken, async (req, res) => {
+  try {
+    const requirement = await ClientRequirement.findByPk(req.params.id);
+    if (!requirement) {
+      return res.status(404).json({ message: "Client requirement not found" });
+    }
+
+    if (requirement.status === 'Converted to SO') {
+      return res.status(400).json({ message: "Cannot delete a requirement that is already converted to a Sales Order" });
+    }
+
+    // Delete associated quotation
+    await Quotation.destroy({
+      where: { client_requirement_id: requirement.id }
+    });
+
+    await requirement.destroy();
+    res.json({ success: true, message: "Client requirement deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting client requirement:", error);
+    res.status(500).json({ message: "Failed to delete client requirement" });
   }
 });
 

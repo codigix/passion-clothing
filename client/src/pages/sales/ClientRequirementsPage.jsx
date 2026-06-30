@@ -20,6 +20,7 @@ import {
   FaSpinner,
   FaEye,
   FaCalendarAlt,
+  FaTrash
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -155,6 +156,20 @@ const ClientRequirementsPage = () => {
   const handleShowQR = (req) => {
     setQrRequirement(req);
     setShowQRModal(true);
+  };
+
+  const handleDeleteRequirement = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this client requirement? This will also delete any associated quotations.')) {
+      return;
+    }
+    try {
+      await api.delete(`/client-requirements/${id}`);
+      toast.success('Client requirement deleted successfully');
+      fetchRequirements();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to delete client requirement');
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -638,6 +653,18 @@ const ClientRequirementsPage = () => {
                                           <FaCheckCircle size={12} /> Convert to SO
                                         </button>
                                       )}
+
+                                      {req.status !== 'Converted to SO' && (
+                                        <button
+                                          onClick={() => {
+                                            handleDeleteRequirement(req.id);
+                                            setActiveDropdown(null);
+                                          }}
+                                          className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 text-xs flex items-center gap-1.5 border-t border-gray-100"
+                                        >
+                                          <FaTrash size={12} /> Delete
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -740,6 +767,18 @@ const ClientRequirementsPage = () => {
                           className="flex-1 px-2 py-1 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
                         >
                           <FaEdit size={12} /> Edit
+                        </button>
+                      )}
+                      {req.status !== 'Converted to SO' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRequirement(req.id);
+                          }}
+                          className="px-2 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          title="Delete Requirement"
+                        >
+                          <FaTrash size={12} />
                         </button>
                       )}
                     </div>
