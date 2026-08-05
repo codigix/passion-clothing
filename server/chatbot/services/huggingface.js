@@ -61,6 +61,7 @@ Classify the user's intent into exactly one of these:
 - QUERY_ERP_DATA: User wants to check current statistics, low stock, summaries, or reports.
 - ERP_ACTION: User wants to create, edit, or delete items (e.g. create requirement, add RFQ, new quotation).
 - KNOWLEDGE_SEARCH: User asks "how-to" questions, asks about standard operating procedures (SOPs), manuals, drawing, or policies.
+- VIRTUAL_TRY_ON: User wants to virtually try on clothing, fit garments, or see style previews (e.g., "try on", "virtual try on", "how do I look in this", "fit shirt").
 - CONVERSATION: Greetings, checkins, or simple chit-chat.
 
 Also detect if the user's request matches a specific action:
@@ -78,6 +79,13 @@ Example:
   "action": "CHECK_INVENTORY",
   "entities": {
     "product_name": "Aluminium Section"
+  }
+}
+{
+  "intent": "VIRTUAL_TRY_ON",
+  "action": "NONE",
+  "entities": {
+    "product_name": "Blue Casual Shirt"
   }
 }`;
 
@@ -117,7 +125,17 @@ function fallbackIntentDetection(text) {
   let action = 'NONE';
   let entities = {};
 
-  if (normalized.includes('create') || normalized.includes('add') || normalized.includes('new') || normalized.includes('register')) {
+  if (normalized.includes('try on') || normalized.includes('try-on') || normalized.includes('virtual try') || normalized.includes('wear') || normalized.includes('fit')) {
+    intent = 'VIRTUAL_TRY_ON';
+    // Try to extract product name after "try on" or "fit"
+    const productWords = ['shirt', 't-shirt', 'tshirt', 'hoodie', 'jacket', 'pants', 'trousers', 'polo', 'dress', 'jeans'];
+    for (const word of productWords) {
+      if (normalized.includes(word)) {
+        entities.product_name = word;
+        break;
+      }
+    }
+  } else if (normalized.includes('create') || normalized.includes('add') || normalized.includes('new') || normalized.includes('register')) {
     intent = 'ERP_ACTION';
     if (normalized.includes('req') || normalized.includes('requirement')) {
       action = 'CREATE_REQUIREMENT';

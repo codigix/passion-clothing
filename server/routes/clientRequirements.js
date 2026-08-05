@@ -510,7 +510,7 @@ const upsertQuotationFromApprovedRFQ = async (requirement, rfqRecord, transactio
     quotation.tax_percentage = taxPct;
     quotation.tax_amount = totalTaxAmount;
     quotation.final_amount = totalFinalAmount;
-    quotation.status = "Sent"; // Quotation status is "Sent" as requested in the screenshot
+    quotation.status = "Pending"; // New quotation starts as Pending
     await quotation.save({ transaction });
   } else {
     // Create new quotation
@@ -528,7 +528,7 @@ const upsertQuotationFromApprovedRFQ = async (requirement, rfqRecord, transactio
       tax_percentage: taxPct,
       tax_amount: totalTaxAmount,
       final_amount: totalFinalAmount,
-      status: "Sent", // Quotation status is "Sent"
+      status: "Pending", // New quotation starts as Pending
       rfq_no: rfqRecord.rfq_number,
       rfq_version: rfqRecord.version,
       quotation_type: "Sent"
@@ -574,13 +574,13 @@ router.post("/:id/rfq", authenticateToken, async (req, res) => {
       }
     });
 
-    // ✅ Auto-Approved immediately on generation
+    // Set status to "Sent" initially
     const newRfqRecord = {
       version: version,
       rfq_number: rfqNumber,
       date: new Date().toISOString(),
       rfqItems: rfqItems,
-      status: "Approved",
+      status: "Sent",
       pdf_path: pdfResult.success ? `/uploads/pdfs/${pdfResult.filename}` : null
     };
 
@@ -588,10 +588,14 @@ router.post("/:id/rfq", authenticateToken, async (req, res) => {
     requirement.rfq_history = history;
     requirement.products = rfqItems;
 
-    await requirement.save({ transaction });
+    // Mark JSON fields as changed for Sequelize persistence
+    requirement.changed('rfq_history', true);
+    requirement.changed('products', true);
 
-    // ✅ Auto-create/update Quotation since RFQ is now Approved
-    await upsertQuotationFromApprovedRFQ(requirement, newRfqRecord, transaction);
+    // Update requirement status to "Review"
+    requirement.status = "Review";
+
+    await requirement.save({ transaction });
 
     await transaction.commit();
 
@@ -620,7 +624,7 @@ router.post("/:id/rfq", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: `RFQ ${version} generated & auto-approved. Quotation created successfully.`,
+      message: `RFQ ${version} generated and sent successfully to the customer.`,
       emailSent,
       whatsAppSent,
       requirement
@@ -695,11 +699,20 @@ router.patch("/:id/rfq/:version/status", authenticateToken, async (req, res) => 
       requirement.attachments.unit_cost = firstProduct.unit_cost;
       requirement.attachments.gst_percentage = firstProduct.gst_percentage;
 
+      // Update requirement status to Quotation Generated on RFQ Approval
+      requirement.status = "Quotation Generated";
+
+      // Mark JSON fields as changed for Sequelize persistence
+      requirement.changed('rfq_history', true);
+      requirement.changed('products', true);
+
       await requirement.save({ transaction });
 
       // Automatically upsert Quotation record
       await upsertQuotationFromApprovedRFQ(requirement, approvedRecord, transaction);
     } else {
+      // Mark JSON fields as changed for Sequelize persistence
+      requirement.changed('rfq_history', true);
       await requirement.save({ transaction });
     }
 

@@ -46,6 +46,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import DevToolsPage from "./pages/DevToolsPage";
 
 // Sales Pages
+import CrmPage from "./pages/crm/CrmPage";
 import SalesOrdersPage from "./pages/sales/SalesOrdersPage";
 import SalesOrderDetailsPage from "./pages/sales/SalesOrderDetailsPage";
 import CreateSalesOrderPage from "./pages/sales/CreateSalesOrderPage";
@@ -55,6 +56,7 @@ import ClientRequirementsPage from "./pages/sales/ClientRequirementsPage";
 import CreateClientRequirementPage from "./pages/sales/CreateClientRequirementPage";
 import ClientRequirementDetailsPage from "./pages/sales/ClientRequirementDetailsPage";
 import QuotationsPage from "./pages/sales/QuotationsPage";
+import VirtualTryOn from "./pages/sales/VirtualTryOn";
 
 // Procurement Pages
 import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
@@ -350,6 +352,22 @@ function App() {
 
         {/* Sales Routes */}
         <Route
+          path="/sales/crm"
+          element={
+            <ProtectedDashboard department="sales">
+              <CrmPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/crm"
+          element={
+            <ProtectedDashboard department="sales">
+              <CrmPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
           path="/sales/orders"
           element={
             <ProtectedDashboard department="sales">
@@ -426,6 +444,14 @@ function App() {
           element={
             <ProtectedDashboard department="sales">
               <QuotationsPage />
+            </ProtectedDashboard>
+          }
+        />
+        <Route
+          path="/sales/virtual-try-on"
+          element={
+            <ProtectedDashboard department="sales">
+              <VirtualTryOn />
             </ProtectedDashboard>
           }
         />

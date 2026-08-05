@@ -197,11 +197,11 @@ router.post("/received", authenticateToken, async (req, res) => {
   }
 });
 
-// PATCH update quotation status (Approve/Reject)
+// PATCH update quotation status (Approve/Reject/Sent)
 router.patch("/:id/status", authenticateToken, async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { status } = req.body;
+    const { status, remarks } = req.body;
     const quotation = await Quotation.findByPk(req.params.id, { transaction });
     if (!quotation) {
       await transaction.rollback();
@@ -209,6 +209,33 @@ router.patch("/:id/status", authenticateToken, async (req, res) => {
     }
 
     quotation.status = status;
+
+    // Revision history tracking when status becomes Sent or Approved
+    if (status === 'Sent' || status === 'Approved') {
+      const entry = {
+        version: quotation.version || 'V1',
+        status: status,
+        rfq_no: quotation.rfq_no,
+        rfq_version: quotation.rfq_version,
+        unit_price: quotation.unit_price,
+        quantity: quotation.quantity,
+        total_amount: quotation.total_amount,
+        discount_percentage: quotation.discount_percentage,
+        discount_amount: quotation.discount_amount,
+        tax_percentage: quotation.tax_percentage,
+        tax_amount: quotation.tax_amount,
+        final_amount: quotation.final_amount,
+        remarks: remarks || (status === 'Sent' ? 'Initial Quotation' : 'Customer Approved'),
+        date_time: new Date().toISOString(),
+        created_by: req.user?.name || 'Admin'
+      };
+      const history = quotation.revision_history ? [...quotation.revision_history] : [];
+      const filteredHistory = history.filter(h => h.version !== entry.version);
+      filteredHistory.push(entry);
+      quotation.revision_history = filteredHistory;
+      quotation.changed('revision_history', true);
+    }
+
     await quotation.save({ transaction });
 
     // If a Received quotation is approved, automatically reject others for the same RFQ
@@ -232,6 +259,78 @@ router.patch("/:id/status", authenticateToken, async (req, res) => {
     await transaction.rollback();
     console.error("Error updating quotation status:", error);
     res.status(500).json({ message: "Failed to update quotation status" });
+  }
+});
+
+// POST create revision for a quotation (V1 -> V2 -> V3)
+router.post("/:id/revision", authenticateToken, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const quotation = await Quotation.findByPk(req.params.id, { transaction });
+    if (!quotation) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Quotation not found" });
+    }
+
+    // Save active version snapshot into revision history before revising
+    const snapshot = {
+      version: quotation.version || 'V1',
+      status: quotation.status || 'Sent',
+      rfq_no: quotation.rfq_no,
+      rfq_version: quotation.rfq_version,
+      unit_price: quotation.unit_price,
+      quantity: quotation.quantity,
+      total_amount: quotation.total_amount,
+      discount_percentage: quotation.discount_percentage,
+      discount_amount: quotation.discount_amount,
+      tax_percentage: quotation.tax_percentage,
+      tax_amount: quotation.tax_amount,
+      final_amount: quotation.final_amount,
+      remarks: quotation.remarks || 'Initial Quotation',
+      date_time: quotation.updated_at || new Date().toISOString(),
+      created_by: req.user?.name || 'Admin'
+    };
+
+    const history = quotation.revision_history ? [...quotation.revision_history] : [];
+    if (!history.find(h => h.version === snapshot.version)) {
+      history.push(snapshot);
+    }
+
+    // Determine next version sequence
+    const currentVerSeq = parseInt(quotation.version.replace('V', ''), 10) || 1;
+    const nextVersion = `V${currentVerSeq + 1}`;
+
+    quotation.version = nextVersion;
+    quotation.status = 'Pending'; // Revision reverts back to Pending until sent
+    quotation.revision_history = history;
+    quotation.changed('revision_history', true);
+
+    // Apply updates if sent in request body
+    if (req.body.unit_price !== undefined) quotation.unit_price = req.body.unit_price;
+    if (req.body.quantity !== undefined) quotation.quantity = req.body.quantity;
+    if (req.body.discount_percentage !== undefined) quotation.discount_percentage = req.body.discount_percentage;
+    if (req.body.tax_percentage !== undefined) quotation.tax_percentage = req.body.tax_percentage;
+    if (req.body.remarks !== undefined) quotation.remarks = req.body.remarks;
+
+    // Recalculate totals
+    const qty = parseInt(quotation.quantity, 10) || 0;
+    const price = parseFloat(quotation.unit_price) || 0;
+    const discPct = parseFloat(quotation.discount_percentage) || 0;
+    const taxPct = parseFloat(quotation.tax_percentage) || 18;
+
+    quotation.total_amount = qty * price;
+    quotation.discount_amount = (quotation.total_amount * discPct) / 100;
+    const taxable = quotation.total_amount - quotation.discount_amount;
+    quotation.tax_amount = (taxable * taxPct) / 100;
+    quotation.final_amount = taxable + quotation.tax_amount;
+
+    await quotation.save({ transaction });
+    await transaction.commit();
+    res.json(quotation);
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error creating quotation revision:", error);
+    res.status(500).json({ message: "Failed to create revision" });
   }
 });
 

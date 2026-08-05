@@ -294,7 +294,7 @@ const PRODUCT_TYPE_FIELDS = {
   'Sweatshirt': ['fit', 'sleeve_type', 'neck_type', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
   'Jacket': ['fit', 'sleeve_type', 'closure_type', 'lining', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
   'Trouser': ['fit', 'waist', 'length', 'fabric_type', 'fabric_gsm', 'colors', 'sizes'],
-  'Jeans': ['fit', 'waist_size', 'length', 'rise', 'stretch_type', 'fabric_gsm', 'fabric_composition', 'colors'],
+  'Jeans': ['fit', 'waist_size', 'length', 'rise', 'stretch_type', 'fabric_gsm', 'fabric_composition', 'colors', 'leg_opening', 'wash_type', 'pocket_style', 'button_type', 'zipper_type'],
   'Shorts': ['fit', 'waist_size', 'length', 'fabric_type', 'fabric_gsm', 'colors'],
   'Track Pant': ['fit', 'waist_size', 'length', 'fabric_type', 'fabric_gsm', 'colors'],
   'Jogger': ['fit', 'waist_size', 'ankle_style', 'fabric_type', 'fabric_gsm', 'colors'],
@@ -550,6 +550,57 @@ const ClothingDetailsSection = ({ data, onChange }) => {
               <select value={data.stretch_type || ''} onChange={e => set('stretch_type', e.target.value)} className={inputCls}>
                 <option value="">Select stretch type...</option>
                 {['Rigid (Non-Stretch)', 'Low Stretch', 'Medium Stretch', 'High Stretch'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Leg Opening */}
+          {showField('leg_opening') && (
+            <div>
+              <label className={labelCls}>Leg Opening</label>
+              <select value={data.leg_opening || ''} onChange={e => set('leg_opening', e.target.value)} className={inputCls}>
+                <option value="">Select leg opening...</option>
+                {['Straight', 'Slim', 'Skinny', 'Bootcut', 'Tapered', 'Wide Leg'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Wash Type */}
+          {showField('wash_type') && (
+            <div>
+              <label className={labelCls}>Wash Type</label>
+              <input type="text" value={data.wash_type || ''} onChange={e => set('wash_type', e.target.value)}
+                placeholder="e.g. Raw Denim, Stonewash, Acid Wash, Bleached" className={inputCls} />
+            </div>
+          )}
+
+          {/* Pocket Style */}
+          {showField('pocket_style') && (
+            <div>
+              <label className={labelCls}>Pocket Style</label>
+              <select value={data.pocket_style || ''} onChange={e => set('pocket_style', e.target.value)} className={inputCls}>
+                <option value="">Select pocket style...</option>
+                {['5-Pocket Standard', 'Chino Style', 'Utility Cargo', 'Slant Pockets', 'No Pockets'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Button Type */}
+          {showField('button_type') && (
+            <div>
+              <label className={labelCls}>Button Type</label>
+              <input type="text" value={data.button_type || ''} onChange={e => set('button_type', e.target.value)}
+                placeholder="e.g. Shank Button, Snap Button, Metal Button" className={inputCls} />
+            </div>
+          )}
+
+          {/* Zipper Type */}
+          {showField('zipper_type') && (
+            <div>
+              <label className={labelCls}>Zipper Type</label>
+              <select value={data.zipper_type || ''} onChange={e => set('zipper_type', e.target.value)} className={inputCls}>
+                <option value="">Select zipper type...</option>
+                {['YKK Metal Zip', 'Standard Zip', 'Button Fly', 'No Fly'].map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
           )}

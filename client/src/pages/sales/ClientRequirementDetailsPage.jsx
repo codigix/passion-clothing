@@ -904,7 +904,7 @@ const ClientRequirementDetailsPage = () => {
                                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
                                 >
                                   <FaPaperPlane className="w-3.5 h-3.5" />
-                                  {sendingRfq ? "Processing..." : `Generate & Auto-Approve RFQ (V${rfqHistory.length + 1})`}
+                                  {sendingRfq ? "Processing..." : `Generate & Send RFQ (V${rfqHistory.length + 1})`}
                                 </button>
 
                                 <div className="grid grid-cols-2 gap-2">
@@ -1404,15 +1404,24 @@ const ClientRequirementDetailsPage = () => {
                       📋 View / Edit Quotation
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setShowQuotationModal(true)}
-                    className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1"
-                  >
-                    <FaFileInvoiceDollar size={12} />
-                    📋 Create Quotation
-                  </button>
-                )
+                ) : (() => {
+                  const hasApprovedRFQ = (requirement.rfq_history || []).some(r => r.status === 'Approved');
+                  return (
+                    <button
+                      disabled={!hasApprovedRFQ}
+                      onClick={() => setShowQuotationModal(true)}
+                      className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1 ${
+                        hasApprovedRFQ
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer font-bold'
+                          : 'bg-slate-100 text-slate-400 border border-slate-205 cursor-not-allowed'
+                      }`}
+                      title={!hasApprovedRFQ ? "Requires Approved RFQ version" : ""}
+                    >
+                      <FaFileInvoiceDollar size={12} />
+                      📋 Create Quotation
+                    </button>
+                  );
+                })()
               )}
 
               {requirement.status === 'Quotation Generated' && (

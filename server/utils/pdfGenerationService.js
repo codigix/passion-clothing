@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const QRCode = require('qrcode');
 
-const PDF_OUTPUT_DIR = path.join(__dirname, '../../../uploads/pdfs');
+const PDF_OUTPUT_DIR = path.join(__dirname, '../uploads/pdfs');
 
 // Ensure PDF directory exists
 if (!fs.existsSync(PDF_OUTPUT_DIR)) {

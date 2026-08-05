@@ -22,6 +22,7 @@ const QuotationsPage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState(null);
+  const [viewingVersionSnapshot, setViewingVersionSnapshot] = useState(null);
   
   // Form State for new Received Quotation
   const [newReceivedData, setNewReceivedData] = useState({
@@ -125,6 +126,22 @@ const QuotationsPage = () => {
     } catch (error) {
       console.error('Error deleting quotation:', error);
       toast.error('Failed to delete quotation');
+    }
+  };
+
+  const handleCreateQuotationRevision = async (quotationId) => {
+    const remarks = prompt("Enter revision reason / remarks (e.g. Price Updated):");
+    if (remarks === null) return;
+    try {
+      await api.post(`/quotations/${quotationId}/revision`, { remarks });
+      toast.success("Quotation revised successfully. Status set to Pending.");
+      setShowViewModal(false);
+      setSelectedQuotation(null);
+      setViewingVersionSnapshot(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error revising quotation:', error);
+      toast.error(error.response?.data?.message || 'Failed to revise quotation');
     }
   };
 
@@ -581,92 +598,455 @@ const QuotationsPage = () => {
       )}
 
       {/* View Details Modal */}
-      {showViewModal && selectedQuotation && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">Quotation details</h2>
-              <button onClick={() => { setShowViewModal(false); setSelectedQuotation(null); }} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
-            </div>
-            <div className="p-5 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4">
+      {showViewModal && selectedQuotation && (() => {
+        const displayData = viewingVersionSnapshot || selectedQuotation;
+        const isSnapshot = !!viewingVersionSnapshot;
+        
+        // Parse products list
+        const productsList = selectedQuotation.clientRequirement?.products || [
+          {
+            product_name: displayData.product_name || selectedQuotation.product_name,
+            quantity: displayData.quantity || selectedQuotation.quantity,
+            unit: 'Pcs',
+            unit_cost: displayData.unit_price || selectedQuotation.unit_price,
+            discount_percentage: displayData.discount_percentage || selectedQuotation.discount_percentage,
+            gst_percentage: displayData.tax_percentage || selectedQuotation.tax_percentage
+          }
+        ];
+
+        // Format timeline milestones status
+        const currentStatus = selectedQuotation.status;
+        const timelineSteps = [
+          { label: 'Client Requirement', done: true },
+          { label: 'RFQ Approved', done: !!selectedQuotation.rfq_no },
+          { label: 'Quotation Generated', done: true },
+          { label: 'Sent to Customer', done: currentStatus === 'Sent' || currentStatus === 'Approved' || currentStatus === 'Converted to SO' },
+          { label: 'Approved', done: currentStatus === 'Approved' || currentStatus === 'Converted to SO' },
+          { label: 'Sales Order', done: currentStatus === 'Converted to SO' }
+        ];
+
+        // Revision history array helper
+        const historyList = selectedQuotation.revision_history || [];
+
+        return (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border border-slate-100">
+              
+              {/* Header */}
+              <div className="flex justify-between items-center px-6 py-4 bg-slate-900 text-white">
                 <div>
-                  <span className="text-gray-500 block">Quotation Number</span>
-                  <span className="font-semibold text-gray-800">{selectedQuotation.quotation_number}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500 block">RFQ Reference</span>
-                  <span className="font-semibold text-gray-800">{selectedQuotation.rfq_no || 'N/A'} (version {selectedQuotation.rfq_version || 'V1'})</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-gray-500 block">Customer Name</span>
-                  <span className="font-semibold text-gray-800">{selectedQuotation.customer_name}</span>
-                </div>
-                {selectedQuotation.quotation_type === 'Received' && (
-                  <div>
-                    <span className="text-gray-500 block">Vendor Name</span>
-                    <span className="font-semibold text-gray-800 text-blue-600">{selectedQuotation.vendor_name}</span>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-base font-bold tracking-tight">
+                      Quotation Viewer - {displayData.quotation_number}
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-500 text-white tracking-wider">
+                      {displayData.version || 'V1'}
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                      displayData.status === 'Approved' || displayData.status === 'Converted to SO'
+                        ? 'bg-emerald-500 text-white'
+                        : displayData.status === 'Sent'
+                        ? 'bg-blue-600 text-white'
+                        : displayData.status === 'Pending'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-rose-500 text-white'
+                    }`}>
+                      {displayData.status}
+                    </span>
                   </div>
-                )}
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Created: {new Date(selectedQuotation.createdAt).toLocaleDateString()} | Last Updated: {new Date(selectedQuotation.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedQuotation(null);
+                    setViewingVersionSnapshot(null);
+                  }}
+                  className="text-slate-400 hover:text-white text-2xl font-bold transition"
+                >
+                  ×
+                </button>
               </div>
-              <div>
-                <span className="text-gray-500 block">Product / Service Name</span>
-                <span className="font-semibold text-gray-800">{selectedQuotation.product_name}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-4 border-t border-b border-gray-100 py-3 my-2">
-                <div>
-                  <span className="text-gray-500 block text-xs uppercase">Qty</span>
-                  <span className="font-semibold text-gray-800">{selectedQuotation.quantity} Pcs</span>
-                </div>
-                <div>
-                  <span className="text-gray-500 block text-xs uppercase">Unit Rate</span>
-                  <span className="font-semibold text-gray-800">₹{parseFloat(selectedQuotation.unit_price).toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500 block text-xs uppercase">Base Amount</span>
-                  <span className="font-semibold text-gray-800">₹{parseFloat(selectedQuotation.total_amount).toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Discount ({selectedQuotation.discount_percentage}%)</span>
-                  <span className="font-semibold text-gray-800">-₹{parseFloat(selectedQuotation.discount_amount).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">GST ({selectedQuotation.tax_percentage}%)</span>
-                  <span className="font-semibold text-gray-800">+₹{parseFloat(selectedQuotation.tax_amount).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2 font-bold text-base text-gray-900">
-                  <span>Grand Total</span>
-                  <span>₹{parseFloat(selectedQuotation.final_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-              {selectedQuotation.valid_until && (
-                <div>
-                  <span className="text-gray-500 block">Valid Until</span>
-                  <span className="font-semibold text-gray-800">{new Date(selectedQuotation.valid_until).toLocaleDateString()}</span>
+
+              {/* Read-Only Mode Banner */}
+              {isSnapshot && (
+                <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex justify-between items-center text-xs text-amber-800">
+                  <span className="font-semibold flex items-center gap-1.5">
+                    ⚠️ Viewing Read-Only Archive Snapshot of Version {displayData.version} (Sent on {new Date(displayData.date_time).toLocaleString()})
+                  </span>
+                  <button
+                    onClick={() => setViewingVersionSnapshot(null)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 rounded font-bold transition text-[10px] uppercase"
+                  >
+                    Return to Active Version ({selectedQuotation.version})
+                  </button>
                 </div>
               )}
-              {selectedQuotation.remarks && (
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                  <span className="text-gray-500 block text-xs uppercase font-semibold mb-1">Remarks / Terms</span>
-                  <span className="text-gray-700">{selectedQuotation.remarks}</span>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Columns (Col Span 2) */}
+                <div className="lg:col-span-2 space-y-5">
+                  
+                  {/* Customer Information & RFQ Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    {/* Customer Info */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-2">
+                      <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider">
+                        👤 Customer Details
+                      </h3>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between"><span className="text-slate-500">Name:</span> <span className="font-bold text-slate-800">{selectedQuotation.customer_name}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Contact:</span> <span className="font-semibold text-slate-800">{selectedQuotation.clientRequirement?.contact_person || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Email:</span> <span className="font-semibold text-slate-800">{selectedQuotation.clientRequirement?.email || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Phone:</span> <span className="font-semibold text-slate-800">{selectedQuotation.clientRequirement?.mobile_number || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">GSTIN:</span> <span className="font-mono text-slate-800">{selectedQuotation.clientRequirement?.customer_gstin || 'N/A'}</span></div>
+                        <div className="pt-1"><span className="text-slate-500 block">Billing Address:</span> <span className="text-slate-700 font-medium">{selectedQuotation.clientRequirement?.customer_address || 'N/A'}</span></div>
+                      </div>
+                    </div>
+
+                    {/* RFQ Details */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-2">
+                      <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider">
+                        📑 RFQ / Project Info
+                      </h3>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between"><span className="text-slate-500">RFQ Ref:</span> <span className="font-bold text-blue-600">{displayData.rfq_no || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">RFQ Version:</span> <span className="font-bold">{displayData.rfq_version || 'V1'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Project Name:</span> <span className="font-semibold text-slate-800">{selectedQuotation.clientRequirement?.project_name || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Requirement No:</span> <span className="font-semibold text-slate-800">{selectedQuotation.clientRequirement?.requirement_number || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">RFQ Approved Date:</span> <span className="font-medium">
+                          {selectedQuotation.clientRequirement?.rfq_history?.find(r => r.rfq_number === displayData.rfq_no)?.date 
+                            ? new Date(selectedQuotation.clientRequirement.rfq_history.find(r => r.rfq_number === displayData.rfq_no).date).toLocaleDateString() 
+                            : 'N/A'}
+                        </span></div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Product Details List */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                      <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        📦 Quoted Items Summary
+                      </h3>
+                    </div>
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px]">
+                          <th className="px-4 py-2.5">Product Name</th>
+                          <th className="px-4 py-2.5 text-center">Qty</th>
+                          <th className="px-4 py-2.5 text-right">Unit Rate (₹)</th>
+                          <th className="px-4 py-2.5 text-right">GST %</th>
+                          <th className="px-4 py-2.5 text-right">Discount %</th>
+                          <th className="px-4 py-2.5 text-right">Total (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {productsList.map((item, idx) => {
+                          const qty = parseFloat(item.quantity) || 0;
+                          const rate = parseFloat(item.unit_cost) || 0;
+                          const gst = parseFloat(item.gst_percentage) || 18;
+                          const disc = parseFloat(item.discount_percentage) || 0;
+                          const base = qty * rate;
+                          const discAmt = base * disc / 100;
+                          const total = (base - discAmt) * (1 + gst / 100);
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 font-semibold text-slate-800">{item.product_name}</td>
+                              <td className="px-4 py-3 text-center font-bold text-slate-700">{qty} {item.unit || 'Pcs'}</td>
+                              <td className="px-4 py-3 text-right font-bold">₹{rate.toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right">{gst}%</td>
+                              <td className="px-4 py-3 text-right">{disc}%</td>
+                              <td className="px-4 py-3 text-right font-extrabold text-blue-600">
+                                ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Cost Summary & Terms */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    {/* Cost Summary */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-2 text-xs">
+                      <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider">
+                        💰 Financial Breakdown
+                      </h3>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Base Amount:</span>
+                        <span className="font-semibold text-slate-800">₹{parseFloat(displayData.total_amount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Discount ({displayData.discount_percentage || 0}%):</span>
+                        <span className="font-semibold text-rose-600">-₹{parseFloat(displayData.discount_amount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>GST ({displayData.tax_percentage || 18}%):</span>
+                        <span className="font-semibold text-slate-800">+₹{parseFloat(displayData.tax_amount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Freight / Shipping:</span>
+                        <span className="font-medium text-slate-400">₹0.00 (Standard)</span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm text-blue-800 bg-blue-50/50 p-2 rounded">
+                        <span>Grand Total:</span>
+                        <span>₹{parseFloat(displayData.final_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+
+                    {/* Terms & Conditions */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-2 text-xs">
+                      <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider">
+                        📑 Terms & Conditions
+                      </h3>
+                      <div className="space-y-1">
+                        <div><span className="text-slate-500 font-semibold">Payment Terms:</span> <span className="text-slate-850 font-semibold">{selectedQuotation.clientRequirement?.payment_terms || '50% Advance, 50% Before Dispatch'}</span></div>
+                        <div><span className="text-slate-500 font-semibold">Warranty:</span> <span className="text-slate-800">{selectedQuotation.clientRequirement?.dynamic_fields?.warranty || '1 Year Manufacturing Warranty'}</span></div>
+                        <div><span className="text-slate-500 font-semibold">Validity:</span> <span className="text-slate-800">{displayData.valid_until ? new Date(displayData.valid_until).toLocaleDateString() : '30 Days'}</span></div>
+                        {selectedQuotation.remarks && (
+                          <div className="pt-1.5">
+                            <span className="text-slate-500 block font-semibold">Remarks/Notes:</span>
+                            <p className="text-slate-700 bg-white p-2 rounded border border-slate-200 mt-1 font-medium italic">{displayData.remarks}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Attachments Section */}
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-2 text-xs">
+                    <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider">
+                      📎 Documents & Reference Attachments
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {selectedQuotation.clientRequirement?.rfq_history?.[selectedQuotation.clientRequirement.rfq_history.length - 1]?.pdf_path ? (
+                        <div className="flex justify-between items-center p-2.5 border border-slate-200 rounded bg-white">
+                          <div>
+                            <span className="font-bold block text-slate-700">RFQ Generated PDF</span>
+                            <span className="text-[10px] text-slate-400">Ref: {selectedQuotation.rfq_no}</span>
+                          </div>
+                          <a
+                            href={`http://localhost:5000${selectedQuotation.clientRequirement.rfq_history[selectedQuotation.clientRequirement.rfq_history.length - 1].pdf_path}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded transition"
+                          >
+                            <FaFilePdf size={14} />
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-slate-450 italic text-[11px]">No reference attachments available</span>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
-              )}
-            </div>
-            <div className="p-5 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => { setShowViewModal(false); setSelectedQuotation(null); }}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm transition-colors"
-              >
-                Close
-              </button>
+
+                {/* Right Column (Col Span 1) */}
+                <div className="space-y-5">
+
+                  {/* Workflow Timeline */}
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60">
+                    <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider mb-3">
+                      📍 Workflow Progress
+                    </h3>
+                    <div className="relative border-l border-slate-300 ml-2 space-y-4 text-xs pb-1">
+                      {timelineSteps.map((step, idx) => (
+                        <div key={idx} className="relative pl-5">
+                          <div className={`absolute -left-1.5 top-0.5 w-3.5 h-3.5 rounded-full border-2 ${
+                            step.done 
+                              ? 'bg-emerald-500 border-emerald-500' 
+                              : 'bg-white border-slate-300'
+                          }`} />
+                          <span className={`font-semibold ${step.done ? 'text-slate-800' : 'text-slate-400'}`}>
+                            {step.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Revision History */}
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
+                    <h3 className="text-xs font-bold text-slate-800 border-b pb-1.5 uppercase tracking-wider">
+                      📜 Revision History
+                    </h3>
+                    <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+                      <table className="w-full text-left text-[11px]">
+                        <thead>
+                          <tr className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase text-[9px]">
+                            <th className="p-2">Ver</th>
+                            <th className="p-2">Status</th>
+                            <th className="p-2">Sent By</th>
+                            <th className="p-2">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {/* Live Current Version Row */}
+                          <tr
+                            onClick={() => setViewingVersionSnapshot(null)}
+                            className={`cursor-pointer hover:bg-slate-50 font-semibold ${
+                              !isSnapshot ? 'bg-blue-50/50 text-blue-700' : ''
+                            }`}
+                          >
+                            <td className="p-2">
+                              {selectedQuotation.version || 'V1'}
+                              {!isSnapshot && <span className="ml-1 text-[8px] bg-blue-600 text-white px-1 py-0.2 rounded font-extrabold uppercase">Live</span>}
+                            </td>
+                            <td className="p-2">
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] uppercase font-bold ${
+                                selectedQuotation.status === 'Approved' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+                              }`}>
+                                {selectedQuotation.status}
+                              </span>
+                            </td>
+                            <td className="p-2">Admin</td>
+                            <td className="p-2">Current</td>
+                          </tr>
+                          
+                          {/* Past Revision History entries */}
+                          {historyList.map((h, i) => {
+                            const isCurrentViewingThis = viewingVersionSnapshot && viewingVersionSnapshot.version === h.version;
+                            return (
+                              <tr
+                                key={i}
+                                onClick={() => setViewingVersionSnapshot(h)}
+                                className={`cursor-pointer hover:bg-slate-50 text-slate-600 ${
+                                  isCurrentViewingThis ? 'bg-amber-50/80 text-amber-900 font-semibold border-l-2 border-amber-500' : ''
+                                }`}
+                              >
+                                <td className="p-2 font-bold">{h.version}</td>
+                                <td className="p-2">
+                                  <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded text-[9px] font-semibold uppercase">
+                                    {h.status || 'Sent'}
+                                  </span>
+                                </td>
+                                <td className="p-2">{h.created_by || 'Admin'}</td>
+                                <td className="p-2">{h.date_time ? new Date(h.date_time).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : 'N/A'}</td>
+                              </tr>
+                            );
+                          })}
+
+                          {historyList.length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="p-3 text-center text-slate-400 italic text-[10px]">
+                                No revision entries yet. Revisions are created once sent.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Footer Actions */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3">
+                <div className="flex gap-2">
+                  {selectedQuotation.clientRequirement?.rfq_history?.[selectedQuotation.clientRequirement.rfq_history.length - 1]?.pdf_path && (
+                    <a
+                      href={`http://localhost:5000${selectedQuotation.clientRequirement.rfq_history[selectedQuotation.clientRequirement.rfq_history.length - 1].pdf_path}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition"
+                    >
+                      <FaFilePdf /> View PDF
+                    </a>
+                  )}
+                  <button
+                    onClick={() => handleSendEmail(selectedQuotation)}
+                    className="px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold text-xs flex items-center gap-1.5 transition"
+                  >
+                    <FaEnvelope /> Email Quote
+                  </button>
+                  <button
+                    onClick={() => handleSendWhatsApp(selectedQuotation)}
+                    className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg font-bold text-xs flex items-center gap-1.5 transition"
+                  >
+                    <FaWhatsapp /> WhatsApp
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  {!isSnapshot && (selectedQuotation.status === 'Sent' || selectedQuotation.status === 'Approved') && (
+                    <button
+                      onClick={() => handleCreateQuotationRevision(selectedQuotation.id)}
+                      className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-xs transition"
+                    >
+                      Create Revision
+                    </button>
+                  )}
+
+                  {!isSnapshot && (selectedQuotation.status === 'Pending' || selectedQuotation.status === 'Sent') && (
+                    <>
+                      <button
+                        onClick={() => handleUpdateStatus(selectedQuotation.id, 'Approved')}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(selectedQuotation.id, 'Rejected')}
+                        className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs transition"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+
+                  {!isSnapshot && selectedQuotation.status === 'Approved' && (
+                    <button
+                      onClick={() => {
+                        setShowViewModal(false);
+                        navigate('/sales/orders/create', {
+                          state: {
+                            fromRequirement: true,
+                            requirementId: selectedQuotation.client_requirement_id,
+                            customerName: selectedQuotation.customer_name,
+                            productName: selectedQuotation.product_name,
+                            quantity: selectedQuotation.quantity,
+                            pricePerPiece: selectedQuotation.unit_price,
+                            gstPercentage: selectedQuotation.tax_percentage,
+                            specialInstructions: `From Quotation: ${selectedQuotation.quotation_number}`
+                          }
+                        });
+                      }}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-extrabold text-xs shadow-md transition animate-pulse"
+                    >
+                      Convert to Sales Order
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      setSelectedQuotation(null);
+                      setViewingVersionSnapshot(null);
+                    }}
+                    className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold rounded-lg text-xs transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Compare Modal */}
       {showCompareModal && selectedQuotation && (

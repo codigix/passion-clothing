@@ -93,6 +93,8 @@ const FloatingAIBot = () => {
       const materials = response.data.materials;
       const materialListName = response.data.materialListName;
       const totalEstimatedCost = response.data.totalEstimatedCost;
+      const suggestTryOn = response.data.suggestTryOn;
+      const tryOnProduct = response.data.tryOnProduct;
 
       // Append bot response with price/material suggestion metadata
       setMessages(prev => [
@@ -112,7 +114,9 @@ const FloatingAIBot = () => {
           materialListName,
           totalEstimatedCost,
           showPreview: false,
-          appliedMaterials: false
+          appliedMaterials: false,
+          suggestTryOn,
+          tryOnProduct
         }
       ]);
 
@@ -415,6 +419,24 @@ const FloatingAIBot = () => {
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {msg.suggestTryOn && (
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex flex-col gap-2">
+                      <span className="text-[11px] text-slate-500 font-medium">Ready to see how it fits?</span>
+                      <button
+                        onClick={() => {
+                          setIsOpen(false);
+                          navigate('/sales/virtual-try-on', {
+                            state: { preloadedGarment: msg.tryOnProduct }
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 text-white text-[10px] font-bold rounded-lg shadow-sm hover:shadow active:scale-95 transition-all focus:outline-none w-max flex items-center gap-1.5"
+                      >
+                        <Sparkles size={11} className="text-white animate-pulse" />
+                        ✨ Start Virtual Try-On
+                      </button>
                     </div>
                   )}
                 </div>

@@ -16,6 +16,7 @@
     "reset-verify": "node ../verify-all-tables-empty.js"
   },
   "dependencies": {
+    "@gradio/client": "^2.3.0",
     "@huggingface/inference": "^4.13.20",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",

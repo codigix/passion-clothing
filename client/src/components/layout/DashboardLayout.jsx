@@ -45,7 +45,7 @@ const DashboardLayout = ({ children }) => {
 
         <main
           className={`flex-1 flex flex-col min-h-screen transition-all duration-300 overflow-x-hidden ${
-            sidebarOpen ? 'ml-64' : 'ml-20'
+            sidebarOpen ? 'ml-[230px]' : 'ml-20'
           }`}
         >
           <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">

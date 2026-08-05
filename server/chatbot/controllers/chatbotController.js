@@ -107,6 +107,9 @@ async function handleMessage(req, res) {
     // 3. Classify Explicit Intent Type
     let intentType = 'IMAGE_REQUEST'; // default fallback
 
+    const isTryOn = /\b(try on|try-on|virtual try|wear|fitting|fit|preview)\b/i.test(textLower) || 
+                    (parsed && parsed.intent === 'VIRTUAL_TRY_ON');
+
     const isBOM = /\b(bom|material|component|fabric|accessories|thread|label|bag|polybag|box|list)\b/i.test(textLower) ||
                   textLower.includes('bill of materials') || 
                   textLower.includes('apply material') || 
@@ -118,7 +121,9 @@ async function handleMessage(req, res) {
 
     const isImage = /\b(show|send|display|view|give|image|picture|photo|look|draw|example|illustration|visual|gallery|images)\b/i.test(textLower);
 
-    if (isBOM) {
+    if (isTryOn) {
+      intentType = 'VIRTUAL_TRY_ON';
+    } else if (isBOM) {
       intentType = 'BOM_REQUEST';
     } else if (isPrice) {
       intentType = 'PRICE_REQUEST';
@@ -142,9 +147,17 @@ async function handleMessage(req, res) {
     let totalEstimatedCost = 0;
     let isActionPrompt = false;
     let pricingResult = null;
+    let suggestTryOn = false;
+    let tryOnProduct = '';
 
     // 4. Execute matching workflow routing
-    if (intentType === 'BOM_REQUEST') {
+    if (intentType === 'VIRTUAL_TRY_ON') {
+      suggestTryOn = true;
+      tryOnProduct = detectedProduct || 'Casual Shirt';
+      const formattedProductName = tryOnProduct.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      responseText = `✨ **Virtual Try-On Initiated** for **${formattedProductName}**!\n\nI can help you visualize how this garment fits your body structure. Click the **"✨ Try On Now"** button below to upload your photo or open your camera to begin the AI fitting process!`;
+    }
+    else if (intentType === 'BOM_REQUEST') {
       // BOM/Material list workflow (DO NOT fetch images)
       const productToSearch = detectedProduct || 'hoodie';
       const templateResult = templatesService.findTemplate(productToSearch);
@@ -260,7 +273,9 @@ Help the customer discover clothing, styles, colors, and fits in a natural conve
       suggestMaterialList,
       materials,
       materialListName,
-      totalEstimatedCost
+      totalEstimatedCost,
+      suggestTryOn,
+      tryOnProduct
     });
 
   } catch (error) {

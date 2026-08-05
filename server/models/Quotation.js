@@ -100,6 +100,16 @@ module.exports = (sequelize) => {
     remarks: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    version: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: 'V1'
+    },
+    revision_history: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: []
     }
   }, {
     tableName: 'quotations',

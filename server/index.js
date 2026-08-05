@@ -47,6 +47,7 @@ const creditNotesRoutes = require('./routes/creditNotes');
 const clientRequirementsRoutes = require('./routes/clientRequirements');
 const quotationsRoutes = require('./routes/quotations');
 const chatbotRoutes = require('./chatbot/routes/chatbot');
+const tryOnRoutes = require('./routes/tryOn');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -149,6 +150,7 @@ app.use('/api/credit-notes', creditNotesRoutes);
 app.use('/api/client-requirements', clientRequirementsRoutes);
 app.use('/api/quotations', quotationsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/try-on', tryOnRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
